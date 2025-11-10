@@ -284,11 +284,13 @@ export async function listOwnerTreatments(ownerId: string): Promise<{ treatments
       is_small,
       customer_id,
       questionnaire_result,
-      treatmentTypes (
+      treatmentTypes:treatment_types (
+        id,
         name,
-        size_class,
-        min_groom_price,
-        max_groom_price
+        size_class:default_duration_minutes,
+        min_groom_price:default_price,
+        max_groom_price:default_price,
+        color_hex
       )
     `
     )
@@ -1605,7 +1607,20 @@ export async function getManagerSchedule(
               treatment_id,
               customer_id,
               stations(id, name),
-              treatments(id, name, treatment_type_id, customer_id, treatmentTypes(name, size_class, min_groom_price, max_groom_price)),
+              treatments(
+                id,
+                name,
+                treatment_type_id,
+                customer_id,
+                treatmentTypes:treatment_types (
+                  id,
+                  name,
+                  size_class:default_duration_minutes,
+                  min_groom_price:default_price,
+                  max_groom_price:default_price,
+                  color_hex
+                )
+              ),
               customers(id, full_name, phone, email, classification)
             `
             )
@@ -1639,7 +1654,20 @@ export async function getManagerSchedule(
               treatment_id,
               customer_id,
               stations(id, name),
-              treatments(id, name, treatment_type_id, customer_id, treatmentTypes(name, size_class, min_groom_price, max_groom_price)),
+              treatments(
+                id,
+                name,
+                treatment_type_id,
+                customer_id,
+                treatmentTypes:treatment_types (
+                  id,
+                  name,
+                  size_class:default_duration_minutes,
+                  min_groom_price:default_price,
+                  max_groom_price:default_price,
+                  color_hex
+                )
+              ),
               customers(id, full_name, phone, email, classification)
             `
             )
@@ -2295,7 +2323,20 @@ export async function getSingleManagerAppointment(
             : ""
         }
         stations(id, name),
-        treatments(id, name, treatment_type_id, customer_id, treatmentTypes(name, size_class, min_groom_price, max_groom_price)),
+        treatments(
+          id,
+          name,
+          treatment_type_id,
+          customer_id,
+          treatmentTypes:treatment_types (
+            id,
+            name,
+            size_class:default_duration_minutes,
+            min_groom_price:default_price,
+            max_groom_price:default_price,
+            color_hex
+          )
+        ),
         customers(id, full_name, phone, email, classification)
       `
       )

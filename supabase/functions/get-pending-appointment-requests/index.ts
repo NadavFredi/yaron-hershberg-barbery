@@ -227,10 +227,6 @@ const fetchGroomingRequests = async (limit: number): Promise<PendingAppointmentR
         stations (
           id,
           name
-        ),
-        services (
-          id,
-          name
         )
       `,
     )
@@ -404,7 +400,17 @@ serve(async (req) => {
   } catch (error) {
     console.error("❌ [get-pending-appointment-requests] Unexpected error", error)
     const message =
-      error instanceof Error ? error.message : typeof error === "string" ? error : "Unexpected error"
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : (() => {
+              try {
+                return JSON.stringify(error)
+              } catch {
+                return "Unexpected error"
+              }
+            })()
     return new Response(
       JSON.stringify({
         success: false,

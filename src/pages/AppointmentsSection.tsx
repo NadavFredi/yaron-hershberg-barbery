@@ -335,9 +335,13 @@ export default function AppointmentsSection() {
                             name,
                             customer_id,
                             treatment_type_id,
-                            treatmentTypes (
+                            treatmentTypes:treatment_types (
                                 id,
-                                name
+                                name,
+                                size_class:default_duration_minutes,
+                                min_groom_price:default_price,
+                                max_groom_price:default_price,
+                                color_hex
                             )
                         ),
                         customers (
@@ -408,9 +412,13 @@ export default function AppointmentsSection() {
                             name,
                             customer_id,
                             treatment_type_id,
-                            treatmentTypes (
+                            treatmentTypes:treatment_types (
                                 id,
-                                name
+                                name,
+                                size_class:default_duration_minutes,
+                                min_groom_price:default_price,
+                                max_groom_price:default_price,
+                                color_hex
                             )
                         ),
                         customers (

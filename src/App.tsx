@@ -9,12 +9,10 @@ import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ResetPassword from "./pages/ResetPassword";
 import Admin from "./pages/Admin";
-import TreatmentTypesManagementPage from "./pages/TreatmentTypesManagement";
 import StationsManagementPage from "./pages/StationsManagement";
 import NotFound from "./pages/NotFound";
 import { AirtableDemo } from "./components/AirtableDemo";
 import { SimpleTest } from "./components/SimpleTest";
-import { OwnerTreatmentsList } from "./components/TreatmentTypeSelector";
 import { SecureAirtableDemo } from "./components/SecureAirtableDemo";
 import { AuthContainer } from "./components/auth/AuthContainer";
 import { UserOnboarding } from "./components/auth/UserOnboarding";
@@ -68,9 +66,7 @@ const AppContent = () => {
             <Route path="/profile" element={<ProfileSettings />} />
             <Route path="/airtable-demo" element={<AirtableDemo />} />
             <Route path="/test" element={<SimpleTest />} />
-            <Route path="/treatmentTypes" element={<OwnerTreatmentsList />} />
             <Route path="/secure-demo" element={<SecureAirtableDemo />} />
-            <Route path="/admin/treatmentTypes" element={<TreatmentTypesManagementPage />} />
             <Route path="/admin/stations" element={<StationsManagementPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/manager-screens" element={<ManagerScreens />} />

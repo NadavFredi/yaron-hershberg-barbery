@@ -204,6 +204,46 @@ CREATE TABLE IF NOT EXISTS public.treatments (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.customer_types (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  priority INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.services (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  category TEXT,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+INSERT INTO public.services (name, description, category, display_order, is_active)
+VALUES
+  ('grooming', 'טיפולי שיער במספרה', 'barbery', 1, true),
+  ('special-care', 'טיפולי פרימיום מותאמים אישית', 'barbery', 2, true)
+ON CONFLICT (name) DO UPDATE
+SET description = EXCLUDED.description,
+    category = EXCLUDED.category,
+    display_order = EXCLUDED.display_order,
+    is_active = EXCLUDED.is_active,
+    updated_at = now();
+
+
+CREATE TABLE IF NOT EXISTS public.station_allowed_customer_types (
+  station_id UUID NOT NULL REFERENCES public.stations(id) ON DELETE CASCADE,
+  customer_type_id UUID NOT NULL REFERENCES public.customer_types(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  PRIMARY KEY (station_id, customer_type_id)
+);
+
 CREATE TABLE IF NOT EXISTS public.daycare_waitlist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
@@ -336,6 +376,14 @@ CREATE TRIGGER set_updated_at_daycare_appointments
   BEFORE UPDATE ON public.daycare_appointments
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
+CREATE TRIGGER set_updated_at_customer_types
+  BEFORE UPDATE ON public.customer_types
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER set_updated_at_services
+  BEFORE UPDATE ON public.services
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
 -- Row Level Security ----------------------------------------------------------
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.treatment_types ENABLE ROW LEVEL SECURITY;
@@ -355,6 +403,9 @@ ALTER TABLE public.custom_absence_reasons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daycare_waitlist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.grooming_appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daycare_appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.station_allowed_customer_types ENABLE ROW LEVEL SECURITY;
 
 -- Policies (open for now while admin app is built)
 DO $$
@@ -448,6 +499,33 @@ BEGIN
     WHERE schemaname = 'public' AND tablename = 'daycare_appointments' AND policyname = 'Allow all operations on daycare_appointments'
   ) THEN
     EXECUTE 'CREATE POLICY "Allow all operations on daycare_appointments" ON public.daycare_appointments FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'customer_types' AND policyname = 'Allow all operations on customer_types'
+  ) THEN
+    EXECUTE '' ||
+      'CREATE POLICY "Allow all operations on customer_types" ' ||
+      'ON public.customer_types FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'services' AND policyname = 'Allow all operations on services'
+  ) THEN
+    EXECUTE '' ||
+      'CREATE POLICY "Allow all operations on services" ' ||
+      'ON public.services FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'station_allowed_customer_types' AND policyname = 'Allow all operations on station_allowed_customer_types'
+  ) THEN
+    EXECUTE '' ||
+      'CREATE POLICY "Allow all operations on station_allowed_customer_types" ' ||
+      'ON public.station_allowed_customer_types FOR ALL USING (true);';
   END IF;
 
   IF NOT EXISTS (
