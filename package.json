@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:airtable": "tsx src/scripts/test-airtable.ts",
-    "linkProject": "supabase link --project-ref lnxiunmjndntdnmhtlux",
+    "linkProject": "supabase link --project-ref odiwuvbbjenlinptsllt",
     "db:reset": "supabase db reset --local",
     "deploy:functions": "node scripts/deploy-functions.js",
     "functions:local": "supabase functions serve --env-file .env.local",
