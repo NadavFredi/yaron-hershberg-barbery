@@ -1,8 +1,8 @@
-import { Users, Tag } from "lucide-react"
+import { Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export const CUSTOMERS_SECTIONS: Array<{
-  id: "list" | "types"
+  id: "list"
   label: string
   description: string
   icon: JSX.Element
@@ -13,17 +13,11 @@ export const CUSTOMERS_SECTIONS: Array<{
     description: "ניהול רשימת לקוחות",
     icon: <Users className="h-4 w-4" />,
   },
-  {
-    id: "types",
-    label: "סוגי לקוחות",
-    description: "הגדרת סוגים וקדימויות",
-    icon: <Tag className="h-4 w-4" />,
-  },
 ]
 
 interface CustomersSubnavProps {
-  activeMode: "list" | "types"
-  onModeChange: (mode: "list" | "types") => void
+  activeMode: "list"
+  onModeChange: (mode: "list") => void
 }
 
 export function CustomersSubnav({ activeMode, onModeChange }: CustomersSubnavProps) {
