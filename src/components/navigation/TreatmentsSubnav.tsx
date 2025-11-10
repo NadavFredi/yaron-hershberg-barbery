@@ -2,7 +2,7 @@ import { Sparkles, Tag, Layers } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export const TREATMENTS_SECTIONS: Array<{
-    id: "list" | "category1" | "category2"
+    id: "list"
     label: string
     description: string
     icon: JSX.Element
@@ -12,18 +12,6 @@ export const TREATMENTS_SECTIONS: Array<{
         label: "טיפולים",
         description: "רשימת כל הטיפולים הפעילים במספרה",
         icon: <Sparkles className="h-4 w-4" />,
-    },
-    {
-        id: "category1",
-        label: "קטגוריות טיפולים",
-        description: "ניהול קבוצות וסידור טיפולים לפי נושאים",
-        icon: <Layers className="h-4 w-4" />,
-    },
-    {
-        id: "category2",
-        label: "קטגוריות מתקדמות",
-        description: "התאמות מיוחדות וחבילות טיפוח",
-        icon: <Tag className="h-4 w-4" />,
     },
 ]
 

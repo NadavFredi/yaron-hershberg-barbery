@@ -2,14 +2,11 @@ import { useEffect } from "react"
 import { useLocation, useSearchParams } from "react-router-dom"
 import TreatmentPlansListPage from "@/pages/TreatmentPlansListPage"
 import { TreatmentsSubnav } from "@/components/navigation/TreatmentsSubnav"
-import TreatmentCategoriesManagementPage from "@/pages/treatments/TreatmentCategoriesManagementPage"
-
-const VALID_MODES = ["list", "category1", "category2"] as const
-
+const VALID_MODES = ["list"] as const
 type ModeId = (typeof VALID_MODES)[number]
 
 const isValidMode = (value: string | null): value is ModeId => {
-    return Boolean(value && VALID_MODES.includes(value as ModeId))
+    return value != null && VALID_MODES.includes(value as ModeId)
 }
 
 export default function TreatmentsSection() {
@@ -50,8 +47,6 @@ export default function TreatmentsSection() {
             <div className="bg-background py-6">
                 <div className="mx-auto w-full px-1 sm:px-2 lg:px-3">
                     {activeMode === "list" && <TreatmentPlansListPage />}
-                    {activeMode === "category1" && <TreatmentCategoriesManagementPage variant="category1" />}
-                    {activeMode === "category2" && <TreatmentCategoriesManagementPage variant="category2" />}
                 </div>
             </div>
         </div>
