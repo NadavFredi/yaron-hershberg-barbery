@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.44.4"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,49 +7,16 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 }
 
-interface AirtableConfig {
-  pat: string
-  baseId: string
+const supabaseUrl = Deno.env.get("SUPABASE_URL")
+const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+  throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars are not set")
 }
 
-interface SubscriptionType {
-  id: string
-  name: string
-  description: string
-  price: string
-  order: number
-}
-
-async function fetchSubscriptionTypes(config: AirtableConfig): Promise<SubscriptionType[]> {
-  const url = `https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent("סוגי כרטיסיות")}`
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${config.pat}`,
-      "Content-Type": "application/json",
-    },
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Airtable error (${response.status}): ${errorText}`)
-  }
-
-  const data = await response.json()
-  const records = data.records ?? []
-
-  return records
-    .map((record: any) => {
-      const fields = record.fields ?? {}
-      return {
-        id: record.id,
-        name: fields["שם"] ?? "",
-        description: fields["תיאור קצר"] ?? "",
-        price: fields["מחיר"] ?? "",
-        order: fields["סדר"] ?? 0,
-      }
-    })
-    .sort((a: SubscriptionType, b: SubscriptionType) => a.order - b.order)
-}
+const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: { persistSession: false },
+})
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -63,8 +31,26 @@ serve(async (req: Request) => {
   }
 
   try {
-    const config = getAirtableConfig()
-    const subscriptionTypes = await fetchSubscriptionTypes(config)
+    const { data, error } = await supabase
+      .from("ticket_types")
+      .select("id, name, description, price, total_entries, is_unlimited, display_order")
+      .order("display_order", { ascending: true })
+      .order("name", { ascending: true })
+
+    if (error) {
+      throw error
+    }
+
+    const subscriptionTypes =
+      data?.map((record) => ({
+        id: record.id,
+        name: record.name ?? "",
+        description: record.description ?? "",
+        price: record.price !== null && record.price !== undefined ? Number(record.price).toString() : "",
+        order: record.display_order ?? 0,
+        totalEntries: record.total_entries ?? null,
+        isUnlimited: record.is_unlimited ?? false,
+      })) ?? []
 
     return new Response(JSON.stringify({ success: true, data: subscriptionTypes }), {
       status: 200,

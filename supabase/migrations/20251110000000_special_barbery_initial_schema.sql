@@ -156,19 +156,6 @@ CREATE TABLE IF NOT EXISTS public.ticket_types (
   CONSTRAINT ticket_types_name_unique UNIQUE (name)
 );
 
--- Auth-linked profile ---------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name TEXT,
-  phone_number TEXT,
-  email TEXT,
-  client_id UUID REFERENCES public.clients(id) ON DELETE SET NULL,
-  role TEXT NOT NULL DEFAULT 'client',
-  worker_is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
 -- Triggers to maintain updated_at ---------------------------------------------
 -- Customers & Treatments ------------------------------------------------------
 CREATE TYPE public.treatment_gender AS ENUM ('male', 'female', 'unknown');
@@ -220,6 +207,19 @@ CREATE TABLE IF NOT EXISTS public.treatments (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+-- Auth-linked profile ---------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name TEXT,
+  phone_number TEXT,
+  email TEXT,
+  client_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+  role TEXT NOT NULL DEFAULT 'client',
+  worker_is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.services (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL UNIQUE,
@@ -250,6 +250,24 @@ CREATE TABLE IF NOT EXISTS public.station_allowed_customer_types (
   PRIMARY KEY (station_id, customer_type_id)
 );
 
+CREATE TABLE IF NOT EXISTS public.treatment_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.treatmentType_treatment_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  treatment_type_id UUID NOT NULL REFERENCES public.treatment_types(id) ON DELETE CASCADE,
+  treatment_category_id UUID NOT NULL REFERENCES public.treatment_categories(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE (treatment_type_id, treatment_category_id)
+);
+
 CREATE TABLE IF NOT EXISTS public.daycare_waitlist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
@@ -268,6 +286,7 @@ CREATE TABLE IF NOT EXISTS public.grooming_appointments (
   customer_id UUID REFERENCES public.customers(id) ON DELETE CASCADE,
   treatment_id UUID REFERENCES public.treatments(id) ON DELETE CASCADE,
   station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
+  service_id UUID REFERENCES public.services(id) ON DELETE SET NULL,
   status public.appointment_status NOT NULL DEFAULT 'scheduled',
   payment_status public.payment_status NOT NULL DEFAULT 'unpaid',
   appointment_kind public.appointment_kind NOT NULL DEFAULT 'business',
@@ -287,6 +306,7 @@ CREATE TABLE IF NOT EXISTS public.daycare_appointments (
   station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
   status public.appointment_status NOT NULL DEFAULT 'scheduled',
   payment_status public.payment_status NOT NULL DEFAULT 'unpaid',
+  amount_due NUMERIC(10,2),
   service_type TEXT,
   start_at TIMESTAMP WITH TIME ZONE NOT NULL,
   end_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -451,6 +471,10 @@ CREATE TRIGGER set_updated_at_proposed_meeting_categories
   BEFORE UPDATE ON public.proposed_meeting_categories
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
+CREATE TRIGGER set_updated_at_treatment_categories
+  BEFORE UPDATE ON public.treatment_categories
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
 -- Row Level Security ----------------------------------------------------------
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.treatment_types ENABLE ROW LEVEL SECURITY;
@@ -477,6 +501,8 @@ ALTER TABLE public.combined_appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.proposed_meetings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.proposed_meeting_invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.proposed_meeting_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.treatment_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.treatmentType_treatment_categories ENABLE ROW LEVEL SECURITY;
 
 -- Policies (open for now while admin app is built)
 DO $$
@@ -633,6 +659,24 @@ BEGIN
     EXECUTE '' ||
       'CREATE POLICY "Allow all operations on proposed_meeting_categories" ' ||
       'ON public.proposed_meeting_categories FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'treatment_categories' AND policyname = 'Allow all operations on treatment_categories'
+  ) THEN
+    EXECUTE '' ||
+      'CREATE POLICY "Allow all operations on treatment_categories" ' ||
+      'ON public.treatment_categories FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'treatmentType_treatment_categories' AND policyname = 'Allow all operations on treatmentType_treatment_categories'
+  ) THEN
+    EXECUTE '' ||
+      'CREATE POLICY "Allow all operations on treatmentType_treatment_categories" ' ||
+      'ON public.treatmentType_treatment_categories FOR ALL USING (true);';
   END IF;
 
   IF NOT EXISTS (
