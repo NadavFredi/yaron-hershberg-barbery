@@ -92,7 +92,7 @@ export default function TreatmentCategoriesManagementPage({ variant }: Treatment
                     .from(config.relationTable)
                     .select(`
                         ${config.relationColumn},
-                        treatmentType:treatmentTypes!inner (
+                        treatmentType:treatment_types!inner (
                             id,
                             treatments:treatments (count)
                         )

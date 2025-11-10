@@ -1666,7 +1666,7 @@ export function SettingsTreatmentTypesSection({ defaultTreatmentTypeId, defaultT
         setIsBulkActionLoading(true)
         try {
             const { error } = await supabase
-                .from("treatmentTypes")
+                .from("treatment_types")
                 .update({ size_class: sizeClass })
                 .in("id", selectedTreatmentTypeIds)
 
@@ -1833,7 +1833,7 @@ export function SettingsTreatmentTypesSection({ defaultTreatmentTypeId, defaultT
         setCurrentBulkAction("delete")
         setIsBulkActionLoading(true)
         try {
-            const { error } = await supabase.from("treatmentTypes").delete().in("id", selectedTreatmentTypeIds)
+            const { error } = await supabase.from("treatment_types").delete().in("id", selectedTreatmentTypeIds)
             if (error) throw error
 
             setTreatmentTypes((prev) => prev.filter((treatmentType) => !selectedTreatmentTypeIds.includes(treatmentType.id)))
@@ -2072,7 +2072,7 @@ export function SettingsTreatmentTypesSection({ defaultTreatmentTypeId, defaultT
         setIsLoading(true)
         try {
             const { data, error } = await supabase
-                .from("treatmentTypes")
+                .from("treatment_types")
                 .select("*")
                 .order("name")
 
@@ -2166,7 +2166,7 @@ export function SettingsTreatmentTypesSection({ defaultTreatmentTypeId, defaultT
                 if (!params.name) throw new Error("TreatmentType name is required for new treatmentType")
 
                 const { data: newTreatmentType, error: treatmentTypeError } = await supabase
-                    .from("treatmentTypes")
+                    .from("treatment_types")
                     .insert({
                         name: params.name,
                         size_class: treatmentTypeToDuplicate.size_class,
@@ -2254,7 +2254,7 @@ export function SettingsTreatmentTypesSection({ defaultTreatmentTypeId, defaultT
                     if (params.copyDetails) {
                         // Update treatmentType details (but NOT the name - keep existing treatmentType name)
                         const { error: updateError } = await supabase
-                            .from("treatmentTypes")
+                            .from("treatment_types")
                             .update({
                                 size_class: sourceTreatmentType.size_class,
                                 min_groom_price: sourceTreatmentType.min_groom_price,
@@ -2460,7 +2460,7 @@ export function SettingsTreatmentTypesSection({ defaultTreatmentTypeId, defaultT
                 const isNewTreatmentType = treatmentTypeId.startsWith("new-")
 
                 if (isNewTreatmentType) {
-                    const { data: insertedData, error } = await supabase.from("treatmentTypes").insert(treatmentTypeData).select().single()
+                    const { data: insertedData, error } = await supabase.from("treatment_types").insert(treatmentTypeData).select().single()
                     if (error) throw error
                     updatedTreatmentType = insertedData
                     toast({
@@ -2468,7 +2468,7 @@ export function SettingsTreatmentTypesSection({ defaultTreatmentTypeId, defaultT
                         description: "הגזע נוצר בהצלחה",
                     })
                 } else {
-                    const { data: updatedData, error } = await supabase.from("treatmentTypes").update(treatmentTypeData).eq("id", treatmentTypeId).select().single()
+                    const { data: updatedData, error } = await supabase.from("treatment_types").update(treatmentTypeData).eq("id", treatmentTypeId).select().single()
                     if (error) throw error
                     updatedTreatmentType = updatedData
                     toast({
@@ -2706,7 +2706,7 @@ export function SettingsTreatmentTypesSection({ defaultTreatmentTypeId, defaultT
 
         setIsDeleting(true)
         try {
-            const { error } = await supabase.from("treatmentTypes").delete().eq("id", treatmentTypeToDelete.id)
+            const { error } = await supabase.from("treatment_types").delete().eq("id", treatmentTypeToDelete.id)
             if (error) throw error
 
             toast({

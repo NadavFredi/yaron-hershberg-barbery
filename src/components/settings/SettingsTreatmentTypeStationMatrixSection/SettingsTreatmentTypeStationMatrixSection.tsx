@@ -564,7 +564,7 @@ export function SettingsTreatmentTypeStationMatrixSection() {
         try {
             // Load treatmentTypes with prices, notes, and size_class
             const { data: treatmentTypesData, error: treatmentTypesError } = await supabase
-                .from("treatmentTypes")
+                .from("treatment_types")
                 .select("id, name, size_class, min_groom_price, max_groom_price, hourly_price, notes")
                 .order("name")
             if (treatmentTypesError) throw treatmentTypesError
@@ -1257,7 +1257,7 @@ export function SettingsTreatmentTypeStationMatrixSection() {
             console.log("[SettingsTreatmentTypeStationMatrixSection] Creating treatmentType:", newTreatmentTypeName.trim())
 
             const { data: newTreatmentType, error } = await supabase
-                .from("treatmentTypes")
+                .from("treatment_types")
                 .insert({ name: newTreatmentTypeName.trim() })
                 .select("id, name, min_groom_price, max_groom_price, hourly_price, notes")
                 .single()
@@ -1535,7 +1535,7 @@ export function SettingsTreatmentTypeStationMatrixSection() {
         try {
             // Update treatmentType basic fields (size_class, prices, notes)
             const { error } = await supabase
-                .from("treatmentTypes")
+                .from("treatment_types")
                 .update({
                     size_class: editedPrices.size_class,
                     min_groom_price: editedPrices.min_groom_price,
@@ -1668,7 +1668,7 @@ export function SettingsTreatmentTypeStationMatrixSection() {
         if (!editedPrices) return
 
         const { error } = await supabase
-            .from("treatmentTypes")
+            .from("treatment_types")
             .update({
                 min_groom_price: editedPrices.min_groom_price ?? null,
                 max_groom_price: editedPrices.max_groom_price ?? null,
@@ -2078,7 +2078,7 @@ export function SettingsTreatmentTypeStationMatrixSection() {
         setIsDeletingTreatmentType(true)
 
         try {
-            const { error } = await supabase.from("treatmentTypes").delete().eq("id", treatmentTypeToDelete.id)
+            const { error } = await supabase.from("treatment_types").delete().eq("id", treatmentTypeToDelete.id)
             if (error) throw error
 
             toast({
@@ -2124,7 +2124,7 @@ export function SettingsTreatmentTypeStationMatrixSection() {
                 if (!params.name) throw new Error("TreatmentType name is required for new treatmentType")
 
                 const { data: newTreatmentType, error: treatmentTypeError } = await supabase
-                    .from("treatmentTypes")
+                    .from("treatment_types")
                     .insert({
                         name: params.name,
                         size_class: treatmentTypeToDuplicate.size_class,
@@ -2244,7 +2244,7 @@ export function SettingsTreatmentTypeStationMatrixSection() {
                     if (params.copyDetails) {
                         // Update treatmentType details (but NOT the name - keep existing treatmentType name)
                         const { error: updateError } = await supabase
-                            .from("treatmentTypes")
+                            .from("treatment_types")
                             .update({
                                 size_class: sourceTreatmentType.size_class,
                                 min_groom_price: sourceTreatmentType.min_groom_price,

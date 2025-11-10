@@ -1815,7 +1815,7 @@ const ManagerSchedule = () => {
                 name,
                 treatment_type_id,
                 customer_id,
-                treatmentType:treatmentTypes (
+                treatmentType:treatment_types (
                     id,
                     name
                 )

@@ -44,7 +44,7 @@ export function AddTreatmentDialog({ open, onOpenChange, customerId, onSuccess }
     const searchTreatmentTypes = useCallback(async (searchTerm: string): Promise<string[]> => {
         try {
             let query = supabase
-                .from("treatmentTypes")
+                .from("treatment_types")
                 .select("name")
                 .order("name")
                 .limit(20)

@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS public.station_treatment_types (
 );
 
 CREATE TYPE public.appointment_status AS ENUM ('scheduled', 'completed', 'cancelled', 'no_show');
+CREATE TYPE public.payment_status AS ENUM ('unpaid', 'paid', 'partial');
+CREATE TYPE public.appointment_kind AS ENUM ('business', 'personal');
+CREATE TYPE public.questionnaire_result AS ENUM ('not_required', 'pending', 'approved', 'rejected');
 
 CREATE TABLE IF NOT EXISTS public.appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -76,9 +79,11 @@ CREATE TABLE IF NOT EXISTS public.appointments (
 CREATE TABLE IF NOT EXISTS public.station_unavailability (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   station_id UUID NOT NULL REFERENCES public.stations(id) ON DELETE CASCADE,
-  starts_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  ends_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_time TIMESTAMP WITH TIME ZONE NOT NULL,
   reason TEXT,
+  notes JSONB,
+  is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -93,6 +98,15 @@ CREATE TABLE IF NOT EXISTS public.calendar_settings (
 INSERT INTO public.calendar_settings (open_days_ahead)
 SELECT 30
 WHERE NOT EXISTS (SELECT 1 FROM public.calendar_settings);
+
+CREATE TABLE IF NOT EXISTS public.custom_absence_reasons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reason_text TEXT NOT NULL UNIQUE,
+  is_default BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
 
 -- Business operations ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.business_hours (
@@ -190,6 +204,58 @@ CREATE TABLE IF NOT EXISTS public.treatments (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.daycare_waitlist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+  treatment_id UUID REFERENCES public.treatments(id) ON DELETE SET NULL,
+  service_scope TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  start_date DATE,
+  end_date DATE,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.grooming_appointments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID REFERENCES public.customers(id) ON DELETE CASCADE,
+  treatment_id UUID REFERENCES public.treatments(id) ON DELETE CASCADE,
+  station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
+  status public.appointment_status NOT NULL DEFAULT 'scheduled',
+  payment_status public.payment_status NOT NULL DEFAULT 'unpaid',
+  appointment_kind public.appointment_kind NOT NULL DEFAULT 'business',
+  start_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  customer_notes TEXT,
+  internal_notes TEXT,
+  amount_due NUMERIC(10,2),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.daycare_appointments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID REFERENCES public.customers(id) ON DELETE CASCADE,
+  treatment_id UUID REFERENCES public.treatments(id) ON DELETE CASCADE,
+  station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
+  status public.appointment_status NOT NULL DEFAULT 'scheduled',
+  payment_status public.payment_status NOT NULL DEFAULT 'unpaid',
+  service_type TEXT,
+  start_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  customer_notes TEXT,
+  internal_notes TEXT,
+  questionnaire_result public.questionnaire_result NOT NULL DEFAULT 'pending',
+  late_pickup_requested BOOLEAN,
+  late_pickup_notes TEXT,
+  garden_trim_nails BOOLEAN,
+  garden_brush BOOLEAN,
+  garden_bath BOOLEAN,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -254,6 +320,22 @@ CREATE TRIGGER set_updated_at_ticket_types
   BEFORE UPDATE ON public.ticket_types
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
+CREATE TRIGGER set_updated_at_custom_absence_reasons
+  BEFORE UPDATE ON public.custom_absence_reasons
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER set_updated_at_daycare_waitlist
+  BEFORE UPDATE ON public.daycare_waitlist
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER set_updated_at_grooming_appointments
+  BEFORE UPDATE ON public.grooming_appointments
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER set_updated_at_daycare_appointments
+  BEFORE UPDATE ON public.daycare_appointments
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
 -- Row Level Security ----------------------------------------------------------
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.treatment_types ENABLE ROW LEVEL SECURITY;
@@ -269,6 +351,10 @@ ALTER TABLE public.business_hours ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.station_working_hours ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daycare_capacity_limits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ticket_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.custom_absence_reasons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daycare_waitlist ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.grooming_appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daycare_appointments ENABLE ROW LEVEL SECURITY;
 
 -- Policies (open for now while admin app is built)
 DO $$
@@ -334,6 +420,34 @@ BEGIN
     WHERE schemaname = 'public' AND tablename = 'calendar_settings' AND policyname = 'Allow all operations on calendar_settings'
   ) THEN
     EXECUTE 'CREATE POLICY "Allow all operations on calendar_settings" ON public.calendar_settings FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'custom_absence_reasons' AND policyname = 'Allow all operations on custom_absence_reasons'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow all operations on custom_absence_reasons" ON public.custom_absence_reasons FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'daycare_waitlist' AND policyname = 'Allow all operations on daycare_waitlist'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow all operations on daycare_waitlist" ON public.daycare_waitlist FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'grooming_appointments' AND policyname = 'Allow all operations on grooming_appointments'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow all operations on grooming_appointments" ON public.grooming_appointments FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'daycare_appointments' AND policyname = 'Allow all operations on daycare_appointments'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow all operations on daycare_appointments" ON public.daycare_appointments FOR ALL USING (true);';
   END IF;
 
   IF NOT EXISTS (

@@ -263,10 +263,11 @@ export default function WaitingListPage() {
                     id,
                     name,
                     treatment_type_id,
-                    treatmentType:treatmentTypes (
+                    treatmentType:treatment_types (
                         id,
                         name,
-                        size_class
+                        default_duration_minutes,
+                        default_price
                     )
                 `)
                 .in("id", treatmentIds)

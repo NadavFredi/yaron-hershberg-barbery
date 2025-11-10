@@ -287,7 +287,7 @@ export function SettingsStationsSection() {
 
             // Load treatmentTypes
             const { data: treatmentTypesData, error: treatmentTypesError } = await supabase
-                .from("treatmentTypes")
+                .from("treatment_types")
                 .select("id, name")
                 .order("name")
 
