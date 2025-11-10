@@ -1,0 +1,5 @@
+---
+description: dont deploy functions. unless i tell you explicitly
+globs:
+alwaysApply: true
+---

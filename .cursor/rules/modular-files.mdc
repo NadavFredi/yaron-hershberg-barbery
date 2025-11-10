@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+description: keep files small, short, reuse components if possible, and make scalable code
+---
