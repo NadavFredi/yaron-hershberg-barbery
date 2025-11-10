@@ -1796,12 +1796,12 @@ export const supabaseApi = createApi({
               gender,
               is_small,
               customer_id,
-              treatmentTypes:treatment_type_id (
+              treatmentDetails:treatment_type_id (
                 id,
                 name,
-                size_class,
-                min_groom_price,
-                max_groom_price
+                default_duration_minutes,
+                default_price,
+                color_hex
               )
             `
             )
@@ -1819,87 +1819,32 @@ export const supabaseApi = createApi({
             gender: "male" | "female" | null
             is_small: boolean | null
             customer_id: string
-            treatmentTypes: {
+            treatmentDetails: {
               id: string
               name: string
-              size_class: string | null
-              min_groom_price: number | null
-              max_groom_price: number | null
+              default_duration_minutes: number | null
+              default_price: number | null
+              color_hex: string | null
             } | null
           }
 
-          const treatmentIds = (treatmentsData || []).map((treatment: TreatmentWithTreatmentType) => treatment.id).filter(Boolean)
-          let appointmentHistoryByTreatment: Record<string, boolean> = {}
-
-          if (treatmentIds.length > 0) {
-            const [{ data: daycareRows, error: daycareError }, { data: groomingRows, error: groomingError }] =
-              await Promise.all([
-                supabase.from("daycare_appointments").select("treatment_id").in("treatment_id", treatmentIds),
-                supabase.from("grooming_appointments").select("treatment_id").in("treatment_id", treatmentIds),
-              ])
-
-            if (daycareError) {
-              console.error("❌ [listOwnerTreatments] Daycare history query failed:", daycareError)
-              return { error: { status: "SUPABASE_ERROR", data: daycareError.message } }
-            }
-
-            if (groomingError) {
-              console.error("❌ [listOwnerTreatments] Grooming history query failed:", groomingError)
-              return { error: { status: "SUPABASE_ERROR", data: groomingError.message } }
-            }
-
-            ;(daycareRows ?? []).forEach((row) => {
-              if (row?.treatment_id) {
-                appointmentHistoryByTreatment[row.treatment_id] = true
-              }
-            })
-
-            ;(groomingRows ?? []).forEach((row) => {
-              if (row?.treatment_id) {
-                appointmentHistoryByTreatment[row.treatment_id] = true
-              }
-            })
-          }
-
-          // Get all unique treatmentType IDs from the treatments
-          const treatmentTypeIds = [...new Set((treatmentsData || []).map((treatment: TreatmentWithTreatmentType) => treatment.treatmentTypes?.id).filter(Boolean) as string[])]
-          
-          // Fetch station_treatmentType_rules for all treatmentTypes to calculate requires_staff_approval
-          let treatmentTypeRequiresApproval: Record<string, boolean> = {}
-          if (treatmentTypeIds.length > 0) {
-            const { data: stationTreatmentTypeRules, error: rulesError } = await supabase
-              .from("station_treatmentType_rules")
-              .select("treatment_type_id, is_active, requires_staff_approval")
-              .in("treatment_type_id", treatmentTypeIds)
-              .eq("is_active", true)
-              .eq("requires_staff_approval", true)
-
-            if (!rulesError && stationTreatmentTypeRules) {
-              // If any active station requires approval for a treatmentType, mark that treatmentType as requiring approval
-              const treatmentTypesWithApproval = new Set(
-                stationTreatmentTypeRules.map((rule) => rule.treatment_type_id).filter(Boolean) as string[]
-              )
-              treatmentTypeIds.forEach((treatmentTypeId) => {
-                treatmentTypeRequiresApproval[treatmentTypeId] = treatmentTypesWithApproval.has(treatmentTypeId)
-              })
-            }
-          }
+          const appointmentHistoryByTreatment: Record<string, boolean> = {}
 
           const treatments = (treatmentsData || []).map((treatment: TreatmentWithTreatmentType) => {
-            const treatmentType = treatment.treatmentTypes || null
+            const treatmentType = treatment.treatmentDetails || null
 
             return {
               id: treatment.id,
               name: treatment.name || "",
               gender: treatment.gender,
               treatmentType: treatmentType?.name || "",
-              size: treatmentType?.size_class || "",
-              isSmall: treatmentType?.size_class === "small" || treatment.is_small === true,
+              size: treatmentType?.default_duration_minutes ? `${treatmentType.default_duration_minutes} דקות` : "",
+              isSmall: treatment.is_small === true,
               ownerId: treatment.customer_id,
               hasAppointmentHistory: Boolean(appointmentHistoryByTreatment[treatment.id]),
-              requiresSpecialApproval: Boolean(treatmentType?.id && treatmentTypeRequiresApproval[treatmentType.id]),
-              groomingMinPrice: treatmentType?.min_groom_price ? Number(treatmentType.min_groom_price) : null,
-              groomingMaxPrice: treatmentType?.max_groom_price ? Number(treatmentType.max_groom_price) : null,
+              requiresSpecialApproval: false,
+              groomingMinPrice: treatmentType?.default_price ? Number(treatmentType.default_price) : null,
+              groomingMaxPrice: treatmentType?.default_price ? Number(treatmentType.default_price) : null,
               hasBeenToGarden: undefined,
               questionnaireSuitableForGarden: undefined,
               staffApprovedForGarden: undefined,

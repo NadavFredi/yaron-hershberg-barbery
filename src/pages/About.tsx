@@ -26,9 +26,9 @@ const experienceOptions: Record<ExperienceId, ExperienceOption> = {
     garden: {
         id: "garden",
         type: "fillout",
-        title: "הכירו את גן הכלבים שלנו",
-        subtitle: "שגרה שמלאה באהבה, משחקים ולמידה",
-        description: "קבלו הצצה ליום של כלב בגן B LOVED - התכנית, הצוות והאווירה שאנחנו בונים לכל חבר על ארבע.",
+        title: "הכירו את מתחם הטיפולים הפרטיים",
+        subtitle: "רוגע, נינוחות וטיפול אישי בכל לקוח",
+        description: "גלו כיצד אנחנו בונים שגרה של טיפולי שיער מפנקים המשלבים יחס אישי, טכניקות מתקדמות ומוצרים קוסמטיים יוקרתיים.",
         emoji: "🌿",
         filloutId: "o4iG1m9JH9us",
         accent: "from-emerald-50 to-emerald-100"
@@ -36,9 +36,9 @@ const experienceOptions: Record<ExperienceId, ExperienceOption> = {
     barber: {
         id: "barber",
         type: "fillout",
-        title: "הכירו את המספרה המקצועית שלנו",
-        subtitle: "טיפוח שמרגיש כמו ספא",
-        description: "גלו כיצד אנחנו הופכים כל תספורת לחוויה רגועה ומפנקת - מהשיטות ועד המוצרים המיוחדים.",
+        title: "הפילוסופיה של המספרה יוצאת הדופן",
+        subtitle: "חוויית טיפוח ממוקדת בלקוח",
+        description: "שמעו על השיטה של ירון הרשברג לטיפולי שיער מתקדמים – מכלי העבודה ועד להתאמות המדויקות לכל מבקר.",
         emoji: "✂️",
         filloutId: "jjExQ3PQZZus",
         accent: "from-sky-50 to-blue-100"
@@ -47,8 +47,8 @@ const experienceOptions: Record<ExperienceId, ExperienceOption> = {
         id: "pricing",
         type: "pricing",
         title: "השקיפות שלנו בתמחור",
-        subtitle: "בחרו גזע וקבלו טווח מחיר מיידי",
-        description: "התאימו את חוויית הטיפוח לצרכים של הכלב שלכם. בחרו גזע, ראו את טווח המחירים המשוער וגלו מה משפיע על התמחור.",
+        subtitle: "בחרו טיפול וקבלו טווח מחיר מיידי",
+        description: "התאימו את חוויית השיער לצרכים שלכם. בחרו טיפול ייחודי, ראו את טווח המחירים המשוער וגלו מה משפיע על העלות.",
         emoji: "💰",
         accent: "from-amber-50 to-orange-100"
     }
@@ -57,9 +57,10 @@ const experienceOptions: Record<ExperienceId, ExperienceOption> = {
 type PricingTreatmentType = {
     id: string
     name: string
-    size_class?: string | null
-    min_groom_price?: number | null
-    max_groom_price?: number | null
+    description?: string | null
+    default_duration_minutes?: number | null
+    default_price?: number | null
+    color_hex?: string | null
 }
 
 export default function About() {
@@ -81,7 +82,7 @@ export default function About() {
                         רוצים לדעת על מה כולם מדברים?
                     </h1>
                     <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                        בחרו אם תרצו לגלות עוד על גן הכלבים שלנו או על המספרה המקצועית. כל בחירה תפתח עבורכם חוויית עומק ממוקדת ומהנה.
+                        בחרו את המסלול שמעניין אתכם – מהחוויה בסלון ועד פירוט הטיפולים המיוחדים. כל אפשרות חושפת שכבה נוספת במספרה יוצאת הדופן של ירון הרשברג.
                     </p>
                 </header>
 
@@ -216,23 +217,21 @@ function PricingExperience() {
             return []
         }
 
-        const normalized = (treatmentTypes as unknown[]).map((treatmentType) => {
-            const record = treatmentType as PricingTreatmentType & { [key: string]: unknown }
-            return {
-                id: record.id,
-                name: record.name,
-                size_class: (record.size_class ?? null) as string | null,
-                min_groom_price: typeof record.min_groom_price === "number" ? record.min_groom_price : null,
-                max_groom_price: typeof record.max_groom_price === "number" ? record.max_groom_price : null
-            }
-        })
+        const normalized = (treatmentTypes as PricingTreatmentType[]).map((treatmentType) => ({
+            id: treatmentType.id,
+            name: treatmentType.name,
+            description: treatmentType.description,
+            default_duration_minutes: treatmentType.default_duration_minutes,
+            default_price: treatmentType.default_price,
+            color_hex: treatmentType.color_hex
+        }))
 
         return normalized.sort((a, b) => a.name.localeCompare(b.name, "he"))
     }, [treatmentTypes])
 
     useEffect(() => {
         if (sortedTreatmentTypes.length) {
-            console.log("🐾 [PricingExperience] נטענו", sortedTreatmentTypes.length, "גזעים להצגת מחירים")
+            console.log("✨ [PricingExperience] נטענו", sortedTreatmentTypes.length, "טיפולים להצגת מחירים")
         }
     }, [sortedTreatmentTypes])
 
@@ -242,12 +241,11 @@ function PricingExperience() {
 
     useEffect(() => {
         if (selectedTreatmentType) {
-            console.log("💡 [PricingExperience] הגזע שנבחר עבור תמחור:", {
+            console.log("💡 [PricingExperience] הטיפול שנבחר עבור תמחור:", {
                 id: selectedTreatmentType.id,
                 name: selectedTreatmentType.name,
-                size: selectedTreatmentType.size_class,
-                minPrice: selectedTreatmentType.min_groom_price,
-                maxPrice: selectedTreatmentType.max_groom_price
+                duration: selectedTreatmentType.default_duration_minutes,
+                price: selectedTreatmentType.default_price
             })
         }
     }, [selectedTreatmentType])
@@ -278,32 +276,24 @@ function PricingExperience() {
         return `₪${price.toLocaleString("he-IL")}`
     }
 
-    const translateSize = (size: string | null | undefined) => {
-        if (!size) {
-            return "גודל מותאם אישית"
-        }
+    const hasPriceData = typeof selectedTreatmentType?.default_price === "number"
 
-        switch (size.toLowerCase()) {
-            case "small":
-                return "כלבים קטנים"
-            case "medium":
-                return "כלבים בינוניים"
-            case "large":
-                return "כלבים גדולים"
-            default:
-                return "גודל מותאם אישית"
-        }
+    const formatDuration = (minutes?: number | null) => {
+        if (!minutes || minutes <= 0) return "משך מותאם אישית"
+        if (minutes < 60) return `${minutes} דקות`
+        const hours = Math.floor(minutes / 60)
+        const remaining = minutes % 60
+        return remaining
+            ? `${hours} שעות ו-${remaining} דקות`
+            : `${hours} שעות`
     }
-
-    const hasPriceData =
-        typeof selectedTreatmentType?.min_groom_price === "number" || typeof selectedTreatmentType?.max_groom_price === "number"
 
     return (
         <div className="space-y-4 text-right" dir="rtl">
 
             {isLoading ? (
                 <div className="rounded-2xl border border-blue-100 bg-white/90 p-4 text-sm text-gray-600">
-                    טוען רשימת גזעים...
+                    טוען סוגי טיפולים...
                 </div>
             ) : null}
 
@@ -324,7 +314,7 @@ function PricingExperience() {
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <span className="text-sm font-medium text-gray-800">
-                            חפשו גזע והציגו את טווח המחירים שלנו
+                            חפשו טיפול והציגו את טווח המחירים שלנו
                         </span>
                         <AutocompleteFilter
                             value={inputValue}
@@ -340,13 +330,13 @@ function PricingExperience() {
                                 const treatmentType = sortedTreatmentTypes.find((option) => option.name === value)
                                 if (treatmentType) {
                                     setSelectedTreatmentTypeId(treatmentType.id)
-                                    console.log("🎯 [PricingExperience] משתמש בחר גזע חדש:", {
+                                    console.log("🎯 [PricingExperience] משתמש בחר טיפול חדש:", {
                                         id: treatmentType.id,
                                         name: treatmentType.name
                                     })
                                 }
                             }}
-                            placeholder="הקלידו את שם הגזע..."
+                            placeholder="הקלידו את שם הטיפול..."
                             className="rounded-2xl border border-blue-200 bg-white/90 py-5 text-base font-medium text-gray-900"
                             searchFn={searchTreatmentTypes}
                             minSearchLength={1}
@@ -376,15 +366,15 @@ function PricingExperience() {
                         <div className="space-y-3 rounded-2xl border border-blue-200 bg-white/95 p-4">
                             <div className="flex flex-col gap-1">
                                 <span className="text-sm text-gray-500">
-                                    טווח המחירים המשוער ל{translateSize(selectedTreatmentType.size_class)}
+                                    משך טיפוסי: {formatDuration(selectedTreatmentType.default_duration_minutes)}
                                 </span>
                                 {hasPriceData ? (
                                     <div className="text-2xl font-bold text-blue-700">
-                                        {formatPrice(selectedTreatmentType.min_groom_price)} – {formatPrice(selectedTreatmentType.max_groom_price)}
+                                        {formatPrice(selectedTreatmentType.default_price)}
                                     </div>
                                 ) : (
                                     <div className="text-sm text-amber-700">
-                                        עוד לא הזנו טווח מחירים לגזע {selectedTreatmentType.name}. נשמח להתאים הצעת מחיר אישית.
+                                        עוד לא הזנו טווח מחירים לטיפול {selectedTreatmentType.name}. נשמח להתאים הצעת מחיר אישית.
                                     </div>
                                 )}
                             </div>

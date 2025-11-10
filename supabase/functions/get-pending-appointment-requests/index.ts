@@ -197,6 +197,101 @@ const clampLimit = (rawLimit: unknown): number => {
   return 5
 }
 
+const isMissingTableError = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  (error as { code?: string }).code === "PGRST205"
+
+const fetchGroomingRequests = async (limit: number): Promise<PendingAppointmentRequest[]> => {
+  const { data, error } = await serviceClient
+    .from("grooming_appointments")
+    .select(
+      `
+        id,
+        created_at,
+        start_at,
+        end_at,
+        status,
+        customer_notes,
+        appointment_kind,
+        customers (
+          id,
+          full_name,
+          phone
+        ),
+        treatments (
+          id,
+          name
+        ),
+        stations (
+          id,
+          name
+        ),
+        services (
+          id,
+          name
+        )
+      `,
+    )
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(limit * 2)
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      console.warn("⚠️ [get-pending-appointment-requests] grooming_appointments table not found, returning empty list")
+      return []
+    }
+    throw error
+  }
+
+  return (data ?? []).map((row) => mapGroomingRow(row as GroomingRow)).filter(Boolean) as PendingAppointmentRequest[]
+}
+
+const fetchDaycareRequests = async (limit: number): Promise<PendingAppointmentRequest[]> => {
+  const { data, error } = await serviceClient
+    .from("daycare_appointments")
+    .select(
+      `
+        id,
+        created_at,
+        start_at,
+        end_at,
+        status,
+        customer_notes,
+        service_type,
+        questionnaire_result,
+        customers (
+          id,
+          full_name,
+          phone
+        ),
+        treatments (
+          id,
+          name
+        ),
+        stations (
+          id,
+          name
+        )
+      `,
+    )
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(limit * 2)
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      console.warn("⚠️ [get-pending-appointment-requests] daycare_appointments table not found, returning empty list")
+      return []
+    }
+    throw error
+  }
+
+  return (data ?? []).map((row) => mapDaycareRow(row as DaycareRow)).filter(Boolean) as PendingAppointmentRequest[]
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
@@ -272,86 +367,10 @@ serve(async (req) => {
       limit,
     })
 
-    const [groomingResult, daycareResult] = await Promise.all([
-      serviceClient
-        .from("grooming_appointments")
-        .select(
-          `
-            id,
-            created_at,
-            start_at,
-            end_at,
-            status,
-            customer_notes,
-            appointment_kind,
-            customers (
-              id,
-              full_name,
-              phone
-            ),
-            treatments (
-              id,
-              name
-            ),
-            stations (
-              id,
-              name
-            ),
-            services (
-              id,
-              name
-            )
-          `,
-        )
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(limit * 2),
-      serviceClient
-        .from("daycare_appointments")
-        .select(
-          `
-            id,
-            created_at,
-            start_at,
-            end_at,
-            status,
-            customer_notes,
-            service_type,
-            questionnaire_result,
-            customers (
-              id,
-              full_name,
-              phone
-            ),
-            treatments (
-              id,
-              name
-            ),
-            stations (
-              id,
-              name
-            )
-          `,
-        )
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(limit * 2),
+    const [groomingRequests, daycareRequests] = await Promise.all([
+      fetchGroomingRequests(limit),
+      fetchDaycareRequests(limit),
     ])
-
-    if (groomingResult.error) {
-      console.error("❌ [get-pending-appointment-requests] Grooming query failed", groomingResult.error)
-      throw groomingResult.error
-    }
-
-    if (daycareResult.error) {
-      console.error("❌ [get-pending-appointment-requests] Daycare query failed", daycareResult.error)
-      throw daycareResult.error
-    }
-
-    const groomingRequests =
-      (groomingResult.data ?? []).map((row) => mapGroomingRow(row as GroomingRow)).filter(Boolean) as PendingAppointmentRequest[]
-    const daycareRequests =
-      (daycareResult.data ?? []).map((row) => mapDaycareRow(row as DaycareRow)).filter(Boolean) as PendingAppointmentRequest[]
 
     const combined = [...groomingRequests, ...daycareRequests].sort((a, b) => {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

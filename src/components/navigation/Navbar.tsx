@@ -177,7 +177,7 @@ const ManagerNotificationBell = ({
                                         </Badge>
                                     </div>
                                     <div className="text-xs text-slate-600">
-                                        {request.treatmentName ? `כלב: ${request.treatmentName}` : "ללא שם כלב"}
+                                        {request.treatmentName ? `טיפול מבוקש: ${request.treatmentName}` : "ללא טיפול משויך"}
                                     </div>
                                     <div className="text-xs text-slate-500">
                                         {`תור מתוכנן: ${formatDateTime(request.startAt)}`}
@@ -506,7 +506,7 @@ export function Navbar({ isManager }: NavbarProps) {
 
     const navItems = [
         { path: "/about", label: "אודות", icon: "✨", requiresAuth: false, requiresManager: false },
-        { path: "/my-treatments", label: "הכלבים שלי", icon: "🐕", requiresAuth: true, requiresManager: false },
+        { path: "/my-treatments", label: "הטיפולים שלי", icon: "💇‍♂️", requiresAuth: true, requiresManager: false },
         { path: "/setup-appointment", label: "קבע תור", icon: "📅", requiresAuth: true, requiresManager: false },
         { path: "/appointments", label: "התורים שלי", icon: "📋", requiresAuth: true, requiresManager: false },
         { path: "/subscriptions", label: "הכרטיסיות שלי", icon: "🎫", requiresAuth: true, requiresManager: false },
@@ -569,11 +569,11 @@ export function Navbar({ isManager }: NavbarProps) {
                         <div className="flex items-center justify-between gap-4 py-3 xl:hidden">
                             <Link to={user ? "/my-treatments" : "/"} className="flex items-center gap-3">
                                 <div className="w-10 h-10 shrink-0">
-                                    <img src={logoImage} alt="B LOVED Logo" className="w-full h-full object-contain" />
+                                    <img src={logoImage} alt="Yaron Hershberg Special Barbery Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <div>
-                                    <h1 className="text-lg font-bold text-gray-900 leading-tight">B LOVED</h1>
-                                    <p className="text-xs text-gray-600 leading-tight">מספרת כלבים מקצועית</p>
+                                    <h1 className="text-lg font-bold text-gray-900 leading-tight">Yaron Hershberg</h1>
+                                    <p className="text-xs text-gray-600 leading-tight">מספרה יוצאת דופן</p>
                                 </div>
                             </Link>
                             <div className="flex items-center gap-2">
@@ -605,11 +605,11 @@ export function Navbar({ isManager }: NavbarProps) {
                         <div className="hidden xl:grid xl:grid-cols-[auto,1fr,auto] xl:items-center xl:gap-6 py-4">
                             <Link to={user ? "/my-treatments" : "/"} className="flex items-center gap-3">
                                 <div className="w-12 h-12 shrink-0">
-                                    <img src={logoImage} alt="B LOVED Logo" className="w-full h-full object-contain" />
+                                    <img src={logoImage} alt="Yaron Hershberg Special Barbery Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <div>
-                                    <h1 className="text-2xl font-bold text-gray-900 leading-tight">B LOVED</h1>
-                                    <p className="text-sm text-gray-600 leading-tight">מספרת כלבים מקצועית</p>
+                                    <h1 className="text-2xl font-bold text-gray-900 leading-tight">Yaron Hershberg</h1>
+                                    <p className="text-sm text-gray-600 leading-tight">מספרה יוצאת דופן</p>
                                 </div>
                             </Link>
 

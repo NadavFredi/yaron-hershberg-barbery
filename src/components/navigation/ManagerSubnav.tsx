@@ -81,7 +81,7 @@ export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
   {
     id: "treatments",
     to: "/manager-screens?section=treatments",
-    label: "כלבים",
+    label: "טיפולים",
     icon: <Sparkles className="h-4 w-4" />,
     match: (pathname, sectionParam) =>
       pathname === "/manager-screens" && sectionParam === "treatments"

@@ -5647,7 +5647,7 @@ const ManagerSchedule = () => {
       : originalHeight
 
     const primaryTreatment = treatments[0]
-    const treatmentName = primaryTreatment?.name ?? "ללא שיוך לכלב"
+    const treatmentName = primaryTreatment?.name ?? "ללא שיוך לטיפול"
     const rawTreatmentTypeName = primaryTreatment?.treatmentType ?? appointment.serviceName ?? ""
     const treatmentTypeName = rawTreatmentTypeName?.trim() ? rawTreatmentTypeName.trim() : undefined
     const rawClassification = appointment.clientClassification ?? primaryTreatment?.clientClassification ?? ""

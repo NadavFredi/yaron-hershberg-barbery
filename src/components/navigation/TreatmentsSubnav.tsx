@@ -9,20 +9,20 @@ export const TREATMENTS_SECTIONS: Array<{
 }> = [
     {
         id: "list",
-        label: "כלבים",
-        description: "רשימת כל הכלבים במערכת",
+        label: "טיפולים",
+        description: "רשימת כל הטיפולים הפעילים במספרה",
         icon: <Sparkles className="h-4 w-4" />,
     },
     {
         id: "category1",
-        label: "קטגוריה 1",
-        description: "ניהול קטגוריות סוג כלב",
+        label: "קטגוריות טיפולים",
+        description: "ניהול קבוצות וסידור טיפולים לפי נושאים",
         icon: <Layers className="h-4 w-4" />,
     },
     {
         id: "category2",
-        label: "קטגוריה 2",
-        description: "ניהול קטגוריות התנהגות",
+        label: "קטגוריות מתקדמות",
+        description: "התאמות מיוחדות וחבילות טיפוח",
         icon: <Tag className="h-4 w-4" />,
     },
 ]
@@ -38,7 +38,7 @@ export function TreatmentsSubnav({ activeMode, onModeChange }: TreatmentsSubnavP
             className="hidden xl:block xl:z-20 xl:-mt-px xl:bg-gradient-to-r xl:from-indigo-50 xl:to-purple-50 xl:border-b xl:border-indigo-200/50 xl:shadow-sm xl:border-t xl:border-indigo-200/30"
         >
             <div className="max-w-full mx-auto px-6 sm:px-8 lg:px-12">
-                <nav className="flex flex-wrap items-center justify-center gap-2 overflow-x-auto py-3" aria-label="תפריט כלבים">
+                <nav className="flex flex-wrap items-center justify-center gap-2 overflow-x-auto py-3" aria-label="תפריט טיפולים">
                     {TREATMENTS_SECTIONS.map((section) => {
                         const isActive = activeMode === section.id
                         return (

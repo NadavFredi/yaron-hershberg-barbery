@@ -83,6 +83,17 @@ CREATE TABLE IF NOT EXISTS public.station_unavailability (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.calendar_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  open_days_ahead INTEGER NOT NULL DEFAULT 30,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+INSERT INTO public.calendar_settings (open_days_ahead)
+SELECT 30
+WHERE NOT EXISTS (SELECT 1 FROM public.calendar_settings);
+
 -- Business operations ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.business_hours (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -219,6 +230,10 @@ CREATE TRIGGER set_updated_at_station_unavailability
   BEFORE UPDATE ON public.station_unavailability
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
+CREATE TRIGGER set_updated_at_calendar_settings
+  BEFORE UPDATE ON public.calendar_settings
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
 CREATE TRIGGER set_updated_at_profiles
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -249,6 +264,7 @@ ALTER TABLE public.station_unavailability ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.treatments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calendar_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.business_hours ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.station_working_hours ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daycare_capacity_limits ENABLE ROW LEVEL SECURITY;
@@ -311,6 +327,13 @@ BEGIN
     WHERE schemaname = 'public' AND tablename = 'station_unavailability' AND policyname = 'Allow all operations on station_unavailability'
   ) THEN
     EXECUTE 'CREATE POLICY "Allow all operations on station_unavailability" ON public.station_unavailability FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'calendar_settings' AND policyname = 'Allow all operations on calendar_settings'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow all operations on calendar_settings" ON public.calendar_settings FOR ALL USING (true);';
   END IF;
 
   IF NOT EXISTS (
