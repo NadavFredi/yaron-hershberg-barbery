@@ -4,14 +4,14 @@ import { Badge } from "@/components/ui/badge"
 import { Clock, Calendar, Sparkles, CheckCircle } from "lucide-react"
 
 interface FirstTimeGardenBannerProps {
-    dogName: string
+    treatmentName: string
     onSelectTrial: () => void
     onSkipTrial: () => void
     canSkipTrial?: boolean
 }
 
 export function FirstTimeGardenBanner({
-    dogName,
+    treatmentName,
     onSelectTrial,
     onSkipTrial,
     canSkipTrial = true
@@ -48,7 +48,7 @@ export function FirstTimeGardenBanner({
                 </div>
 
                 <h3 className="text-xl font-bold text-gray-900 mb-3 text-center" dir="rtl">
-                    זה הפעם הראשונה של {dogName} בגן! 🌟
+                    זה הפעם הראשונה של {treatmentName} בגן! 🌟
                 </h3>
 
                 <p className="text-base text-gray-700 mb-4 leading-relaxed text-center" dir="rtl">

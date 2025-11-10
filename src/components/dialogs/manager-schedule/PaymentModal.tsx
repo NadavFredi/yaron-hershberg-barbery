@@ -58,8 +58,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     const [hasReceipt, setHasReceipt] = useState(true)
     const [appointmentPrice, setAppointmentPrice] = useState<string>('')
     const [originalAppointmentPrice, setOriginalAppointmentPrice] = useState<string>('0')
-    const [isLoadingBreedPrices, setIsLoadingBreedPrices] = useState(false)
-    const [breedPriceRange, setBreedPriceRange] = useState<{ minPrice: number | null; maxPrice: number | null } | null>(null)
+    const [isLoadingTreatmentTypePrices, setIsLoadingTreatmentTypePrices] = useState(false)
+    const [treatmentTypePriceRange, setTreatmentTypePriceRange] = useState<{ minPrice: number | null; maxPrice: number | null } | null>(null)
     const [isSavingPrice, setIsSavingPrice] = useState(false)
     const [priceSaved, setPriceSaved] = useState(false)
 
@@ -96,7 +96,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             setShowCreateProduct(false)
             setNewProductName('')
             setNewProductPrice('')
-            setBreedPriceRange(null)
+            setTreatmentTypePriceRange(null)
             setPriceSaved(false)
             setCartSaved(false)
             // Initialize appointment price from the appointment prop
@@ -107,48 +107,48 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             // Fetch active cart for this appointment
             fetchActiveCart()
 
-            // Fetch breed pricing if it's a grooming appointment with a dog
-            if (appointment?.serviceType === 'grooming' && appointment?.dogs && appointment.dogs.length > 0) {
-                fetchBreedPrices(appointment.dogs[0].breed)
+            // Fetch treatmentType pricing if it's a grooming appointment with a treatment
+            if (appointment?.serviceType === 'grooming' && appointment?.treatments && appointment.treatments.length > 0) {
+                fetchTreatmentTypePrices(appointment.treatments[0].treatmentType)
             }
         }
     }, [open, appointment])
 
-    // Fetch breed prices from Airtable via Supabase edge function
-    const fetchBreedPrices = async (breedName?: string) => {
-        if (!breedName) {
-            setIsLoadingBreedPrices(false)
+    // Fetch treatmentType prices from Airtable via Supabase edge function
+    const fetchTreatmentTypePrices = async (treatmentTypeName?: string) => {
+        if (!treatmentTypeName) {
+            setIsLoadingTreatmentTypePrices(false)
             return
         }
 
-        setIsLoadingBreedPrices(true)
+        setIsLoadingTreatmentTypePrices(true)
         try {
-            // Use Supabase edge function to fetch breed pricing by name
-            const { data, error } = await supabase.functions.invoke('get-breed-pricing', {
-                body: { breedName }
+            // Use Supabase edge function to fetch treatmentType pricing by name
+            const { data, error } = await supabase.functions.invoke('get-treatmentType-pricing', {
+                body: { treatmentTypeName }
             })
 
             if (error) throw error
 
-            // Set the breed price range from the response
+            // Set the treatmentType price range from the response
             if (data?.minPrice || data?.maxPrice) {
-                setBreedPriceRange({
+                setTreatmentTypePriceRange({
                     minPrice: data.minPrice || null,
                     maxPrice: data.maxPrice || null
                 })
             }
         } catch (err) {
-            console.error('Error fetching breed prices:', err)
+            console.error('Error fetching treatmentType prices:', err)
             // Don't block the user if this fails
-            setBreedPriceRange(null)
+            setTreatmentTypePriceRange(null)
         } finally {
-            setIsLoadingBreedPrices(false)
+            setIsLoadingTreatmentTypePrices(false)
         }
     }
 
-    // Get breed info for pricing reference
-    const getBreedPriceInfo = () => {
-        return breedPriceRange
+    // Get treatmentType info for pricing reference
+    const getTreatmentTypePriceInfo = () => {
+        return treatmentTypePriceRange
     }
 
     // Check if price is dirty (modified from original)
@@ -593,7 +593,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     const totalAmount = calculateTotal()
-    const breedPriceInfo = getBreedPriceInfo()
+    const treatmentTypePriceInfo = getTreatmentTypePriceInfo()
 
     // Get step labels for breadcrumbs
     const getStepLabel = () => {
@@ -647,7 +647,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         {step === 4 && 'אישור תשלום'}
                     </DialogTitle>
                     <DialogDescription className="text-right">
-                        {appointment?.dogs[0]?.name && `לתור של ${appointment.dogs[0].name}`}
+                        {appointment?.treatments[0]?.name && `לתור של ${appointment.treatments[0].name}`}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -688,7 +688,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         {/* Appointment Price - Editable */}
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3 relative">
                             {/* Loading Overlay */}
-                            {isLoadingBreedPrices && (
+                            {isLoadingTreatmentTypePrices && (
                                 <div className="absolute inset-0 bg-blue-50/80 flex items-center justify-center rounded-lg">
                                     <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
                                 </div>
@@ -771,24 +771,24 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                 </div>
                             </div>
 
-                            {/* Breed Price Range Info - only show for grooming */}
-                            {appointment?.serviceType === 'grooming' && breedPriceInfo && !isLoadingBreedPrices && (
+                            {/* TreatmentType Price Range Info - only show for grooming */}
+                            {appointment?.serviceType === 'grooming' && treatmentTypePriceInfo && !isLoadingTreatmentTypePrices && (
                                 <div className="mt-3 pt-3 border-t border-blue-200">
                                     <div className="flex items-center gap-2 text-xs text-gray-600 mb-2">
                                         <Info className="h-4 w-4" />
                                         <span>טווח מחירים מומלץ לגזע:</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm">
-                                        {breedPriceInfo.minPrice && (
+                                        {treatmentTypePriceInfo.minPrice && (
                                             <div className="text-right">
                                                 <span className="text-gray-600">מינימום: </span>
-                                                <span className="font-semibold text-green-700">₪{breedPriceInfo.minPrice}</span>
+                                                <span className="font-semibold text-green-700">₪{treatmentTypePriceInfo.minPrice}</span>
                                             </div>
                                         )}
-                                        {breedPriceInfo.maxPrice && (
+                                        {treatmentTypePriceInfo.maxPrice && (
                                             <div className="text-right">
                                                 <span className="text-gray-600">מקסימום: </span>
-                                                <span className="font-semibold text-green-700">₪{breedPriceInfo.maxPrice}</span>
+                                                <span className="font-semibold text-green-700">₪{treatmentTypePriceInfo.maxPrice}</span>
                                             </div>
                                         )}
                                     </div>

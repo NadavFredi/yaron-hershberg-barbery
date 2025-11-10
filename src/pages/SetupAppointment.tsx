@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Clock, Dog, MapPin, CheckCircle, Scissors, Bone, PlusCircle, ClipboardList, CreditCard, Loader2 } from "lucide-react"
+import { CalendarIcon, Clock, Sparkles, MapPin, CheckCircle, Scissors, Bone, PlusCircle, ClipboardList, CreditCard, Loader2 } from "lucide-react"
 import { reserveAppointment } from "@/integrations/supabase/supabaseService"
 import confetti from "canvas-confetti"
 import { skipToken } from "@reduxjs/toolkit/query"
@@ -13,12 +13,12 @@ import {
     supabaseApi,
     useGetAvailableDatesQuery,
     useGetClientSubscriptionsQuery,
-    useGetDogGardenAppointmentsQuery,
-    useListOwnerDogsQuery,
-    type ListOwnerDogsResponse,
+    useGetTreatmentGardenAppointmentsQuery,
+    useListOwnerTreatmentsQuery,
+    type ListOwnerTreatmentsResponse,
 } from "@/store/services/supabaseApi"
 import { useToast } from "@/components/ui/use-toast"
-import { AddDogDialog } from "@/components/AddDogDialog"
+import { AddTreatmentDialog } from "@/components/AddTreatmentDialog"
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
 import { useAppDispatch } from "@/store/hooks"
 import { FirstTimeGardenBanner } from "@/components/FirstTimeGardenBanner"
@@ -88,10 +88,10 @@ const triggerConfetti = () => {
     });
 };
 
-interface Dog {
+interface Treatment {
     id: string
     name: string
-    breed: string
+    treatmentType: string
     size: string
     isSmall: boolean
     ownerId: string
@@ -198,7 +198,7 @@ function formatIls(value: number): string {
     return ilsFormatter.format(value)
 }
 
-type ListOwnerDogsResponse = { dogs: Dog[] }
+type ListOwnerTreatmentsResponse = { treatments: Treatment[] }
 interface AvailableDatesResponse {
     availableDates: AvailableDate[]
     gardenQuestionnaire?: GardenQuestionnaireStatus
@@ -215,7 +215,7 @@ export default function SetupAppointment() {
         isFetchingClientId,
     } = useSupabaseAuthWithClientId()
     const dispatch = useAppDispatch()
-    const [selectedDog, setSelectedDog] = useState<string>("")
+    const [selectedTreatment, setSelectedTreatment] = useState<string>("")
     const [selectedServiceType, setSelectedServiceType] = useState<string>("grooming") // Default to barber
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
     const [selectedTime, setSelectedTime] = useState<string>("")
@@ -233,11 +233,11 @@ export default function SetupAppointment() {
     const [gardenBrush, setGardenBrush] = useState(false)
     const [gardenBath, setGardenBath] = useState(false)
     const [formStep, setFormStep] = useState<1 | 2>(1)
-    const [isAddDogDialogOpen, setIsAddDogDialogOpen] = useState(false)
+    const [isAddTreatmentDialogOpen, setIsAddTreatmentDialogOpen] = useState(false)
     const { toast } = useToast()
 
     const hasProcessedQueryParams = useRef(false)
-    const selectedDogFromParams = useRef(false)
+    const selectedTreatmentFromParams = useRef(false)
 
     const ownerId = useMemo(() => {
         if (clientId) {
@@ -252,16 +252,16 @@ export default function SetupAppointment() {
     }, [clientId, user])
 
     const {
-        data: dogsQueryData,
-        isFetching: isFetchingDogs,
-        refetch: refetchDogs,
-    } = useListOwnerDogsQuery(ownerId ?? skipToken, {
+        data: treatmentsQueryData,
+        isFetching: isFetchingTreatments,
+        refetch: refetchTreatments,
+    } = useListOwnerTreatmentsQuery(ownerId ?? skipToken, {
         skip: !ownerId,
     })
 
-    const openAddDogForm = useCallback(() => {
+    const openAddTreatmentForm = useCallback(() => {
         if (!ownerId) {
-            console.warn("Cannot open add-dog form without ownerId")
+            console.warn("Cannot open add-treatment form without ownerId")
             toast({
                 title: "שגיאה",
                 description: "לא ניתן להוסיף כלב ללא זיהוי לקוח",
@@ -269,20 +269,20 @@ export default function SetupAppointment() {
             })
             return
         }
-        setIsAddDogDialogOpen(true)
+        setIsAddTreatmentDialogOpen(true)
     }, [ownerId, toast])
 
-    const handleAddDogSuccess = useCallback(async (dogId: string) => {
-        // Refetch dogs and select the newly created dog
-        const refetchResult = await refetchDogs()
+    const handleAddTreatmentSuccess = useCallback(async (treatmentId: string) => {
+        // Refetch treatments and select the newly created treatment
+        const refetchResult = await refetchTreatments()
         if (refetchResult.data) {
-            const response = refetchResult.data as ListOwnerDogsResponse
-            const newDog = response.dogs?.find((d) => d.id === dogId)
-            if (newDog) {
-                setSelectedDog(dogId)
+            const response = refetchResult.data as ListOwnerTreatmentsResponse
+            const newTreatment = response.treatments?.find((d) => d.id === treatmentId)
+            if (newTreatment) {
+                setSelectedTreatment(treatmentId)
             }
         }
-    }, [refetchDogs, setSelectedDog])
+    }, [refetchTreatments, setSelectedTreatment])
 
 
     const {
@@ -292,10 +292,10 @@ export default function SetupAppointment() {
         skip: !ownerId,
     })
 
-    const dogs = useMemo<Dog[]>(() => {
-        const response = dogsQueryData as ListOwnerDogsResponse | undefined
-        return response?.dogs ?? []
-    }, [dogsQueryData])
+    const treatments = useMemo<Treatment[]>(() => {
+        const response = treatmentsQueryData as ListOwnerTreatmentsResponse | undefined
+        return response?.treatments ?? []
+    }, [treatmentsQueryData])
 
     const subscriptionsResponse = useMemo(() => subscriptionsData as ClientSubscriptionsResponse | undefined, [subscriptionsData])
 
@@ -321,24 +321,24 @@ export default function SetupAppointment() {
         return formatSubscriptionDate(selectedSubscription.purchasedAt)
     }, [selectedSubscription])
 
-    const selectedDogDetails = useMemo(() => {
-        return dogs.find((dog) => dog.id === selectedDog) ?? null
-    }, [dogs, selectedDog])
+    const selectedTreatmentDetails = useMemo(() => {
+        return treatments.find((treatment) => treatment.id === selectedTreatment) ?? null
+    }, [treatments, selectedTreatment])
 
     const groomingPriceRange = useMemo(() => {
-        if (!selectedDogDetails) {
+        if (!selectedTreatmentDetails) {
             return null
         }
 
-        const min = typeof selectedDogDetails.groomingMinPrice === "number" ? selectedDogDetails.groomingMinPrice : null
-        const max = typeof selectedDogDetails.groomingMaxPrice === "number" ? selectedDogDetails.groomingMaxPrice : null
+        const min = typeof selectedTreatmentDetails.groomingMinPrice === "number" ? selectedTreatmentDetails.groomingMinPrice : null
+        const max = typeof selectedTreatmentDetails.groomingMaxPrice === "number" ? selectedTreatmentDetails.groomingMaxPrice : null
 
         if (min === null && max === null) {
             return null
         }
 
         return { min, max }
-    }, [selectedDogDetails])
+    }, [selectedTreatmentDetails])
 
     const includesGroomingService = useMemo(() => {
         return selectedServiceType === "grooming" || selectedServiceType === "both"
@@ -409,20 +409,20 @@ export default function SetupAppointment() {
         }
     }, [selectedServiceType])
 
-    // Fetch garden appointments for the selected dog to check if they already have scheduled appointments
+    // Fetch garden appointments for the selected treatment to check if they already have scheduled appointments
     const {
         data: existingGardenAppointments = [],
         isFetching: isFetchingGardenAppointments,
-    } = useGetDogGardenAppointmentsQuery(
-        selectedDogDetails?.id ?? skipToken,
+    } = useGetTreatmentGardenAppointmentsQuery(
+        selectedTreatmentDetails?.id ?? skipToken,
         {
-            skip: !selectedDogDetails?.id,
+            skip: !selectedTreatmentDetails?.id,
         }
     )
 
-    const datesQueryArg = selectedDog && selectedServiceType
+    const datesQueryArg = selectedTreatment && selectedServiceType
         ? {
-            dogId: selectedDog,
+            treatmentId: selectedTreatment,
             serviceType: selectedServiceType,
             ...(selectedGardenVisitType ? { visitType: selectedGardenVisitType } : {}),
         }
@@ -432,7 +432,7 @@ export default function SetupAppointment() {
         data: availableDatesData,
         isFetching: isFetchingDates,
     } = useGetAvailableDatesQuery(datesQueryArg, {
-        skip: !selectedDog || !selectedServiceType,
+        skip: !selectedTreatment || !selectedServiceType,
     })
 
     const availableDates = useMemo<AvailableDate[]>(() => {
@@ -449,15 +449,15 @@ export default function SetupAppointment() {
 
     // Track if we've completed initial data loading
     const hasInitialDataLoaded = useMemo(() => {
-        const dogsLoaded = !isFetchingDogs && dogs.length > 0
+        const treatmentsLoaded = !isFetchingTreatments && treatments.length > 0
 
-        // If garden service is selected and we have a dog, also wait for garden appointments
-        if (selectedServiceType === "garden" && selectedDogDetails?.id) {
-            return dogsLoaded && !isFetchingGardenAppointments
+        // If garden service is selected and we have a treatment, also wait for garden appointments
+        if (selectedServiceType === "garden" && selectedTreatmentDetails?.id) {
+            return treatmentsLoaded && !isFetchingGardenAppointments
         }
 
-        return dogsLoaded
-    }, [isFetchingDogs, dogs.length, selectedServiceType, selectedDogDetails?.id, isFetchingGardenAppointments])
+        return treatmentsLoaded
+    }, [isFetchingTreatments, treatments.length, selectedServiceType, selectedTreatmentDetails?.id, isFetchingGardenAppointments])
 
     // Comprehensive loading state - only show full page loader for initial data loading
     const isPageLoading = useMemo(() => {
@@ -469,16 +469,16 @@ export default function SetupAppointment() {
         return false
     }, [hasInitialDataLoaded])
 
-    const isSelectedDogSmall = useMemo(() => {
-        if (!selectedDogDetails) {
+    const isSelectedTreatmentSmall = useMemo(() => {
+        if (!selectedTreatmentDetails) {
             return false
         }
 
-        if (selectedDogDetails.isSmall === true) {
+        if (selectedTreatmentDetails.isSmall === true) {
             return true
         }
 
-        const rawSize = selectedDogDetails.size?.toString()
+        const rawSize = selectedTreatmentDetails.size?.toString()
         if (!rawSize) {
             return false
         }
@@ -501,7 +501,7 @@ export default function SetupAppointment() {
         ]
 
         return SMALL_PATTERNS.some((pattern) => pattern.test(normalized))
-    }, [selectedDogDetails])
+    }, [selectedTreatmentDetails])
 
     const gardenQuestionnaireStatus = useMemo<GardenQuestionnaireStatus | null>(() => {
         if (!availableDatesData || Array.isArray(availableDatesData)) {
@@ -518,7 +518,7 @@ export default function SetupAppointment() {
         isGardenServiceSelected && gardenQuestionnaireStatus?.required && !gardenQuestionnaireStatus.completed
     )
 
-    const isSizeBlocking = Boolean(isGardenServiceSelected && !isSelectedDogSmall)
+    const isSizeBlocking = Boolean(isGardenServiceSelected && !isSelectedTreatmentSmall)
 
     useEffect(() => {
         if (!isGardenServiceSelected) {
@@ -534,21 +534,21 @@ export default function SetupAppointment() {
     const gardenSuitabilityStatus = useMemo(() => {
         console.log("🌱 Garden suitability check:", {
             isGardenServiceSelected,
-            selectedDogDetails: selectedDogDetails ? {
-                id: selectedDogDetails.id,
-                name: selectedDogDetails.name,
-                questionnaireSuitableForGarden: selectedDogDetails.questionnaireSuitableForGarden,
-                staffApprovedForGarden: selectedDogDetails.staffApprovedForGarden,
-                hasBeenToGarden: selectedDogDetails.hasBeenToGarden
+            selectedTreatmentDetails: selectedTreatmentDetails ? {
+                id: selectedTreatmentDetails.id,
+                name: selectedTreatmentDetails.name,
+                questionnaireSuitableForGarden: selectedTreatmentDetails.questionnaireSuitableForGarden,
+                staffApprovedForGarden: selectedTreatmentDetails.staffApprovedForGarden,
+                hasBeenToGarden: selectedTreatmentDetails.hasBeenToGarden
             } : null
         })
 
-        if (!isGardenServiceSelected || !selectedDogDetails) {
-            console.log("🌱 Garden suitability: No garden service or dog selected, allowing all")
+        if (!isGardenServiceSelected || !selectedTreatmentDetails) {
+            console.log("🌱 Garden suitability: No garden service or treatment selected, allowing all")
             return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
         }
 
-        const { questionnaireSuitableForGarden, staffApprovedForGarden, hasRegisteredToGardenBefore } = selectedDogDetails
+        const { questionnaireSuitableForGarden, staffApprovedForGarden, hasRegisteredToGardenBefore } = selectedTreatmentDetails
 
         // If staff explicitly rejected for garden (נמצא לא מתאים), show rejection message
         if (staffApprovedForGarden === "נמצא לא מתאים") {
@@ -568,19 +568,19 @@ export default function SetupAppointment() {
         }
 
         // If questionnaire shows suitable for garden, allow full day regardless of staff approval
-        // But if dog registered before, only allow full day (no trial)
+        // But if treatment registered before, only allow full day (no trial)
         if (questionnaireSuitableForGarden === true) {
             console.log("🌱 Garden suitability: Questionnaire shows suitable, allowing full day")
             if (hasRegisteredToGardenBefore) {
-                console.log("🌱 Garden suitability: Dog registered before, allowing only full day (no trial)")
+                console.log("🌱 Garden suitability: Treatment registered before, allowing only full day (no trial)")
                 return { canBookFullDay: true, canBookTrial: false, message: null, isExplicitlyRejected: false }
             }
             return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
         }
 
-        // If dog registered to garden before but questionnaire shows not suitable and no staff approval
+        // If treatment registered to garden before but questionnaire shows not suitable and no staff approval
         if (hasRegisteredToGardenBefore && questionnaireSuitableForGarden === false && staffApprovedForGarden !== "נמצא מתאים") {
-            console.log("🌱 Garden suitability: Dog registered before but questionnaire shows not suitable and no staff approval, blocking completely")
+            console.log("🌱 Garden suitability: Treatment registered before but questionnaire shows not suitable and no staff approval, blocking completely")
             return {
                 canBookFullDay: false,
                 canBookTrial: false,
@@ -589,13 +589,13 @@ export default function SetupAppointment() {
             }
         }
 
-        // If dog registered to garden before, only allow full day (no trial)
+        // If treatment registered to garden before, only allow full day (no trial)
         if (hasRegisteredToGardenBefore) {
-            console.log("🌱 Garden suitability: Dog registered before, allowing only full day")
+            console.log("🌱 Garden suitability: Treatment registered before, allowing only full day")
             return { canBookFullDay: true, canBookTrial: false, message: null, isExplicitlyRejected: false }
         }
 
-        // If questionnaire shows not suitable but staff hasn't explicitly approved and dog never registered, only allow trial
+        // If questionnaire shows not suitable but staff hasn't explicitly approved and treatment never registered, only allow trial
         if (questionnaireSuitableForGarden === false && staffApprovedForGarden !== "נמצא מתאים") {
             console.log("🌱 Garden suitability: Questionnaire shows not suitable and no staff approval, restricting to trial only")
             return {
@@ -615,7 +615,7 @@ export default function SetupAppointment() {
         // Default case - allow both
         console.log("🌱 Garden suitability: Default case, allowing all")
         return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
-    }, [isGardenServiceSelected, selectedDogDetails])
+    }, [isGardenServiceSelected, selectedTreatmentDetails])
 
     const isGardenBlocked = Boolean(isQuestionnaireBlocking || isSizeBlocking || gardenSuitabilityStatus.isExplicitlyRejected ||
         (gardenSuitabilityStatus.message && !gardenSuitabilityStatus.canBookTrial))
@@ -628,8 +628,8 @@ export default function SetupAppointment() {
     const hasExistingGardenAppointments = existingGardenAppointments?.appointments && existingGardenAppointments.appointments.length > 0
     const isFirstGardenVisit = Boolean(
         selectedServiceType === "garden" &&
-        selectedDogDetails &&
-        !selectedDogDetails.hasBeenToGarden &&
+        selectedTreatmentDetails &&
+        !selectedTreatmentDetails.hasBeenToGarden &&
         !hasExistingGardenAppointments
     )
 
@@ -637,10 +637,10 @@ export default function SetupAppointment() {
     useEffect(() => {
         console.log("🌱 First garden visit check:", {
             isGardenServiceSelected,
-            selectedDogDetails: selectedDogDetails ? {
-                id: selectedDogDetails.id,
-                name: selectedDogDetails.name,
-                hasBeenToGarden: selectedDogDetails.hasBeenToGarden
+            selectedTreatmentDetails: selectedTreatmentDetails ? {
+                id: selectedTreatmentDetails.id,
+                name: selectedTreatmentDetails.name,
+                hasBeenToGarden: selectedTreatmentDetails.hasBeenToGarden
             } : null,
             existingGardenAppointments: existingGardenAppointments?.appointments?.length || 0,
             existingGardenAppointmentsData: existingGardenAppointments,
@@ -649,10 +649,10 @@ export default function SetupAppointment() {
             isGardenBlocked,
             isFetchingGardenAppointments
         })
-    }, [isGardenServiceSelected, selectedDogDetails, isFirstGardenVisit, isGardenBlocked, existingGardenAppointments, hasExistingGardenAppointments, isFetchingGardenAppointments])
+    }, [isGardenServiceSelected, selectedTreatmentDetails, isFirstGardenVisit, isGardenBlocked, existingGardenAppointments, hasExistingGardenAppointments, isFetchingGardenAppointments])
 
     useEffect(() => {
-        if (!isGardenServiceSelected || !selectedDogDetails) {
+        if (!isGardenServiceSelected || !selectedTreatmentDetails) {
             setSelectedGardenVisitType(undefined)
             return
         }
@@ -664,20 +664,20 @@ export default function SetupAppointment() {
                 return "regular"
             }
 
-            // If dog can't book full day due to suitability restrictions, force trial
+            // If treatment can't book full day due to suitability restrictions, force trial
             if (!gardenSuitabilityStatus.canBookFullDay) {
                 return "trial"
             }
 
-            const defaultType = selectedDogDetails.hasBeenToGarden ? "regular" : "trial"
+            const defaultType = selectedTreatmentDetails.hasBeenToGarden ? "regular" : "trial"
 
-            if (selectedDogDetails.hasBeenToGarden && current === "trial") {
+            if (selectedTreatmentDetails.hasBeenToGarden && current === "trial") {
                 return "regular"
             }
 
             return current ?? defaultType
         })
-    }, [isGardenServiceSelected, selectedDogDetails, gardenSuitabilityStatus.canBookFullDay, selectedServiceType])
+    }, [isGardenServiceSelected, selectedTreatmentDetails, gardenSuitabilityStatus.canBookFullDay, selectedServiceType])
 
     useEffect(() => {
         if (!isGardenServiceSelected || !selectedGardenVisitType) {
@@ -717,17 +717,17 @@ export default function SetupAppointment() {
             return gardenQuestionnaireStatus.formUrl
         }
 
-        if (isQuestionnaireBlocking && selectedDog) {
+        if (isQuestionnaireBlocking && selectedTreatment) {
             const params = new URLSearchParams({
                 If_been_on_garden: "0",
                 if_want_to_garden: "1",
-                id: selectedDog,
+                id: selectedTreatment,
             })
             return `https://forms.fillout.com/t/7Py7msgepQus?${params.toString()}`
         }
 
         return undefined
-    }, [gardenQuestionnaireStatus?.formUrl, isQuestionnaireBlocking, selectedDog])
+    }, [gardenQuestionnaireStatus?.formUrl, isQuestionnaireBlocking, selectedTreatment])
 
     const gardenQuestionnaireMessage = useMemo(
         () =>
@@ -741,16 +741,16 @@ export default function SetupAppointment() {
         : gardenQuestionnaireMessage
 
     useEffect(() => {
-        if (!selectedDog) {
+        if (!selectedTreatment) {
             return
         }
 
         console.log("🐾 Garden eligibility", {
-            selectedDog,
-            dogName: selectedDogDetails?.name,
-            rawSize: selectedDogDetails?.size,
-            isSmallFlag: selectedDogDetails?.isSmall,
-            computedIsSmall: isSelectedDogSmall,
+            selectedTreatment,
+            treatmentName: selectedTreatmentDetails?.name,
+            rawSize: selectedTreatmentDetails?.size,
+            isSmallFlag: selectedTreatmentDetails?.isSmall,
+            computedIsSmall: isSelectedTreatmentSmall,
             questionnaireCompleted: gardenQuestionnaireStatus?.completed,
             questionnaireRequired: gardenQuestionnaireStatus?.required,
             isGardenServiceSelected,
@@ -759,11 +759,11 @@ export default function SetupAppointment() {
             isGardenBlocked,
         })
     }, [
-        selectedDog,
-        selectedDogDetails?.name,
-        selectedDogDetails?.size,
-        selectedDogDetails?.isSmall,
-        isSelectedDogSmall,
+        selectedTreatment,
+        selectedTreatmentDetails?.name,
+        selectedTreatmentDetails?.size,
+        selectedTreatmentDetails?.isSmall,
+        isSelectedTreatmentSmall,
         gardenQuestionnaireStatus?.completed,
         gardenQuestionnaireStatus?.required,
         isGardenServiceSelected,
@@ -798,22 +798,22 @@ export default function SetupAppointment() {
         console.log("🧭 Approval-free slot scan", {
             totalSlots: allAvailableTimes.length,
             hasSlotWithoutApproval,
-            requiresSpecialApproval: selectedDogDetails?.requiresSpecialApproval,
+            requiresSpecialApproval: selectedTreatmentDetails?.requiresSpecialApproval,
         })
         return hasSlotWithoutApproval
-    }, [allAvailableTimes, selectedDogDetails?.requiresSpecialApproval])
+    }, [allAvailableTimes, selectedTreatmentDetails?.requiresSpecialApproval])
 
     const requiresApprovalForAllSlots = useMemo(() => {
-        const requiresBreedApproval = selectedDogDetails?.requiresSpecialApproval === true
-        const approvalOnly = requiresBreedApproval && !hasApprovalFreeSlotAcrossDates
+        const requiresTreatmentTypeApproval = selectedTreatmentDetails?.requiresSpecialApproval === true
+        const approvalOnly = requiresTreatmentTypeApproval && !hasApprovalFreeSlotAcrossDates
         console.log("🛡️ Approval mode evaluation", {
-            requiresBreedApproval,
+            requiresTreatmentTypeApproval,
             hasApprovalFreeSlotAcrossDates,
             approvalOnly,
             serviceType: selectedServiceType,
         })
         return approvalOnly
-    }, [hasApprovalFreeSlotAcrossDates, selectedDogDetails?.requiresSpecialApproval, selectedServiceType])
+    }, [hasApprovalFreeSlotAcrossDates, selectedTreatmentDetails?.requiresSpecialApproval, selectedServiceType])
 
     const availableTimes = useMemo<AvailableTime[]>(() => {
         if (!selectedDateAvailability) {
@@ -825,7 +825,7 @@ export default function SetupAppointment() {
             return times
         }
 
-        if (selectedDogDetails?.requiresSpecialApproval) {
+        if (selectedTreatmentDetails?.requiresSpecialApproval) {
             const hasFlexibleOption = times.some((slot) => slot.requiresStaffApproval !== true && slot.available !== false)
             const hasApprovalOnlyOption = times.some((slot) => slot.requiresStaffApproval === true)
             if (hasFlexibleOption && hasApprovalOnlyOption) {
@@ -840,7 +840,7 @@ export default function SetupAppointment() {
         }
 
         return times
-    }, [selectedDateAvailability, selectedDogDetails?.requiresSpecialApproval])
+    }, [selectedDateAvailability, selectedTreatmentDetails?.requiresSpecialApproval])
 
     useEffect(() => {
         if (!selectedTime) {
@@ -889,8 +889,8 @@ export default function SetupAppointment() {
     }, [requiresApprovalForAllSlots, selectedServiceType])
 
     const isLoadingDates = useMemo(() => (
-        selectedDog && selectedServiceType ? isFetchingDates && availableDates.length === 0 : false
-    ), [selectedDog, selectedServiceType, isFetchingDates, availableDates.length])
+        selectedTreatment && selectedServiceType ? isFetchingDates && availableDates.length === 0 : false
+    ), [selectedTreatment, selectedServiceType, isFetchingDates, availableDates.length])
 
     const isGardenSubscriptionMissing = requiresGardenSubscription && (activeSubscriptions.length === 0 || !selectedSubscriptionId)
     const shouldShowPurchasePrompt = requiresGardenSubscription && !isFetchingSubscriptions && activeSubscriptions.length === 0
@@ -898,10 +898,10 @@ export default function SetupAppointment() {
 
     // Check if booking button is actually enabled (exact opposite of button disabled logic)
     const isBookingButtonEnabled = useMemo(() => {
-        // For request button (special approval breeds) - requires time selection for grooming and both services
+        // For request button (special approval treatmentTypes) - requires time selection for grooming and both services
         if (shouldShowRequestButton) {
             const requiresTime = selectedServiceType === "grooming" || selectedServiceType === "both"
-            const baseConditions = !selectedDog || !selectedServiceType || !selectedDate || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved
+            const baseConditions = !selectedTreatment || !selectedServiceType || !selectedDate || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved
             const timeCondition = requiresTime ? !selectedTime : false
             const enabled = !(baseConditions || timeCondition)
             console.log("🔘 REQUEST BUTTON:", { enabled, shouldShowRequestButton, selectedServiceType, termsApproved })
@@ -910,26 +910,26 @@ export default function SetupAppointment() {
 
         // For book button (direct booking) - opposite of its disabled condition  
         if (shouldShowBookButton) {
-            // For garden service, require dog, service, and date selection (but not time)
+            // For garden service, require treatment, service, and date selection (but not time)
             if (selectedServiceType === "garden") {
-                const enabled = !(!selectedDog || !selectedServiceType || !selectedDate || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved)
-                console.log("🔘 GARDEN BOOK BUTTON:", { enabled, shouldShowBookButton, selectedDog: !!selectedDog, selectedServiceType, selectedDate: !!selectedDate, termsApproved })
+                const enabled = !(!selectedTreatment || !selectedServiceType || !selectedDate || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved)
+                console.log("🔘 GARDEN BOOK BUTTON:", { enabled, shouldShowBookButton, selectedTreatment: !!selectedTreatment, selectedServiceType, selectedDate: !!selectedDate, termsApproved })
                 return enabled
             }
             // For grooming and both services, require date and time selection
-            const enabled = !(!selectedDog || !selectedServiceType || !selectedDate || !selectedTime || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved)
+            const enabled = !(!selectedTreatment || !selectedServiceType || !selectedDate || !selectedTime || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved)
             console.log("🔘 GROOMING/BOTH BOOK BUTTON:", { enabled, shouldShowBookButton, selectedServiceType, termsApproved })
             return enabled
         }
 
         console.log("🔘 NO BUTTON:", { shouldShowRequestButton, shouldShowBookButton })
         return false
-    }, [selectedDog, selectedServiceType, selectedDate, selectedTime, isGardenBlocked, isGardenSubscriptionMissing, isLoading, shouldShowRequestButton, shouldShowBookButton, termsApproved])
+    }, [selectedTreatment, selectedServiceType, selectedDate, selectedTime, isGardenBlocked, isGardenSubscriptionMissing, isLoading, shouldShowRequestButton, shouldShowBookButton, termsApproved])
 
     const requiresTimeSelection = selectedServiceType !== "garden"
 
     const canProceedToExtras = Boolean(
-        selectedDog &&
+        selectedTreatment &&
         selectedServiceType &&
         selectedDate &&
         (!requiresTimeSelection || selectedTime) &&
@@ -995,7 +995,7 @@ export default function SetupAppointment() {
     }, [isExtrasStep, canProceedToExtras])
 
     // Function to update URL with current selections
-    const updateURL = useCallback((newServiceType?: string, newDate?: Date, newDogId?: string) => {
+    const updateURL = useCallback((newServiceType?: string, newDate?: Date, newTreatmentId?: string) => {
         const params = new URLSearchParams(searchParams)
 
         if (newServiceType) {
@@ -1006,33 +1006,33 @@ export default function SetupAppointment() {
             params.set('date', newDate.toISOString().split('T')[0])
         }
 
-        const dogIdToUse = newDogId || selectedDog
-        if (dogIdToUse) {
-            params.set('dogId', dogIdToUse)
+        const treatmentIdToUse = newTreatmentId || selectedTreatment
+        if (treatmentIdToUse) {
+            params.set('treatmentId', treatmentIdToUse)
         }
 
         setSearchParams(params)
-    }, [searchParams, selectedDog, setSearchParams])
+    }, [searchParams, selectedTreatment, setSearchParams])
 
     // Function to handle query parameters
     const processQueryParams = useCallback(() => {
         const serviceType = searchParams.get('serviceType')
         const date = searchParams.get('date')
-        const dogId = searchParams.get('dogId')
+        const treatmentId = searchParams.get('treatmentId')
 
-        console.log('🔍 Processing query params:', { serviceType, date, dogId })
+        console.log('🔍 Processing query params:', { serviceType, date, treatmentId })
 
-        selectedDogFromParams.current = false
+        selectedTreatmentFromParams.current = false
 
-        if (dogId) {
-            const dogExists = dogs.some((dog) => dog.id === dogId)
-            if (dogExists) {
-                console.log('✅ Setting dog from query param:', dogId)
-                setSelectedDog(dogId)
-                selectedDogFromParams.current = true
+        if (treatmentId) {
+            const treatmentExists = treatments.some((treatment) => treatment.id === treatmentId)
+            if (treatmentExists) {
+                console.log('✅ Setting treatment from query param:', treatmentId)
+                setSelectedTreatment(treatmentId)
+                selectedTreatmentFromParams.current = true
             } else {
-                console.warn('❌ Dog ID from query param not found:', dogId)
-                selectedDogFromParams.current = false
+                console.warn('❌ Treatment ID from query param not found:', treatmentId)
+                selectedTreatmentFromParams.current = false
             }
         }
 
@@ -1050,7 +1050,7 @@ export default function SetupAppointment() {
                 console.warn('❌ Invalid date in query param:', date)
             }
         }
-    }, [dogs, searchParams])
+    }, [treatments, searchParams])
 
     const handleSubscriptionChange = useCallback((value: string) => {
         if (value === "__add_subscription__") {
@@ -1062,21 +1062,21 @@ export default function SetupAppointment() {
     }, [navigate])
 
     useEffect(() => {
-        if (!hasProcessedQueryParams.current && dogs.length > 0) {
+        if (!hasProcessedQueryParams.current && treatments.length > 0) {
             processQueryParams()
             hasProcessedQueryParams.current = true
         }
-    }, [dogs.length, processQueryParams])
+    }, [treatments.length, processQueryParams])
 
     useEffect(() => {
-        if (dogs.length > 0 && !selectedDog && hasProcessedQueryParams.current && !selectedDogFromParams.current) {
-            const fallbackDogId = dogs[0].id
-            setSelectedDog(fallbackDogId)
+        if (treatments.length > 0 && !selectedTreatment && hasProcessedQueryParams.current && !selectedTreatmentFromParams.current) {
+            const fallbackTreatmentId = treatments[0].id
+            setSelectedTreatment(fallbackTreatmentId)
             const params = new URLSearchParams(searchParams)
-            params.set('dogId', fallbackDogId)
+            params.set('treatmentId', fallbackTreatmentId)
             setSearchParams(params)
         }
-    }, [dogs, selectedDog, searchParams, setSearchParams])
+    }, [treatments, selectedTreatment, searchParams, setSearchParams])
 
     // Early returns after all hooks are called
     if (isAuthLoading || isFetchingClientId) {
@@ -1108,8 +1108,8 @@ export default function SetupAppointment() {
         )
     }
 
-    // Show loading state while fetching dogs
-    if (isFetchingDogs) {
+    // Show loading state while fetching treatments
+    if (isFetchingTreatments) {
         return (
             <div className="min-h-screen flex items-center justify-center" dir="rtl">
                 <div className="text-center">
@@ -1120,8 +1120,8 @@ export default function SetupAppointment() {
         )
     }
 
-    // Guard for users with no dogs - only show after API call completes
-    if (!isFetchingDogs && dogs.length === 0) {
+    // Guard for users with no treatments - only show after API call completes
+    if (!isFetchingTreatments && treatments.length === 0) {
         return (
             <div className="min-h-screen py-8" dir="rtl">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1136,7 +1136,7 @@ export default function SetupAppointment() {
                             <CardContent className="p-8 text-center">
                                 <div className="mb-6">
                                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <Dog className="h-8 w-8 text-blue-600" />
+                                        <Sparkles className="h-8 w-8 text-blue-600" />
                                     </div>
                                     <h2 className="text-xl font-semibold text-gray-900 mb-2">
                                         אין לך כלבים רשומים
@@ -1148,7 +1148,7 @@ export default function SetupAppointment() {
 
                                 <div className="space-y-4">
                                     <Button
-                                        onClick={openAddDogForm}
+                                        onClick={openAddTreatmentForm}
                                         className="w-full"
                                         size="lg"
                                     >
@@ -1161,25 +1161,25 @@ export default function SetupAppointment() {
                     </div>
                 </div>
 
-                {/* Add Dog Dialog - rendered here so it's available when no dogs exist */}
-                <AddDogDialog
-                    open={isAddDogDialogOpen}
-                    onOpenChange={setIsAddDogDialogOpen}
+                {/* Add Treatment Dialog - rendered here so it's available when no treatments exist */}
+                <AddTreatmentDialog
+                    open={isAddTreatmentDialogOpen}
+                    onOpenChange={setIsAddTreatmentDialogOpen}
                     customerId={ownerId}
-                    onSuccess={handleAddDogSuccess}
+                    onSuccess={handleAddTreatmentSuccess}
                 />
             </div>
         )
     }
 
-    const handleDogChange = (dogId: string) => {
-        if (dogId === "__add_new__") {
-            openAddDogForm()
+    const handleTreatmentChange = (treatmentId: string) => {
+        if (treatmentId === "__add_new__") {
+            openAddTreatmentForm()
             // Reset select to previous value (don't actually select __add_new__)
             return
         }
 
-        setSelectedDog(dogId)
+        setSelectedTreatment(treatmentId)
         setSelectedDate(undefined)
         setSelectedTime("")
         setSelectedStationId("")
@@ -1189,8 +1189,8 @@ export default function SetupAppointment() {
         setLatePickupNotes("")
         setFormStep(1)
 
-        selectedDogFromParams.current = false
-        updateURL(undefined, undefined, dogId)
+        selectedTreatmentFromParams.current = false
+        updateURL(undefined, undefined, treatmentId)
     }
 
     const handleServiceTypeChange = (serviceType: string) => {
@@ -1236,7 +1236,7 @@ export default function SetupAppointment() {
     const handleContinueToExtras = () => {
         const requiresTime = selectedServiceType !== "garden"
 
-        if (!selectedDog) {
+        if (!selectedTreatment) {
             setError("אנא בחר כלב לפני המעבר לשלב הבא")
             return
         }
@@ -1277,7 +1277,7 @@ export default function SetupAppointment() {
     }
 
     const handleReservation = async () => {
-        if (!selectedDog || !selectedServiceType || !selectedDate) {
+        if (!selectedTreatment || !selectedServiceType || !selectedDate) {
             setError("אנא בחר כלב, סוג שירות ותאריך")
             return
         }
@@ -1314,7 +1314,7 @@ export default function SetupAppointment() {
             const notesPayload = finalNotes.length > 0 ? finalNotes : undefined
             const trimmedLatePickupNotes = latePickupNotes.trim()
             console.log("Reserving appointment with:", {
-                selectedDog,
+                selectedTreatment,
                 dateString,
                 selectedStationId,
                 selectedTime,
@@ -1322,7 +1322,7 @@ export default function SetupAppointment() {
                 subscriptionId: selectedSubscription?.id,
             })
             const result = await reserveAppointment(
-                selectedDog,
+                selectedTreatment,
                 dateString,
                 selectedStationId,
                 selectedTime,
@@ -1366,7 +1366,7 @@ export default function SetupAppointment() {
                 setGardenBath(false)
                 setFormStep(1)
                 setSearchParams(new URLSearchParams())
-                selectedDogFromParams.current = false
+                selectedTreatmentFromParams.current = false
             } else {
                 console.log("❌ Reservation failed:", result.error)
                 setError(result.error || "שגיאה בשליחת הבקשה")
@@ -1380,15 +1380,15 @@ export default function SetupAppointment() {
     }
 
     const handleBookAppointment = async () => {
-        // For garden service, only require dog, service, and date
+        // For garden service, only require treatment, service, and date
         if (selectedServiceType === "garden") {
-            if (!selectedDog || !selectedServiceType || !selectedDate) {
+            if (!selectedTreatment || !selectedServiceType || !selectedDate) {
                 setError("אנא בחר כלב, סוג שירות ותאריך")
                 return
             }
         } else {
             // For grooming and both services, require all fields
-            if (!selectedDog || !selectedServiceType || !selectedDate || !selectedTime || !selectedStationId) {
+            if (!selectedTreatment || !selectedServiceType || !selectedDate || !selectedTime || !selectedStationId) {
                 setError("אנא בחר כלב, סוג שירות, תאריך, שעה ועמדה")
                 return
             }
@@ -1430,7 +1430,7 @@ export default function SetupAppointment() {
             const trimmedLatePickupNotes = latePickupNotes.trim()
 
             console.log("Booking appointment with:", {
-                selectedDog,
+                selectedTreatment,
                 dateString,
                 stationId,
                 time,
@@ -1440,7 +1440,7 @@ export default function SetupAppointment() {
                 appointmentType: selectedServiceType // Logging the appointment type being sent to webhook
             })
             const result = await reserveAppointment(
-                selectedDog,
+                selectedTreatment,
                 dateString,
                 stationId,
                 time,
@@ -1472,7 +1472,7 @@ export default function SetupAppointment() {
                 }, 2000) // 2 second delay to let user see the success message and confetti
 
                 // Reset form
-                setSelectedDog("")
+                setSelectedTreatment("")
                 setSelectedServiceType("grooming")
                 setSelectedDate(undefined)
                 setSelectedTime("")
@@ -1486,7 +1486,7 @@ export default function SetupAppointment() {
                 setGardenBath(false)
                 setFormStep(1)
                 setSearchParams(new URLSearchParams())
-                selectedDogFromParams.current = false
+                selectedTreatmentFromParams.current = false
             } else {
                 console.log("❌ Appointment booking failed:", result.error)
                 setError(result.error || "שגיאה בקביעת התור")
@@ -1583,20 +1583,20 @@ export default function SetupAppointment() {
                             </div>
 
                             <div className={formStep === 1 ? "space-y-6" : "hidden"}>
-                                {/* Dog Selection */}
+                                {/* Treatment Selection */}
                                 <div className="space-y-2 ">
                                     <label className="text-sm font-medium text-gray-700 text-right block">בחר כלב</label>
-                                    <Select value={selectedDog} onValueChange={handleDogChange}>
+                                    <Select value={selectedTreatment} onValueChange={handleTreatmentChange}>
                                         <SelectTrigger className="text-right [&>span]:text-right" dir="rtl">
                                             <SelectValue placeholder="בחר את הכלב שלך" />
                                         </SelectTrigger>
                                         <SelectContent dir="rtl">
-                                            {dogs.map((dog) => (
-                                                <SelectItem key={dog.id} value={dog.id} className="text-right">
+                                            {treatments.map((treatment) => (
+                                                <SelectItem key={treatment.id} value={treatment.id} className="text-right">
                                                     <div className="flex items-center justify-end w-full gap-2">
-                                                        <Dog className="h-4 w-4" />
-                                                        <span>{dog.name}</span>
-                                                        <Badge variant="outline">{dog.breed}</Badge>
+                                                        <Sparkles className="h-4 w-4" />
+                                                        <span>{treatment.name}</span>
+                                                        <Badge variant="outline">{treatment.treatmentType}</Badge>
                                                     </div>
                                                 </SelectItem>
                                             ))}
@@ -1648,7 +1648,7 @@ export default function SetupAppointment() {
                                         </p>
                                     )}
 
-                                    {selectedDog && selectedServiceType === 'grooming' && isSelectedDogSmall && (
+                                    {selectedTreatment && selectedServiceType === 'grooming' && isSelectedTreatmentSmall && (
                                         <label
                                             htmlFor="add-garden-option"
                                             className="mt-2 flex items-center justify-end gap-2 flex-row-reverse text-xs text-gray-600 cursor-pointer"
@@ -1747,7 +1747,7 @@ export default function SetupAppointment() {
 
                                 {isFirstGardenVisit && !isGardenBlocked && !gardenSuitabilityStatus.isExplicitlyRejected && (
                                     <FirstTimeGardenBanner
-                                        dogName={selectedDogDetails?.name ?? "החבר שלכם"}
+                                        treatmentName={selectedTreatmentDetails?.name ?? "החבר שלכם"}
                                         onSelectTrial={() => setSelectedGardenVisitType("trial")}
                                         onSkipTrial={() => setSelectedGardenVisitType("regular")}
                                         canSkipTrial={gardenSuitabilityStatus.canBookFullDay}
@@ -1839,7 +1839,7 @@ export default function SetupAppointment() {
                                 )}
 
                                 {/* Date Selection - Hide when waiting list is enabled */}
-                                {!isGardenBlocked && canShowScheduling && (!selectedDog || !selectedServiceType || isLoadingDates) && (
+                                {!isGardenBlocked && canShowScheduling && (!selectedTreatment || !selectedServiceType || isLoadingDates) && (
                                     <div className="space-y-4 text-center py-8">
                                         <div className="flex justify-center">
                                             <div className="relative">
@@ -1864,7 +1864,7 @@ export default function SetupAppointment() {
                                 )}
 
                                 {/* Calendar - Hide when waiting list is enabled */}
-                                {!isGardenBlocked && canShowScheduling && selectedDog && selectedServiceType && !isLoadingDates && (
+                                {!isGardenBlocked && canShowScheduling && selectedTreatment && selectedServiceType && !isLoadingDates && (
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium text-gray-700 text-right block">בחר תאריך</label>
                                         <Calendar
@@ -1956,7 +1956,7 @@ export default function SetupAppointment() {
                                     </div>
                                 )}
 
-                                {!isGardenBlocked && selectedDog && !isLoadingDates && !shouldShowPurchasePrompt && selectedServiceType !== 'garden' && !selectedTime && (
+                                {!isGardenBlocked && selectedTreatment && !isLoadingDates && !shouldShowPurchasePrompt && selectedServiceType !== 'garden' && !selectedTime && (
                                     <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 space-y-2 text-right">
                                         <div className="flex items-center justify-between gap-3 flex-row-reverse">
                                             <div className="space-y-1">
@@ -1976,7 +1976,7 @@ export default function SetupAppointment() {
                                                     const params = new URLSearchParams()
                                                     params.set('tab', 'waitingList')
                                                     params.set('action', 'new')
-                                                    params.set('dogId', selectedDog)
+                                                    params.set('treatmentId', selectedTreatment)
                                                     params.set('serviceType', selectedServiceType)
                                                     navigate(`/appointments?${params.toString()}`)
                                                 }}
@@ -2028,7 +2028,7 @@ export default function SetupAppointment() {
                                         <h3 className="text-sm font-semibold text-slate-800">סיכום הבחירה</h3>
                                         <div className="space-y-2 text-xs text-slate-600">
                                             <div>
-                                                <span className="font-medium">כלב:</span> {selectedDogDetails?.name ?? "לא נבחר"}
+                                                <span className="font-medium">כלב:</span> {selectedTreatmentDetails?.name ?? "לא נבחר"}
                                             </div>
                                             <div>
                                                 <span className="font-medium">שירות:</span> {selectedServiceType === "grooming" ? "תספורת" : selectedServiceType === "garden" ? "גן" : "תספורת וגן"}
@@ -2179,15 +2179,15 @@ export default function SetupAppointment() {
                                     </div>
                                 )}
 
-                                {/* Action Buttons - Show only one button based on service and breed requirements */}
+                                {/* Action Buttons - Show only one button based on service and treatmentType requirements */}
                                 <>
-                                    {/* Request Button - for breeds requiring special approval */}
+                                    {/* Request Button - for treatmentTypes requiring special approval */}
                                     {shouldShowRequestButton && (
                                         <>
                                             <Button
                                                 onClick={handleReservation}
                                                 disabled={
-                                                    !selectedDog ||
+                                                    !selectedTreatment ||
                                                     !selectedServiceType ||
                                                     !selectedDate ||
                                                     (selectedServiceType === "grooming" && !selectedTime) ||
@@ -2203,7 +2203,7 @@ export default function SetupAppointment() {
 
                                             {/* Warning message for request-only appointments */}
                                             {!(
-                                                !selectedDog ||
+                                                !selectedTreatment ||
                                                 !selectedServiceType ||
                                                 !selectedDate ||
                                                 (selectedServiceType === "grooming" && !selectedTime) ||
@@ -2260,28 +2260,28 @@ export default function SetupAppointment() {
 
                     {/* Right Side - Information */}
                     <div className="space-y-6">
-                        {/* Selected Dog Info */}
-                        {selectedDog && (
+                        {/* Selected Treatment Info */}
+                        {selectedTreatment && (
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
-                                        <Dog className="h-5 w-5" />
+                                        <Sparkles className="h-5 w-5" />
                                         <span>הכלב שנבחר</span>
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     {(() => {
-                                        const dog = dogs.find(d => d.id === selectedDog)
-                                        if (!dog) return null
+                                        const treatment = treatments.find(d => d.id === selectedTreatment)
+                                        if (!treatment) return null
                                         return (
                                             <div className="space-y-3">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                                                        <Dog className="h-6 w-6 text-blue-600" />
+                                                        <Sparkles className="h-6 w-6 text-blue-600" />
                                                     </div>
                                                     <div>
-                                                        <h3 className="font-semibold text-lg">{dog.name}</h3>
-                                                        <p className="text-gray-600">{dog.breed}</p>
+                                                        <h3 className="font-semibold text-lg">{treatment.name}</h3>
+                                                        <p className="text-gray-600">{treatment.treatmentType}</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2355,12 +2355,12 @@ export default function SetupAppointment() {
                 </div>
             </div>
 
-            {/* Add Dog Dialog */}
-            <AddDogDialog
-                open={isAddDogDialogOpen}
-                onOpenChange={setIsAddDogDialogOpen}
+            {/* Add Treatment Dialog */}
+            <AddTreatmentDialog
+                open={isAddTreatmentDialogOpen}
+                onOpenChange={setIsAddTreatmentDialogOpen}
                 customerId={ownerId}
-                onSuccess={handleAddDogSuccess}
+                onSuccess={handleAddTreatmentSuccess}
             />
         </div>
     )

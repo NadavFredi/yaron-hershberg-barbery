@@ -4,14 +4,14 @@ import { Loader2 } from "lucide-react"
 import { useManagerRole } from "@/hooks/useManagerRole"
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth"
 import AdminLayout from "@/components/layout/AdminLayout"
-import { SettingsBreedsSection } from "@/components/settings/SettingsBreedsSection/SettingsBreedsSection"
+import { SettingsTreatmentTypesSection } from "@/components/settings/SettingsTreatmentTypesSection/SettingsTreatmentTypesSection"
 import { SettingsWorkingHoursSection } from "@/components/settings/SettingsWorkingHoursSection/SettingsWorkingHoursSection"
 import { SettingsStationsSection } from "@/components/settings/SettingsStationsSection/SettingsStationsSection"
 import { SettingsConstraintsSection } from "@/components/settings/SettingsConstraintsSection/SettingsConstraintsSection"
-import { SettingsBreedStationMatrixSection } from "@/components/settings/SettingsBreedStationMatrixSection/SettingsBreedStationMatrixSection"
+import { SettingsTreatmentTypeStationMatrixSection } from "@/components/settings/SettingsTreatmentTypeStationMatrixSection/SettingsTreatmentTypeStationMatrixSection"
 import { SettingsSubnav } from "@/components/navigation/SettingsSubnav"
 
-const VALID_SECTIONS = ["breeds", "working-hours", "stations", "constraints", "matrix"] as const
+const VALID_SECTIONS = ["treatmentTypes", "working-hours", "stations", "constraints", "matrix"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function Settings() {
@@ -24,8 +24,8 @@ export default function Settings() {
     // Also check if constraintId is present, which means we should open constraints section
     const constraintId = searchParams.get("constraintId")
     const sectionFromUrl = searchParams.get("mode")
-    const defaultDogTypeId = searchParams.get("category1Id")
-    const defaultDogCategoryId = searchParams.get("category2Id")
+    const defaultTreatmentTypeId = searchParams.get("category1Id")
+    const defaultTreatmentCategoryId = searchParams.get("category2Id")
     const initialSection = (constraintId ? "constraints" : (sectionFromUrl && VALID_SECTIONS.includes(sectionFromUrl as SectionId)
         ? sectionFromUrl
         : "working-hours"))
@@ -89,16 +89,16 @@ export default function Settings() {
             <div className="min-h-screen bg-background py-6" dir="rtl">
                 <div className="mx-auto w-full px-1 sm:px-2 lg:px-3">
                     {/* Active Section Content - Only render the active section to avoid unnecessary API calls */}
-                    {activeSection === "breeds" && (
-                        <SettingsBreedsSection
-                            defaultDogTypeId={defaultDogTypeId}
-                            defaultDogCategoryId={defaultDogCategoryId}
+                    {activeSection === "treatmentTypes" && (
+                        <SettingsTreatmentTypesSection
+                            defaultTreatmentTypeId={defaultTreatmentTypeId}
+                            defaultTreatmentCategoryId={defaultTreatmentCategoryId}
                         />
                     )}
                     {activeSection === "working-hours" && <SettingsWorkingHoursSection />}
                     {activeSection === "stations" && <SettingsStationsSection />}
                     {activeSection === "constraints" && <SettingsConstraintsSection />}
-                    {activeSection === "matrix" && <SettingsBreedStationMatrixSection />}
+                    {activeSection === "matrix" && <SettingsTreatmentTypeStationMatrixSection />}
                 </div>
             </div>
         </AdminLayout>

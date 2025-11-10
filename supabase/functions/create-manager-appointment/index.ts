@@ -17,7 +17,7 @@ interface CreateManagerAppointmentRequest {
   appointmentType?: ManagerAppointmentType
   groupId?: string
   customerId?: string
-  dogId?: string
+  treatmentId?: string
   isManualOverride?: boolean
   gardenAppointmentType?: "full-day" | "hourly" | "trial"
   services?: {
@@ -110,7 +110,7 @@ serve(async (req) => {
       appointmentType,
       groupId,
       customerId,
-      dogId,
+      treatmentId,
       isManualOverride: _isManualOverride, // Reserved for future use
       gardenAppointmentType,
       services,
@@ -133,7 +133,7 @@ serve(async (req) => {
       gardenAppointmentType,
       groupId,
       customerId,
-      dogId,
+      treatmentId,
     })
 
     // Validate required fields
@@ -162,11 +162,11 @@ serve(async (req) => {
 
     const appointmentIds: string[] = []
     let resolvedCustomerId: string | undefined = customerId
-    let resolvedDogId: string | undefined = dogId
+    let resolvedTreatmentId: string | undefined = treatmentId
 
-    // Handle private appointments: create/find system customer and dog
+    // Handle private appointments: create/find system customer and treatment
     if (normalizedAppointmentType === "private") {
-      console.log("🔒 [create-manager-appointment] Creating private appointment, setting up system customer/dog")
+      console.log("🔒 [create-manager-appointment] Creating private appointment, setting up system customer/treatment")
 
       // Find or create system customer ("צוות פנימי" with phone "0000000000")
       const systemPhone = "0000000000"
@@ -208,26 +208,26 @@ serve(async (req) => {
         console.log("✅ [create-manager-appointment] Created system customer:", resolvedCustomerId)
       }
 
-      // Find or create system dog with the appointment name
-      const { data: existingDog, error: dogSearchError } = await supabaseClient
-        .from("dogs")
+      // Find or create system treatment with the appointment name
+      const { data: existingTreatment, error: treatmentSearchError } = await supabaseClient
+        .from("treatments")
         .select("id")
         .eq("customer_id", resolvedCustomerId)
         .eq("name", name)
         .single()
 
-      if (dogSearchError && dogSearchError.code !== "PGRST116") {
-        console.error("❌ [create-manager-appointment] Error searching for system dog:", dogSearchError)
-        throw new Error(`Failed to search for system dog: ${dogSearchError.message}`)
+      if (treatmentSearchError && treatmentSearchError.code !== "PGRST116") {
+        console.error("❌ [create-manager-appointment] Error searching for system treatment:", treatmentSearchError)
+        throw new Error(`Failed to search for system treatment: ${treatmentSearchError.message}`)
       }
 
-      if (existingDog) {
-        resolvedDogId = existingDog.id
-        console.log("✅ [create-manager-appointment] Found existing system dog:", resolvedDogId)
+      if (existingTreatment) {
+        resolvedTreatmentId = existingTreatment.id
+        console.log("✅ [create-manager-appointment] Found existing system treatment:", resolvedTreatmentId)
       } else {
-        // Create system dog
-        const { data: newDog, error: dogCreateError } = await supabaseClient
-          .from("dogs")
+        // Create system treatment
+        const { data: newTreatment, error: treatmentCreateError } = await supabaseClient
+          .from("treatments")
           .insert({
             customer_id: resolvedCustomerId,
             name: name,
@@ -237,22 +237,22 @@ serve(async (req) => {
           .select("id")
           .single()
 
-        if (dogCreateError) {
-          console.error("❌ [create-manager-appointment] Error creating system dog:", dogCreateError)
-          throw new Error(`Failed to create system dog: ${dogCreateError.message}`)
+        if (treatmentCreateError) {
+          console.error("❌ [create-manager-appointment] Error creating system treatment:", treatmentCreateError)
+          throw new Error(`Failed to create system treatment: ${treatmentCreateError.message}`)
         }
 
-        resolvedDogId = newDog.id
-        console.log("✅ [create-manager-appointment] Created system dog:", resolvedDogId)
+        resolvedTreatmentId = newTreatment.id
+        console.log("✅ [create-manager-appointment] Created system treatment:", resolvedTreatmentId)
       }
     }
 
-    // Validate customer and dog IDs for business/garden appointments
+    // Validate customer and treatment IDs for business/garden appointments
     if (normalizedAppointmentType !== "private") {
-      if (!resolvedCustomerId || !resolvedDogId) {
+      if (!resolvedCustomerId || !resolvedTreatmentId) {
         return new Response(
           JSON.stringify({
-            error: "Missing required fields: customerId and dogId are required for business/garden appointments",
+            error: "Missing required fields: customerId and treatmentId are required for business/garden appointments",
           }),
           {
             status: 400,
@@ -330,7 +330,7 @@ serve(async (req) => {
 
       const insertPayload = {
         customer_id: resolvedCustomerId!,
-        dog_id: resolvedDogId!,
+        treatment_id: resolvedTreatmentId!,
         station_id: stationIdToUse,
         start_at: startTime,
         end_at: endTime,
@@ -384,7 +384,7 @@ serve(async (req) => {
       for (const stationIdToUse of stationsToUse) {
         const insertPayload = {
           customer_id: resolvedCustomerId!,
-          dog_id: resolvedDogId!,
+          treatment_id: resolvedTreatmentId!,
           station_id: stationIdToUse,
           start_at: startTime,
           end_at: endTime,

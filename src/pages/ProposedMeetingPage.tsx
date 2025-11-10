@@ -16,7 +16,7 @@ import {
   useGetProposedMeetingPublicQuery,
   useBookProposedMeetingMutation,
   useGetClientProfileQuery,
-  useListOwnerDogsQuery,
+  useListOwnerTreatmentsQuery,
 } from "@/store/services/supabaseApi"
 import { useToast } from "@/components/ui/use-toast"
 import { Label } from "@/components/ui/label"
@@ -58,29 +58,29 @@ const ProposedMeetingPage = () => {
     skip: !clientId,
   })
 
-  const { data: dogsData, isLoading: dogsLoading } = useListOwnerDogsQuery(ownerId ?? skipToken)
+  const { data: treatmentsData, isLoading: treatmentsLoading } = useListOwnerTreatmentsQuery(ownerId ?? skipToken)
 
-  const [selectedDogId, setSelectedDogId] = useState<string>("")
+  const [selectedTreatmentId, setSelectedTreatmentId] = useState<string>("")
   const [codeInput, setCodeInput] = useState("")
   const [bookingCompleted, setBookingCompleted] = useState(false)
   const [bookMeeting, { isLoading: isBooking }] = useBookProposedMeetingMutation()
 
-  const visibleDogs = dogsData?.dogs ?? []
+  const visibleTreatments = treatmentsData?.treatments ?? []
   const isReschedule = Boolean(meeting?.rescheduleAppointmentId)
-  const requiredDogId = meeting?.rescheduleDogId ?? null
-  const dogsForSelection = useMemo(() => {
-    if (!requiredDogId) {
-      return visibleDogs
+  const requiredTreatmentId = meeting?.rescheduleTreatmentId ?? null
+  const treatmentsForSelection = useMemo(() => {
+    if (!requiredTreatmentId) {
+      return visibleTreatments
     }
-    return visibleDogs.filter((dog) => dog.id === requiredDogId)
-  }, [requiredDogId, visibleDogs])
-  const missingRequiredDog = Boolean(requiredDogId) && dogsForSelection.length === 0
+    return visibleTreatments.filter((treatment) => treatment.id === requiredTreatmentId)
+  }, [requiredTreatmentId, visibleTreatments])
+  const missingRequiredTreatment = Boolean(requiredTreatmentId) && treatmentsForSelection.length === 0
 
   useEffect(() => {
-    if (requiredDogId) {
-      setSelectedDogId(requiredDogId)
+    if (requiredTreatmentId) {
+      setSelectedTreatmentId(requiredTreatmentId)
     }
-  }, [requiredDogId])
+  }, [requiredTreatmentId])
 
   const isInvited = useMemo(() => {
     if (!clientId || !meeting?.invites) {
@@ -99,12 +99,12 @@ const ProposedMeetingPage = () => {
   const hasAutomaticAccess = isInvited || isCategoryAllowed
   const enteredCode = codeInput.trim()
   const hasCodeAccess = enteredCode.length === 6
-  const dogAllowed = requiredDogId ? selectedDogId === requiredDogId : Boolean(selectedDogId)
+  const treatmentAllowed = requiredTreatmentId ? selectedTreatmentId === requiredTreatmentId : Boolean(selectedTreatmentId)
   const canSubmit = Boolean(
     meeting &&
     !bookingCompleted &&
-    dogAllowed &&
-    !missingRequiredDog &&
+    treatmentAllowed &&
+    !missingRequiredTreatment &&
     (hasAutomaticAccess || hasCodeAccess)
   )
 
@@ -114,13 +114,13 @@ const ProposedMeetingPage = () => {
     !meetingId
 
   const handleBookMeeting = async () => {
-    if (!meetingId || !selectedDogId) {
+    if (!meetingId || !selectedTreatmentId) {
       return
     }
     try {
       await bookMeeting({
         meetingId,
-        dogId: selectedDogId,
+        treatmentId: selectedTreatmentId,
         code: enteredCode || undefined,
       }).unwrap()
       setBookingCompleted(true)
@@ -286,41 +286,41 @@ const ProposedMeetingPage = () => {
         <CardContent className="space-y-6">
           <div className="space-y-3">
             <div className="text-sm font-semibold text-gray-800">בחרו כלב</div>
-            {dogsLoading ? (
+            {treatmentsLoading ? (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 טוען כלבים...
               </div>
-            ) : missingRequiredDog ? (
+            ) : missingRequiredTreatment ? (
               <Alert className="border-red-200 bg-red-50">
                 <AlertTitle>לא הצלחנו למצוא את הכלב המתאים</AlertTitle>
                 <AlertDescription>
                   התור הזה מיועד לכלב ספציפי שלא מופיע אצלכם. צרו קשר עם הצוות כדי לעדכן את פרטי החשבון.
                 </AlertDescription>
               </Alert>
-            ) : dogsForSelection.length === 0 ? (
+            ) : treatmentsForSelection.length === 0 ? (
               <Alert>
                 <AlertTitle>לא מצאנו כלבים בחשבון</AlertTitle>
                 <AlertDescription>
-                  הוסיפו כלב דרך <Link to="/my-dogs" className="text-lime-700 underline">איזור הכלבים</Link> ואז חזרו לכאן.
+                  הוסיפו כלב דרך <Link to="/my-treatments" className="text-lime-700 underline">איזור הכלבים</Link> ואז חזרו לכאן.
                 </AlertDescription>
               </Alert>
             ) : (
-              <RadioGroup value={selectedDogId} onValueChange={setSelectedDogId} className="space-y-2">
-                {dogsForSelection.map((dog) => (
+              <RadioGroup value={selectedTreatmentId} onValueChange={setSelectedTreatmentId} className="space-y-2">
+                {treatmentsForSelection.map((treatment) => (
                   <label
-                    key={dog.id}
-                    htmlFor={`dog-${dog.id}`}
+                    key={treatment.id}
+                    htmlFor={`treatment-${treatment.id}`}
                     className={cn(
                       "flex items-center justify-end gap-2 rounded-lg border px-3 py-2 text-right text-sm transition",
-                      selectedDogId === dog.id ? "border-lime-400 bg-lime-50" : "border-slate-200"
+                      selectedTreatmentId === treatment.id ? "border-lime-400 bg-lime-50" : "border-slate-200"
                     )}
                   >
                     <div>
-                      <div className="font-semibold text-gray-900">{dog.name}</div>
-                      {dog.breeds?.name && <div className="text-xs text-gray-500">{dog.breeds.name}</div>}
+                      <div className="font-semibold text-gray-900">{treatment.name}</div>
+                      {treatment.treatmentTypes?.name && <div className="text-xs text-gray-500">{treatment.treatmentTypes.name}</div>}
                     </div>
-                    <RadioGroupItem id={`dog-${dog.id}`} value={dog.id} />
+                    <RadioGroupItem id={`treatment-${treatment.id}`} value={treatment.id} />
                   </label>
                 ))}
               </RadioGroup>

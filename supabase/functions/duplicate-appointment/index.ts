@@ -84,7 +84,7 @@ interface AppointmentData {
   startDateTime: string
   endDateTime: string
   serviceType: "grooming" | "garden"
-  dogs: Array<{ name: string }>
+  treatments: Array<{ name: string }>
   clientName?: string
   appointmentGroupId?: string
   stationId?: string
@@ -165,7 +165,7 @@ function convertGroomingRecordToAppointmentData(record: AirtableRecord<GroomingA
     startDateTime: record.fields["מועד התור"],
     endDateTime: record.fields["מועד סיום התור"] || record.fields["מועד התור"],
     serviceType: "grooming",
-    dogs: record.fields.כלב?.map((dogId) => ({ name: dogId })) || [],
+    treatments: record.fields.כלב?.map((treatmentId) => ({ name: treatmentId })) || [],
     clientName: record.fields["שם לקוח"],
     appointmentGroupId: record.fields["מזהה קבוצת תורים"],
     stationId: record.fields["עמדת עבודה"]?.[0],
@@ -182,7 +182,7 @@ function convertGardenRecordToAppointmentData(record: AirtableRecord<GardenAppoi
     startDateTime: record.fields["מועד התור"],
     endDateTime: record.fields["מועד סיום התור"] || record.fields["מועד התור"],
     serviceType: "garden",
-    dogs: record.fields.כלב?.map((dogId) => ({ name: dogId })) || [],
+    treatments: record.fields.כלב?.map((treatmentId) => ({ name: treatmentId })) || [],
     clientName: record.fields["שם לקוח"],
     appointmentGroupId: record.fields["מזהה קבוצת תורים"],
     stationId: record.fields["עמדת עבודה"]?.[0],
@@ -320,7 +320,7 @@ serve(async (req) => {
         startDateTime: newStartDate.toISOString(),
         endDateTime: newEndDate.toISOString(),
         serviceType: appointmentData.serviceType,
-        dogs: appointmentData.dogs,
+        treatments: appointmentData.treatments,
         clientName: appointmentData.clientName,
         appointmentGroupId: seriesGroupId, // Use generated group ID for all appointments in series
         stationId: appointmentData.stationId,
@@ -339,7 +339,7 @@ serve(async (req) => {
         startDateTime: appointmentData.startDateTime,
         endDateTime: appointmentData.endDateTime,
         serviceType: appointmentData.serviceType,
-        dogs: appointmentData.dogs,
+        treatments: appointmentData.treatments,
         clientName: appointmentData.clientName,
         appointmentGroupId: appointmentData.appointmentGroupId,
         stationId: appointmentData.stationId,

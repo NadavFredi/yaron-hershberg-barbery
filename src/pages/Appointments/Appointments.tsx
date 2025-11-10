@@ -8,7 +8,7 @@ import {
     Calendar as CalendarIcon,
     CalendarClock,
     Clock,
-    Dog,
+    Sparkles,
     CheckCircle,
     XCircle,
     Scissors,
@@ -43,7 +43,7 @@ import {
     supabaseApi,
     useDeleteWaitingListEntryMutation,
     useGetWaitingListEntriesQuery,
-    useListOwnerDogsQuery,
+    useListOwnerTreatmentsQuery,
 } from "@/store/services/supabaseApi"
 import { extractErrorMessage } from "@/utils/api"
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
@@ -55,7 +55,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { BothAppointmentCard } from "@/components/BothAppointmentCard"
 import { AddWaitlistEntryModal } from "@/components/dialogs/AddWaitlistEntryModal"
 import type { Customer as WaitlistCustomer } from "@/components/CustomerSearchInput"
-import type { Dog as WaitlistModalDog } from "@/components/DogSelectInput"
+import type { Treatment as WaitlistModalTreatment } from "@/components/TreatmentSelectInput"
 
 // Utility function to get service name in Hebrew
 const getServiceName = (service: string) => {
@@ -112,7 +112,7 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
         parseDateTime(appointment.endDateTime) ??
         new Date(appointmentStart.getTime() + 60 * 60 * 1000)
 
-    const title = `${getServiceName(appointment.service)} - ${appointment.dogName || "כלב"}`
+    const title = `${getServiceName(appointment.service)} - ${appointment.treatmentName || "כלב"}`
     const details = appointment.notes ? `הערות: ${appointment.notes}` : ""
 
     const formattedStart = formatForGoogleCalendar(appointmentStart)
@@ -130,10 +130,10 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
     return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
 
-interface Dog {
+interface Treatment {
     id: string
     name: string
-    breed: string
+    treatmentType: string
     size: string
     isSmall: boolean
     ownerId: string
@@ -143,12 +143,12 @@ interface Dog {
 
 interface Appointment {
     id: string
-    dogId: string
+    treatmentId: string
     date: string
     time: string
     service: "grooming" | "garden" | "both"
     status: string
-    dogName?: string
+    treatmentName?: string
     startDateTime?: string
     endDateTime?: string
     stationId?: string
@@ -168,8 +168,8 @@ interface Appointment {
 
 interface WaitingListEntry {
     id: string
-    dogId: string
-    dogName: string | null
+    treatmentId: string
+    treatmentName: string | null
     serviceType: string | null
     status: string | null
     notes?: string | null
@@ -183,7 +183,7 @@ type WaitlistServiceScopeValue = 'grooming' | 'garden' | 'both' | 'daycare'
 
 interface WaitlistModalSubmission {
     customer: WaitlistCustomer
-    dog: WaitlistModalDog
+    treatment: WaitlistModalTreatment
     entries: Array<{ startDate: string; endDate: string | null }>
     serviceScope: WaitlistServiceScopeValue
     notes: string
@@ -191,8 +191,8 @@ interface WaitlistModalSubmission {
     entryId?: string
 }
 
-type ListOwnerDogsResponse = { dogs: Dog[] }
-type DogAppointmentsResponse = { appointments: Appointment[] }
+type ListOwnerTreatmentsResponse = { treatments: Treatment[] }
+type TreatmentAppointmentsResponse = { appointments: Appointment[] }
 
 const CANCELLED_STATUS_KEYWORDS = ["cancelled", "canceled", "מבוטל", "בוטל"]
 
@@ -229,7 +229,7 @@ export default function Appointments() {
     const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null)
     const [isWaitingListDialogOpen, setIsWaitingListDialogOpen] = useState(false)
     const [editingWaitingListEntry, setEditingWaitingListEntry] = useState<WaitingListEntry | null>(null)
-    const [waitlistModalDogId, setWaitlistModalDogId] = useState<string | null>(null)
+    const [waitlistModalTreatmentId, setWaitlistModalTreatmentId] = useState<string | null>(null)
     const [waitlistModalServiceScope, setWaitlistModalServiceScope] = useState<WaitlistServiceScopeValue>('grooming')
     const [waitlistModalDateRanges, setWaitlistModalDateRanges] = useState<Array<{ startDate: string; endDate?: string | null }> | undefined>(undefined)
     const [waitlistModalNotes, setWaitlistModalNotes] = useState<string | null>(null)
@@ -430,9 +430,9 @@ export default function Appointments() {
             }
 
             dispatch(
-                supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
+                supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
                     'getMergedAppointments',
-                    latePickupDialogState.appointment.dogId,
+                    latePickupDialogState.appointment.treatmentId,
                     (draft) => {
                         const target = draft.appointments?.find((apt) =>
                             apt.id === latePickupDialogState.appointment.id ||
@@ -449,9 +449,9 @@ export default function Appointments() {
 
             try {
                 dispatch(
-                    supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
-                        'getDogGardenAppointments',
-                        latePickupDialogState.appointment.dogId,
+                    supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
+                        'getTreatmentGardenAppointments',
+                        latePickupDialogState.appointment.treatmentId,
                         (draft) => {
                             const target = draft.appointments?.find((apt) => apt.id === latePickupDialogState.appointmentId)
 
@@ -526,19 +526,19 @@ export default function Appointments() {
     const latePickupDialogTimeLabel = latePickupDialogDateTime ? format(latePickupDialogDateTime, "HH:mm") : (latePickupDialogAppointment?.time ?? "")
 
     const {
-        data: dogsQueryData,
-        isFetching: isFetchingDogs,
-        isLoading: isLoadingDogs,
-        error: dogsQueryError,
-        refetch: refetchDogs,
-    } = useListOwnerDogsQuery(ownerId ?? skipToken, {
+        data: treatmentsQueryData,
+        isFetching: isFetchingTreatments,
+        isLoading: isLoadingTreatments,
+        error: treatmentsQueryError,
+        refetch: refetchTreatments,
+    } = useListOwnerTreatmentsQuery(ownerId ?? skipToken, {
         skip: !ownerId,
     })
 
-    const dogs = useMemo<Dog[]>(() => {
-        const response = dogsQueryData as ListOwnerDogsResponse | undefined
-        return response?.dogs ?? []
-    }, [dogsQueryData])
+    const treatments = useMemo<Treatment[]>(() => {
+        const response = treatmentsQueryData as ListOwnerTreatmentsResponse | undefined
+        return response?.treatments ?? []
+    }, [treatmentsQueryData])
 
     const waitlistModalCustomer = useMemo<WaitlistCustomer | null>(() => {
         if (!ownerId) {
@@ -564,49 +564,49 @@ export default function Appointments() {
         }
     }, [ownerId, user])
 
-    const waitlistModalDog = useMemo<WaitlistModalDog | null>(() => {
-        if (!waitlistModalDogId) {
+    const waitlistModalTreatment = useMemo<WaitlistModalTreatment | null>(() => {
+        if (!waitlistModalTreatmentId) {
             return null
         }
-        const dog = dogs.find((d) => d.id === waitlistModalDogId)
-        if (!dog) {
+        const treatment = treatments.find((d) => d.id === waitlistModalTreatmentId)
+        if (!treatment) {
             return null
         }
 
         return {
-            id: dog.id,
-            name: dog.name,
-            breed: dog.breed,
-            size: dog.size,
-            isSmall: dog.isSmall,
-            ownerId: dog.ownerId,
+            id: treatment.id,
+            name: treatment.name,
+            treatmentType: treatment.treatmentType,
+            size: treatment.size,
+            isSmall: treatment.isSmall,
+            ownerId: treatment.ownerId,
         }
-    }, [dogs, waitlistModalDogId])
+    }, [treatments, waitlistModalTreatmentId])
 
-    const dogIds = useMemo(() => dogs.map((dog) => dog.id), [dogs])
+    const treatmentIds = useMemo(() => treatments.map((treatment) => treatment.id), [treatments])
 
-    const waitingListQueryArg = dogIds.length > 0 ? { dogIds } : skipToken
+    const waitingListQueryArg = treatmentIds.length > 0 ? { treatmentIds } : skipToken
 
     const { data: waitingListData, isFetching: isFetchingWaitingList } = useGetWaitingListEntriesQuery(
         waitingListQueryArg,
         {
-            skip: dogIds.length === 0,
+            skip: treatmentIds.length === 0,
         }
     )
 
     const [deleteWaitingListEntry] = useDeleteWaitingListEntryMutation()
 
-    const dogIdsKey = useMemo(() => (dogs.length ? dogs.map((dog) => dog.id).sort().join("|") : ""), [dogs])
+    const treatmentIdsKey = useMemo(() => (treatments.length ? treatments.map((treatment) => treatment.id).sort().join("|") : ""), [treatments])
 
     useEffect(() => {
-        if (!dogIdsKey) {
+        if (!treatmentIdsKey) {
             return
         }
 
-        // Fetch merged appointments for all dogs
-        const subscriptions = dogs.map((dog) =>
+        // Fetch merged appointments for all treatments
+        const subscriptions = treatments.map((treatment) =>
             dispatch(
-                supabaseApi.endpoints.getMergedAppointments.initiate(dog.id, {
+                supabaseApi.endpoints.getMergedAppointments.initiate(treatment.id, {
                     forceRefetch: false,
                 })
             )
@@ -615,12 +615,12 @@ export default function Appointments() {
         return () => {
             subscriptions.forEach((subscription) => subscription.unsubscribe())
         }
-    }, [dispatch, dogIdsKey, dogs])
+    }, [dispatch, treatmentIdsKey, treatments])
 
-    const mergedAppointmentsByDog = useAppSelector((state) => {
-        if (!dogs.length) {
+    const mergedAppointmentsByTreatment = useAppSelector((state) => {
+        if (!treatments.length) {
             return [] as Array<{
-                dog: Dog
+                treatment: Treatment
                 appointments: Appointment[]
                 isFetching: boolean
                 isLoading: boolean
@@ -628,17 +628,17 @@ export default function Appointments() {
             }>
         }
 
-        return dogs.map((dog) => {
-            const queryState = supabaseApi.endpoints.getMergedAppointments.select(dog.id)(state)
+        return treatments.map((treatment) => {
+            const queryState = supabaseApi.endpoints.getMergedAppointments.select(treatment.id)(state)
             // The API returns the appointments array directly, not an object with 'appointments' property
             const responseData = queryState?.data
 
             // Handle both array format (current) and object format (legacy)
             const appointments: Appointment[] = Array.isArray(responseData)
                 ? responseData
-                : (responseData as DogAppointmentsResponse | undefined)?.appointments ?? []
+                : (responseData as TreatmentAppointmentsResponse | undefined)?.appointments ?? []
 
-            console.log(`🔍 [Appointments] Dog ${dog.name} (${dog.id}):`, {
+            console.log(`🔍 [Appointments] Treatment ${treatment.name} (${treatment.id}):`, {
                 queryStateExists: !!queryState,
                 responseDataType: Array.isArray(responseData) ? 'array' : typeof responseData,
                 responseDataLength: Array.isArray(responseData) ? responseData.length : 'N/A',
@@ -649,7 +649,7 @@ export default function Appointments() {
             })
 
             return {
-                dog,
+                treatment,
                 appointments,
                 isFetching: queryState?.isFetching ?? false,
                 isLoading: queryState?.isLoading ?? false,
@@ -659,56 +659,56 @@ export default function Appointments() {
     })
 
     const allAppointments = useMemo<Appointment[]>(() => {
-        return mergedAppointmentsByDog.flatMap(({ dog, appointments }) =>
+        return mergedAppointmentsByTreatment.flatMap(({ treatment, appointments }) =>
             appointments.map((appointment) => ({
                 ...appointment,
-                dogId: appointment.dogId || dog.id,
-                dogName: appointment.dogName || dog.name,
+                treatmentId: appointment.treatmentId || treatment.id,
+                treatmentName: appointment.treatmentName || treatment.name,
                 // Service type is already set correctly by the merged endpoint
             }))
         )
-    }, [mergedAppointmentsByDog])
+    }, [mergedAppointmentsByTreatment])
 
-    const waitingListEntries = useWaitingListEntries(waitingListData, dogIds)
+    const waitingListEntries = useWaitingListEntries(waitingListData, treatmentIds)
 
-    const waitingListEntriesByDog = useMemo(() => {
-        const grouped = new Map<string, { dog: Dog; entries: WaitingListEntry[] }>()
+    const waitingListEntriesByTreatment = useMemo(() => {
+        const grouped = new Map<string, { treatment: Treatment; entries: WaitingListEntry[] }>()
 
         waitingListEntries.forEach((entry) => {
-            const dog = dogs.find((d) => d.id === entry.dogId)
-            if (!dog) return
+            const treatment = treatments.find((d) => d.id === entry.treatmentId)
+            if (!treatment) return
 
-            if (!grouped.has(dog.id)) {
-                grouped.set(dog.id, { dog, entries: [] })
+            if (!grouped.has(treatment.id)) {
+                grouped.set(treatment.id, { treatment, entries: [] })
             }
 
-            grouped.get(dog.id)!.entries.push(entry)
+            grouped.get(treatment.id)!.entries.push(entry)
         })
 
-        return Array.from(grouped.values()).map(({ dog, entries }) => ({
-            dog,
+        return Array.from(grouped.values()).map(({ treatment, entries }) => ({
+            treatment,
             entries: entries.sort((a, b) => {
                 const aDate = safeParseDate(a.startDate) ?? new Date(a.createdAt)
                 const bDate = safeParseDate(b.startDate) ?? new Date(b.createdAt)
                 return aDate.getTime() - bDate.getTime()
             }),
         }))
-    }, [waitingListEntries, dogs])
+    }, [waitingListEntries, treatments])
 
     const isFetchingAppointments = useMemo(() => {
-        return mergedAppointmentsByDog.some(
+        return mergedAppointmentsByTreatment.some(
             ({ isFetching, isLoading, appointments }) => (isFetching || isLoading) && (!appointments || appointments.length === 0)
         )
-    }, [mergedAppointmentsByDog])
+    }, [mergedAppointmentsByTreatment])
 
     const appointmentErrorMessages = useMemo(() => {
-        return mergedAppointmentsByDog
+        return mergedAppointmentsByTreatment
             .filter(({ error }) => error)
-            .map(({ dog, error }) => {
+            .map(({ treatment, error }) => {
                 const message = extractErrorMessage(error, "שגיאה בלתי ידועה")
-                return `שגיאה בטעינת תורים עבור ${dog.name}: ${message}`
+                return `שגיאה בטעינת תורים עבור ${treatment.name}: ${message}`
             })
-    }, [mergedAppointmentsByDog])
+    }, [mergedAppointmentsByTreatment])
 
     useEffect(() => {
         const tabParam = searchParams.get('tab')
@@ -720,54 +720,54 @@ export default function Appointments() {
     }, [searchParams])
 
     useEffect(() => {
-        if (!dogs.length) {
+        if (!treatments.length) {
             return
         }
 
         const tabParam = searchParams.get('tab')
         const actionParam = searchParams.get('action')
         if (tabParam === 'waitingList' && actionParam === 'new') {
-            const dogParam = searchParams.get('dogId')
+            const treatmentParam = searchParams.get('treatmentId')
             const serviceTypeParam = searchParams.get('serviceType')
             const validServiceTypes = new Set(['grooming', 'garden', 'both'])
             const chosenService = serviceTypeParam && validServiceTypes.has(serviceTypeParam) ? serviceTypeParam : 'grooming'
-            const chosenDogId = dogParam && dogs.some((dog) => dog.id === dogParam) ? dogParam : dogs[0].id
+            const chosenTreatmentId = treatmentParam && treatments.some((treatment) => treatment.id === treatmentParam) ? treatmentParam : treatments[0].id
 
-            openWaitingListDialog(undefined, { dogId: chosenDogId, serviceType: chosenService })
+            openWaitingListDialog(undefined, { treatmentId: chosenTreatmentId, serviceType: chosenService })
 
             const params = new URLSearchParams(searchParams)
             params.set('tab', 'waitingList')
             params.delete('action')
-            params.delete('dogId')
+            params.delete('treatmentId')
             params.delete('serviceType')
             setSearchParams(params, { replace: true })
         }
-    }, [dogs, searchParams])
+    }, [treatments, searchParams])
 
-    const dogsErrorMessage = useMemo(
-        () => extractErrorMessage(dogsQueryError, "שגיאה בטעינת רשימת הכלבים"),
-        [dogsQueryError]
+    const treatmentsErrorMessage = useMemo(
+        () => extractErrorMessage(treatmentsQueryError, "שגיאה בטעינת רשימת הכלבים"),
+        [treatmentsQueryError]
     )
 
-    const combinedError = dogsErrorMessage || appointmentErrorMessages[0] || null
+    const combinedError = treatmentsErrorMessage || appointmentErrorMessages[0] || null
 
     const isInitialLoading =
         isAuthLoading ||
         (!ownerId && isAuthLoading) ||
-        (ownerId && (isLoadingDogs || (isFetchingDogs && !dogs.length))) ||
-        (dogs.length > 0 && isFetchingAppointments)
+        (ownerId && (isLoadingTreatments || (isFetchingTreatments && !treatments.length))) ||
+        (treatments.length > 0 && isFetchingAppointments)
 
     const handleRetry = async () => {
         if (!ownerId) {
             return
         }
 
-        await refetchDogs()
+        await refetchTreatments()
 
         await Promise.all(
-            dogs.map(async (dog) => {
+            treatments.map(async (treatment) => {
                 const result = dispatch(
-                    supabaseApi.endpoints.getMergedAppointments.initiate(dog.id, {
+                    supabaseApi.endpoints.getMergedAppointments.initiate(treatment.id, {
                         forceRefetch: true,
                     })
                 )
@@ -775,7 +775,7 @@ export default function Appointments() {
                 try {
                     await result.unwrap()
                 } catch (err) {
-                    console.error("Failed to refetch appointments for", dog.name, err)
+                    console.error("Failed to refetch appointments for", treatment.name, err)
                 } finally {
                     result.unsubscribe()
                 }
@@ -784,15 +784,15 @@ export default function Appointments() {
     }
 
     // Filter appointments by ID if provided, otherwise show all
-    const dogFilteredAppointments = filterId
-        ? allAppointments.filter(apt => apt.dogId === filterId || apt.id === filterId)
+    const treatmentFilteredAppointments = filterId
+        ? allAppointments.filter(apt => apt.treatmentId === filterId || apt.id === filterId)
         : allAppointments
 
     const serviceFilteredAppointments = useMemo(() => {
         if (serviceFilter === 'all') {
-            return dogFilteredAppointments
+            return treatmentFilteredAppointments
         }
-        return dogFilteredAppointments.filter((apt) => {
+        return treatmentFilteredAppointments.filter((apt) => {
             if (serviceFilter === 'grooming') {
                 return apt.service === 'grooming' || apt.service === 'both'
             }
@@ -801,7 +801,7 @@ export default function Appointments() {
             }
             return apt.service === serviceFilter
         })
-    }, [dogFilteredAppointments, serviceFilter])
+    }, [treatmentFilteredAppointments, serviceFilter])
 
     // Separate appointments by status and date
     const now = new Date()
@@ -1095,9 +1095,9 @@ export default function Appointments() {
                     console.log(`Both appointments cancelled successfully`)
                     // Update the merged appointments cache
                     dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
+                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
                             'getMergedAppointments',
-                            appointment.dogId,
+                            appointment.treatmentId,
                             (draft) => {
                                 const target = draft.appointments?.find((apt) => apt.id === appointment.id)
                                 if (target) {
@@ -1114,7 +1114,7 @@ export default function Appointments() {
                     toast({
                         title: "התורים בוטלו",
                         description:
-                            result.message || `התורים (תספורת וגן) ל${appointment.dogName} בוטלו בהצלחה`,
+                            result.message || `התורים (תספורת וגן) ל${appointment.treatmentName} בוטלו בהצלחה`,
                     })
                     invalidateAppointmentsCache()
                 } else {
@@ -1134,15 +1134,15 @@ export default function Appointments() {
                 const result = await cancelAppointmentWebhook(appointment.id, {
                     serviceType: appointment.service,
                     appointmentTime,
-                    dogId: appointment.dogId,
+                    treatmentId: appointment.treatmentId,
                     stationId: appointment.stationId,
                 })
 
                 if (result.success) {
                     dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
+                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
                             'getMergedAppointments',
-                            appointment.dogId,
+                            appointment.treatmentId,
                             (draft) => {
                                 const target = draft.appointments?.find((apt) => apt.id === appointment.id)
                                 if (target) {
@@ -1198,12 +1198,12 @@ export default function Appointments() {
 
             if (result.success) {
                 console.log(`Individual appointment approved successfully`)
-                // Update the merged appointments cache for all dogs
-                dogs.forEach(dog => {
+                // Update the merged appointments cache for all treatments
+                treatments.forEach(treatment => {
                     dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
+                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
                             'getMergedAppointments',
-                            dog.id,
+                            treatment.id,
                             (draft) => {
                                 const target = draft.appointments?.find((apt) =>
                                     apt.groomingAppointmentId === appointmentId ||
@@ -1277,18 +1277,18 @@ export default function Appointments() {
             const result = await cancelAppointmentWebhook(appointmentId, {
                 serviceType: service,
                 appointmentTime,
-                dogId: appointmentDetails?.dogId,
+                treatmentId: appointmentDetails?.treatmentId,
                 stationId: appointmentDetails?.stationId,
             })
 
             if (result.success) {
                 console.log(`Individual appointment cancelled successfully`)
-                // Update the merged appointments cache for all dogs
-                dogs.forEach(dog => {
+                // Update the merged appointments cache for all treatments
+                treatments.forEach(treatment => {
                     dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
+                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
                             'getMergedAppointments',
-                            dog.id,
+                            treatment.id,
                             (draft) => {
                                 const target = draft.appointments?.find((apt) =>
                                     apt.groomingAppointmentId === appointmentId ||
@@ -1346,11 +1346,11 @@ export default function Appointments() {
                     description: "הערות התור עודכנו בהצלחה",
                 })
 
-                dogs.forEach(dog => {
+                treatments.forEach(treatment => {
                     dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
+                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
                             'getMergedAppointments',
-                            dog.id,
+                            treatment.id,
                             (draft) => {
                                 const target = draft.appointments?.find((apt) =>
                                     apt.groomingAppointmentId === appointmentId ||
@@ -1417,9 +1417,9 @@ export default function Appointments() {
                     console.log(`Both appointments approved successfully`)
                     // Update the merged appointments cache
                     dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
+                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
                             'getMergedAppointments',
-                            appointment.dogId,
+                            appointment.treatmentId,
                             (draft) => {
                                 const target = draft.appointments?.find((apt) => apt.id === appointment.id)
                                 if (target) {
@@ -1434,7 +1434,7 @@ export default function Appointments() {
                     toast({
                         title: "התורים אושרו",
                         description:
-                            result.message || `התורים (תספורת וגן) ל${appointment.dogName} אושרו בהצלחה`,
+                            result.message || `התורים (תספורת וגן) ל${appointment.treatmentName} אושרו בהצלחה`,
                     })
                     invalidateAppointmentsCache()
                 } else {
@@ -1454,9 +1454,9 @@ export default function Appointments() {
                 if (result.success) {
                     console.log(`Appointment approved successfully`)
                     dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
+                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
                             'getMergedAppointments',
-                            appointment.dogId,
+                            appointment.treatmentId,
                             (draft) => {
                                 const target = draft.appointments?.find((apt) => apt.id === appointment.id)
                                 if (target) {
@@ -1505,21 +1505,21 @@ export default function Appointments() {
         const params = new URLSearchParams(searchParams)
         params.set('tab', value)
         params.delete('action')
-        params.delete('dogId')
+        params.delete('treatmentId')
         params.delete('serviceType')
         setSearchParams(params, { replace: true })
     }
 
-    const openWaitingListDialog = (entry?: WaitingListEntry, options?: { dogId?: string; serviceType?: string }) => {
+    const openWaitingListDialog = (entry?: WaitingListEntry, options?: { treatmentId?: string; serviceType?: string }) => {
         if (entry) {
             setEditingWaitingListEntry(entry)
-            setWaitlistModalDogId(entry.dogId)
+            setWaitlistModalTreatmentId(entry.treatmentId)
             setWaitlistModalServiceScope(normalizeServiceScopeFromEntry(entry.serviceType))
             setWaitlistModalDateRanges(getEntryDateRanges(entry))
             setWaitlistModalNotes(entry.notes ?? "")
         } else {
             setEditingWaitingListEntry(null)
-            setWaitlistModalDogId(options?.dogId ?? dogs[0]?.id ?? null)
+            setWaitlistModalTreatmentId(options?.treatmentId ?? treatments[0]?.id ?? null)
             setWaitlistModalServiceScope(
                 options?.serviceType ? normalizeServiceScopeFromEntry(options.serviceType) : 'grooming'
             )
@@ -1559,8 +1559,8 @@ export default function Appointments() {
 
     const handleWaitlistSubmit = useCallback(
         async (submission: WaitlistModalSubmission) => {
-            const dogId = submission.dog.id
-            if (!dogId) {
+            const treatmentId = submission.treatment.id
+            if (!treatmentId) {
                 throw new Error("יש לבחור כלב עבור בקשת ההמתנה")
             }
 
@@ -1573,8 +1573,8 @@ export default function Appointments() {
 
             const apiResult =
                 submission.mode === 'edit' && submission.entryId
-                    ? await updateWaitingListEntry(submission.entryId, dogId, serviceScope, dateRanges)
-                    : await registerWaitingList(dogId, serviceScope, dateRanges, user?.id)
+                    ? await updateWaitingListEntry(submission.entryId, treatmentId, serviceScope, dateRanges)
+                    : await registerWaitingList(treatmentId, serviceScope, dateRanges, user?.id)
 
             if (!apiResult?.success) {
                 throw new Error(apiResult?.error || "שגיאה בשמירת בקשת ההמתנה")
@@ -1681,7 +1681,7 @@ export default function Appointments() {
 
                             <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-right space-y-3">
                                 <div className="text-base font-semibold text-red-800">
-                                    {appointmentPendingCancellation.dogName || "כלב לא ידוע"}
+                                    {appointmentPendingCancellation.treatmentName || "כלב לא ידוע"}
                                 </div>
                                 <div className="flex items-center  gap-2 text-sm text-red-700">
                                     <CalendarIcon className="h-4 w-4" />
@@ -1806,7 +1806,7 @@ export default function Appointments() {
                     {latePickupDialogAppointment && (
                         <div className="space-y-4">
                             <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 space-y-1">
-                                <div className="font-semibold">{latePickupDialogAppointment.dogName || "כלב"}</div>
+                                <div className="font-semibold">{latePickupDialogAppointment.treatmentName || "כלב"}</div>
                                 <div className="flex flex-wrap items-center gap-3  text-xs text-gray-500">
                                     {latePickupDialogDateLabel && (
                                         <div className="flex items-center gap-1">
@@ -1899,7 +1899,7 @@ export default function Appointments() {
                 }}
                 onSubmit={handleWaitlistSubmit}
                 defaultCustomer={waitlistModalCustomer}
-                defaultDog={waitlistModalDog}
+                defaultTreatment={waitlistModalTreatment}
                 disableCustomerSelection={Boolean(waitlistModalCustomer)}
                 title={editingWaitingListEntry ? "עריכת בקשת המתנה" : "בקשת המתנה חדשה"}
                 description="בחר את הכלב וסוג השירות כדי לקבל התראה כאשר יפתח תור פנוי."
@@ -2041,9 +2041,9 @@ export default function Appointments() {
                                             <Card key={appointment.id} className="hover:shadow-md transition-shadow">
                                                 <CardContent className="p-6">
                                                     <div className="flex items-start justify-between flex-row-reverse">
-                                                        {/* Right side - Dog icon */}
+                                                        {/* Right side - Treatment icon */}
                                                         <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                                            <Dog className="h-6 w-6 text-blue-600" />
+                                                            <Sparkles className="h-6 w-6 text-blue-600" />
                                                         </div>
                                                         {/* Center - Content */}
                                                         <div className="flex-1 space-y-2 text-right mr-2 ml-6">
@@ -2051,7 +2051,7 @@ export default function Appointments() {
                                                             <div className="flex items-center gap-2 justify-end">
                                                                 {getStatusBadge(appointment)}
 
-                                                                <h3 className="text-lg font-semibold">{appointment.dogName || "כלב לא ידוע"}</h3>
+                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "כלב לא ידוע"}</h3>
                                                                 {getApprovalBadge(appointment)}
                                                             </div>
                                                             {/* Details row */}
@@ -2182,11 +2182,11 @@ export default function Appointments() {
                                     <h3 className="text-lg font-semibold text-gray-800">בקשות רשימת המתנה</h3>
                                     <p className="text-sm text-gray-500">נהל כאן את הבקשות להודעה על תורים פנויים עבור הכלבים שלך.</p>
                                 </div>
-                                {dogs.length > 0 && (
+                                {treatments.length > 0 && (
                                     <Button
                                         onClick={() => {
                                             handleTabChange('waitingList')
-                                            openWaitingListDialog(undefined, { dogId: dogs[0].id, serviceType: 'grooming' })
+                                            openWaitingListDialog(undefined, { treatmentId: treatments[0].id, serviceType: 'grooming' })
                                         }}
                                         className="bg-emerald-600 hover:bg-emerald-700 flex items-center gap-2 self-start sm:self-auto"
                                     >
@@ -2203,7 +2203,7 @@ export default function Appointments() {
                                         <span>טוען את רשימת ההמתנה...</span>
                                     </CardContent>
                                 </Card>
-                            ) : waitingListEntriesByDog.length === 0 ? (
+                            ) : waitingListEntriesByTreatment.length === 0 ? (
                                 <Card className="bg-gray-50 border-gray-200">
                                     <CardContent className="p-12 text-center space-y-3">
                                         <CalendarIcon className="h-16 w-16 text-gray-300 mx-auto" />
@@ -2212,15 +2212,15 @@ export default function Appointments() {
                                     </CardContent>
                                 </Card>
                             ) : (
-                                waitingListEntriesByDog.map(({ dog, entries }) => (
-                                    <Card key={dog.id} className="border border-emerald-200 shadow-sm" dir="rtl">
+                                waitingListEntriesByTreatment.map(({ treatment, entries }) => (
+                                    <Card key={treatment.id} className="border border-emerald-200 shadow-sm" dir="rtl">
                                         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-right">
                                             <div className="flex items-center gap-2 justify-end">
                                                 <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center ml-2">
-                                                    <Dog className="h-6 w-6 text-emerald-700" />
+                                                    <Sparkles className="h-6 w-6 text-emerald-700" />
                                                 </div>
                                                 <div className="text-right">
-                                                    <CardTitle className="text-right">{dog.name}</CardTitle>
+                                                    <CardTitle className="text-right">{treatment.name}</CardTitle>
                                                     <CardDescription className="text-right text-gray-500">סה"כ בקשות: {entries.length}</CardDescription>
                                                 </div>
                                             </div>
@@ -2356,9 +2356,9 @@ export default function Appointments() {
                                             <Card key={appointment.id} className="hover:shadow-md transition-shadow">
                                                 <CardContent className="p-6">
                                                     <div className="flex items-start justify-between flex-row-reverse">
-                                                        {/* Right side - Dog icon */}
+                                                        {/* Right side - Treatment icon */}
                                                         <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                                            <Dog className="h-6 w-6 text-gray-600" />
+                                                            <Sparkles className="h-6 w-6 text-gray-600" />
                                                         </div>
                                                         {/* Center - Content */}
                                                         <div className="flex-1 space-y-2 text-right mr-2 ml-6">
@@ -2366,7 +2366,7 @@ export default function Appointments() {
                                                             <div className="flex items-center gap-2 justify-end">
                                                                 {getStatusBadge(appointment)}
                                                                 {appointmentIncludesGarden(appointment) ? renderLatePickupBadge(appointment.latePickupRequested) : null}
-                                                                <h3 className="text-lg font-semibold">{appointment.dogName || "כלב לא ידוע"}</h3>
+                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "כלב לא ידוע"}</h3>
                                                                 {getApprovalBadge(appointment)}
                                                             </div>
                                                             {/* Details row */}
@@ -2448,7 +2448,7 @@ export default function Appointments() {
                                                                 size="sm"
                                                                 onClick={() => {
                                                                     const params = new URLSearchParams()
-                                                                    params.set('dogId', appointment.dogId)
+                                                                    params.set('treatmentId', appointment.treatmentId)
                                                                     if (appointment.service) {
                                                                         params.set('serviceType', appointment.service.toLowerCase())
                                                                     }

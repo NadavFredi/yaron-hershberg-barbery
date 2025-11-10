@@ -13,7 +13,7 @@ interface MoveDetails {
         serviceType: 'grooming' | 'garden'
         gardenAppointmentType?: 'full-day' | 'hourly' | 'trial'
         gardenIsTrial?: boolean
-        dogs: Array<{ name: string }>
+        treatments: Array<{ name: string }>
         clientName?: string
     }
     oldStation: { name: string }
@@ -70,7 +70,7 @@ export const MoveConfirmationDialog: React.FC<MoveConfirmationDialogProps> = ({
                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                             <h3 className="text-lg font-semibold text-gray-900 mb-3">פרטי התור הנוכחיים</h3>
                             <div className="space-y-2 text-sm">
-                                <div><span className="font-medium">כלב:</span> {moveDetails.appointment.dogs[0]?.name || 'לא ידוע'}</div>
+                                <div><span className="font-medium">כלב:</span> {moveDetails.appointment.treatments[0]?.name || 'לא ידוע'}</div>
                                 <div><span className="font-medium">לקוח:</span> {moveDetails.appointment.clientName || 'לא ידוע'}</div>
                                 <div><span className="font-medium">עמדה:</span> {moveDetails.oldStation.name}</div>
                                 <div><span className="font-medium">זמן נוכחי:</span> {format(new Date(moveDetails.appointment.startDateTime), 'HH:mm')} - {format(new Date(moveDetails.appointment.endDateTime), 'HH:mm')}</div>
@@ -91,7 +91,7 @@ export const MoveConfirmationDialog: React.FC<MoveConfirmationDialogProps> = ({
                         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                             <h3 className="text-lg font-semibold text-blue-900 mb-3">פרטי התור החדשים</h3>
                             <div className="space-y-2 text-sm">
-                                <div><span className="font-medium">כלב:</span> {moveDetails.appointment.dogs[0]?.name || 'לא ידוע'}</div>
+                                <div><span className="font-medium">כלב:</span> {moveDetails.appointment.treatments[0]?.name || 'לא ידוע'}</div>
                                 <div><span className="font-medium">לקוח:</span> {moveDetails.appointment.clientName || 'לא ידוע'}</div>
                                 <div><span className="font-medium">עמדה:</span> {moveDetails.newStation.name}</div>
                                 <div><span className="font-medium">זמן:</span> {format(new Date(moveDetails.newStartTime), 'HH:mm')} - {format(new Date(moveDetails.newEndTime), 'HH:mm')}</div>

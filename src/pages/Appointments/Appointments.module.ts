@@ -5,7 +5,7 @@ import type { WaitingListEntry } from "@/types"
 export interface SupabaseWaitingListEntry {
   id: string
   customer_id: string
-  dog_id: string
+  treatment_id: string
   service_scope: "grooming" | "daycare" | "both"
   status: "active" | "fulfilled" | "cancelled"
   start_date: string
@@ -17,8 +17,8 @@ export interface SupabaseWaitingListEntry {
 
 export interface LegacyWaitingListEntry {
   id: string
-  dogId?: string
-  dog_id?: string
+  treatmentId?: string
+  treatment_id?: string
   serviceType?: string
   service_scope?: string
   status?: string
@@ -38,17 +38,17 @@ export interface WaitingListDateRange {
 }
 
 /**
- * Get all waiting list entries for given dog IDs
+ * Get all waiting list entries for given treatment IDs
  */
-export async function getWaitingListEntries(dogIds: string[]): Promise<SupabaseWaitingListEntry[]> {
-  if (dogIds.length === 0) {
+export async function getWaitingListEntries(treatmentIds: string[]): Promise<SupabaseWaitingListEntry[]> {
+  if (treatmentIds.length === 0) {
     return []
   }
 
   const { data, error } = await supabase
     .from("daycare_waitlist")
     .select("*")
-    .in("dog_id", dogIds)
+    .in("treatment_id", treatmentIds)
     .eq("status", "active")
     .order("created_at", { ascending: false })
 
@@ -64,27 +64,27 @@ export async function getWaitingListEntries(dogIds: string[]): Promise<SupabaseW
  * Register a new waiting list entry
  */
 export async function registerWaitingList(
-  dogId: string,
+  treatmentId: string,
   serviceType: "grooming" | "daycare" | "both",
   dateRanges: WaitingListDateRange[],
   _userId?: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    // Get dog and customer info
-    const { data: dog, error: dogError } = await supabase
-      .from("dogs")
+    // Get treatment and customer info
+    const { data: treatment, error: treatmentError } = await supabase
+      .from("treatments")
       .select("id, customer_id")
-      .eq("id", dogId)
+      .eq("id", treatmentId)
       .single()
 
-    if (dogError || !dog) {
-      throw new Error(`Dog not found: ${dogError?.message || "Unknown error"}`)
+    if (treatmentError || !treatment) {
+      throw new Error(`Treatment not found: ${treatmentError?.message || "Unknown error"}`)
     }
 
     // Create entries for each date range
     const entries = dateRanges.map((range) => ({
-      dog_id: dogId,
-      customer_id: dog.customer_id,
+      treatment_id: treatmentId,
+      customer_id: treatment.customer_id,
       service_scope: serviceType,
       status: "active" as const,
       start_date: range.startDate,
@@ -117,7 +117,7 @@ export async function registerWaitingList(
  */
 export async function updateWaitingListEntry(
   entryId: string,
-  dogId: string,
+  treatmentId: string,
   serviceType: "grooming" | "daycare" | "both",
   dateRanges: WaitingListDateRange[]
 ): Promise<{ success: boolean; message?: string; error?: string }> {
@@ -150,7 +150,7 @@ export async function updateWaitingListEntry(
 
       if (existingEntry) {
         const newEntries = dateRanges.slice(1).map((range) => ({
-          dog_id: dogId,
+          treatment_id: treatmentId,
           customer_id: existingEntry.customer_id,
           service_scope: serviceType,
           status: "active" as const,
@@ -340,7 +340,7 @@ export async function cancelAppointmentWithValidation(params: {
   appointmentId: string
   appointmentTime?: string
   serviceType?: "grooming" | "garden" | "both"
-  dogId?: string
+  treatmentId?: string
   stationId?: string
 }): Promise<{
   success: boolean
@@ -502,7 +502,7 @@ export async function approveGroomingAppointment(
  */
 export function transformWaitingListEntries(
   waitingListData: SupabaseWaitingListEntry[] | LegacyWaitingListEntry[] | { entries?: LegacyWaitingListEntry[] } | undefined,
-  dogIds: string[]
+  treatmentIds: string[]
 ): WaitingListEntry[] {
   // Handle both old format ({ entries: [...] }) and new format (array directly)
   let entries: LegacyWaitingListEntry[] = []
@@ -515,11 +515,11 @@ export function transformWaitingListEntries(
   // Transform from Supabase format to component format
   return entries
     .filter((entry) => {
-      const dogId = entry.dog_id || entry.dogId
-      return dogId && dogIds.includes(dogId)
+      const treatmentId = entry.treatment_id || entry.treatmentId
+      return treatmentId && treatmentIds.includes(treatmentId)
     })
     .map((entry) => {
-      const dogId = entry.dog_id || entry.dogId
+      const treatmentId = entry.treatment_id || entry.treatmentId
       const serviceType = entry.service_scope || entry.serviceType || "grooming"
       const status = entry.status || "pending"
 
@@ -536,7 +536,7 @@ export function transformWaitingListEntries(
 
       return {
         id: entry.id,
-        dogId: dogId!,
+        treatmentId: treatmentId!,
         serviceType: serviceType === "daycare" ? "garden" : serviceType, // Map daycare to garden for compatibility
         status: status,
         dateRanges,
@@ -552,7 +552,7 @@ export function transformWaitingListEntries(
  */
 export function useWaitingListEntries(
   waitingListData: SupabaseWaitingListEntry[] | LegacyWaitingListEntry[] | { entries?: LegacyWaitingListEntry[] } | undefined,
-  dogIds: string[]
+  treatmentIds: string[]
 ): WaitingListEntry[] {
-  return useMemo(() => transformWaitingListEntries(waitingListData, dogIds), [waitingListData, dogIds])
+  return useMemo(() => transformWaitingListEntries(waitingListData, treatmentIds), [waitingListData, treatmentIds])
 }

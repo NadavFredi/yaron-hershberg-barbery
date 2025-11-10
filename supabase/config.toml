@@ -105,20 +105,20 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/signup/index.ts"
 
-[functions.check-dog-registration]
+[functions.check-treatment-registration]
 enabled = true
 verify_jwt = false
-entrypoint = "./functions/check-dog-registration/index.ts"
+entrypoint = "./functions/check-treatment-registration/index.ts"
 
 [functions.get-available-times]
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/get-available-times/index.ts"
 
-[functions.get-dog-appointments]
+[functions.get-treatment-appointments]
 enabled = true
 verify_jwt = true
-entrypoint = "./functions/get-dog-appointments/index.ts"
+entrypoint = "./functions/get-treatment-appointments/index.ts"
 
 [functions.reserve-appointment]
 enabled = true
@@ -156,10 +156,10 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/duplicate-appointment/index.ts"
 
-[functions.get-breed-pricing]
+[functions.get-treatmentType-pricing]
 enabled = true
 verify_jwt = false
-entrypoint = "./functions/get-breed-pricing/index.ts"
+entrypoint = "./functions/get-treatmentType-pricing/index.ts"
 
 [functions.save-appointment-price]
 enabled = true

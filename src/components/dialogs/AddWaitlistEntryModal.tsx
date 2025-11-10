@@ -7,7 +7,7 @@ import { Loader2, Plus, X, Trash2, Calendar as CalendarIcon } from "lucide-react
 import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerSearchInput, type Customer } from "@/components/CustomerSearchInput"
-import { DogSelectInput, type Dog } from "@/components/DogSelectInput"
+import { TreatmentSelectInput, type Treatment } from "@/components/TreatmentSelectInput"
 import { supabase } from "@/integrations/supabase/client"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -39,7 +39,7 @@ interface WaitlistSubmissionEntry {
 
 interface WaitlistSubmissionData {
     customer: Customer
-    dog: Dog
+    treatment: Treatment
     entries: WaitlistSubmissionEntry[]
     serviceScope: ServiceScopeValue
     notes: string
@@ -57,9 +57,9 @@ interface AddWaitlistEntryModalProps {
     onOpenChange: (open: boolean) => void
     onSuccess?: () => void
     defaultCustomer?: Customer | null
-    defaultDog?: Dog | null
+    defaultTreatment?: Treatment | null
     disableCustomerSelection?: boolean
-    disableDogSelection?: boolean
+    disableTreatmentSelection?: boolean
     title?: string
     description?: string
     submitLabel?: string
@@ -76,9 +76,9 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
     onOpenChange,
     onSuccess,
     defaultCustomer = null,
-    defaultDog = null,
+    defaultTreatment = null,
     disableCustomerSelection = false,
-    disableDogSelection = false,
+    disableTreatmentSelection = false,
     title = "הוסף כלב לרשימת ההמתנה",
     description = "בחר לקוח, כלב, ותאריכים להמתנה",
     submitLabel = "הוסף לרשימת המתנה",
@@ -99,7 +99,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
     const [dateSelectionMode, setDateSelectionMode] = useState<DateEntryMode>('single')
     const [dateEntries, setDateEntries] = useState<DateEntry[]>([createDateEntry('single')])
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(defaultCustomer)
-    const [selectedDog, setSelectedDog] = useState<Dog | null>(defaultDog)
+    const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(defaultTreatment)
     const [notes, setNotes] = useState(initialNotes || "")
     const [serviceScope, setServiceScope] = useState<ServiceScopeValue>(
         initialServiceScope ??
@@ -154,21 +154,21 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
         setDateEntries([createDateEntry('single')])
         setDateSelectionMode('single')
         setSelectedCustomer(defaultCustomer ?? null)
-        setSelectedDog(defaultDog ?? null)
+        setSelectedTreatment(defaultTreatment ?? null)
         setNotes(initialNotes || "")
         setServiceScope(
             initialServiceScope ??
             serviceScopeOptions?.[0]?.value ??
             'grooming'
         )
-    }, [defaultCustomer, defaultDog, initialNotes, initialServiceScope, serviceScopeOptions])
+    }, [defaultCustomer, defaultTreatment, initialNotes, initialServiceScope, serviceScopeOptions])
 
     const initializeFormState = useCallback(() => {
         const entries = buildEntriesFromRanges(initialDateRanges)
         setDateEntries(entries)
         setDateSelectionMode(determineInitialMode(entries))
         setSelectedCustomer(defaultCustomer ?? null)
-        setSelectedDog(defaultDog ?? null)
+        setSelectedTreatment(defaultTreatment ?? null)
         setNotes(initialNotes || "")
         setServiceScope(
             initialServiceScope ??
@@ -179,7 +179,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
         buildEntriesFromRanges,
         determineInitialMode,
         defaultCustomer,
-        defaultDog,
+        defaultTreatment,
         initialDateRanges,
         initialNotes,
         initialServiceScope,
@@ -197,11 +197,11 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
     const handleCustomerSelect = (customer: Customer) => {
         setSelectedCustomer(customer)
-        setSelectedDog(null) // Reset dog when customer changes
+        setSelectedTreatment(null) // Reset treatment when customer changes
     }
 
-    const handleDogSelect = (dog: Dog) => {
-        setSelectedDog(dog)
+    const handleTreatmentSelect = (treatment: Treatment) => {
+        setSelectedTreatment(treatment)
     }
 
     const addDateEntry = () => {
@@ -239,7 +239,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
             return
         }
 
-        if (!selectedDog) {
+        if (!selectedTreatment) {
             toast({
                 title: "שגיאה",
                 description: "יש לבחור כלב",
@@ -259,7 +259,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
         const supabaseEntries: {
             customer_id: string
-            dog_id: string
+            treatment_id: string
             service_scope: NormalizedServiceScope
             status: 'active'
             start_date: string
@@ -283,7 +283,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
                 entry.singleDates.forEach(date => {
                     supabaseEntries.push({
                         customer_id: selectedCustomer.id,
-                        dog_id: selectedDog.id,
+                        treatment_id: selectedTreatment.id,
                         service_scope: normalizeServiceScope(serviceScope),
                         status: 'active',
                         start_date: format(date, 'yyyy-MM-dd'),
@@ -314,7 +314,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
                 supabaseEntries.push({
                     customer_id: selectedCustomer.id,
-                    dog_id: selectedDog.id,
+                    treatment_id: selectedTreatment.id,
                     service_scope: normalizeServiceScope(serviceScope),
                     status: 'active',
                     start_date: format(startDate, 'yyyy-MM-dd'),
@@ -335,7 +335,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
                 await onSubmit({
                     customer: selectedCustomer,
-                    dog: selectedDog,
+                    treatment: selectedTreatment,
                     entries: submissionEntries,
                     serviceScope: serviceScope,
                     notes: notes.trim(),
@@ -396,24 +396,24 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
                                 onCustomerClear={() => {
                                     if (disableCustomerSelection) return
                                     setSelectedCustomer(null)
-                                    setSelectedDog(null)
+                                    setSelectedTreatment(null)
                                 }}
                                 placeholder="חיפוש לקוח..."
                                 disabled={disableCustomerSelection}
                             />
                         </div>
 
-                        {/* Dog Selection - only shown when customer is selected */}
+                        {/* Treatment Selection - only shown when customer is selected */}
                         {selectedCustomer && (
                             <div className="space-y-2">
                                 <Label>כלב <span className="text-red-500">*</span></Label>
-                                <DogSelectInput
+                                <TreatmentSelectInput
                                     selectedCustomer={selectedCustomer}
-                                    selectedDog={selectedDog}
-                                    onDogSelect={handleDogSelect}
-                                    onDogClear={() => setSelectedDog(null)}
+                                    selectedTreatment={selectedTreatment}
+                                    onTreatmentSelect={handleTreatmentSelect}
+                                    onTreatmentClear={() => setSelectedTreatment(null)}
                                     placeholder="בחר כלב..."
-                                    disabled={disableDogSelection}
+                                    disabled={disableTreatmentSelection}
                                 />
                             </div>
                         )}

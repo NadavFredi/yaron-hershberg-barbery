@@ -44,10 +44,10 @@ interface GroomingAppointmentFields {
   "מזהה קבוצת תורים"?: string
 }
 
-interface ManagerDog {
+interface ManagerTreatment {
   id: string
   name: string
-  breed?: string
+  treatmentType?: string
   ownerId?: string
   clientClassification?: string
   clientName?: string
@@ -61,7 +61,7 @@ interface ManagerDog {
   healthIssues?: string
   birthDate?: string
   tendsToBite?: string
-  aggressiveWithOtherDogs?: string
+  aggressiveWithOtherTreatments?: string
   hasBeenToGarden?: boolean
   suitableForGardenFromQuestionnaire?: boolean
   notSuitableForGardenFromQuestionnaire?: boolean
@@ -81,7 +81,7 @@ interface ManagerAppointment {
   notes: string
   internalNotes?: string
   hasCrossServiceAppointment?: boolean
-  dogs: ManagerDog[]
+  treatments: ManagerTreatment[]
   serviceName?: string
   subscriptionName?: string
   clientId?: string
@@ -171,26 +171,26 @@ const extractServiceName = (fields: Record<string, unknown>, serviceType: string
   return undefined
 }
 
-const fetchDogsByIds = async (
+const fetchTreatmentsByIds = async (
   config: AirtableConfig,
-  dogIds: string[]
-): Promise<{ dogMap: Map<string, ManagerDog>; ownerMap: Map<string, OwnerInfo> }> => {
-  if (dogIds.length === 0) {
-    return { dogMap: new Map(), ownerMap: new Map() }
+  treatmentIds: string[]
+): Promise<{ treatmentMap: Map<string, ManagerTreatment>; ownerMap: Map<string, OwnerInfo> }> => {
+  if (treatmentIds.length === 0) {
+    return { treatmentMap: new Map(), ownerMap: new Map() }
   }
 
-  const dogMap = new Map<string, ManagerDog>()
+  const treatmentMap = new Map<string, ManagerTreatment>()
   const ownerMap = new Map<string, OwnerInfo>()
 
-  // Fetch dogs
-  const dogRecords = await fetchFromAirtable(config, "כלבים")
+  // Fetch treatments
+  const treatmentRecords = await fetchFromAirtable(config, "כלבים")
 
-  for (const record of dogRecords) {
+  for (const record of treatmentRecords) {
     const fields = record.fields as Record<string, unknown>
-    const dog: ManagerDog = {
+    const treatment: ManagerTreatment = {
       id: record.id,
       name: coalesceStringField(fields, ["שם", "Name", "name"]) || "ללא שם",
-      breed: coalesceStringField(fields, ["גזע", "Breed", "breed"]),
+      treatmentType: coalesceStringField(fields, ["גזע", "TreatmentType", "treatmentType"]),
       ownerId: coalesceStringField(fields, ["לקוח", "Owner", "ownerId"]),
       clientClassification: coalesceStringField(fields, [
         "סיווג לקוח",
@@ -212,10 +212,10 @@ const fetchDogsByIds = async (
         "Tends To Bite",
         "tendsToBite",
       ]),
-      aggressiveWithOtherDogs: coalesceStringField(fields, [
+      aggressiveWithOtherTreatments: coalesceStringField(fields, [
         "האם הכלב עלול להפגין תוקפנות כלפי כלבים אחרים",
-        "Aggressive With Other Dogs",
-        "aggressiveWithOtherDogs",
+        "Aggressive With Other Treatments",
+        "aggressiveWithOtherTreatments",
       ]),
       hasBeenToGarden: fields["האם הכלב היה בגן"] === true,
       suitableForGardenFromQuestionnaire: fields["האם נמצא מתאים לגן מהשאלון"] === true,
@@ -223,29 +223,29 @@ const fetchDogsByIds = async (
       recordId: coalesceStringField(fields, ["מזהה רשומה", "Record ID", "recordId"]),
       recordNumber: coalesceStringField(fields, ["מספר רשומה", "Record Number", "recordNumber"]),
     }
-    dogMap.set(record.id, dog)
+    treatmentMap.set(record.id, treatment)
 
     // Extract owner info
-    if (dog.ownerId) {
+    if (treatment.ownerId) {
       const ownerInfo: OwnerInfo = {
-        id: dog.ownerId,
-        name: dog.clientName,
-        classification: dog.clientClassification,
-        recordId: dog.recordId,
-        recordNumber: dog.recordNumber,
+        id: treatment.ownerId,
+        name: treatment.clientName,
+        classification: treatment.clientClassification,
+        recordId: treatment.recordId,
+        recordNumber: treatment.recordNumber,
       }
-      ownerMap.set(dog.ownerId, ownerInfo)
+      ownerMap.set(treatment.ownerId, ownerInfo)
     }
   }
 
-  return { dogMap, ownerMap }
+  return { treatmentMap, ownerMap }
 }
 
 const buildManagerAppointment = (
   record: AirtableRecord<GroomingAppointmentFields>,
   stationId: string,
   stationName: string,
-  dogLookup: Map<string, ManagerDog>,
+  treatmentLookup: Map<string, ManagerTreatment>,
   ownerLookup: Map<string, OwnerInfo>
 ): ManagerAppointment | null => {
   const startRaw = record.fields["מועד התור"]
@@ -263,18 +263,18 @@ const buildManagerAppointment = (
   const endRaw = record.fields["מועד סיום התור"]
   const endDate = endRaw ? new Date(endRaw) : new Date(startDate.getTime() + 60 * 60 * 1000)
 
-  const dogIds = Array.isArray(record.fields.כלב) ? record.fields.כלב : []
-  const dogs = dogIds.map((id) => dogLookup.get(id) ?? { id, name: "ללא שם" })
-  const primaryDog = dogs[0]
+  const treatmentIds = Array.isArray(record.fields.כלב) ? record.fields.כלב : []
+  const treatments = treatmentIds.map((id) => treatmentLookup.get(id) ?? { id, name: "ללא שם" })
+  const primaryTreatment = treatments[0]
 
-  const clientId = primaryDog?.ownerId
+  const clientId = primaryTreatment?.ownerId
   const ownerInfo = clientId ? ownerLookup.get(clientId) : undefined
 
   // Get client name from appointment record first, then fall back to owner info
   const appointmentClientName = (record.fields as unknown as Record<string, unknown>)["שם לקוח"]?.toString().trim()
 
-  const clientClassification = ownerInfo?.classification ?? primaryDog?.clientClassification
-  const clientName = appointmentClientName || ownerInfo?.name || primaryDog?.clientName
+  const clientClassification = ownerInfo?.classification ?? primaryTreatment?.clientClassification
+  const clientName = appointmentClientName || ownerInfo?.name || primaryTreatment?.clientName
 
   const subscriptionName = extractSubscriptionName(record.fields as unknown as Record<string, unknown>)
   const serviceName = extractServiceName(record.fields as unknown as Record<string, unknown>, "grooming")
@@ -338,7 +338,7 @@ const buildManagerAppointment = (
     notes,
     internalNotes: internalNotes || undefined,
     hasCrossServiceAppointment: hasCrossServiceAppointment || undefined,
-    dogs,
+    treatments,
     clientId,
     clientName,
     clientClassification,
@@ -395,16 +395,16 @@ serve(async (req) => {
 
     console.log(`Found ${groomingRecords.length} appointments in group ${groupId}`)
 
-    // Get all dog IDs from the appointments
-    const dogIdCollector: string[] = []
+    // Get all treatment IDs from the appointments
+    const treatmentIdCollector: string[] = []
     for (const record of groomingRecords) {
       if (Array.isArray(record.fields.כלב)) {
-        dogIdCollector.push(...record.fields.כלב)
+        treatmentIdCollector.push(...record.fields.כלב)
       }
     }
 
-    // Fetch dogs and owners
-    const { dogMap: dogLookup, ownerMap } = await fetchDogsByIds(config, dogIdCollector)
+    // Fetch treatments and owners
+    const { treatmentMap: treatmentLookup, ownerMap } = await fetchTreatmentsByIds(config, treatmentIdCollector)
 
     // Build appointments
     const appointments: ManagerAppointment[] = []
@@ -431,7 +431,7 @@ serve(async (req) => {
       // Use the station name directly from the appointment record
       const stationName = record.fields["שם עמדה"] || `Station ${stationId}`
       console.log(`🎯 Using station name from appointment: "${stationName}"`)
-      const appointment = buildManagerAppointment(record, stationId, stationName, dogLookup, ownerMap)
+      const appointment = buildManagerAppointment(record, stationId, stationName, treatmentLookup, ownerMap)
       if (appointment) {
         appointments.push(appointment)
       }

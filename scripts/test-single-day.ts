@@ -17,19 +17,19 @@ async function testSingleDay() {
     console.log("🧪 Testing single-day logic for August 21st, 2025...")
 
     const targetDate = "2025-08-21"
-    const dogId = "rec0kizAdkgig4jn1"
+    const treatmentId = "rec0kizAdkgig4jn1"
 
-    // Step 1: Get dog and breed information
-    console.log("\n📅 Step 1: Getting dog data...")
-    const dogResponse = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/כלבים/${dogId}`, {
+    // Step 1: Get treatment and treatmentType information
+    console.log("\n📅 Step 1: Getting treatment data...")
+    const treatmentResponse = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/כלבים/${treatmentId}`, {
       headers: {
         Authorization: `Bearer ${AIRTABLE_PAT}`,
         "Content-Type": "application/json",
       },
     })
 
-    const dogData = await dogResponse.json()
-    console.log(`Dog data:`, JSON.stringify(dogData, null, 2))
+    const treatmentData = await treatmentResponse.json()
+    console.log(`Treatment data:`, JSON.stringify(treatmentData, null, 2))
 
     // Step 2: Find qualified workers
     console.log("\n👷 Step 2: Getting qualified workers...")
@@ -41,12 +41,12 @@ async function testSingleDay() {
     })
 
     const workersData = await workersResponse.json()
-    const breedId = dogData.fields.גזע?.[0]
+    const treatmentTypeId = treatmentData.fields.גזע?.[0]
 
     const qualifiedWorkers = workersData.records
       .filter((record: any) => {
-        const breeds = record.fields["גזעים"] || []
-        return Array.isArray(breeds) && breeds.includes(breedId)
+        const treatmentTypes = record.fields["גזעים"] || []
+        return Array.isArray(treatmentTypes) && treatmentTypes.includes(treatmentTypeId)
       })
       .map((record: any) => ({
         workerId: record.fields["עמדה"]?.[0],

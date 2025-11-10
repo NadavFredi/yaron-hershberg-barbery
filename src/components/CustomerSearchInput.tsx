@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { X, Loader2, User, Phone, Mail, Dog, Pencil } from "lucide-react"
+import { X, Loader2, User, Phone, Mail, Sparkles, Pencil } from "lucide-react"
 import { useDebounce } from "@/hooks/useDebounce"
 import { useSearchCustomersQuery } from "@/store/services/supabaseApi"
 import { cn } from "@/lib/utils"
@@ -15,7 +15,7 @@ export interface Customer {
     fullName?: string
     phone?: string
     email?: string
-    dogNames?: string
+    treatmentNames?: string
     recordId?: string
 }
 
@@ -357,10 +357,10 @@ export function CustomerSearchInput({
                                                         <span>{customer.email}</span>
                                                     </div>
                                                 )}
-                                                {customer.dogNames && (
+                                                {customer.treatmentNames && (
                                                     <div className="flex items-center gap-2 text-xs text-gray-600">
-                                                        <Dog className="h-3 w-3" />
-                                                        <span>{customer.dogNames}</span>
+                                                        <Sparkles className="h-3 w-3" />
+                                                        <span>{customer.treatmentNames}</span>
                                                     </div>
                                                 )}
                                             </div>

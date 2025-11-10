@@ -41,7 +41,7 @@ interface SubscriptionUsageResponse {
     id: string
     date: string | null
     createdAt: string | null
-    dogName: string | null
+    treatmentName: string | null
     service: string | null
     planName: string | null
     staffMember: string | null
@@ -350,7 +350,7 @@ export default function Subscriptions() {
                                                                     {usageRecords.map((usageRecord) => (
                                                                         <TableRow key={usageRecord.id}>
                                                                             <TableCell className="text-right text-gray-600">{formatDate(usageRecord.createdAt || usageRecord.date)}</TableCell>
-                                                                            <TableCell className="text-right text-gray-900">{usageRecord.dogName ?? ""}</TableCell>
+                                                                            <TableCell className="text-right text-gray-900">{usageRecord.treatmentName ?? ""}</TableCell>
                                                                         </TableRow>
                                                                     ))}
                                                                 </TableBody>

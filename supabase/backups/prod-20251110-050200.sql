@@ -124,13 +124,13 @@ CREATE TYPE "public"."daycare_service_type" AS ENUM (
 ALTER TYPE "public"."daycare_service_type" OWNER TO "postgres";
 
 
-CREATE TYPE "public"."dog_gender" AS ENUM (
+CREATE TYPE "public"."treatment_gender" AS ENUM (
     'male',
     'female'
 );
 
 
-ALTER TYPE "public"."dog_gender" OWNER TO "postgres";
+ALTER TYPE "public"."treatment_gender" OWNER TO "postgres";
 
 
 CREATE TYPE "public"."payment_status" AS ENUM (
@@ -224,41 +224,41 @@ CREATE TABLE IF NOT EXISTS "public"."appointment_payments" (
 ALTER TABLE "public"."appointment_payments" OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "public"."breed_dog_categories" (
+CREATE TABLE IF NOT EXISTS "public"."treatmentType_treatment_categories" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "breed_id" "uuid" NOT NULL,
-    "dog_category_id" "uuid" NOT NULL,
+    "treatment_type_id" "uuid" NOT NULL,
+    "treatment_category_id" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
 
-ALTER TABLE "public"."breed_dog_categories" OWNER TO "postgres";
+ALTER TABLE "public"."treatmentType_treatment_categories" OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "public"."breed_dog_types" (
+CREATE TABLE IF NOT EXISTS "public"."treatmentType_treatment_types" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "breed_id" "uuid" NOT NULL,
-    "dog_type_id" "uuid" NOT NULL,
+    "treatment_type_id" "uuid" NOT NULL,
+    "treatment_type_id" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
 
-ALTER TABLE "public"."breed_dog_types" OWNER TO "postgres";
+ALTER TABLE "public"."treatmentType_treatment_types" OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "public"."breed_modifiers" (
+CREATE TABLE IF NOT EXISTS "public"."treatmentType_modifiers" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "service_id" "uuid" NOT NULL,
-    "breed_id" "uuid" NOT NULL,
+    "treatment_type_id" "uuid" NOT NULL,
     "time_modifier_minutes" integer DEFAULT 0 NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
 
-ALTER TABLE "public"."breed_modifiers" OWNER TO "postgres";
+ALTER TABLE "public"."treatmentType_modifiers" OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "public"."breeds" (
+CREATE TABLE IF NOT EXISTS "public"."treatmentTypes" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
@@ -271,14 +271,14 @@ CREATE TABLE IF NOT EXISTS "public"."breeds" (
 );
 
 
-ALTER TABLE "public"."breeds" OWNER TO "postgres";
+ALTER TABLE "public"."treatmentTypes" OWNER TO "postgres";
 
 
-COMMENT ON COLUMN "public"."breeds"."hourly_price" IS 'מחיר שעתי לגזע זה';
+COMMENT ON COLUMN "public"."treatmentTypes"."hourly_price" IS 'מחיר שעתי לגזע זה';
 
 
 
-COMMENT ON COLUMN "public"."breeds"."notes" IS 'הערות נוספות על הגזע';
+COMMENT ON COLUMN "public"."treatmentTypes"."notes" IS 'הערות נוספות על הגזע';
 
 
 
@@ -379,7 +379,7 @@ CREATE TABLE IF NOT EXISTS "public"."daycare_appointments" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "airtable_id" "text",
     "customer_id" "uuid" NOT NULL,
-    "dog_id" "uuid" NOT NULL,
+    "treatment_id" "uuid" NOT NULL,
     "station_id" "uuid",
     "status" "public"."appointment_status" DEFAULT 'pending'::"public"."appointment_status" NOT NULL,
     "payment_status" "public"."payment_status" DEFAULT 'unpaid'::"public"."payment_status" NOT NULL,
@@ -425,7 +425,7 @@ CREATE TABLE IF NOT EXISTS "public"."daycare_waitlist" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "airtable_id" "text",
     "customer_id" "uuid" NOT NULL,
-    "dog_id" "uuid" NOT NULL,
+    "treatment_id" "uuid" NOT NULL,
     "service_scope" "public"."service_scope" DEFAULT 'daycare'::"public"."service_scope" NOT NULL,
     "status" "public"."waitlist_status" DEFAULT 'active'::"public"."waitlist_status" NOT NULL,
     "start_date" "date" NOT NULL,
@@ -440,7 +440,7 @@ CREATE TABLE IF NOT EXISTS "public"."daycare_waitlist" (
 ALTER TABLE "public"."daycare_waitlist" OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "public"."dog_categories" (
+CREATE TABLE IF NOT EXISTS "public"."treatment_categories" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
@@ -448,10 +448,10 @@ CREATE TABLE IF NOT EXISTS "public"."dog_categories" (
 );
 
 
-ALTER TABLE "public"."dog_categories" OWNER TO "postgres";
+ALTER TABLE "public"."treatment_categories" OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "public"."dog_types" (
+CREATE TABLE IF NOT EXISTS "public"."treatment_types" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
@@ -459,16 +459,16 @@ CREATE TABLE IF NOT EXISTS "public"."dog_types" (
 );
 
 
-ALTER TABLE "public"."dog_types" OWNER TO "postgres";
+ALTER TABLE "public"."treatment_types" OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "public"."dogs" (
+CREATE TABLE IF NOT EXISTS "public"."treatments" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "airtable_id" "text",
     "customer_id" "uuid" NOT NULL,
     "name" "text" NOT NULL,
-    "gender" "public"."dog_gender" DEFAULT 'male'::"public"."dog_gender" NOT NULL,
-    "breed_id" "uuid",
+    "gender" "public"."treatment_gender" DEFAULT 'male'::"public"."treatment_gender" NOT NULL,
+    "treatment_type_id" "uuid",
     "birth_date" "date",
     "health_notes" "text",
     "vet_name" "text",
@@ -483,22 +483,22 @@ CREATE TABLE IF NOT EXISTS "public"."dogs" (
 );
 
 
-ALTER TABLE "public"."dogs" OWNER TO "postgres";
+ALTER TABLE "public"."treatments" OWNER TO "postgres";
 
 
-COMMENT ON COLUMN "public"."dogs"."breed_id" IS 'Required: Every dog must have a breed assigned.';
+COMMENT ON COLUMN "public"."treatments"."treatment_type_id" IS 'Required: Every treatment must have a treatmentType assigned.';
 
 
 
-COMMENT ON COLUMN "public"."dogs"."is_small" IS 'DEPRECATED: Use breeds.size_class instead. Kept for backwards compatibility.';
+COMMENT ON COLUMN "public"."treatments"."is_small" IS 'DEPRECATED: Use treatmentTypes.size_class instead. Kept for backwards compatibility.';
 
 
 
 CREATE TABLE IF NOT EXISTS "public"."garden_questionnaires" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "airtable_id" "text",
-    "dog_id" "uuid" NOT NULL,
-    "aggressive_towards_dogs" boolean,
+    "treatment_id" "uuid" NOT NULL,
+    "aggressive_towards_treatments" boolean,
     "bites_people" boolean,
     "terms_accepted" boolean,
     "photo_url" "text",
@@ -519,7 +519,7 @@ CREATE TABLE IF NOT EXISTS "public"."grooming_appointments" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "airtable_id" "text",
     "customer_id" "uuid" NOT NULL,
-    "dog_id" "uuid" NOT NULL,
+    "treatment_id" "uuid" NOT NULL,
     "service_id" "uuid",
     "station_id" "uuid",
     "status" "public"."appointment_status" DEFAULT 'pending'::"public"."appointment_status" NOT NULL,
@@ -679,11 +679,11 @@ COMMENT ON COLUMN "public"."station_allowed_customer_types"."customer_type_id" I
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."station_breed_rules" (
+CREATE TABLE IF NOT EXISTS "public"."station_treatmentType_rules" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "station_id" "uuid" NOT NULL,
     "service_id" "uuid" NOT NULL,
-    "breed_id" "uuid",
+    "treatment_type_id" "uuid",
     "duration_modifier_minutes" integer DEFAULT 0,
     "price_modifier" numeric(10,2),
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
@@ -694,18 +694,18 @@ CREATE TABLE IF NOT EXISTS "public"."station_breed_rules" (
 );
 
 
-ALTER TABLE "public"."station_breed_rules" OWNER TO "postgres";
+ALTER TABLE "public"."station_treatmentType_rules" OWNER TO "postgres";
 
 
-COMMENT ON COLUMN "public"."station_breed_rules"."is_active" IS 'האם הגזע פעיל עבור עמדה זו';
-
-
-
-COMMENT ON COLUMN "public"."station_breed_rules"."remote_booking_allowed" IS 'האם ניתן לקבוע תור מרחוק עבור גזע זה בעמדה זו';
+COMMENT ON COLUMN "public"."station_treatmentType_rules"."is_active" IS 'האם הגזע פעיל עבור עמדה זו';
 
 
 
-COMMENT ON COLUMN "public"."station_breed_rules"."requires_staff_approval" IS 'האם גזע זה דורש אישור צוות בעמדה זו';
+COMMENT ON COLUMN "public"."station_treatmentType_rules"."remote_booking_allowed" IS 'האם ניתן לקבוע תור מרחוק עבור גזע זה בעמדה זו';
+
+
+
+COMMENT ON COLUMN "public"."station_treatmentType_rules"."requires_staff_approval" IS 'האם גזע זה דורש אישור צוות בעמדה זו';
 
 
 
@@ -790,7 +790,7 @@ CREATE TABLE IF NOT EXISTS "public"."ticket_usages" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "airtable_id" "text",
     "ticket_id" "uuid" NOT NULL,
-    "dog_id" "uuid",
+    "treatment_id" "uuid",
     "units_used" numeric(6,2) DEFAULT 1 NOT NULL,
     "grooming_appointment_id" "uuid",
     "daycare_appointment_id" "uuid",
@@ -822,43 +822,43 @@ ALTER TABLE ONLY "public"."appointment_payments"
 
 
 
-ALTER TABLE ONLY "public"."breed_dog_categories"
-    ADD CONSTRAINT "breed_dog_categories_breed_id_dog_category_id_key" UNIQUE ("breed_id", "dog_category_id");
+ALTER TABLE ONLY "public"."treatmentType_treatment_categories"
+    ADD CONSTRAINT "treatmentType_treatment_categories_treatment_type_id_treatment_category_id_key" UNIQUE ("treatment_type_id", "treatment_category_id");
 
 
 
-ALTER TABLE ONLY "public"."breed_dog_categories"
-    ADD CONSTRAINT "breed_dog_categories_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."treatmentType_treatment_categories"
+    ADD CONSTRAINT "treatmentType_treatment_categories_pkey" PRIMARY KEY ("id");
 
 
 
-ALTER TABLE ONLY "public"."breed_dog_types"
-    ADD CONSTRAINT "breed_dog_types_breed_id_dog_type_id_key" UNIQUE ("breed_id", "dog_type_id");
+ALTER TABLE ONLY "public"."treatmentType_treatment_types"
+    ADD CONSTRAINT "treatmentType_treatment_types_treatment_type_id_treatment_type_id_key" UNIQUE ("treatment_type_id", "treatment_type_id");
 
 
 
-ALTER TABLE ONLY "public"."breed_dog_types"
-    ADD CONSTRAINT "breed_dog_types_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."treatmentType_treatment_types"
+    ADD CONSTRAINT "treatmentType_treatment_types_pkey" PRIMARY KEY ("id");
 
 
 
-ALTER TABLE ONLY "public"."breed_modifiers"
-    ADD CONSTRAINT "breed_modifiers_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."treatmentType_modifiers"
+    ADD CONSTRAINT "treatmentType_modifiers_pkey" PRIMARY KEY ("id");
 
 
 
-ALTER TABLE ONLY "public"."breed_modifiers"
-    ADD CONSTRAINT "breed_modifiers_service_id_breed_id_key" UNIQUE ("service_id", "breed_id");
+ALTER TABLE ONLY "public"."treatmentType_modifiers"
+    ADD CONSTRAINT "treatmentType_modifiers_service_id_treatment_type_id_key" UNIQUE ("service_id", "treatment_type_id");
 
 
 
-ALTER TABLE ONLY "public"."breeds"
-    ADD CONSTRAINT "breeds_airtable_id_key" UNIQUE ("airtable_id");
+ALTER TABLE ONLY "public"."treatmentTypes"
+    ADD CONSTRAINT "treatmentTypes_airtable_id_key" UNIQUE ("airtable_id");
 
 
 
-ALTER TABLE ONLY "public"."breeds"
-    ADD CONSTRAINT "breeds_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."treatmentTypes"
+    ADD CONSTRAINT "treatmentTypes_pkey" PRIMARY KEY ("id");
 
 
 
@@ -957,33 +957,33 @@ ALTER TABLE ONLY "public"."daycare_waitlist"
 
 
 
-ALTER TABLE ONLY "public"."dog_categories"
-    ADD CONSTRAINT "dog_categories_name_key" UNIQUE ("name");
+ALTER TABLE ONLY "public"."treatment_categories"
+    ADD CONSTRAINT "treatment_categories_name_key" UNIQUE ("name");
 
 
 
-ALTER TABLE ONLY "public"."dog_categories"
-    ADD CONSTRAINT "dog_categories_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."treatment_categories"
+    ADD CONSTRAINT "treatment_categories_pkey" PRIMARY KEY ("id");
 
 
 
-ALTER TABLE ONLY "public"."dog_types"
-    ADD CONSTRAINT "dog_types_name_key" UNIQUE ("name");
+ALTER TABLE ONLY "public"."treatment_types"
+    ADD CONSTRAINT "treatment_types_name_key" UNIQUE ("name");
 
 
 
-ALTER TABLE ONLY "public"."dog_types"
-    ADD CONSTRAINT "dog_types_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."treatment_types"
+    ADD CONSTRAINT "treatment_types_pkey" PRIMARY KEY ("id");
 
 
 
-ALTER TABLE ONLY "public"."dogs"
-    ADD CONSTRAINT "dogs_airtable_id_key" UNIQUE ("airtable_id");
+ALTER TABLE ONLY "public"."treatments"
+    ADD CONSTRAINT "treatments_airtable_id_key" UNIQUE ("airtable_id");
 
 
 
-ALTER TABLE ONLY "public"."dogs"
-    ADD CONSTRAINT "dogs_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."treatments"
+    ADD CONSTRAINT "treatments_pkey" PRIMARY KEY ("id");
 
 
 
@@ -1067,13 +1067,13 @@ ALTER TABLE ONLY "public"."station_allowed_customer_types"
 
 
 
-ALTER TABLE ONLY "public"."station_breed_rules"
-    ADD CONSTRAINT "station_breed_rules_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."station_treatmentType_rules"
+    ADD CONSTRAINT "station_treatmentType_rules_pkey" PRIMARY KEY ("id");
 
 
 
-ALTER TABLE ONLY "public"."station_breed_rules"
-    ADD CONSTRAINT "station_breed_rules_station_id_service_id_breed_id_key" UNIQUE ("station_id", "service_id", "breed_id");
+ALTER TABLE ONLY "public"."station_treatmentType_rules"
+    ADD CONSTRAINT "station_treatmentType_rules_station_id_service_id_treatment_type_id_key" UNIQUE ("station_id", "service_id", "treatment_type_id");
 
 
 
@@ -1136,19 +1136,19 @@ CREATE INDEX "idx_appointment_payments_payment" ON "public"."appointment_payment
 
 
 
-CREATE INDEX "idx_breed_dog_categories_breed_id" ON "public"."breed_dog_categories" USING "btree" ("breed_id");
+CREATE INDEX "idx_treatmentType_treatment_categories_treatment_type_id" ON "public"."treatmentType_treatment_categories" USING "btree" ("treatment_type_id");
 
 
 
-CREATE INDEX "idx_breed_dog_categories_dog_category_id" ON "public"."breed_dog_categories" USING "btree" ("dog_category_id");
+CREATE INDEX "idx_treatmentType_treatment_categories_treatment_category_id" ON "public"."treatmentType_treatment_categories" USING "btree" ("treatment_category_id");
 
 
 
-CREATE INDEX "idx_breed_dog_types_breed_id" ON "public"."breed_dog_types" USING "btree" ("breed_id");
+CREATE INDEX "idx_treatmentType_treatment_types_treatment_type_id" ON "public"."treatmentType_treatment_types" USING "btree" ("treatment_type_id");
 
 
 
-CREATE INDEX "idx_breed_dog_types_dog_type_id" ON "public"."breed_dog_types" USING "btree" ("dog_type_id");
+CREATE INDEX "idx_treatmentType_treatment_types_treatment_type_id" ON "public"."treatmentType_treatment_types" USING "btree" ("treatment_type_id");
 
 
 
@@ -1180,7 +1180,7 @@ CREATE INDEX "idx_daycare_appointments_customer" ON "public"."daycare_appointmen
 
 
 
-CREATE INDEX "idx_daycare_appointments_dog" ON "public"."daycare_appointments" USING "btree" ("dog_id", "start_at");
+CREATE INDEX "idx_daycare_appointments_treatment" ON "public"."daycare_appointments" USING "btree" ("treatment_id", "start_at");
 
 
 
@@ -1192,7 +1192,7 @@ CREATE INDEX "idx_daycare_waitlist_customer" ON "public"."daycare_waitlist" USIN
 
 
 
-CREATE INDEX "idx_daycare_waitlist_dog" ON "public"."daycare_waitlist" USING "btree" ("dog_id");
+CREATE INDEX "idx_daycare_waitlist_treatment" ON "public"."daycare_waitlist" USING "btree" ("treatment_id");
 
 
 
@@ -1200,23 +1200,23 @@ CREATE INDEX "idx_daycare_waitlist_range" ON "public"."daycare_waitlist" USING "
 
 
 
-CREATE INDEX "idx_dog_categories_name" ON "public"."dog_categories" USING "btree" ("name");
+CREATE INDEX "idx_treatment_categories_name" ON "public"."treatment_categories" USING "btree" ("name");
 
 
 
-CREATE INDEX "idx_dog_types_name" ON "public"."dog_types" USING "btree" ("name");
+CREATE INDEX "idx_treatment_types_name" ON "public"."treatment_types" USING "btree" ("name");
 
 
 
-CREATE INDEX "idx_dogs_customer" ON "public"."dogs" USING "btree" ("customer_id");
+CREATE INDEX "idx_treatments_customer" ON "public"."treatments" USING "btree" ("customer_id");
 
 
 
-CREATE INDEX "idx_dogs_name_trgm" ON "public"."dogs" USING "gin" ("name" "public"."gin_trgm_ops");
+CREATE INDEX "idx_treatments_name_trgm" ON "public"."treatments" USING "gin" ("name" "public"."gin_trgm_ops");
 
 
 
-CREATE INDEX "idx_garden_questionnaires_dog" ON "public"."garden_questionnaires" USING "btree" ("dog_id");
+CREATE INDEX "idx_garden_questionnaires_treatment" ON "public"."garden_questionnaires" USING "btree" ("treatment_id");
 
 
 
@@ -1224,7 +1224,7 @@ CREATE INDEX "idx_grooming_appointments_customer" ON "public"."grooming_appointm
 
 
 
-CREATE INDEX "idx_grooming_appointments_dog" ON "public"."grooming_appointments" USING "btree" ("dog_id", "start_at");
+CREATE INDEX "idx_grooming_appointments_treatment" ON "public"."grooming_appointments" USING "btree" ("treatment_id", "start_at");
 
 
 
@@ -1252,15 +1252,15 @@ CREATE INDEX "idx_station_allowed_customer_types_station" ON "public"."station_a
 
 
 
-CREATE INDEX "idx_station_breed_rules_is_active" ON "public"."station_breed_rules" USING "btree" ("is_active");
+CREATE INDEX "idx_station_treatmentType_rules_is_active" ON "public"."station_treatmentType_rules" USING "btree" ("is_active");
 
 
 
-CREATE INDEX "idx_station_breed_rules_remote_booking" ON "public"."station_breed_rules" USING "btree" ("remote_booking_allowed");
+CREATE INDEX "idx_station_treatmentType_rules_remote_booking" ON "public"."station_treatmentType_rules" USING "btree" ("remote_booking_allowed");
 
 
 
-CREATE INDEX "idx_station_breed_rules_requires_staff_approval" ON "public"."station_breed_rules" USING "btree" ("requires_staff_approval");
+CREATE INDEX "idx_station_treatmentType_rules_requires_staff_approval" ON "public"."station_treatmentType_rules" USING "btree" ("requires_staff_approval");
 
 
 
@@ -1320,15 +1320,15 @@ CREATE OR REPLACE TRIGGER "set_daycare_waitlist_updated_at" BEFORE UPDATE ON "pu
 
 
 
-CREATE OR REPLACE TRIGGER "set_dog_categories_updated_at" BEFORE UPDATE ON "public"."dog_categories" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
+CREATE OR REPLACE TRIGGER "set_treatment_categories_updated_at" BEFORE UPDATE ON "public"."treatment_categories" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
 
 
 
-CREATE OR REPLACE TRIGGER "set_dog_types_updated_at" BEFORE UPDATE ON "public"."dog_types" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
+CREATE OR REPLACE TRIGGER "set_treatment_types_updated_at" BEFORE UPDATE ON "public"."treatment_types" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
 
 
 
-CREATE OR REPLACE TRIGGER "set_dogs_updated_at" BEFORE UPDATE ON "public"."dogs" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
+CREATE OR REPLACE TRIGGER "set_treatments_updated_at" BEFORE UPDATE ON "public"."treatments" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
 
 
 
@@ -1356,7 +1356,7 @@ CREATE OR REPLACE TRIGGER "set_products_updated_at" BEFORE UPDATE ON "public"."p
 
 
 
-CREATE OR REPLACE TRIGGER "set_station_breed_rules_updated_at" BEFORE UPDATE ON "public"."station_breed_rules" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
+CREATE OR REPLACE TRIGGER "set_station_treatmentType_rules_updated_at" BEFORE UPDATE ON "public"."station_treatmentType_rules" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
 
 
 
@@ -1391,33 +1391,33 @@ ALTER TABLE ONLY "public"."appointment_payments"
 
 
 
-ALTER TABLE ONLY "public"."breed_dog_categories"
-    ADD CONSTRAINT "breed_dog_categories_breed_id_fkey" FOREIGN KEY ("breed_id") REFERENCES "public"."breeds"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."treatmentType_treatment_categories"
+    ADD CONSTRAINT "treatmentType_treatment_categories_treatment_type_id_fkey" FOREIGN KEY ("treatment_type_id") REFERENCES "public"."treatmentTypes"("id") ON DELETE CASCADE;
 
 
 
-ALTER TABLE ONLY "public"."breed_dog_categories"
-    ADD CONSTRAINT "breed_dog_categories_dog_category_id_fkey" FOREIGN KEY ("dog_category_id") REFERENCES "public"."dog_categories"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."treatmentType_treatment_categories"
+    ADD CONSTRAINT "treatmentType_treatment_categories_treatment_category_id_fkey" FOREIGN KEY ("treatment_category_id") REFERENCES "public"."treatment_categories"("id") ON DELETE CASCADE;
 
 
 
-ALTER TABLE ONLY "public"."breed_dog_types"
-    ADD CONSTRAINT "breed_dog_types_breed_id_fkey" FOREIGN KEY ("breed_id") REFERENCES "public"."breeds"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."treatmentType_treatment_types"
+    ADD CONSTRAINT "treatmentType_treatment_types_treatment_type_id_fkey" FOREIGN KEY ("treatment_type_id") REFERENCES "public"."treatmentTypes"("id") ON DELETE CASCADE;
 
 
 
-ALTER TABLE ONLY "public"."breed_dog_types"
-    ADD CONSTRAINT "breed_dog_types_dog_type_id_fkey" FOREIGN KEY ("dog_type_id") REFERENCES "public"."dog_types"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."treatmentType_treatment_types"
+    ADD CONSTRAINT "treatmentType_treatment_types_treatment_type_id_fkey" FOREIGN KEY ("treatment_type_id") REFERENCES "public"."treatment_types"("id") ON DELETE CASCADE;
 
 
 
-ALTER TABLE ONLY "public"."breed_modifiers"
-    ADD CONSTRAINT "breed_modifiers_breed_id_fkey" FOREIGN KEY ("breed_id") REFERENCES "public"."breeds"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."treatmentType_modifiers"
+    ADD CONSTRAINT "treatmentType_modifiers_treatment_type_id_fkey" FOREIGN KEY ("treatment_type_id") REFERENCES "public"."treatmentTypes"("id") ON DELETE CASCADE;
 
 
 
-ALTER TABLE ONLY "public"."breed_modifiers"
-    ADD CONSTRAINT "breed_modifiers_service_id_fkey" FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."treatmentType_modifiers"
+    ADD CONSTRAINT "treatmentType_modifiers_service_id_fkey" FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE CASCADE;
 
 
 
@@ -1457,7 +1457,7 @@ ALTER TABLE ONLY "public"."daycare_appointments"
 
 
 ALTER TABLE ONLY "public"."daycare_appointments"
-    ADD CONSTRAINT "daycare_appointments_dog_id_fkey" FOREIGN KEY ("dog_id") REFERENCES "public"."dogs"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "daycare_appointments_treatment_id_fkey" FOREIGN KEY ("treatment_id") REFERENCES "public"."treatments"("id") ON DELETE CASCADE;
 
 
 
@@ -1472,22 +1472,22 @@ ALTER TABLE ONLY "public"."daycare_waitlist"
 
 
 ALTER TABLE ONLY "public"."daycare_waitlist"
-    ADD CONSTRAINT "daycare_waitlist_dog_id_fkey" FOREIGN KEY ("dog_id") REFERENCES "public"."dogs"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "daycare_waitlist_treatment_id_fkey" FOREIGN KEY ("treatment_id") REFERENCES "public"."treatments"("id") ON DELETE CASCADE;
 
 
 
-ALTER TABLE ONLY "public"."dogs"
-    ADD CONSTRAINT "dogs_breed_id_fkey" FOREIGN KEY ("breed_id") REFERENCES "public"."breeds"("id");
+ALTER TABLE ONLY "public"."treatments"
+    ADD CONSTRAINT "treatments_treatment_type_id_fkey" FOREIGN KEY ("treatment_type_id") REFERENCES "public"."treatmentTypes"("id");
 
 
 
-ALTER TABLE ONLY "public"."dogs"
-    ADD CONSTRAINT "dogs_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."treatments"
+    ADD CONSTRAINT "treatments_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE CASCADE;
 
 
 
 ALTER TABLE ONLY "public"."garden_questionnaires"
-    ADD CONSTRAINT "garden_questionnaires_dog_id_fkey" FOREIGN KEY ("dog_id") REFERENCES "public"."dogs"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "garden_questionnaires_treatment_id_fkey" FOREIGN KEY ("treatment_id") REFERENCES "public"."treatments"("id") ON DELETE CASCADE;
 
 
 
@@ -1502,7 +1502,7 @@ ALTER TABLE ONLY "public"."grooming_appointments"
 
 
 ALTER TABLE ONLY "public"."grooming_appointments"
-    ADD CONSTRAINT "grooming_appointments_dog_id_fkey" FOREIGN KEY ("dog_id") REFERENCES "public"."dogs"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "grooming_appointments_treatment_id_fkey" FOREIGN KEY ("treatment_id") REFERENCES "public"."treatments"("id") ON DELETE CASCADE;
 
 
 
@@ -1576,18 +1576,18 @@ ALTER TABLE ONLY "public"."station_allowed_customer_types"
 
 
 
-ALTER TABLE ONLY "public"."station_breed_rules"
-    ADD CONSTRAINT "station_breed_rules_breed_id_fkey" FOREIGN KEY ("breed_id") REFERENCES "public"."breeds"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."station_treatmentType_rules"
+    ADD CONSTRAINT "station_treatmentType_rules_treatment_type_id_fkey" FOREIGN KEY ("treatment_type_id") REFERENCES "public"."treatmentTypes"("id") ON DELETE CASCADE;
 
 
 
-ALTER TABLE ONLY "public"."station_breed_rules"
-    ADD CONSTRAINT "station_breed_rules_service_id_fkey" FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."station_treatmentType_rules"
+    ADD CONSTRAINT "station_treatmentType_rules_service_id_fkey" FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE CASCADE;
 
 
 
-ALTER TABLE ONLY "public"."station_breed_rules"
-    ADD CONSTRAINT "station_breed_rules_station_id_fkey" FOREIGN KEY ("station_id") REFERENCES "public"."stations"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."station_treatmentType_rules"
+    ADD CONSTRAINT "station_treatmentType_rules_station_id_fkey" FOREIGN KEY ("station_id") REFERENCES "public"."stations"("id") ON DELETE CASCADE;
 
 
 
@@ -1607,7 +1607,7 @@ ALTER TABLE ONLY "public"."ticket_usages"
 
 
 ALTER TABLE ONLY "public"."ticket_usages"
-    ADD CONSTRAINT "ticket_usages_dog_id_fkey" FOREIGN KEY ("dog_id") REFERENCES "public"."dogs"("id") ON DELETE SET NULL;
+    ADD CONSTRAINT "ticket_usages_treatment_id_fkey" FOREIGN KEY ("treatment_id") REFERENCES "public"."treatments"("id") ON DELETE SET NULL;
 
 
 
@@ -1631,11 +1631,11 @@ ALTER TABLE ONLY "public"."tickets"
 
 
 
-CREATE POLICY "Allow all operations on breed_modifiers" ON "public"."breed_modifiers" USING (true);
+CREATE POLICY "Allow all operations on treatmentType_modifiers" ON "public"."treatmentType_modifiers" USING (true);
 
 
 
-CREATE POLICY "Allow all operations on breeds" ON "public"."breeds" USING (true);
+CREATE POLICY "Allow all operations on treatmentTypes" ON "public"."treatmentTypes" USING (true);
 
 
 
@@ -1666,52 +1666,52 @@ CREATE POLICY "Users can view their own profile" ON "public"."profiles" FOR SELE
 ALTER TABLE "public"."appointment_payments" ENABLE ROW LEVEL SECURITY;
 
 
-ALTER TABLE "public"."breed_dog_categories" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."treatmentType_treatment_categories" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "breed_dog_categories_delete_manager" ON "public"."breed_dog_categories" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatmentType_treatment_categories_delete_manager" ON "public"."treatmentType_treatment_categories" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "breed_dog_categories_insert_manager" ON "public"."breed_dog_categories" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
+CREATE POLICY "treatmentType_treatment_categories_insert_manager" ON "public"."treatmentType_treatment_categories" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "breed_dog_categories_select_manager" ON "public"."breed_dog_categories" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatmentType_treatment_categories_select_manager" ON "public"."treatmentType_treatment_categories" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-ALTER TABLE "public"."breed_dog_types" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."treatmentType_treatment_types" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "breed_dog_types_delete_manager" ON "public"."breed_dog_types" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatmentType_treatment_types_delete_manager" ON "public"."treatmentType_treatment_types" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "breed_dog_types_insert_manager" ON "public"."breed_dog_types" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
+CREATE POLICY "treatmentType_treatment_types_insert_manager" ON "public"."treatmentType_treatment_types" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "breed_dog_types_select_manager" ON "public"."breed_dog_types" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatmentType_treatment_types_select_manager" ON "public"."treatmentType_treatment_types" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-ALTER TABLE "public"."breed_modifiers" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."treatmentType_modifiers" ENABLE ROW LEVEL SECURITY;
 
 
-ALTER TABLE "public"."breeds" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."treatmentTypes" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."business_hours" ENABLE ROW LEVEL SECURITY;
@@ -1857,9 +1857,9 @@ CREATE POLICY "daycare_appointments_select_manager" ON "public"."daycare_appoint
 
 
 CREATE POLICY "daycare_appointments_select_self" ON "public"."daycare_appointments" FOR SELECT USING ((EXISTS ( SELECT 1
-   FROM ("public"."dogs" "d"
+   FROM ("public"."treatments" "d"
      JOIN "public"."customers" "c" ON (("c"."id" = "d"."customer_id")))
-  WHERE (("d"."id" = "daycare_appointments"."dog_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
+  WHERE (("d"."id" = "daycare_appointments"."treatment_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
 
 
 
@@ -1903,112 +1903,112 @@ CREATE POLICY "daycare_capacity_limits_update_manager" ON "public"."daycare_capa
 ALTER TABLE "public"."daycare_waitlist" ENABLE ROW LEVEL SECURITY;
 
 
-ALTER TABLE "public"."dog_categories" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."treatment_categories" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "dog_categories_delete_manager" ON "public"."dog_categories" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatment_categories_delete_manager" ON "public"."treatment_categories" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "dog_categories_insert_manager" ON "public"."dog_categories" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
+CREATE POLICY "treatment_categories_insert_manager" ON "public"."treatment_categories" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "dog_categories_select_manager" ON "public"."dog_categories" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatment_categories_select_manager" ON "public"."treatment_categories" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "dog_categories_update_manager" ON "public"."dog_categories" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatment_categories_update_manager" ON "public"."treatment_categories" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-ALTER TABLE "public"."dog_types" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."treatment_types" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "dog_types_delete_manager" ON "public"."dog_types" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatment_types_delete_manager" ON "public"."treatment_types" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "dog_types_insert_manager" ON "public"."dog_types" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
+CREATE POLICY "treatment_types_insert_manager" ON "public"."treatment_types" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "dog_types_select_manager" ON "public"."dog_types" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatment_types_select_manager" ON "public"."treatment_types" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "dog_types_update_manager" ON "public"."dog_types" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatment_types_update_manager" ON "public"."treatment_types" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-ALTER TABLE "public"."dogs" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."treatments" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "dogs_delete_manager" ON "public"."dogs" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatments_delete_manager" ON "public"."treatments" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "dogs_delete_self" ON "public"."dogs" FOR DELETE USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatments_delete_self" ON "public"."treatments" FOR DELETE USING ((EXISTS ( SELECT 1
    FROM "public"."customers" "c"
-  WHERE (("c"."id" = "dogs"."customer_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
+  WHERE (("c"."id" = "treatments"."customer_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
 
 
 
-CREATE POLICY "dogs_insert_manager" ON "public"."dogs" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
+CREATE POLICY "treatments_insert_manager" ON "public"."treatments" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "dogs_insert_self" ON "public"."dogs" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+CREATE POLICY "treatments_insert_self" ON "public"."treatments" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."customers" "c"
-  WHERE (("c"."id" = "dogs"."customer_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
+  WHERE (("c"."id" = "treatments"."customer_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
 
 
 
-CREATE POLICY "dogs_modify_self" ON "public"."dogs" FOR UPDATE USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatments_modify_self" ON "public"."treatments" FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM "public"."customers" "c"
-  WHERE (("c"."id" = "dogs"."customer_id") AND ("c"."auth_user_id" = "auth"."uid"()))))) WITH CHECK ((EXISTS ( SELECT 1
+  WHERE (("c"."id" = "treatments"."customer_id") AND ("c"."auth_user_id" = "auth"."uid"()))))) WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."customers" "c"
-  WHERE (("c"."id" = "dogs"."customer_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
+  WHERE (("c"."id" = "treatments"."customer_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
 
 
 
-CREATE POLICY "dogs_select_manager" ON "public"."dogs" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatments_select_manager" ON "public"."treatments" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "dogs_select_self" ON "public"."dogs" FOR SELECT USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatments_select_self" ON "public"."treatments" FOR SELECT USING ((EXISTS ( SELECT 1
    FROM "public"."customers" "c"
-  WHERE (("c"."id" = "dogs"."customer_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
+  WHERE (("c"."id" = "treatments"."customer_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
 
 
 
-CREATE POLICY "dogs_service_role_all" ON "public"."dogs" USING (("auth"."role"() = 'service_role'::"text")) WITH CHECK (("auth"."role"() = 'service_role'::"text"));
+CREATE POLICY "treatments_service_role_all" ON "public"."treatments" USING (("auth"."role"() = 'service_role'::"text")) WITH CHECK (("auth"."role"() = 'service_role'::"text"));
 
 
 
-CREATE POLICY "dogs_update_manager" ON "public"."dogs" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "treatments_update_manager" ON "public"."treatments" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role"))))) WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
@@ -2041,9 +2041,9 @@ CREATE POLICY "grooming_appointments_select_manager" ON "public"."grooming_appoi
 
 
 CREATE POLICY "grooming_appointments_select_self" ON "public"."grooming_appointments" FOR SELECT USING ((EXISTS ( SELECT 1
-   FROM ("public"."dogs" "d"
+   FROM ("public"."treatments" "d"
      JOIN "public"."customers" "c" ON (("c"."id" = "d"."customer_id")))
-  WHERE (("d"."id" = "grooming_appointments"."dog_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
+  WHERE (("d"."id" = "grooming_appointments"."treatment_id") AND ("c"."auth_user_id" = "auth"."uid"())))));
 
 
 
@@ -2122,7 +2122,7 @@ CREATE POLICY "service_role_full_access_products" ON "public"."products" USING (
 
 
 
-CREATE POLICY "service_role_full_access_station_breed_rules" ON "public"."station_breed_rules" USING (("auth"."role"() = 'service_role'::"text")) WITH CHECK (("auth"."role"() = 'service_role'::"text"));
+CREATE POLICY "service_role_full_access_station_treatmentType_rules" ON "public"."station_treatmentType_rules" USING (("auth"."role"() = 'service_role'::"text")) WITH CHECK (("auth"."role"() = 'service_role'::"text"));
 
 
 
@@ -2177,28 +2177,28 @@ CREATE POLICY "station_allowed_customer_types_update_manager" ON "public"."stati
 
 
 
-ALTER TABLE "public"."station_breed_rules" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."station_treatmentType_rules" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "station_breed_rules_delete_manager" ON "public"."station_breed_rules" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "station_treatmentType_rules_delete_manager" ON "public"."station_treatmentType_rules" FOR DELETE TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "station_breed_rules_insert_manager" ON "public"."station_breed_rules" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
+CREATE POLICY "station_treatmentType_rules_insert_manager" ON "public"."station_treatmentType_rules" FOR INSERT TO "authenticated" WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "station_breed_rules_select_manager" ON "public"."station_breed_rules" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "station_treatmentType_rules_select_manager" ON "public"."station_treatmentType_rules" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role")))));
 
 
 
-CREATE POLICY "station_breed_rules_update_manager" ON "public"."station_breed_rules" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "station_treatmentType_rules_update_manager" ON "public"."station_treatmentType_rules" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
   WHERE (("p"."id" = "auth"."uid"()) AND ("p"."role" = 'manager'::"public"."user_role"))))) WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
@@ -4131,27 +4131,27 @@ GRANT ALL ON TABLE "public"."appointment_payments" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."breed_dog_categories" TO "anon";
-GRANT ALL ON TABLE "public"."breed_dog_categories" TO "authenticated";
-GRANT ALL ON TABLE "public"."breed_dog_categories" TO "service_role";
+GRANT ALL ON TABLE "public"."treatmentType_treatment_categories" TO "anon";
+GRANT ALL ON TABLE "public"."treatmentType_treatment_categories" TO "authenticated";
+GRANT ALL ON TABLE "public"."treatmentType_treatment_categories" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."breed_dog_types" TO "anon";
-GRANT ALL ON TABLE "public"."breed_dog_types" TO "authenticated";
-GRANT ALL ON TABLE "public"."breed_dog_types" TO "service_role";
+GRANT ALL ON TABLE "public"."treatmentType_treatment_types" TO "anon";
+GRANT ALL ON TABLE "public"."treatmentType_treatment_types" TO "authenticated";
+GRANT ALL ON TABLE "public"."treatmentType_treatment_types" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."breed_modifiers" TO "anon";
-GRANT ALL ON TABLE "public"."breed_modifiers" TO "authenticated";
-GRANT ALL ON TABLE "public"."breed_modifiers" TO "service_role";
+GRANT ALL ON TABLE "public"."treatmentType_modifiers" TO "anon";
+GRANT ALL ON TABLE "public"."treatmentType_modifiers" TO "authenticated";
+GRANT ALL ON TABLE "public"."treatmentType_modifiers" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."breeds" TO "anon";
-GRANT ALL ON TABLE "public"."breeds" TO "authenticated";
-GRANT ALL ON TABLE "public"."breeds" TO "service_role";
+GRANT ALL ON TABLE "public"."treatmentTypes" TO "anon";
+GRANT ALL ON TABLE "public"."treatmentTypes" TO "authenticated";
+GRANT ALL ON TABLE "public"."treatmentTypes" TO "service_role";
 
 
 
@@ -4209,21 +4209,21 @@ GRANT ALL ON TABLE "public"."daycare_waitlist" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."dog_categories" TO "anon";
-GRANT ALL ON TABLE "public"."dog_categories" TO "authenticated";
-GRANT ALL ON TABLE "public"."dog_categories" TO "service_role";
+GRANT ALL ON TABLE "public"."treatment_categories" TO "anon";
+GRANT ALL ON TABLE "public"."treatment_categories" TO "authenticated";
+GRANT ALL ON TABLE "public"."treatment_categories" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."dog_types" TO "anon";
-GRANT ALL ON TABLE "public"."dog_types" TO "authenticated";
-GRANT ALL ON TABLE "public"."dog_types" TO "service_role";
+GRANT ALL ON TABLE "public"."treatment_types" TO "anon";
+GRANT ALL ON TABLE "public"."treatment_types" TO "authenticated";
+GRANT ALL ON TABLE "public"."treatment_types" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."dogs" TO "anon";
-GRANT ALL ON TABLE "public"."dogs" TO "authenticated";
-GRANT ALL ON TABLE "public"."dogs" TO "service_role";
+GRANT ALL ON TABLE "public"."treatments" TO "anon";
+GRANT ALL ON TABLE "public"."treatments" TO "authenticated";
+GRANT ALL ON TABLE "public"."treatments" TO "service_role";
 
 
 
@@ -4287,9 +4287,9 @@ GRANT ALL ON TABLE "public"."station_allowed_customer_types" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."station_breed_rules" TO "anon";
-GRANT ALL ON TABLE "public"."station_breed_rules" TO "authenticated";
-GRANT ALL ON TABLE "public"."station_breed_rules" TO "service_role";
+GRANT ALL ON TABLE "public"."station_treatmentType_rules" TO "anon";
+GRANT ALL ON TABLE "public"."station_treatmentType_rules" TO "authenticated";
+GRANT ALL ON TABLE "public"."station_treatmentType_rules" TO "service_role";
 
 
 

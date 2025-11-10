@@ -40,7 +40,7 @@ import type {
   ManagerScheduleData,
   ManagerServiceFilter,
   ManagerStation,
-  ManagerDog,
+  ManagerTreatment,
   ManagerScheduleSearchResponse,
 } from "@/types/managerSchedule"
 import { cn } from "@/lib/utils"
@@ -58,19 +58,19 @@ import {
   DuplicateSeriesModal,
   DuplicateSuccessModal,
   NewGardenAppointmentModal,
-  DogAppointmentsModal,
+  TreatmentAppointmentsModal,
   PaymentModal,
   StationConstraintsModal
 } from "@/components/dialogs/manager-schedule/index"
 import {
   AppointmentDetailsSheet,
-  DogDetailsSheet,
+  TreatmentDetailsSheet,
   ClientDetailsSheet,
   ConstraintDetailsSheet
 } from "./ManagerSchedule/sheets/index"
 import { ProposedMeetingSheet } from "./ManagerSchedule/sheets/ProposedMeetingSheet"
 import type { Customer as ManagerCustomer } from "@/components/CustomerSearchInput"
-import type { Dog as ManagerDogSelect } from "@/components/DogSelectInput"
+import type { Treatment as ManagerTreatmentSelect } from "@/components/TreatmentSelectInput"
 import { ConstraintEditDialog } from "@/components/dialogs/settings/constraints/ConstraintEditDialog"
 import { StationEditDialog } from "@/components/dialogs/settings/stations/StationEditDialog"
 import { DuplicateStationDialog } from "@/components/dialogs/settings/stations/DuplicateStationDialog"
@@ -151,19 +151,19 @@ type WaitlistServiceScope = "grooming" | "daycare" | "both"
 
 interface ManagerWaitlistEntry {
   id: string
-  dogId: string
-  dogName: string
-  dogRecordId?: string | null
-  dogRecordNumber?: string | null
-  breedName?: string | null
+  treatmentId: string
+  treatmentName: string
+  treatmentRecordId?: string | null
+  treatmentRecordNumber?: string | null
+  treatmentTypeName?: string | null
   customerId: string
   customerName?: string | null
   customerPhone?: string | null
   customerEmail?: string | null
   customerTypeId?: string | null
   customerTypeName?: string | null
-  dogTypes: Array<{ id: string; name: string }>
-  dogCategories: Array<{ id: string; name: string }>
+  treatmentTypes: Array<{ id: string; name: string }>
+  treatmentCategories: Array<{ id: string; name: string }>
   serviceScope: WaitlistServiceScope
   startDate: string
   endDate: string | null
@@ -176,12 +176,12 @@ type WaitlistBucketGroup = {
   entries: ManagerWaitlistEntry[]
 }
 
-type ScheduleSearchResultType = "dog" | "client" | "personal" | "appointment"
+type ScheduleSearchResultType = "treatment" | "client" | "personal" | "appointment"
 
 type ScheduleSearchEntry = {
   id: string
   appointment?: ManagerAppointment
-  dog?: ManagerDog
+  treatment?: ManagerTreatment
   ownerName?: string
   stationName?: string
   serviceType: ManagerAppointment["serviceType"]
@@ -207,10 +207,10 @@ interface ClientDetails {
   recordNumber?: string
 }
 
-interface DogDetails {
+interface TreatmentDetails {
   id: string
   name: string
-  breed?: string
+  treatmentType?: string
   clientClassification?: string
   owner?: ClientDetails
   age?: string
@@ -225,7 +225,7 @@ interface DogDetails {
   healthIssues?: string
   birthDate?: string
   tendsToBite?: string
-  aggressiveWithOtherDogs?: string
+  aggressiveWithOtherTreatments?: string
   hasBeenToGarden?: boolean
   suitableForGardenFromQuestionnaire?: boolean
   notSuitableForGardenFromQuestionnaire?: boolean
@@ -298,8 +298,8 @@ const WAITLIST_VISIBILITY_STORAGE_KEY = "manager-schedule-waitlist-visible"
 const WAITLIST_COLUMN_WIDTH = 180
 const WAITLIST_DEFAULT_DURATION_MINUTES = 60
 const UNCLASSIFIED_CUSTOMER_TYPE_ID = "uncategorized-customer-type"
-const UNCLASSIFIED_CATEGORY_ID = "uncategorized-dog-category"
-const UNCLASSIFIED_DOG_TYPE_ID = "uncategorized-dog-type"
+const UNCLASSIFIED_CATEGORY_ID = "uncategorized-treatment-category"
+const UNCLASSIFIED_TREATMENT_TYPE_ID = "uncategorized-treatment-type"
 const WAITLIST_SCOPE_META: Record<
   WaitlistServiceScope,
   { label: string; badgeClass: string }
@@ -705,8 +705,8 @@ const ManagerSchedule = () => {
       return prevMonth
     })
   }, [selectedDate])
-  const [selectedDog, setSelectedDog] = useState<DogDetails | null>(null)
-  const [isDogDetailsOpen, setIsDogDetailsOpen] = useState(false)
+  const [selectedTreatment, setSelectedTreatment] = useState<TreatmentDetails | null>(null)
+  const [isTreatmentDetailsOpen, setIsTreatmentDetailsOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<ClientDetails | null>(null)
   const [isClientDetailsOpen, setIsClientDetailsOpen] = useState(false)
   const [showAllPastAppointments, setShowAllPastAppointments] = useState(false)
@@ -748,9 +748,9 @@ const ManagerSchedule = () => {
   // Service type selection modal state
   const [showServiceTypeSelectionModal, setShowServiceTypeSelectionModal] = useState(false)
 
-  // Dog appointments modal state
-  const [showDogAppointmentsModal, setShowDogAppointmentsModal] = useState(false)
-  const [selectedDogForAppointments, setSelectedDogForAppointments] = useState<{ id: string; name: string } | null>(null)
+  // Treatment appointments modal state
+  const [showTreatmentAppointmentsModal, setShowTreatmentAppointmentsModal] = useState(false)
+  const [selectedTreatmentForAppointments, setSelectedTreatmentForAppointments] = useState<{ id: string; name: string } | null>(null)
 
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -813,7 +813,7 @@ const ManagerSchedule = () => {
   const [triggerScheduleSearch, { isFetching: isScheduleSearchLoading }] = useLazySearchManagerScheduleQuery()
   const [remoteScheduleSearchResults, setRemoteScheduleSearchResults] = useState<ManagerScheduleSearchResponse>({
     appointments: [],
-    dogs: [],
+    treatments: [],
     clients: [],
   })
   const [scheduleSearchError, setScheduleSearchError] = useState<string | null>(null)
@@ -848,7 +848,7 @@ const ManagerSchedule = () => {
     if (!debouncedScheduleSearchTerm) {
       setRemoteScheduleSearchResults({
         appointments: [],
-        dogs: [],
+        treatments: [],
         clients: [],
       })
       setScheduleSearchError(null)
@@ -881,7 +881,7 @@ const ManagerSchedule = () => {
           setScheduleSearchError(fallbackMessage)
           setRemoteScheduleSearchResults({
             appointments: [],
-            dogs: [],
+            treatments: [],
             clients: [],
           })
         }
@@ -949,8 +949,8 @@ const ManagerSchedule = () => {
   const contentScrollContainerRef = useRef<HTMLDivElement | null>(null)
   const isSyncingHorizontalScrollRef = useRef(false)
   const customerTypeSuggestionsRef = useRef<Record<string, { id: string; name: string }>>({})
-  const dogCategorySuggestionsRef = useRef<Record<string, { id: string; name: string }>>({})
-  const dogTypeSuggestionsRef = useRef<Record<string, { id: string; name: string }>>({})
+  const treatmentCategorySuggestionsRef = useRef<Record<string, { id: string; name: string }>>({})
+  const treatmentTypeSuggestionsRef = useRef<Record<string, { id: string; name: string }>>({})
   const initialLoaderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [resizingPreview, setResizingPreview] = useState<{ appointmentId: string; endDate: Date } | null>(null)
   const [constraintResizingPreview, setConstraintResizingPreview] = useState<{ constraintId: string; endDate: Date } | null>(null)
@@ -996,11 +996,11 @@ const ManagerSchedule = () => {
   const [waitingListError, setWaitingListError] = useState<string | null>(null)
   const [waitingListSearchTerm, setWaitingListSearchTerm] = useState("")
   const [selectedCustomerTypes, setSelectedCustomerTypes] = useState<Array<{ id: string; name: string }>>([])
-  const [selectedDogCategories, setSelectedDogCategories] = useState<Array<{ id: string; name: string }>>([])
-  const [selectedDogTypes, setSelectedDogTypes] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedTreatmentCategories, setSelectedTreatmentCategories] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedTreatmentTypes, setSelectedTreatmentTypes] = useState<Array<{ id: string; name: string }>>([])
   const [customerTypeQuery, setCustomerTypeQuery] = useState("")
-  const [dogCategoryQuery, setDogCategoryQuery] = useState("")
-  const [dogTypeQuery, setDogTypeQuery] = useState("")
+  const [treatmentCategoryQuery, setTreatmentCategoryQuery] = useState("")
+  const [treatmentTypeQuery, setTreatmentTypeQuery] = useState("")
   const [waitingListLastUpdated, setWaitingListLastUpdated] = useState<Date | null>(null)
   const [waitlistSection, setWaitlistSection] = useState<string | null>("client-types")
   const [activeWaitlistBucket, setActiveWaitlistBucket] = useState<string | null>(null)
@@ -1021,7 +1021,7 @@ const ManagerSchedule = () => {
   const [shouldRemoveFromWaitlist, setShouldRemoveFromWaitlist] = useState(true)
   const [pendingWaitlistEntryId, setPendingWaitlistEntryId] = useState<string | null>(null)
   const [prefillBusinessCustomer, setPrefillBusinessCustomer] = useState<ManagerCustomer | null>(null)
-  const [prefillBusinessDog, setPrefillBusinessDog] = useState<ManagerDogSelect | null>(null)
+  const [prefillBusinessTreatment, setPrefillBusinessTreatment] = useState<ManagerTreatmentSelect | null>(null)
 
   // Functions to update URL parameters
   const updateURLParams = (updates: Record<string, string | null>) => {
@@ -1111,10 +1111,10 @@ const ManagerSchedule = () => {
     return (
       (waitingListSearchTerm.trim() ? 1 : 0) +
       selectedCustomerTypes.length +
-      selectedDogCategories.length +
-      selectedDogTypes.length
+      selectedTreatmentCategories.length +
+      selectedTreatmentTypes.length
     )
-  }, [waitingListSearchTerm, selectedCustomerTypes.length, selectedDogCategories.length, selectedDogTypes.length])
+  }, [waitingListSearchTerm, selectedCustomerTypes.length, selectedTreatmentCategories.length, selectedTreatmentTypes.length])
   const waitlistHasFilters = waitingListActiveFiltersCount > 0
   const waitlistHasEntries = waitingListEntries.length > 0
 
@@ -1274,7 +1274,7 @@ const ManagerSchedule = () => {
 
   const scheduleSearchEntries = useMemo<ScheduleSearchEntry[]>(() => {
     const entries: ScheduleSearchEntry[] = []
-    const appointmentDogIds = new Set<string>()
+    const appointmentTreatmentIds = new Set<string>()
 
     remoteScheduleSearchResults.appointments.forEach((appointment) => {
       const appointmentDate = parseISODate(appointment.startDateTime)
@@ -1283,22 +1283,22 @@ const ManagerSchedule = () => {
       }
 
       const appointmentEndDate = parseISODate(appointment.endDateTime)
-      const dog = appointment.dogs?.[0]
-      const ownerName = appointment.clientName || dog?.clientName
+      const treatment = appointment.treatments?.[0]
+      const ownerName = appointment.clientName || treatment?.clientName
       const serviceLabel = appointment.serviceType === "garden" ? "גן" : "מספרה"
-      const isPersonal = appointment.isPersonalAppointment || (!dog && appointment.appointmentType === "private")
+      const isPersonal = appointment.isPersonalAppointment || (!treatment && appointment.appointmentType === "private")
       let entityType: ScheduleSearchResultType = "appointment"
       if (isPersonal) {
         entityType = "personal"
-      } else if (dog) {
-        entityType = "dog"
+      } else if (treatment) {
+        entityType = "treatment"
       } else if (ownerName) {
         entityType = "client"
       }
 
-      appointment.dogs?.forEach((appointmentDog) => {
-        if (appointmentDog?.id) {
-          appointmentDogIds.add(appointmentDog.id)
+      appointment.treatments?.forEach((appointmentTreatment) => {
+        if (appointmentTreatment?.id) {
+          appointmentTreatmentIds.add(appointmentTreatment.id)
         }
       })
 
@@ -1313,13 +1313,13 @@ const ManagerSchedule = () => {
         appointment.serviceType,
         appointment.serviceLabel,
         appointment.status,
-        appointment.dogs?.map((d) => `${d.name} ${d.breed} ${d.clientName}`).join(" "),
+        appointment.treatments?.map((d) => `${d.name} ${d.treatmentType} ${d.clientName}`).join(" "),
       ]
 
       entries.push({
-        id: dog ? `${appointment.id}-${dog.id}` : appointment.id,
+        id: treatment ? `${appointment.id}-${treatment.id}` : appointment.id,
         appointment,
-        dog,
+        treatment,
         ownerName: ownerName || undefined,
         stationName: appointment.stationName,
         serviceType: appointment.serviceType,
@@ -1339,8 +1339,8 @@ const ManagerSchedule = () => {
       })
     })
 
-    remoteScheduleSearchResults.dogs.forEach(({ dog, owner }) => {
-      if (!dog || appointmentDogIds.has(dog.id)) {
+    remoteScheduleSearchResults.treatments.forEach(({ treatment, owner }) => {
+      if (!treatment || appointmentTreatmentIds.has(treatment.id)) {
         return
       }
       const clientDetails = owner
@@ -1354,8 +1354,8 @@ const ManagerSchedule = () => {
         }
         : undefined
       const searchParts = [
-        dog.name,
-        dog.breed,
+        treatment.name,
+        treatment.treatmentType,
         clientDetails?.name,
         clientDetails?.phone,
         clientDetails?.email,
@@ -1363,15 +1363,15 @@ const ManagerSchedule = () => {
         clientDetails?.classification,
       ]
       entries.push({
-        id: `dog-${dog.id}`,
-        dog,
+        id: `treatment-${treatment.id}`,
+        treatment,
         ownerName: clientDetails?.name,
         serviceType: "grooming",
         serviceLabel: "כלב",
         appointmentDate: null,
         dateLabel: clientDetails?.phone ? `טלפון: ${clientDetails.phone}` : "כלב ללא תור ביומן",
         timeLabel: clientDetails?.email ? `דוא"ל: ${clientDetails.email}` : "",
-        entityType: "dog",
+        entityType: "treatment",
         clientName: clientDetails?.name,
         clientDetails,
         searchText: searchParts
@@ -1548,13 +1548,13 @@ const ManagerSchedule = () => {
               const titleText =
                 result.entityType === "personal"
                   ? result.appointment?.personalAppointmentDescription || "תור אישי"
-                  : result.dog?.name || result.ownerName || "תור ללא כלב"
+                  : result.treatment?.name || result.ownerName || "תור ללא כלב"
               const secondaryText = (() => {
                 if (result.entityType === "personal") {
                   return "תור אישי ביומן ההנהלה"
                 }
                 if (!result.appointment) {
-                  if (result.entityType === "dog") {
+                  if (result.entityType === "treatment") {
                     return result.ownerName ? `בעלים: ${result.ownerName}` : "כלב במערכת"
                   }
                   if (result.entityType === "client") {
@@ -1646,7 +1646,7 @@ const ManagerSchedule = () => {
                         <UserRound className="h-4 w-4" />
                       </Button>
                     )}
-                    {result.dog && (
+                    {result.treatment && (
                       <Button
                         type="button"
                         size="icon"
@@ -1656,7 +1656,7 @@ const ManagerSchedule = () => {
                         onClick={(event) => {
                           event.preventDefault()
                           event.stopPropagation()
-                          handleScheduleSearchOpenDog(result.dog!)
+                          handleScheduleSearchOpenTreatment(result.treatment!)
                         }}
                       >
                         <Bone className="h-4 w-4" />
@@ -1764,7 +1764,7 @@ const ManagerSchedule = () => {
 
       const { data: waitlistData, error: waitlistError } = await supabase
         .from("daycare_waitlist")
-        .select("id, customer_id, dog_id, service_scope, status, start_date, end_date, notes, created_at, updated_at")
+        .select("id, customer_id, treatment_id, service_scope, status, start_date, end_date, notes, created_at, updated_at")
         .eq("status", "active")
         .order("created_at", { ascending: false })
 
@@ -1788,7 +1788,7 @@ const ManagerSchedule = () => {
       }
 
       const customerIds = [...new Set(relevantEntries.map((entry) => entry.customer_id).filter(Boolean))]
-      const dogIds = [...new Set(relevantEntries.map((entry) => entry.dog_id).filter(Boolean))]
+      const treatmentIds = [...new Set(relevantEntries.map((entry) => entry.treatment_id).filter(Boolean))]
 
       const customerQuery = customerIds.length
         ? supabase
@@ -1807,62 +1807,62 @@ const ManagerSchedule = () => {
           .in("id", customerIds)
         : Promise.resolve({ data: [], error: null })
 
-      const dogQuery = dogIds.length
+      const treatmentQuery = treatmentIds.length
         ? supabase
-          .from("dogs")
+          .from("treatments")
           .select(`
                 id,
                 name,
-                breed_id,
+                treatment_type_id,
                 customer_id,
-                breed:breeds (
+                treatmentType:treatmentTypes (
                     id,
                     name
                 )
             `)
-          .in("id", dogIds)
+          .in("id", treatmentIds)
         : Promise.resolve({ data: [], error: null })
 
-      const [{ data: customersData, error: customersError }, { data: dogsData, error: dogsError }] = await Promise.all([
+      const [{ data: customersData, error: customersError }, { data: treatmentsData, error: treatmentsError }] = await Promise.all([
         customerQuery,
-        dogQuery,
+        treatmentQuery,
       ])
 
       if (customersError) {
         throw customersError
       }
-      if (dogsError) {
-        throw dogsError
+      if (treatmentsError) {
+        throw treatmentsError
       }
 
-      const breedIds = [...new Set((dogsData || []).map((dog: any) => dog?.breed_id).filter(Boolean))]
+      const treatmentTypeIds = [...new Set((treatmentsData || []).map((treatment: any) => treatment?.treatment_type_id).filter(Boolean))]
 
-      const typesQuery = breedIds.length
+      const typesQuery = treatmentTypeIds.length
         ? supabase
-          .from("breed_dog_types")
+          .from("treatmentType_treatment_types")
           .select(`
-              breed_id,
-              dog_type_id,
-              dog_type:dog_types (
+              treatment_type_id,
+              treatment_type_id,
+              treatment_type:treatment_types (
                 id,
                 name
               )
             `)
-          .in("breed_id", breedIds)
+          .in("treatment_type_id", treatmentTypeIds)
         : Promise.resolve({ data: [], error: null })
 
-      const categoriesQuery = breedIds.length
+      const categoriesQuery = treatmentTypeIds.length
         ? supabase
-          .from("breed_dog_categories")
+          .from("treatmentType_treatment_categories")
           .select(`
-              breed_id,
-              dog_category_id,
-              dog_category:dog_categories (
+              treatment_type_id,
+              treatment_category_id,
+              treatment_category:treatment_categories (
                 id,
                 name
               )
             `)
-          .in("breed_id", breedIds)
+          .in("treatment_type_id", treatmentTypeIds)
         : Promise.resolve({ data: [], error: null })
 
       const [{ data: typesData, error: typesError }, { data: categoriesData, error: categoriesError }] = await Promise.all([
@@ -1878,46 +1878,46 @@ const ManagerSchedule = () => {
       }
 
       const customersMap = new Map<string, any>((customersData || []).map((customer: any) => [customer.id, customer]))
-      const dogsMap = new Map<string, any>((dogsData || []).map((dog: any) => [dog.id, dog]))
-      const typesByBreed = new Map<string, Array<{ id: string; name: string }>>()
-      const categoriesByBreed = new Map<string, Array<{ id: string; name: string }>>()
+      const treatmentsMap = new Map<string, any>((treatmentsData || []).map((treatment: any) => [treatment.id, treatment]))
+      const typesByTreatmentType = new Map<string, Array<{ id: string; name: string }>>()
+      const categoriesByTreatmentType = new Map<string, Array<{ id: string; name: string }>>()
 
         ; (typesData || []).forEach((row: any) => {
-          if (!row?.breed_id || !row?.dog_type) return
-          if (!typesByBreed.has(row.breed_id)) {
-            typesByBreed.set(row.breed_id, [])
+          if (!row?.treatment_type_id || !row?.treatment_type) return
+          if (!typesByTreatmentType.has(row.treatment_type_id)) {
+            typesByTreatmentType.set(row.treatment_type_id, [])
           }
-          typesByBreed.get(row.breed_id)!.push({ id: row.dog_type.id, name: row.dog_type.name })
+          typesByTreatmentType.get(row.treatment_type_id)!.push({ id: row.treatment_type.id, name: row.treatment_type.name })
         })
 
         ; (categoriesData || []).forEach((row: any) => {
-          if (!row?.breed_id || !row?.dog_category) return
-          if (!categoriesByBreed.has(row.breed_id)) {
-            categoriesByBreed.set(row.breed_id, [])
+          if (!row?.treatment_type_id || !row?.treatment_category) return
+          if (!categoriesByTreatmentType.has(row.treatment_type_id)) {
+            categoriesByTreatmentType.set(row.treatment_type_id, [])
           }
-          categoriesByBreed.get(row.breed_id)!.push({ id: row.dog_category.id, name: row.dog_category.name })
+          categoriesByTreatmentType.get(row.treatment_type_id)!.push({ id: row.treatment_category.id, name: row.treatment_category.name })
         })
 
       const transformed: ManagerWaitlistEntry[] = relevantEntries.map((entry) => {
         const customer = customersMap.get(entry.customer_id)
-        const dog = dogsMap.get(entry.dog_id)
-        const breedId = dog?.breed_id
+        const treatment = treatmentsMap.get(entry.treatment_id)
+        const treatmentTypeId = treatment?.treatment_type_id
 
         return {
           id: entry.id,
-          dogId: entry.dog_id,
-          dogName: dog?.name || "ללא שם",
-          dogRecordId: dog?.record_id ?? null,
-          dogRecordNumber: dog?.record_number ?? null,
-          breedName: dog?.breed?.name ?? null,
+          treatmentId: entry.treatment_id,
+          treatmentName: treatment?.name || "ללא שם",
+          treatmentRecordId: treatment?.record_id ?? null,
+          treatmentRecordNumber: treatment?.record_number ?? null,
+          treatmentTypeName: treatment?.treatmentType?.name ?? null,
           customerId: entry.customer_id,
           customerName: customer?.full_name ?? null,
           customerPhone: customer?.phone ?? null,
           customerEmail: customer?.email ?? null,
           customerTypeId: customer?.customer_type_id ?? null,
           customerTypeName: customer?.customer_type?.name ?? null,
-          dogTypes: breedId ? [...(typesByBreed.get(breedId) ?? [])] : [],
-          dogCategories: breedId ? [...(categoriesByBreed.get(breedId) ?? [])] : [],
+          treatmentTypes: treatmentTypeId ? [...(typesByTreatmentType.get(treatmentTypeId) ?? [])] : [],
+          treatmentCategories: treatmentTypeId ? [...(categoriesByTreatmentType.get(treatmentTypeId) ?? [])] : [],
           serviceScope: entry.service_scope as WaitlistServiceScope,
           startDate: entry.start_date,
           endDate: entry.end_date,
@@ -1975,11 +1975,11 @@ const ManagerSchedule = () => {
     }
   }, [])
 
-  const searchDogCategories = useCallback(async (searchTerm: string) => {
+  const searchTreatmentCategories = useCallback(async (searchTerm: string) => {
     try {
       const trimmed = searchTerm.trim()
       let query = supabase
-        .from("dog_categories")
+        .from("treatment_categories")
         .select("id, name")
         .order("name", { ascending: true })
         .limit(8)
@@ -1997,19 +1997,19 @@ const ManagerSchedule = () => {
         ; (data || []).forEach((item) => {
           lookup[item.name] = { id: item.id, name: item.name }
         })
-      dogCategorySuggestionsRef.current = lookup
+      treatmentCategorySuggestionsRef.current = lookup
       return (data || []).map((item) => item.name)
     } catch (error) {
-      console.error("Error searching dog categories:", error)
+      console.error("Error searching treatment categories:", error)
       return []
     }
   }, [])
 
-  const searchDogTypes = useCallback(async (searchTerm: string) => {
+  const searchTreatmentTypes = useCallback(async (searchTerm: string) => {
     try {
       const trimmed = searchTerm.trim()
       let query = supabase
-        .from("dog_types")
+        .from("treatment_types")
         .select("id, name")
         .order("name", { ascending: true })
         .limit(8)
@@ -2027,10 +2027,10 @@ const ManagerSchedule = () => {
         ; (data || []).forEach((item) => {
           lookup[item.name] = { id: item.id, name: item.name }
         })
-      dogTypeSuggestionsRef.current = lookup
+      treatmentTypeSuggestionsRef.current = lookup
       return (data || []).map((item) => item.name)
     } catch (error) {
-      console.error("Error searching dog types:", error)
+      console.error("Error searching treatment types:", error)
       return []
     }
   }, [])
@@ -2049,70 +2049,70 @@ const ManagerSchedule = () => {
     setCustomerTypeQuery("")
   }, [])
 
-  const handleSelectDogCategory = useCallback((label: string) => {
-    const match = dogCategorySuggestionsRef.current[label]
+  const handleSelectTreatmentCategory = useCallback((label: string) => {
+    const match = treatmentCategorySuggestionsRef.current[label]
     if (!match) {
       return
     }
-    setSelectedDogCategories((prev) => {
+    setSelectedTreatmentCategories((prev) => {
       if (prev.some((item) => item.id === match.id)) {
         return prev
       }
       return [...prev, match]
     })
-    setDogCategoryQuery("")
+    setTreatmentCategoryQuery("")
   }, [])
 
-  const handleSelectDogType = useCallback((label: string) => {
-    const match = dogTypeSuggestionsRef.current[label]
+  const handleSelectTreatmentType = useCallback((label: string) => {
+    const match = treatmentTypeSuggestionsRef.current[label]
     if (!match) {
       return
     }
-    setSelectedDogTypes((prev) => {
+    setSelectedTreatmentTypes((prev) => {
       if (prev.some((item) => item.id === match.id)) {
         return prev
       }
       return [...prev, match]
     })
-    setDogTypeQuery("")
+    setTreatmentTypeQuery("")
   }, [])
 
   const removeCustomerType = useCallback((id: string) => {
     setSelectedCustomerTypes((prev) => prev.filter((item) => item.id !== id))
   }, [])
 
-  const removeDogCategory = useCallback((id: string) => {
-    setSelectedDogCategories((prev) => prev.filter((item) => item.id !== id))
+  const removeTreatmentCategory = useCallback((id: string) => {
+    setSelectedTreatmentCategories((prev) => prev.filter((item) => item.id !== id))
   }, [])
 
-  const removeDogType = useCallback((id: string) => {
-    setSelectedDogTypes((prev) => prev.filter((item) => item.id !== id))
+  const removeTreatmentType = useCallback((id: string) => {
+    setSelectedTreatmentTypes((prev) => prev.filter((item) => item.id !== id))
   }, [])
 
   const clearWaitingListFilters = useCallback(() => {
     setWaitingListSearchTerm("")
     setSelectedCustomerTypes([])
-    setSelectedDogCategories([])
-    setSelectedDogTypes([])
+    setSelectedTreatmentCategories([])
+    setSelectedTreatmentTypes([])
     setCustomerTypeQuery("")
-    setDogCategoryQuery("")
-    setDogTypeQuery("")
+    setTreatmentCategoryQuery("")
+    setTreatmentTypeQuery("")
   }, [])
 
   const filteredWaitingListEntries = useMemo(() => {
     const search = waitingListSearchTerm.trim().toLowerCase()
     const customerTypeIds = new Set(selectedCustomerTypes.map((item) => item.id))
-    const categoryIds = new Set(selectedDogCategories.map((item) => item.id))
-    const dogTypeIds = new Set(selectedDogTypes.map((item) => item.id))
+    const categoryIds = new Set(selectedTreatmentCategories.map((item) => item.id))
+    const treatmentTypeIds = new Set(selectedTreatmentTypes.map((item) => item.id))
 
     return waitingListEntries.filter((entry) => {
       if (search) {
         const haystack = [
-          entry.dogName,
+          entry.treatmentName,
           entry.customerName,
           entry.customerPhone,
           entry.customerEmail,
-          entry.breedName,
+          entry.treatmentTypeName,
           entry.notes,
         ]
           .filter(Boolean)
@@ -2131,26 +2131,26 @@ const ManagerSchedule = () => {
       }
 
       if (categoryIds.size > 0) {
-        if (!entry.dogCategories.length || !entry.dogCategories.some((category) => categoryIds.has(category.id))) {
+        if (!entry.treatmentCategories.length || !entry.treatmentCategories.some((category) => categoryIds.has(category.id))) {
           return false
         }
       }
 
-      if (dogTypeIds.size > 0) {
-        if (!entry.dogTypes.length || !entry.dogTypes.some((type) => dogTypeIds.has(type.id))) {
+      if (treatmentTypeIds.size > 0) {
+        if (!entry.treatmentTypes.length || !entry.treatmentTypes.some((type) => treatmentTypeIds.has(type.id))) {
           return false
         }
       }
 
       return true
     })
-  }, [waitingListEntries, waitingListSearchTerm, selectedCustomerTypes, selectedDogCategories, selectedDogTypes])
+  }, [waitingListEntries, waitingListSearchTerm, selectedCustomerTypes, selectedTreatmentCategories, selectedTreatmentTypes])
 
   const handleWaitlistCardClick = useCallback((entry: ManagerWaitlistEntry) => {
-    if (entry.dogId) {
-      setSelectedDog({
-        id: entry.dogId,
-        name: entry.dogName,
+    if (entry.treatmentId) {
+      setSelectedTreatment({
+        id: entry.treatmentId,
+        name: entry.treatmentName,
         clientClassification: entry.customerTypeName ?? undefined,
         owner: entry.customerName
           ? {
@@ -2160,10 +2160,10 @@ const ManagerSchedule = () => {
             email: entry.customerEmail ?? undefined,
           }
           : undefined,
-        breed: entry.breedName ?? undefined,
+        treatmentType: entry.treatmentTypeName ?? undefined,
         notes: entry.notes ?? undefined,
       })
-      setIsDogDetailsOpen(true)
+      setIsTreatmentDetailsOpen(true)
     }
 
     if (entry.customerId || entry.customerName) {
@@ -2175,7 +2175,7 @@ const ManagerSchedule = () => {
       })
       setIsClientDetailsOpen(true)
     }
-  }, [setIsClientDetailsOpen, setIsDogDetailsOpen, setSelectedClient, setSelectedDog])
+  }, [setIsClientDetailsOpen, setIsTreatmentDetailsOpen, setSelectedClient, setSelectedTreatment])
 
   useEffect(() => {
     setActiveWaitlistBucket(null)
@@ -2222,10 +2222,10 @@ const ManagerSchedule = () => {
       phone: entry.customerPhone ?? undefined,
       email: entry.customerEmail ?? undefined,
     })
-    setPrefillBusinessDog({
-      id: entry.dogId,
-      name: entry.dogName,
-      breed: entry.breedName ?? "",
+    setPrefillBusinessTreatment({
+      id: entry.treatmentId,
+      name: entry.treatmentName,
+      treatmentType: entry.treatmentTypeName ?? "",
       size: "medium",
       isSmall: false,
       ownerId: entry.customerId,
@@ -2262,7 +2262,7 @@ const ManagerSchedule = () => {
     setPendingWaitlistEntryId(null)
     setShouldRemoveFromWaitlist(true)
     setPrefillBusinessCustomer(null)
-    setPrefillBusinessDog(null)
+    setPrefillBusinessTreatment(null)
     loadWaitingListEntries()
     refetch()
   }, [deleteWaitingListEntry, loadWaitingListEntries, pendingWaitlistEntryId, refetch, shouldRemoveFromWaitlist, toast])
@@ -2990,11 +2990,11 @@ const ManagerSchedule = () => {
             appointmentId: aptId,
             appointmentTime: appointmentToDelete.startDateTime,
             serviceType: appointmentToDelete.serviceType,
-            dogId: appointmentToDelete.dogs[0]?.id,
+            treatmentId: appointmentToDelete.treatments[0]?.id,
             stationId: appointmentToDelete.stationId,
             updateCustomer: updateCustomer,
             clientName: appointmentToDelete.clientName,
-            dogName: appointmentToDelete.dogs[0]?.name,
+            treatmentName: appointmentToDelete.treatments[0]?.name,
             appointmentDate: new Date(appointmentToDelete.startDateTime).toLocaleDateString('he-IL'),
             groupId: deleteGroup ? appointmentToDelete.groupAppointmentId : undefined,
           })
@@ -3009,11 +3009,11 @@ const ManagerSchedule = () => {
           appointmentId: appointmentToDelete.id,
           appointmentTime: appointmentToDelete.startDateTime,
           serviceType: appointmentToDelete.serviceType,
-          dogId: appointmentToDelete.dogs[0]?.id,
+          treatmentId: appointmentToDelete.treatments[0]?.id,
           stationId: appointmentToDelete.stationId,
           updateCustomer: updateCustomer,
           clientName: appointmentToDelete.clientName,
-          dogName: appointmentToDelete.dogs[0]?.name,
+          treatmentName: appointmentToDelete.treatments[0]?.name,
           appointmentDate: new Date(appointmentToDelete.startDateTime).toLocaleDateString('he-IL'),
           groupId: deleteGroup ? appointmentToDelete.groupAppointmentId : undefined,
         })
@@ -3033,7 +3033,7 @@ const ManagerSchedule = () => {
         title: "התור נמחק בהצלחה",
         description: isGroupOperation
           ? `${selectedAppointmentIds.length} תורים נמחקו בהצלחה`
-          : `התור של ${appointmentToDelete.dogs[0]?.name || 'הכלב'} נמחק בהצלחה`,
+          : `התור של ${appointmentToDelete.treatments[0]?.name || 'הכלב'} נמחק בהצלחה`,
         variant: "default",
       })
 
@@ -3075,11 +3075,11 @@ const ManagerSchedule = () => {
             appointmentId: aptId,
             appointmentTime: appointmentToCancel.startDateTime,
             serviceType: appointmentToCancel.serviceType,
-            dogId: appointmentToCancel.dogs[0]?.id,
+            treatmentId: appointmentToCancel.treatments[0]?.id,
             stationId: appointmentToCancel.stationId,
             updateCustomer: updateCustomerCancel,
             clientName: appointmentToCancel.clientName,
-            dogName: appointmentToCancel.dogs[0]?.name,
+            treatmentName: appointmentToCancel.treatments[0]?.name,
             appointmentDate: new Date(appointmentToCancel.startDateTime).toLocaleDateString('he-IL'),
             groupId: cancelGroup ? appointmentToCancel.groupAppointmentId : undefined,
           })
@@ -3094,11 +3094,11 @@ const ManagerSchedule = () => {
           appointmentId: appointmentToCancel.id,
           appointmentTime: appointmentToCancel.startDateTime,
           serviceType: appointmentToCancel.serviceType,
-          dogId: appointmentToCancel.dogs[0]?.id,
+          treatmentId: appointmentToCancel.treatments[0]?.id,
           stationId: appointmentToCancel.stationId,
           updateCustomer: updateCustomerCancel,
           clientName: appointmentToCancel.clientName,
-          dogName: appointmentToCancel.dogs[0]?.name,
+          treatmentName: appointmentToCancel.treatments[0]?.name,
           appointmentDate: new Date(appointmentToCancel.startDateTime).toLocaleDateString('he-IL'),
           groupId: cancelGroup ? appointmentToCancel.groupAppointmentId : undefined,
         })
@@ -3118,7 +3118,7 @@ const ManagerSchedule = () => {
         title: "התור בוטל בהצלחה",
         description: isGroupOperation
           ? `${selectedAppointmentIds.length} תורים בוטלו בהצלחה`
-          : `התור של ${appointmentToCancel.dogs[0]?.name || 'הכלב'} בוטל בהצלחה`,
+          : `התור של ${appointmentToCancel.treatments[0]?.name || 'הכלב'} בוטל בהצלחה`,
         variant: "default",
       })
 
@@ -3147,47 +3147,47 @@ const ManagerSchedule = () => {
     }
   }
 
-  const handleDogClick = (dog: ManagerDog) => {
-    setSelectedDog({
-      id: dog.id,
-      name: dog.name,
-      breed: dog.breed,
-      clientClassification: dog.clientClassification,
-      owner: dog.clientName ? {
-        name: dog.clientName,
-        classification: dog.clientClassification,
+  const handleTreatmentClick = (treatment: ManagerTreatment) => {
+    setSelectedTreatment({
+      id: treatment.id,
+      name: treatment.name,
+      treatmentType: treatment.treatmentType,
+      clientClassification: treatment.clientClassification,
+      owner: treatment.clientName ? {
+        name: treatment.clientName,
+        classification: treatment.clientClassification,
       } : undefined,
-      // Use the actual fields from the dog data
-      gender: dog.gender,
-      notes: dog.notes,
-      medicalNotes: dog.medicalNotes,
-      importantNotes: dog.importantNotes,
-      internalNotes: dog.internalNotes,
-      vetName: dog.vetName,
-      vetPhone: dog.vetPhone,
-      healthIssues: dog.healthIssues,
-      birthDate: dog.birthDate,
-      tendsToBite: dog.tendsToBite,
-      aggressiveWithOtherDogs: dog.aggressiveWithOtherDogs,
-      hasBeenToGarden: dog.hasBeenToGarden,
-      suitableForGardenFromQuestionnaire: dog.suitableForGardenFromQuestionnaire,
-      notSuitableForGardenFromQuestionnaire: dog.notSuitableForGardenFromQuestionnaire,
-      recordId: dog.recordId,
-      recordNumber: dog.recordNumber,
+      // Use the actual fields from the treatment data
+      gender: treatment.gender,
+      notes: treatment.notes,
+      medicalNotes: treatment.medicalNotes,
+      importantNotes: treatment.importantNotes,
+      internalNotes: treatment.internalNotes,
+      vetName: treatment.vetName,
+      vetPhone: treatment.vetPhone,
+      healthIssues: treatment.healthIssues,
+      birthDate: treatment.birthDate,
+      tendsToBite: treatment.tendsToBite,
+      aggressiveWithOtherTreatments: treatment.aggressiveWithOtherTreatments,
+      hasBeenToGarden: treatment.hasBeenToGarden,
+      suitableForGardenFromQuestionnaire: treatment.suitableForGardenFromQuestionnaire,
+      notSuitableForGardenFromQuestionnaire: treatment.notSuitableForGardenFromQuestionnaire,
+      recordId: treatment.recordId,
+      recordNumber: treatment.recordNumber,
     })
     setShowAllPastAppointments(false) // Reset to collapsed state
     // Close client details modal if it's open
     setIsClientDetailsOpen(false)
     setSelectedClient(null)
-    // Open dog details modal
-    setIsDogDetailsOpen(true)
+    // Open treatment details modal
+    setIsTreatmentDetailsOpen(true)
   }
 
   const handleClientClick = (client: ClientDetails) => {
     setSelectedClient(client)
-    // Close dog details modal if it's open
-    setIsDogDetailsOpen(false)
-    setSelectedDog(null)
+    // Close treatment details modal if it's open
+    setIsTreatmentDetailsOpen(false)
+    setSelectedTreatment(null)
     // Open client details modal
     setIsClientDetailsOpen(true)
   }
@@ -3198,7 +3198,7 @@ const ManagerSchedule = () => {
     setIsScheduleSearchExpanded(false)
     setRemoteScheduleSearchResults({
       appointments: [],
-      dogs: [],
+      treatments: [],
       clients: [],
     })
     setScheduleSearchError(null)
@@ -3222,12 +3222,12 @@ const ManagerSchedule = () => {
     [handleAppointmentClick, resetScheduleSearch]
   )
 
-  const handleScheduleSearchOpenDog = useCallback(
-    (dog: ManagerDog) => {
-      handleDogClick(dog)
+  const handleScheduleSearchOpenTreatment = useCallback(
+    (treatment: ManagerTreatment) => {
+      handleTreatmentClick(treatment)
       resetScheduleSearch()
     },
-    [handleDogClick, resetScheduleSearch]
+    [handleTreatmentClick, resetScheduleSearch]
   )
 
   const handleScheduleSearchOpenClientFromDetails = useCallback(
@@ -3245,7 +3245,7 @@ const ManagerSchedule = () => {
       }
       handleScheduleSearchOpenClientFromDetails({
         name: appointment.clientName,
-        classification: appointment.clientClassification ?? appointment.dogs[0]?.clientClassification,
+        classification: appointment.clientClassification ?? appointment.treatments[0]?.clientClassification,
         phone: appointment.clientPhone,
         email: appointment.clientEmail,
         recordId: appointment.recordId,
@@ -3272,15 +3272,15 @@ const ManagerSchedule = () => {
         handleScheduleSearchOpenAppointment(entry.appointment)
         return
       }
-      if (entry.entityType === "dog" && entry.dog) {
-        handleScheduleSearchOpenDog(entry.dog)
+      if (entry.entityType === "treatment" && entry.treatment) {
+        handleScheduleSearchOpenTreatment(entry.treatment)
         return
       }
       if (entry.clientDetails) {
         handleScheduleSearchOpenClientFromDetails(entry.clientDetails)
       }
     },
-    [handleScheduleSearchOpenAppointment, handleScheduleSearchOpenDog, handleScheduleSearchOpenClientFromDetails]
+    [handleScheduleSearchOpenAppointment, handleScheduleSearchOpenTreatment, handleScheduleSearchOpenClientFromDetails]
   )
 
   const handleScheduleSearchInputKeyDown = useCallback(
@@ -3606,7 +3606,7 @@ const ManagerSchedule = () => {
       // Show success toast
       toast({
         title: "התור עודכן בהצלחה",
-        description: `התור של ${editingGroomingAppointment.dogs[0]?.name || 'הכלב'} עודכן בהצלחה`,
+        description: `התור של ${editingGroomingAppointment.treatments[0]?.name || 'הכלב'} עודכן בהצלחה`,
         variant: "default",
       })
 
@@ -3655,10 +3655,10 @@ const ManagerSchedule = () => {
     }
   }
 
-  const handleDogDetailsOpenChange = (open: boolean) => {
-    setIsDogDetailsOpen(open)
+  const handleTreatmentDetailsOpenChange = (open: boolean) => {
+    setIsTreatmentDetailsOpen(open)
     if (!open) {
-      setSelectedDog(null)
+      setSelectedTreatment(null)
     }
   }
 
@@ -4764,10 +4764,10 @@ const ManagerSchedule = () => {
       status: 'confirmed',
       notes: 'תור פרטי - ' + privateAppointmentForm.name,
       internalNotes: 'תור פרטי - ' + privateAppointmentForm.name,
-      dogs: [{
-        id: 'private_dog',
+      treatments: [{
+        id: 'private_treatment',
         name: privateAppointmentForm.name,
-        breed: 'תור פרטי',
+        treatmentType: 'תור פרטי',
         age: null,
         weight: null,
         image: null,
@@ -4891,7 +4891,7 @@ const ManagerSchedule = () => {
           ? {
             rescheduleAppointmentId: editingProposedMeeting.proposedLinkedAppointmentId,
             rescheduleCustomerId: editingProposedMeeting.proposedLinkedCustomerId ?? null,
-            rescheduleDogId: editingProposedMeeting.proposedLinkedDogId ?? null,
+            rescheduleTreatmentId: editingProposedMeeting.proposedLinkedTreatmentId ?? null,
             rescheduleOriginalStartAt: editingProposedMeeting.proposedOriginalStart ?? null,
             rescheduleOriginalEndAt: editingProposedMeeting.proposedOriginalEnd ?? null,
           }
@@ -5011,7 +5011,7 @@ const ManagerSchedule = () => {
         customerTypeIds: [],
         rescheduleAppointmentId: rescheduleTargetAppointment.id,
         rescheduleCustomerId: customerId,
-        rescheduleDogId: rescheduleTargetAppointment.dogs?.[0]?.id ?? null,
+        rescheduleTreatmentId: rescheduleTargetAppointment.treatments?.[0]?.id ?? null,
         rescheduleOriginalStartAt: rescheduleTargetAppointment.startDateTime,
         rescheduleOriginalEndAt: rescheduleTargetAppointment.endDateTime,
       }
@@ -5465,7 +5465,7 @@ const ManagerSchedule = () => {
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1 text-sm font-semibold text-gray-900">
             <GripVertical className="h-3.5 w-3.5 text-slate-300" />
-            <span>{entry.dogName}</span>
+            <span>{entry.treatmentName}</span>
           </div>
           <Badge className={cn("text-[11px] font-medium border", scopeMeta.badgeClass)}>
             {scopeMeta.label}
@@ -5483,15 +5483,15 @@ const ManagerSchedule = () => {
               {entry.customerTypeName}
             </span>
           )}
-          {entry.breedName && (
+          {entry.treatmentTypeName && (
             <span className="rounded-full bg-slate-50 px-2 py-0.5 text-slate-600">
-              {entry.breedName}
+              {entry.treatmentTypeName}
             </span>
           )}
         </div>
-        {entry.dogCategories.length > 0 && (
+        {entry.treatmentCategories.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
-            {entry.dogCategories.slice(0, 2).map((category) => (
+            {entry.treatmentCategories.slice(0, 2).map((category) => (
               <span
                 key={category.id}
                 className="rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700"
@@ -5499,9 +5499,9 @@ const ManagerSchedule = () => {
                 {category.name}
               </span>
             ))}
-            {entry.dogCategories.length > 2 && (
+            {entry.treatmentCategories.length > 2 && (
               <span className="text-[11px] text-gray-400">
-                +{entry.dogCategories.length - 2}
+                +{entry.treatmentCategories.length - 2}
               </span>
             )}
           </div>
@@ -5635,8 +5635,8 @@ const ManagerSchedule = () => {
       appointment.subscriptionName ||
       (appointment.serviceType === "garden" && (appointment.gardenTrimNails || appointment.gardenBrush || appointment.gardenBath || appointment.latePickupRequested)) ||
       appointment.clientName ||
-      appointment.dogs[0]?.breed ||
-      appointment.dogs.length > 1 // Multiple dogs
+      appointment.treatments[0]?.treatmentType ||
+      appointment.treatments.length > 1 // Multiple treatments
     )
 
     // Use expanded height if card is expanded, otherwise original height
@@ -5644,11 +5644,11 @@ const ManagerSchedule = () => {
       ? Math.max(originalHeight, 150) // More generous expanded height
       : originalHeight
 
-    const primaryDog = appointment.dogs[0]
-    const dogName = primaryDog?.name ?? "ללא שיוך לכלב"
-    const rawBreedName = primaryDog?.breed ?? appointment.serviceName ?? ""
-    const breedName = rawBreedName?.trim() ? rawBreedName.trim() : undefined
-    const rawClassification = appointment.clientClassification ?? primaryDog?.clientClassification ?? ""
+    const primaryTreatment = appointment.treatments[0]
+    const treatmentName = primaryTreatment?.name ?? "ללא שיוך לכלב"
+    const rawTreatmentTypeName = primaryTreatment?.treatmentType ?? appointment.serviceName ?? ""
+    const treatmentTypeName = rawTreatmentTypeName?.trim() ? rawTreatmentTypeName.trim() : undefined
+    const rawClassification = appointment.clientClassification ?? primaryTreatment?.clientClassification ?? ""
     const classification = rawClassification.trim() ? rawClassification.trim() : undefined
     const serviceStyle = SERVICE_STYLES[appointment.serviceType]
     const isProposedMeeting = Boolean(appointment.isProposedMeeting)
@@ -5706,7 +5706,7 @@ const ManagerSchedule = () => {
     }
 
     // Client information
-    const clientName = appointment.clientName ?? primaryDog?.clientName
+    const clientName = appointment.clientName ?? primaryTreatment?.clientName
     const clientPhone = appointment.clientPhone
 
     // Expand/collapse handlers
@@ -5992,35 +5992,35 @@ const ManagerSchedule = () => {
                 )}
               </div>
             ) : appointment.isPersonalAppointment ? (
-              // Personal appointment UI - show description instead of dog details
+              // Personal appointment UI - show description instead of treatment details
               <div className="text-sm font-medium text-purple-700">
                 {appointment.personalAppointmentDescription || "תור אישי"}
               </div>
             ) : (
-              // Regular appointment UI - show dog details
+              // Regular appointment UI - show treatment details
               <>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (primaryDog) {
-                        handleDogClick(primaryDog)
+                      if (primaryTreatment) {
+                        handleTreatmentClick(primaryTreatment)
                       }
                     }}
                     className="text-sm text-purple-600 hover:text-purple-800 hover:underline cursor-pointer"
-                    disabled={!primaryDog}
+                    disabled={!primaryTreatment}
                   >
-                    {dogName}
+                    {treatmentName}
                   </button>
                   {classification ? (
                     <Badge variant="secondary" className="text-[10px] font-medium bg-purple-100 text-purple-700">
                       {classification}
                     </Badge>
                   ) : null}
-                  {breedName ? (
+                  {treatmentTypeName ? (
                     <Badge variant="outline" className="text-[10px] font-medium border-slate-200 bg-white/80 text-gray-700">
-                      {breedName}
+                      {treatmentTypeName}
                     </Badge>
                   ) : null}
                 </div>
@@ -6032,7 +6032,7 @@ const ManagerSchedule = () => {
                         e.stopPropagation()
                         handleClientClick({
                           name: clientName,
-                          classification: appointment.clientClassification ?? primaryDog?.clientClassification,
+                          classification: appointment.clientClassification ?? primaryTreatment?.clientClassification,
                           phone: appointment.clientPhone,
                           email: appointment.clientEmail,
                           recordId: appointment.recordId,
@@ -7506,11 +7506,11 @@ const ManagerSchedule = () => {
                               <div>
                                 <Label className="mb-1 block text-xs font-medium text-gray-500">קטגוריית גזע</Label>
                                 <AutocompleteFilter
-                                  value={dogCategoryQuery}
-                                  onChange={setDogCategoryQuery}
-                                  onSelect={handleSelectDogCategory}
+                                  value={treatmentCategoryQuery}
+                                  onChange={setTreatmentCategoryQuery}
+                                  onSelect={handleSelectTreatmentCategory}
                                   placeholder="חפש קטגוריה..."
-                                  searchFn={searchDogCategories}
+                                  searchFn={searchTreatmentCategories}
                                   minSearchLength={0}
                                   autoSearchOnFocus
                                   initialLoadOnMount
@@ -7519,11 +7519,11 @@ const ManagerSchedule = () => {
                               <div>
                                 <Label className="mb-1 block text-xs font-medium text-gray-500">טיפוס גזע</Label>
                                 <AutocompleteFilter
-                                  value={dogTypeQuery}
-                                  onChange={setDogTypeQuery}
-                                  onSelect={handleSelectDogType}
+                                  value={treatmentTypeQuery}
+                                  onChange={setTreatmentTypeQuery}
+                                  onSelect={handleSelectTreatmentType}
                                   placeholder="חפש טיפוס..."
-                                  searchFn={searchDogTypes}
+                                  searchFn={searchTreatmentTypes}
                                   minSearchLength={0}
                                   autoSearchOnFocus
                                   initialLoadOnMount
@@ -7545,22 +7545,22 @@ const ManagerSchedule = () => {
                                       <X className="h-3 w-3" />
                                     </button>
                                   ))}
-                                  {selectedDogCategories.map((category) => (
+                                  {selectedTreatmentCategories.map((category) => (
                                     <button
-                                      key={`dog-category-${category.id}`}
+                                      key={`treatment-category-${category.id}`}
                                       type="button"
-                                      onClick={() => removeDogCategory(category.id)}
+                                      onClick={() => removeTreatmentCategory(category.id)}
                                       className="inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700"
                                     >
                                       {category.name}
                                       <X className="h-3 w-3" />
                                     </button>
                                   ))}
-                                  {selectedDogTypes.map((type) => (
+                                  {selectedTreatmentTypes.map((type) => (
                                     <button
-                                      key={`dog-type-${type.id}`}
+                                      key={`treatment-type-${type.id}`}
                                       type="button"
-                                      onClick={() => removeDogType(type.id)}
+                                      onClick={() => removeTreatmentType(type.id)}
                                       className="inline-flex items-center gap-1 rounded-full border border-purple-100 bg-purple-50 px-2 py-0.5 text-[11px] text-purple-700"
                                     >
                                       {type.name}
@@ -7617,25 +7617,25 @@ const ManagerSchedule = () => {
                                       )}
                                     </AccordionContent>
                                   </AccordionItem>
-                                  <AccordionItem value="dog-categories">
+                                  <AccordionItem value="treatment-categories">
                                     <AccordionTrigger className="text-sm font-semibold text-gray-900 justify-between text-right flex-row-reverse">
-                                      לפי קטגוריית גזע ({waitlistBuckets.dogCategories.length})
+                                      לפי קטגוריית גזע ({waitlistBuckets.treatmentCategories.length})
                                     </AccordionTrigger>
                                     <AccordionContent className="space-y-3">
                                       {renderWaitlistBucketGroups(
-                                        waitlistBuckets.dogCategories,
+                                        waitlistBuckets.treatmentCategories,
                                         "category",
                                         handleWaitlistCardClick
                                       )}
                                     </AccordionContent>
                                   </AccordionItem>
-                                  <AccordionItem value="dog-types">
+                                  <AccordionItem value="treatment-types">
                                     <AccordionTrigger className="text-sm font-semibold text-gray-900 justify-between text-right flex-row-reverse">
-                                      לפי טיפוס גזע ({waitlistBuckets.dogTypes.length})
+                                      לפי טיפוס גזע ({waitlistBuckets.treatmentTypes.length})
                                     </AccordionTrigger>
                                     <AccordionContent className="space-y-3">
                                       {renderWaitlistBucketGroups(
-                                        waitlistBuckets.dogTypes,
+                                        waitlistBuckets.treatmentTypes,
                                         "type",
                                         handleWaitlistCardClick
                                       )}
@@ -7888,7 +7888,7 @@ const ManagerSchedule = () => {
           open={isDetailsOpen}
           onOpenChange={handleDetailsOpenChange}
           selectedAppointment={selectedAppointment}
-          onDogClick={handleDogClick}
+          onTreatmentClick={handleTreatmentClick}
           onClientClick={handleClientClick}
           onEditAppointment={(appointment) => {
             if (appointment.serviceType === "garden") {
@@ -7903,23 +7903,23 @@ const ManagerSchedule = () => {
         />
       )}
 
-      {/* Dog Details Sheet */}
-      <DogDetailsSheet
-        open={isDogDetailsOpen}
-        onOpenChange={handleDogDetailsOpenChange}
-        selectedDog={selectedDog}
+      {/* Treatment Details Sheet */}
+      <TreatmentDetailsSheet
+        open={isTreatmentDetailsOpen}
+        onOpenChange={handleTreatmentDetailsOpenChange}
+        selectedTreatment={selectedTreatment}
         showAllPastAppointments={showAllPastAppointments}
         setShowAllPastAppointments={setShowAllPastAppointments}
         data={data}
         onClientClick={handleClientClick}
         onAppointmentClick={(appointment) => {
           setSelectedAppointment(appointment)
-          setIsDogDetailsOpen(false)
+          setIsTreatmentDetailsOpen(false)
           setIsDetailsOpen(true)
         }}
-        onShowDogAppointments={(dogId, dogName) => {
-          setSelectedDogForAppointments({ id: dogId, name: dogName })
-          setShowDogAppointmentsModal(true)
+        onShowTreatmentAppointments={(treatmentId, treatmentName) => {
+          setSelectedTreatmentForAppointments({ id: treatmentId, name: treatmentName })
+          setShowTreatmentAppointmentsModal(true)
         }}
       />
 
@@ -7929,7 +7929,7 @@ const ManagerSchedule = () => {
         onOpenChange={handleClientDetailsOpenChange}
         selectedClient={selectedClient}
         data={data}
-        onDogClick={handleDogClick}
+        onTreatmentClick={handleTreatmentClick}
       />
 
       {/* Constraint Details Sheet */}
@@ -8095,7 +8095,7 @@ const ManagerSchedule = () => {
               <div>
                 <p className="mb-1">
                   להוסיף את{" "}
-                  <span className="font-semibold">{pendingWaitlistPlacement.entry.dogName}</span>
+                  <span className="font-semibold">{pendingWaitlistPlacement.entry.treatmentName}</span>
                   {pendingWaitlistPlacement.entry.customerName && (
                     <>
                       {" "}
@@ -8153,7 +8153,7 @@ const ManagerSchedule = () => {
         onSelectBusiness={() => {
           setShowAppointmentTypeSelection(false)
           setPrefillBusinessCustomer(null)
-          setPrefillBusinessDog(null)
+          setPrefillBusinessTreatment(null)
           setPendingWaitlistEntryId(null)
           setShouldRemoveFromWaitlist(true)
           setShowBusinessAppointmentModal(true)
@@ -8202,13 +8202,13 @@ const ManagerSchedule = () => {
         finalizedDragTimes={finalizedDragTimes}
         stations={stations}
         prefillCustomer={prefillBusinessCustomer}
-        prefillDog={prefillBusinessDog}
+        prefillTreatment={prefillBusinessTreatment}
         onCancel={() => {
           setShowBusinessAppointmentModal(false)
           setFinalizedDragTimes(null)
           setPendingWaitlistEntryId(null)
           setPrefillBusinessCustomer(null)
-          setPrefillBusinessDog(null)
+          setPrefillBusinessTreatment(null)
           setShouldRemoveFromWaitlist(true)
         }}
         onSuccess={() => {
@@ -8254,11 +8254,11 @@ const ManagerSchedule = () => {
             // Get garden stations from the schedule data
             const gardenStations = stations.filter((s) => s.serviceType === 'garden')
 
-            // Get station ID based on dog size, or use first garden station if available
+            // Get station ID based on treatment size, or use first garden station if available
             let stationId: string | undefined
             if (gardenStations.length > 0) {
-              // Try to find station by name (small dogs vs regular)
-              const smallDogStation = gardenStations.find((s: any) =>
+              // Try to find station by name (small treatments vs regular)
+              const smallTreatmentStation = gardenStations.find((s: any) =>
                 s.name?.toLowerCase().includes('קטן') ||
                 s.name?.toLowerCase().includes('small')
               )
@@ -8267,8 +8267,8 @@ const ManagerSchedule = () => {
                 !s.name?.toLowerCase().includes('small')
               )
 
-              if (appointmentData.dog?.isSmall === true && smallDogStation) {
-                stationId = smallDogStation.id
+              if (appointmentData.treatment?.isSmall === true && smallTreatmentStation) {
+                stationId = smallTreatmentStation.id
               } else if (regularStation) {
                 stationId = regularStation.id
               } else {
@@ -8283,14 +8283,14 @@ const ManagerSchedule = () => {
 
             // Call the create-manager-appointment function which already handles the webhook
             const result = await createManagerAppointment({
-              name: `${appointmentData.customer?.fullName || ''} - ${appointmentData.dog?.name || ''}`,
+              name: `${appointmentData.customer?.fullName || ''} - ${appointmentData.treatment?.name || ''}`,
               stationId,
               selectedStations: [stationId],
               startTime: new Date(startDateTime).toISOString(),
               endTime: new Date(endDateTime).toISOString(),
               appointmentType: "garden",
               customerId: appointmentData.customer?.recordId || appointmentData.customer?.id,
-              dogId: appointmentData.dog?.id,
+              treatmentId: appointmentData.treatment?.id,
               gardenAppointmentType: appointmentData.appointmentType, // 'full-day' | 'hourly' | 'trial'
               services: {
                 gardenTrimNails: appointmentData.gardenTrimNails,
@@ -8306,7 +8306,7 @@ const ManagerSchedule = () => {
 
             toast({
               title: "תור גן נוצר בהצלחה!",
-              description: `התור של ${data.dog?.name} נוסף ללוח הזמנים`,
+              description: `התור של ${data.treatment?.name} נוסף ללוח הזמנים`,
             })
 
             // Navigate to the appointment date if different from current view
@@ -8368,16 +8368,16 @@ const ManagerSchedule = () => {
         }}
       />
 
-      {/* Dog Appointments Modal */}
-      {selectedDogForAppointments && (
-        <DogAppointmentsModal
-          open={showDogAppointmentsModal}
-          onOpenChange={setShowDogAppointmentsModal}
-          dogId={selectedDogForAppointments.id}
-          dogName={selectedDogForAppointments.name}
+      {/* Treatment Appointments Modal */}
+      {selectedTreatmentForAppointments && (
+        <TreatmentAppointmentsModal
+          open={showTreatmentAppointmentsModal}
+          onOpenChange={setShowTreatmentAppointmentsModal}
+          treatmentId={selectedTreatmentForAppointments.id}
+          treatmentName={selectedTreatmentForAppointments.name}
           onAppointmentClick={(appointment) => {
             setSelectedAppointment(appointment)
-            setShowDogAppointmentsModal(false)
+            setShowTreatmentAppointmentsModal(false)
             setIsDetailsOpen(true)
           }}
         />
@@ -8666,8 +8666,8 @@ const ManagerSchedule = () => {
                 if (insertError) throw insertError
               }
 
-              // Copy breed relations if requested
-              if (groomingServiceId && params.copyBreedRelations) {
+              // Copy treatmentType relations if requested
+              if (groomingServiceId && params.copyTreatmentTypeRelations) {
                 // Copy service_station_matrix
                 const { data: originalMatrixData } = await supabase
                   .from("service_station_matrix")
@@ -8687,34 +8687,34 @@ const ManagerSchedule = () => {
                     price: 0,
                   }, { onConflict: "service_id,station_id" })
 
-                // Copy station_breed_rules
+                // Copy station_treatmentType_rules
                 const { data: originalRules } = await supabase
-                  .from("station_breed_rules")
+                  .from("station_treatmentType_rules")
                   .select("*")
                   .eq("station_id", sourceStationId)
 
                 if (originalRules && originalRules.length > 0) {
                   for (const rule of originalRules) {
-                    const { data: breedModifier } = await supabase
-                      .from("breed_modifiers")
+                    const { data: treatmentTypeModifier } = await supabase
+                      .from("treatmentType_modifiers")
                       .select("time_modifier_minutes")
                       .eq("service_id", groomingServiceId)
-                      .eq("breed_id", rule.breed_id)
+                      .eq("treatment_type_id", rule.treatment_type_id)
                       .maybeSingle()
 
-                    const defaultTime = breedModifier?.time_modifier_minutes || 60
+                    const defaultTime = treatmentTypeModifier?.time_modifier_minutes || 60
                     const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
 
                     await supabase
-                      .from("station_breed_rules")
+                      .from("station_treatmentType_rules")
                       .upsert({
                         station_id: targetStationId,
-                        breed_id: rule.breed_id,
+                        treatment_type_id: rule.treatment_type_id,
                         is_active: rule.is_active ?? true,
                         remote_booking_allowed: rule.remote_booking_allowed ?? false,
                         requires_staff_approval: rule.requires_staff_approval ?? false,
                         duration_modifier_minutes: durationMinutes,
-                      }, { onConflict: "station_id,breed_id" })
+                      }, { onConflict: "station_id,treatment_type_id" })
                   }
                 }
               }
@@ -8758,8 +8758,8 @@ const ManagerSchedule = () => {
                   }
                 }
 
-                // Copy breed relations if requested
-                if (groomingServiceId && params.copyBreedRelations) {
+                // Copy treatmentType relations if requested
+                if (groomingServiceId && params.copyTreatmentTypeRelations) {
                   const { data: originalMatrixData } = await supabase
                     .from("service_station_matrix")
                     .select("base_time_minutes")
@@ -8779,32 +8779,32 @@ const ManagerSchedule = () => {
                     }, { onConflict: "service_id,station_id" })
 
                   const { data: originalRules } = await supabase
-                    .from("station_breed_rules")
+                    .from("station_treatmentType_rules")
                     .select("*")
                     .eq("station_id", sourceStationId)
 
                   if (originalRules && originalRules.length > 0) {
                     for (const rule of originalRules) {
-                      const { data: breedModifier } = await supabase
-                        .from("breed_modifiers")
+                      const { data: treatmentTypeModifier } = await supabase
+                        .from("treatmentType_modifiers")
                         .select("time_modifier_minutes")
                         .eq("service_id", groomingServiceId)
-                        .eq("breed_id", rule.breed_id)
+                        .eq("treatment_type_id", rule.treatment_type_id)
                         .maybeSingle()
 
-                      const defaultTime = breedModifier?.time_modifier_minutes || 60
+                      const defaultTime = treatmentTypeModifier?.time_modifier_minutes || 60
                       const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
 
                       await supabase
-                        .from("station_breed_rules")
+                        .from("station_treatmentType_rules")
                         .upsert({
                           station_id: targetId,
-                          breed_id: rule.breed_id,
+                          treatment_type_id: rule.treatment_type_id,
                           is_active: rule.is_active ?? true,
                           remote_booking_allowed: rule.remote_booking_allowed ?? false,
                           requires_staff_approval: rule.requires_staff_approval ?? false,
                           duration_modifier_minutes: durationMinutes,
-                        }, { onConflict: "station_id,breed_id" })
+                        }, { onConflict: "station_id,treatment_type_id" })
                     }
                   }
                 }

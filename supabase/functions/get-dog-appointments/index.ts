@@ -1,174 +1,123 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, OPTIONS, POST",
 }
 
-interface AirtableConfig {
-  pat: string
-  baseId: string
+const supabaseUrl = Deno.env.get("SUPABASE_URL")
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+
+if (!supabaseUrl) {
+  throw new Error("Missing SUPABASE_URL environment variable")
 }
 
-interface AirtableRecord<T> {
-  id: string
-  createdTime: string
-  fields: T
+if (!supabaseServiceKey) {
+  throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY environment variable")
 }
 
-interface AppointmentFields {
-  "מועד התור": string // ISO DateTime string
-  "מועד סיום התור": string // ISO DateTime string
-  כלב: string[] // Array of record IDs from 'כלבים' table
-  עמדה: string[] // Array of record IDs from 'עמדות עבודה'
-  סטטוס: string // Status like "confirmed", "pending", "cancelled"
-  "סוג שירות": string // Service type like "grooming", "garden", "both"
-  "הערות ובקשות לתור"?: string
-  הערות?: string // Legacy fallback
-}
-
-interface DogFields {
-  שם: string
-  גזע: string[] // Array of record IDs from 'גזעים'
-  "תורים למספרה": string[] // Array of record IDs from 'תורים למספרה'
-}
-
-async function fetchFromAirtable<T>(
-  config: AirtableConfig,
-  tableName: string,
-  filterByFormula?: string
-): Promise<AirtableRecord<T>[]> {
-  const url = new URL(`https://api.airtable.com/v0/${config.baseId}/${encodeURIComponent(tableName)}`)
-  if (filterByFormula) {
-    url.searchParams.append("filterByFormula", filterByFormula)
-  }
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      Authorization: `Bearer ${config.pat}`,
-    },
-  })
-
-  if (!response.ok) {
-    const errorBody = await response.json()
-    console.error("Airtable API Error:", errorBody)
-    throw new Error(`Airtable API request failed for table ${tableName}: ${response.statusText}`)
-  }
-
-  const data = await response.json()
-  return data.records as AirtableRecord<T>[]
-}
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { persistSession: false },
+})
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
 
-  try {
-    // Only allow POST requests
-    if (req.method !== "POST") {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Method not allowed. Use POST.",
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 405,
-        }
-      )
-    }
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Method not allowed. Use POST.",
+      }),
+      {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    )
+  }
 
+  try {
     const body = await req.json()
-    const { dogId } = body
+    const dogId = typeof body?.dogId === "string" ? body.dogId.trim() : ""
 
     if (!dogId) {
       throw new Error("dogId parameter is required")
     }
 
-    const config = getAirtableConfig()
-    const result = await getDogAppointments(dogId, config)
+    const data = await getDogAppointments(dogId)
 
-    return new Response(JSON.stringify({ success: true, data: result }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ success: true, data }), {
       status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     })
   } catch (error) {
-    console.error("Error:", error)
+    console.error("❌ [get-dog-appointments] Error:", error)
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : "Unexpected error",
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     )
   }
 })
 
-// Get all appointments for a specific dog ID from Airtable
-async function getDogAppointments(dogId: string, config: AirtableConfig) {
-  try {
-    console.log(`🔍 Fetching appointments for dog ID: ${dogId}`)
+async function getDogAppointments(dogId: string) {
+  const { data: dog, error: dogError } = await supabase.from("dogs").select("name").eq("id", dogId).single()
 
-    // First, get the dog record to find linked appointment IDs
-    const dogRecords = await fetchFromAirtable<DogFields>(config, "כלבים", `{מזהה רשומה} = "${dogId}"`)
-    if (dogRecords.length === 0) {
-      throw new Error(`Dog with ID ${dogId} not found`)
-    }
+  if (dogError || !dog) {
+    throw new Error(dogError?.message || `Dog with ID ${dogId} not found`)
+  }
 
-    const dogRecord = dogRecords[0]
-    const dogName = dogRecord.fields.שם
-    console.log(`🔍 Found dog: ${dogName}`)
+  const dogName = dog.name ?? "כלב ללא שם"
 
-    // Get the linked appointment IDs from the dog's "תורים למספרה" field
-    const appointmentIds = dogRecord.fields["תורים למספרה"] || []
-    console.log(`🔍 Found ${appointmentIds.length} linked appointment IDs:`, appointmentIds)
+  const { data: appointments, error: appointmentsError } = await supabase
+    .from("grooming_appointments")
+    .select(
+      `
+        id,
+        start_at,
+        end_at,
+        status,
+        customer_notes,
+        station_id,
+        stations ( id, name )
+      `
+    )
+    .eq("dog_id", dogId)
+    .order("start_at", { ascending: false })
 
-    if (appointmentIds.length === 0) {
-      console.log(`🔍 No appointments found for dog ${dogName}`)
-      return { appointments: [] }
-    }
+  if (appointmentsError) {
+    throw new Error(appointmentsError.message)
+  }
 
-    // Fetch the specific appointment records using their IDs
-    const appointmentRecords = await fetchFromAirtable<AppointmentFields>(config, "תורים למספרה")
-
-    // Filter to only the appointments linked to this dog
-    const linkedAppointments = appointmentRecords.filter((record) => appointmentIds.includes(record.id))
-
-    console.log(`🔍 Found ${linkedAppointments.length} appointment records for dog ${dogName}`)
-
-    // Transform Airtable records to our expected format
-    const appointments = linkedAppointments.map((record) => {
-      const startDate = new Date(record.fields["מועד התור"])
-      const endDate = new Date(record.fields["מועד סיום התור"])
-
-      return {
-        id: record.id,
-        dogId: dogId,
-        dogName: dogName,
-        date: startDate.toISOString().split("T")[0], // YYYY-MM-DD format
-        time: startDate.toTimeString().split(" ")[0].slice(0, 5), // HH:MM format
-        service: record.fields["סוג שירות"] || "grooming",
-        status: record.fields["סטטוס התור"] || "confirmed",
-        stationId: record.fields["עמדה"]?.[0] || "",
-        notes: record.fields["הערות ובקשות לתור"]?.trim() || record.fields["הערות"]?.trim() || "",
-        startDateTime: record.fields["מועד התור"],
-        endDateTime: record.fields["מועד סיום התור"],
-      }
-    })
-
-    console.log(`🔍 Processed ${appointments.length} appointments`)
+  const mapped = (appointments ?? []).map((appointment) => {
+    const start = appointment.start_at ?? ""
+    const end = appointment.end_at ?? start
+    const startDate = start ? new Date(start) : null
 
     return {
-      appointments: appointments,
+      id: appointment.id,
+      dogId,
+      dogName,
+      date: startDate ? startDate.toISOString().split("T")[0] : "",
+      time: startDate ? startDate.toISOString().split("T")[1]?.slice(0, 5) ?? "" : "",
+      service: "grooming" as const,
+      status: appointment.status ?? "pending",
+      stationId: appointment.station_id ?? "",
+      notes: appointment.customer_notes ?? "",
+      startDateTime: start,
+      endDateTime: end,
+      stationName: appointment.stations?.name ?? null,
     }
-  } catch (error) {
-    console.error(`❌ Failed to get dog appointments:`, error)
-    throw new Error(`Failed to get dog appointments: ${error.message}`)
-  }
+  })
+
+  return { appointments: mapped }
 }

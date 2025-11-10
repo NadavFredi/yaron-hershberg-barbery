@@ -1,6 +1,6 @@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
-import type { ManagerAppointment, ManagerDog } from "@/types/managerSchedule"
+import type { ManagerAppointment, ManagerTreatment } from "@/types/managerSchedule"
 
 interface ClientDetails {
     name: string
@@ -20,7 +20,7 @@ interface ClientDetailsSheetProps {
     onOpenChange: (open: boolean) => void
     selectedClient: ClientDetails | null
     data?: { appointments?: ManagerAppointment[] }
-    onDogClick: (dog: ManagerDog) => void
+    onTreatmentClick: (treatment: ManagerTreatment) => void
 }
 
 export const ClientDetailsSheet = ({
@@ -28,7 +28,7 @@ export const ClientDetailsSheet = ({
     onOpenChange,
     selectedClient,
     data,
-    onDogClick,
+    onTreatmentClick,
 }: ClientDetailsSheetProps) => {
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -94,26 +94,26 @@ export const ClientDetailsSheet = ({
                             <h3 className="text-sm font-medium text-gray-900">כלבים</h3>
                             <div className="space-y-2">
                                 {(() => {
-                                    // Get all dogs belonging to this client from all appointments
-                                    const clientDogs = new Map<string, ManagerDog>()
+                                    // Get all treatments belonging to this client from all appointments
+                                    const clientTreatments = new Map<string, ManagerTreatment>()
                                     data?.appointments?.forEach(appointment => {
-                                        appointment.dogs.forEach(dog => {
+                                        appointment.treatments.forEach(treatment => {
                                             // Check multiple possible client name matches
-                                            const appointmentClientName = appointment.clientName ?? appointment.dogs[0]?.clientName
-                                            const dogClientName = dog.clientName
-                                            const isMatch = dogClientName === selectedClient.name ||
+                                            const appointmentClientName = appointment.clientName ?? appointment.treatments[0]?.clientName
+                                            const treatmentClientName = treatment.clientName
+                                            const isMatch = treatmentClientName === selectedClient.name ||
                                                 appointmentClientName === selectedClient.name ||
-                                                (appointmentClientName && appointmentClientName === dogClientName && dogClientName === selectedClient.name)
+                                                (appointmentClientName && appointmentClientName === treatmentClientName && treatmentClientName === selectedClient.name)
 
-                                            if (isMatch && !clientDogs.has(dog.id)) {
-                                                clientDogs.set(dog.id, dog)
+                                            if (isMatch && !clientTreatments.has(treatment.id)) {
+                                                clientTreatments.set(treatment.id, treatment)
                                             }
                                         })
                                     })
 
-                                    const dogs = Array.from(clientDogs.values())
+                                    const treatments = Array.from(clientTreatments.values())
 
-                                    if (dogs.length === 0) {
+                                    if (treatments.length === 0) {
                                         return (
                                             <div className="text-center text-sm text-gray-500 py-4">
                                                 אין כלבים עבור לקוח זה
@@ -121,23 +121,23 @@ export const ClientDetailsSheet = ({
                                         )
                                     }
 
-                                    return dogs.map((dog) => (
+                                    return treatments.map((treatment) => (
                                         <div
-                                            key={dog.id}
+                                            key={treatment.id}
                                             className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
                                         >
                                             <div className="flex items-center justify-between text-sm font-semibold text-gray-900">
                                                 <button
                                                     type="button"
-                                                    onClick={() => onDogClick(dog)}
+                                                    onClick={() => onTreatmentClick(treatment)}
                                                     className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                                 >
-                                                    {dog.name}
+                                                    {treatment.name}
                                                 </button>
-                                                {dog.breed ? <span className="text-xs text-gray-600">{dog.breed}</span> : null}
+                                                {treatment.treatmentType ? <span className="text-xs text-gray-600">{treatment.treatmentType}</span> : null}
                                             </div>
                                             <div className="mt-1 text-xs text-gray-600">
-                                                סיווג: <span className="font-medium text-gray-700">{dog.clientClassification || 'לא ידוע'}</span>
+                                                סיווג: <span className="font-medium text-gray-700">{treatment.clientClassification || 'לא ידוע'}</span>
                                             </div>
                                         </div>
                                     ))

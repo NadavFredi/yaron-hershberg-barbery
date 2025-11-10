@@ -233,7 +233,7 @@ export function SettingsStationsSection() {
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
     const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false)
     const [groomingServiceId, setGroomingServiceId] = useState<string | null>(null)
-    const [breeds, setBreeds] = useState<Array<{ id: string; name: string }>>([])
+    const [treatmentTypes, setTreatmentTypes] = useState<Array<{ id: string; name: string }>>([])
 
     // Station form data
     const [formData, setFormData] = useState({
@@ -257,10 +257,10 @@ export function SettingsStationsSection() {
     useEffect(() => {
         fetchStations()
         fetchUnavailabilities()
-        loadGroomingServiceAndBreeds()
+        loadGroomingServiceAndTreatmentTypes()
     }, [])
 
-    const loadGroomingServiceAndBreeds = async () => {
+    const loadGroomingServiceAndTreatmentTypes = async () => {
         try {
             // Get grooming service ID - try to find it first, if not found, create it
             let { data: serviceData, error: serviceError } = await supabase
@@ -285,16 +285,16 @@ export function SettingsStationsSection() {
 
             setGroomingServiceId(serviceData?.id || null)
 
-            // Load breeds
-            const { data: breedsData, error: breedsError } = await supabase
-                .from("breeds")
+            // Load treatmentTypes
+            const { data: treatmentTypesData, error: treatmentTypesError } = await supabase
+                .from("treatmentTypes")
                 .select("id, name")
                 .order("name")
 
-            if (breedsError) throw breedsError
-            setBreeds(breedsData || [])
+            if (treatmentTypesError) throw treatmentTypesError
+            setTreatmentTypes(treatmentTypesData || [])
         } catch (error) {
-            console.error("Error loading grooming service and breeds:", error)
+            console.error("Error loading grooming service and treatmentTypes:", error)
         }
     }
 
@@ -705,7 +705,7 @@ export function SettingsStationsSection() {
         name?: string
         targetStationIds?: string[]
         copyDetails: boolean
-        copyBreedRelations: boolean
+        copyTreatmentTypeRelations: boolean
     }) => {
         if (!stationToDuplicate) return
 
@@ -838,8 +838,8 @@ export function SettingsStationsSection() {
                         }
                     }
 
-                    // Copy breed relations if requested
-                    if (groomingServiceId && params.copyBreedRelations) {
+                    // Copy treatmentType relations if requested
+                    if (groomingServiceId && params.copyTreatmentTypeRelations) {
                         // Get the original station's base_time_minutes from service_station_matrix
                         const { data: originalMatrixData } = await supabase
                             .from("service_station_matrix")
@@ -865,19 +865,19 @@ export function SettingsStationsSection() {
 
                         if (baseTimeError) throw baseTimeError
 
-                        // Get all station_breed_rules for the original station
+                        // Get all station_treatmentType_rules for the original station
                         const { data: originalRules, error: rulesError } = await supabase
-                            .from("station_breed_rules")
+                            .from("station_treatmentType_rules")
                             .select("*")
                             .eq("station_id", sourceStationId)
 
                         if (rulesError) throw rulesError
 
-                        // Copy all station_breed_rules with ALL values
+                        // Copy all station_treatmentType_rules with ALL values
                         console.log(
                             "[SettingsStationsSection] Copying",
                             originalRules?.length ?? 0,
-                            "station_breed_rules records from",
+                            "station_treatmentType_rules records from",
                             sourceStationId,
                             "to",
                             targetId
@@ -885,43 +885,43 @@ export function SettingsStationsSection() {
 
                         if (originalRules && originalRules.length > 0) {
                             for (const rule of originalRules) {
-                                // Get default time from breed_modifiers if exists
-                                const { data: breedModifier } = await supabase
-                                    .from("breed_modifiers")
+                                // Get default time from treatmentType_modifiers if exists
+                                const { data: treatmentTypeModifier } = await supabase
+                                    .from("treatmentType_modifiers")
                                     .select("time_modifier_minutes")
                                     .eq("service_id", groomingServiceId)
-                                    .eq("breed_id", rule.breed_id)
+                                    .eq("treatment_type_id", rule.treatment_type_id)
                                     .maybeSingle()
 
-                                const defaultTime = breedModifier?.time_modifier_minutes || 60
+                                const defaultTime = treatmentTypeModifier?.time_modifier_minutes || 60
                                 const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
 
-                                // Copy station_breed_rules with ALL values
+                                // Copy station_treatmentType_rules with ALL values
                                 await supabase
-                                    .from("station_breed_rules")
+                                    .from("station_treatmentType_rules")
                                     .upsert(
                                         {
                                             station_id: targetId,
-                                            breed_id: rule.breed_id,
+                                            treatment_type_id: rule.treatment_type_id,
                                             is_active: rule.is_active ?? true,
                                             remote_booking_allowed: rule.remote_booking_allowed ?? false,
                                             requires_staff_approval: rule.requires_staff_approval ?? false,
                                             duration_modifier_minutes: durationMinutes,
                                         },
-                                        { onConflict: "station_id,breed_id" }
+                                        { onConflict: "station_id,treatment_type_id" }
                                     )
 
-                                // Ensure breed_modifier exists with the same default time if it exists for original
-                                if (breedModifier) {
+                                // Ensure treatmentType_modifier exists with the same default time if it exists for original
+                                if (treatmentTypeModifier) {
                                     await supabase
-                                        .from("breed_modifiers")
+                                        .from("treatmentType_modifiers")
                                         .upsert(
                                             {
                                                 service_id: groomingServiceId,
-                                                breed_id: rule.breed_id,
-                                                time_modifier_minutes: breedModifier.time_modifier_minutes,
+                                                treatment_type_id: rule.treatment_type_id,
+                                                time_modifier_minutes: treatmentTypeModifier.time_modifier_minutes,
                                             },
-                                            { onConflict: "service_id,breed_id" }
+                                            { onConflict: "service_id,treatment_type_id" }
                                         )
                                 }
                             }
@@ -951,7 +951,7 @@ export function SettingsStationsSection() {
             }
 
             // Copy all matrix values for this station (only if checkbox is checked and mode is "new")
-            if (params.mode === "new" && groomingServiceId && params.copyBreedRelations) {
+            if (params.mode === "new" && groomingServiceId && params.copyTreatmentTypeRelations) {
                 // Get the original station's base_time_minutes from service_station_matrix
                 const { data: originalMatrixData } = await supabase
                     .from("service_station_matrix")
@@ -977,19 +977,19 @@ export function SettingsStationsSection() {
 
                 if (baseTimeError) throw baseTimeError
 
-                // Get all station_breed_rules for the original station
+                // Get all station_treatmentType_rules for the original station
                 const { data: originalRules, error: rulesError } = await supabase
-                    .from("station_breed_rules")
+                    .from("station_treatmentType_rules")
                     .select("*")
                     .eq("station_id", sourceStationId)
 
                 if (rulesError) throw rulesError
 
-                // Copy all station_breed_rules with ALL values
+                // Copy all station_treatmentType_rules with ALL values
                 console.log(
                     "[SettingsStationsSection] Copying",
                     originalRules?.length ?? 0,
-                    "station_breed_rules records from",
+                    "station_treatmentType_rules records from",
                     sourceStationId,
                     "to new station",
                     targetStationId
@@ -997,43 +997,43 @@ export function SettingsStationsSection() {
 
                 if (originalRules && originalRules.length > 0) {
                     for (const rule of originalRules) {
-                        // Get default time from breed_modifiers if exists
-                        const { data: breedModifier } = await supabase
-                            .from("breed_modifiers")
+                        // Get default time from treatmentType_modifiers if exists
+                        const { data: treatmentTypeModifier } = await supabase
+                            .from("treatmentType_modifiers")
                             .select("time_modifier_minutes")
                             .eq("service_id", groomingServiceId)
-                            .eq("breed_id", rule.breed_id)
+                            .eq("treatment_type_id", rule.treatment_type_id)
                             .maybeSingle()
 
-                        const defaultTime = breedModifier?.time_modifier_minutes || 60
+                        const defaultTime = treatmentTypeModifier?.time_modifier_minutes || 60
                         const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
 
-                        // Copy station_breed_rules with ALL values
+                        // Copy station_treatmentType_rules with ALL values
                         await supabase
-                            .from("station_breed_rules")
+                            .from("station_treatmentType_rules")
                             .upsert(
                                 {
                                     station_id: targetStationId,
-                                    breed_id: rule.breed_id,
+                                    treatment_type_id: rule.treatment_type_id,
                                     is_active: rule.is_active ?? true,
                                     remote_booking_allowed: rule.remote_booking_allowed ?? false,
                                     requires_staff_approval: rule.requires_staff_approval ?? false,
                                     duration_modifier_minutes: durationMinutes,
                                 },
-                                { onConflict: "station_id,breed_id" }
+                                { onConflict: "station_id,treatment_type_id" }
                             )
 
-                        // Ensure breed_modifier exists with the same default time if it exists for original
-                        if (breedModifier) {
+                        // Ensure treatmentType_modifier exists with the same default time if it exists for original
+                        if (treatmentTypeModifier) {
                             await supabase
-                                .from("breed_modifiers")
+                                .from("treatmentType_modifiers")
                                 .upsert(
                                     {
                                         service_id: groomingServiceId,
-                                        breed_id: rule.breed_id,
-                                        time_modifier_minutes: breedModifier.time_modifier_minutes,
+                                        treatment_type_id: rule.treatment_type_id,
+                                        time_modifier_minutes: treatmentTypeModifier.time_modifier_minutes,
                                     },
-                                    { onConflict: "service_id,breed_id" }
+                                    { onConflict: "service_id,treatment_type_id" }
                                 )
                         }
                     }

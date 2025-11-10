@@ -8,7 +8,7 @@ export interface AirtableRecord<T> {
 }
 
 /** Fields for 'כלבים' table */
-export interface DogFields {
+export interface TreatmentFields {
   שם: string
   גזע: string[] // Array of record IDs from 'גזעים'
   "האם מילא שאלון התאמה לגן"?: boolean
@@ -16,7 +16,7 @@ export interface DogFields {
 }
 
 /** Fields for 'עמדות מול גזעים' table */
-export interface BreedDurationRuleFields {
+export interface TreatmentTypeDurationRuleFields {
   גזע: string[] // Array of record IDs from 'גזעים'
   עמדה: string[] // Array of record IDs from 'עמדות עבודה'
   'סה"כ משך תספורת בשניות'?: number
@@ -102,7 +102,7 @@ export interface StationAvailabilityProfile {
    */
   allowedCustomerTypeIds?: string[]
   /**
-   * When false, remote/self-service booking is not allowed for this station and breed combination.
+   * When false, remote/self-service booking is not allowed for this station and treatmentType combination.
    */
   remoteBookingAllowed?: boolean
 }
@@ -119,9 +119,9 @@ export interface Workstation {
   name: string
 }
 
-export interface BreedDurationRule {
+export interface TreatmentTypeDurationRule {
   id: string
-  breedId: string
+  treatmentTypeId: string
   stationId: string
   durationInMinutes: number
 }
@@ -142,7 +142,7 @@ export interface CalculationInput {
   year: number
   month: number
   workstations: Workstation[]
-  durationRules: BreedDurationRule[]
+  durationRules: TreatmentTypeDurationRule[]
   operatingHours: Record<number, DayOpeningHours> // Map from weekday (0-6) to hours
   appointments: Appointment[]
   constraints: Constraint[]

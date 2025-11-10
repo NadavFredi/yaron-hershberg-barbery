@@ -16,9 +16,9 @@ const mockClients = [
     phone: '050-1234567',
     email: 'israel@example.com',
     status: 'VIP - לקוח ותיק',
-    dogs: [
-      { id: '1', name: 'רקסי', breed: 'גולדן רטריבר' },
-      { id: '2', name: 'בוני', breed: 'לברדור' }
+    treatments: [
+      { id: '1', name: 'רקסי', treatmentType: 'גולדן רטריבר' },
+      { id: '2', name: 'בוני', treatmentType: 'לברדור' }
     ],
     nextAppointment: '2024-01-25 14:00',
     lastAppointment: '2024-01-10 10:30'
@@ -29,8 +29,8 @@ const mockClients = [
     phone: '052-9876543',
     email: 'sarah@example.com',
     status: 'לקוח רגיל',
-    dogs: [
-      { id: '3', name: 'מקס', breed: 'פינצ\'ר' }
+    treatments: [
+      { id: '3', name: 'מקס', treatmentType: 'פינצ\'ר' }
     ],
     nextAppointment: null,
     lastAppointment: '2023-12-15 11:00'
@@ -41,9 +41,9 @@ const mockClients = [
     phone: '054-5555555',
     email: 'david@example.com',
     status: 'מנוי גן',
-    dogs: [
-      { id: '4', name: 'לוסי', breed: 'יורקשייר טרייר' },
-      { id: '5', name: 'צ\'ארלי', breed: 'פודל' }
+    treatments: [
+      { id: '4', name: 'לוסי', treatmentType: 'יורקשייר טרייר' },
+      { id: '5', name: 'צ\'ארלי', treatmentType: 'פודל' }
     ],
     nextAppointment: '2024-01-28 16:30',
     lastAppointment: '2024-01-18 09:00'
@@ -65,7 +65,7 @@ const ClientsManagement = () => {
   const filteredClients = clients.filter(client =>
     client.name.includes(searchTerm) ||
     client.phone.includes(searchTerm) ||
-    client.dogs.some(dog => dog.name.includes(searchTerm))
+    client.treatments.some(treatment => treatment.name.includes(searchTerm))
   );
 
   const handleStatusChange = (clientId: string, newStatus: string) => {
@@ -161,11 +161,11 @@ const ClientsManagement = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Dogs */}
+                      {/* Treatments */}
                       <div className="flex items-center gap-2">
                         <PawPrint className="w-4 h-4 text-blue-600" />
                         <span className="text-gray-700">
-                          שמות הכלבים: {client.dogs.map(dog => `[${dog.name}]`).join(', ')}
+                          שמות הכלבים: {client.treatments.map(treatment => `[${treatment.name}]`).join(', ')}
                         </span>
                       </div>
 

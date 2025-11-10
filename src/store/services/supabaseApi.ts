@@ -5,8 +5,8 @@ import {
   checkUserExists as checkCustomerExists,
   getClientProfile as fetchClientProfile,
   updateClientProfile as saveClientProfile,
-  createDog as createDogRecord,
-  updateDog as updateDogRecord,
+  createTreatment as createTreatmentRecord,
+  updateTreatment as updateTreatmentRecord,
   getMergedAppointments as fetchMergedAppointments,
   getManagerSchedule as fetchManagerSchedule,
   searchManagerSchedule as executeManagerScheduleSearch,
@@ -45,8 +45,8 @@ export type PendingAppointmentRequest = {
   customerId: string | null
   customerName: string | null
   customerPhone: string | null
-  dogId: string | null
-  dogName: string | null
+  treatmentId: string | null
+  treatmentName: string | null
   stationName: string | null
   serviceLabel: string | null
   notes: string | null
@@ -261,7 +261,7 @@ export const supabaseApi = createApi({
   tagTypes: [
     "User",
     "Appointment",
-    "Dog",
+    "Treatment",
     "Availability",
     "WaitingList",
     "GardenAppointment",
@@ -363,17 +363,17 @@ export const supabaseApi = createApi({
     }),
 
     // Appointments
-    getDogAppointments: builder.query({
-      query: (dogId: string) => ({
-        functionName: "get-dog-appointments",
-        body: { dogId },
+    getTreatmentAppointments: builder.query({
+      query: (treatmentId: string) => ({
+        functionName: "get-treatment-appointments",
+        body: { treatmentId },
       }),
       transformResponse: (response) => unwrapResponse(response),
       providesTags: ["Appointment"],
     }),
 
-    getDogGardenAppointments: builder.query({
-      async queryFn(dogId: string) {
+    getTreatmentGardenAppointments: builder.query({
+      async queryFn(treatmentId: string) {
         try {
           // Query daycare_appointments directly from Supabase
           const { data, error } = await supabase
@@ -381,7 +381,7 @@ export const supabaseApi = createApi({
             .select(
               "id, start_at, end_at, status, late_pickup_requested, late_pickup_notes, garden_trim_nails, garden_brush, garden_bath, customer_notes, internal_notes"
             )
-            .eq("dog_id", dogId)
+            .eq("treatment_id", treatmentId)
             .neq("status", "cancelled")
 
           if (error) {
@@ -391,8 +391,8 @@ export const supabaseApi = createApi({
           // Transform to expected format
           const appointments = (data || []).map((apt) => ({
             id: apt.id,
-            dogId,
-            dogName: "", // Will be filled by getMergedAppointments
+            treatmentId,
+            treatmentName: "", // Will be filled by getMergedAppointments
             date: apt.start_at ? apt.start_at.split("T")[0] : "",
             time: apt.start_at ? apt.start_at.split("T")[1]?.slice(0, 5) : "",
             service: "garden" as const,
@@ -419,9 +419,9 @@ export const supabaseApi = createApi({
     }),
 
     getMergedAppointments: builder.query<MergedAppointment[], string>({
-      async queryFn(dogId: string) {
+      async queryFn(treatmentId: string) {
         try {
-          const result = await fetchMergedAppointments(dogId)
+          const result = await fetchMergedAppointments(treatmentId)
           // Return the appointments array directly for backward compatibility
           return { data: result.appointments || [] }
         } catch (error) {
@@ -457,10 +457,10 @@ export const supabaseApi = createApi({
     }),
 
     getWaitingListEntries: builder.query({
-      async queryFn(params: { dogIds: string[] }) {
+      async queryFn(params: { treatmentIds: string[] }) {
         try {
           const { getWaitingListEntries } = await import("@/pages/Appointments/Appointments.module")
-          const entries = await getWaitingListEntries(params.dogIds)
+          const entries = await getWaitingListEntries(params.treatmentIds)
           return { data: entries }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
@@ -487,70 +487,70 @@ export const supabaseApi = createApi({
       providesTags: ["Appointment"],
     }),
 
-    getBreedStationDuration: builder.query({
+    getTreatmentTypeStationDuration: builder.query({
       async queryFn({
-        dogId,
+        treatmentId,
         stationId,
         serviceType = "grooming",
       }: {
-        dogId: string
+        treatmentId: string
         stationId: string
         serviceType?: "grooming" | "garden" | "both"
       }) {
         try {
-          // Get the dog's breed_id
-          const { data: dogData, error: dogError } = await supabase
-            .from("dogs")
-            .select("breed_id")
-            .eq("id", dogId)
+          // Get the treatment's treatment_type_id
+          const { data: treatmentData, error: treatmentError } = await supabase
+            .from("treatments")
+            .select("treatment_type_id")
+            .eq("id", treatmentId)
             .single()
 
-          if (dogError || !dogData) {
-            throw new Error(`Dog with ID ${dogId} not found: ${dogError?.message || "Unknown error"}`)
+          if (treatmentError || !treatmentData) {
+            throw new Error(`Treatment with ID ${treatmentId} not found: ${treatmentError?.message || "Unknown error"}`)
           }
 
-          if (!dogData.breed_id) {
-            console.warn("⚠️ [supabaseApi] Dog has no breed_id, returning unsupported duration", {
-              dogId,
+          if (!treatmentData.treatment_type_id) {
+            console.warn("⚠️ [supabaseApi] Treatment has no treatment_type_id, returning unsupported duration", {
+              treatmentId,
               stationId,
             })
             return {
               data: {
                 supported: false,
-                dogId,
-                breedId: null,
+                treatmentId,
+                treatmentTypeId: null,
                 stationId,
                 message: "לכלב לא מוגדר גזע. אנא הגדר גזע לכלב לפני קביעת התור.",
               },
             }
           }
 
-          const breedId = dogData.breed_id
+          const treatmentTypeId = treatmentData.treatment_type_id
 
           if (serviceType === "grooming") {
-            // Fetch station-breed rule (single source of truth for grooming durations)
+            // Fetch station-treatmentType rule (single source of truth for grooming durations)
             const { data: ruleData, error: ruleError } = await supabase
-              .from("station_breed_rules")
+              .from("station_treatmentType_rules")
               .select("duration_modifier_minutes, is_active")
               .eq("station_id", stationId)
-              .eq("breed_id", breedId)
+              .eq("treatment_type_id", treatmentTypeId)
               .maybeSingle()
 
             if (ruleError) {
-              throw new Error(`Failed to fetch station-breed configuration: ${ruleError.message}`)
+              throw new Error(`Failed to fetch station-treatmentType configuration: ${ruleError.message}`)
             }
 
             if (!ruleData || !ruleData.is_active) {
-              console.warn("⚠️ [supabaseApi] No active station_breed_rules entry found", {
-                dogId,
-                breedId,
+              console.warn("⚠️ [supabaseApi] No active station_treatmentType_rules entry found", {
+                treatmentId,
+                treatmentTypeId,
                 stationId,
               })
               return {
                 data: {
                   supported: false,
-                  dogId,
-                  breedId,
+                  treatmentId,
+                  treatmentTypeId,
                   stationId,
                   message: "העמדה שנבחרה אינה תומכת בשירות זה.",
                 },
@@ -560,17 +560,17 @@ export const supabaseApi = createApi({
             const durationMinutes = ruleData.duration_modifier_minutes ?? null
 
             if (durationMinutes === null || durationMinutes <= 0) {
-              console.warn("⚠️ [supabaseApi] station_breed_rules returned invalid duration", {
-                dogId,
-                breedId,
+              console.warn("⚠️ [supabaseApi] station_treatmentType_rules returned invalid duration", {
+                treatmentId,
+                treatmentTypeId,
                 stationId,
                 durationMinutes,
               })
               return {
                 data: {
                   supported: false,
-                  dogId,
-                  breedId,
+                  treatmentId,
+                  treatmentTypeId,
                   stationId,
                   message: "לא הוגדר משך תספורת עבור הגזע בעמדה זו.",
                 },
@@ -582,8 +582,8 @@ export const supabaseApi = createApi({
             return {
               data: {
                 supported: true,
-                dogId,
-                breedId,
+                treatmentId,
+                treatmentTypeId,
                 stationId,
                 durationSeconds,
                 durationMinutes,
@@ -597,8 +597,8 @@ export const supabaseApi = createApi({
             return {
               data: {
                 supported: true,
-                dogId,
-                breedId,
+                treatmentId,
+                treatmentTypeId,
                 stationId,
                 durationSeconds,
                 durationMinutes: defaultGardenMinutes,
@@ -686,7 +686,7 @@ export const supabaseApi = createApi({
         appointmentType: "private" | "business" | "garden"
         groupId?: string
         customerId?: string
-        dogId?: string
+        treatmentId?: string
         isManualOverride?: boolean
         gardenAppointmentType?: "full-day" | "hourly" | "trial"
         services?: {
@@ -852,7 +852,7 @@ export const supabaseApi = createApi({
 
     bookProposedMeeting: builder.mutation<
       { success: boolean; appointmentId?: string },
-      { meetingId: string; dogId: string; code?: string }
+      { meetingId: string; treatmentId: string; code?: string }
     >({
       async queryFn(params) {
         try {
@@ -1751,13 +1751,13 @@ export const supabaseApi = createApi({
       invalidatesTags: ["Worker", "WorkerAttendance"],
     }),
 
-    // Dogs
-    listOwnerDogs: builder.query({
+    // Treatments
+    listOwnerTreatments: builder.query({
       async queryFn(ownerId: string) {
         try {
           if (!ownerId) {
-            console.warn("⚠️ [listOwnerDogs RTK Query] No ownerId provided, returning empty array")
-            return { data: { dogs: [] } }
+            console.warn("⚠️ [listOwnerTreatments RTK Query] No ownerId provided, returning empty array")
+            return { data: { treatments: [] } }
           }
 
           // First get the customer_id from profiles or customers table
@@ -1768,7 +1768,7 @@ export const supabaseApi = createApi({
             .maybeSingle()
 
           if (profileError) {
-            console.error("❌ [listOwnerDogs] Profile error:", profileError)
+            console.error("❌ [listOwnerTreatments] Profile error:", profileError)
           }
 
           let customerId = ownerId
@@ -1786,9 +1786,9 @@ export const supabaseApi = createApi({
             }
           }
 
-          // Query dogs with breed information
-          const { data: dogsData, error: dogsError } = await supabase
-            .from("dogs")
+          // Query treatments with treatmentType information
+          const { data: treatmentsData, error: treatmentsError } = await supabase
+            .from("treatments")
             .select(
               `
               id,
@@ -1796,7 +1796,7 @@ export const supabaseApi = createApi({
               gender,
               is_small,
               customer_id,
-              breeds:breed_id (
+              treatmentTypes:treatment_type_id (
                 id,
                 name,
                 size_class,
@@ -1807,19 +1807,19 @@ export const supabaseApi = createApi({
             )
             .eq("customer_id", customerId)
 
-          if (dogsError) {
-            console.error("❌ [listOwnerDogs] Dogs error:", dogsError)
-            return { error: { status: "SUPABASE_ERROR", data: dogsError.message } }
+          if (treatmentsError) {
+            console.error("❌ [listOwnerTreatments] Treatments error:", treatmentsError)
+            return { error: { status: "SUPABASE_ERROR", data: treatmentsError.message } }
           }
 
-          // Transform dogs to match expected structure
-          interface DogWithBreed {
+          // Transform treatments to match expected structure
+          interface TreatmentWithTreatmentType {
             id: string
             name: string | null
             gender: "male" | "female" | null
             is_small: boolean | null
             customer_id: string
-            breeds: {
+            treatmentTypes: {
               id: string
               name: string
               size_class: string | null
@@ -1828,78 +1828,78 @@ export const supabaseApi = createApi({
             } | null
           }
 
-          const dogIds = (dogsData || []).map((dog: DogWithBreed) => dog.id).filter(Boolean)
-          let appointmentHistoryByDog: Record<string, boolean> = {}
+          const treatmentIds = (treatmentsData || []).map((treatment: TreatmentWithTreatmentType) => treatment.id).filter(Boolean)
+          let appointmentHistoryByTreatment: Record<string, boolean> = {}
 
-          if (dogIds.length > 0) {
+          if (treatmentIds.length > 0) {
             const [{ data: daycareRows, error: daycareError }, { data: groomingRows, error: groomingError }] =
               await Promise.all([
-                supabase.from("daycare_appointments").select("dog_id").in("dog_id", dogIds),
-                supabase.from("grooming_appointments").select("dog_id").in("dog_id", dogIds),
+                supabase.from("daycare_appointments").select("treatment_id").in("treatment_id", treatmentIds),
+                supabase.from("grooming_appointments").select("treatment_id").in("treatment_id", treatmentIds),
               ])
 
             if (daycareError) {
-              console.error("❌ [listOwnerDogs] Daycare history query failed:", daycareError)
+              console.error("❌ [listOwnerTreatments] Daycare history query failed:", daycareError)
               return { error: { status: "SUPABASE_ERROR", data: daycareError.message } }
             }
 
             if (groomingError) {
-              console.error("❌ [listOwnerDogs] Grooming history query failed:", groomingError)
+              console.error("❌ [listOwnerTreatments] Grooming history query failed:", groomingError)
               return { error: { status: "SUPABASE_ERROR", data: groomingError.message } }
             }
 
             ;(daycareRows ?? []).forEach((row) => {
-              if (row?.dog_id) {
-                appointmentHistoryByDog[row.dog_id] = true
+              if (row?.treatment_id) {
+                appointmentHistoryByTreatment[row.treatment_id] = true
               }
             })
 
             ;(groomingRows ?? []).forEach((row) => {
-              if (row?.dog_id) {
-                appointmentHistoryByDog[row.dog_id] = true
+              if (row?.treatment_id) {
+                appointmentHistoryByTreatment[row.treatment_id] = true
               }
             })
           }
 
-          // Get all unique breed IDs from the dogs
-          const breedIds = [...new Set((dogsData || []).map((dog: DogWithBreed) => dog.breeds?.id).filter(Boolean) as string[])]
+          // Get all unique treatmentType IDs from the treatments
+          const treatmentTypeIds = [...new Set((treatmentsData || []).map((treatment: TreatmentWithTreatmentType) => treatment.treatmentTypes?.id).filter(Boolean) as string[])]
           
-          // Fetch station_breed_rules for all breeds to calculate requires_staff_approval
-          let breedRequiresApproval: Record<string, boolean> = {}
-          if (breedIds.length > 0) {
-            const { data: stationBreedRules, error: rulesError } = await supabase
-              .from("station_breed_rules")
-              .select("breed_id, is_active, requires_staff_approval")
-              .in("breed_id", breedIds)
+          // Fetch station_treatmentType_rules for all treatmentTypes to calculate requires_staff_approval
+          let treatmentTypeRequiresApproval: Record<string, boolean> = {}
+          if (treatmentTypeIds.length > 0) {
+            const { data: stationTreatmentTypeRules, error: rulesError } = await supabase
+              .from("station_treatmentType_rules")
+              .select("treatment_type_id, is_active, requires_staff_approval")
+              .in("treatment_type_id", treatmentTypeIds)
               .eq("is_active", true)
               .eq("requires_staff_approval", true)
 
-            if (!rulesError && stationBreedRules) {
-              // If any active station requires approval for a breed, mark that breed as requiring approval
-              const breedsWithApproval = new Set(
-                stationBreedRules.map((rule) => rule.breed_id).filter(Boolean) as string[]
+            if (!rulesError && stationTreatmentTypeRules) {
+              // If any active station requires approval for a treatmentType, mark that treatmentType as requiring approval
+              const treatmentTypesWithApproval = new Set(
+                stationTreatmentTypeRules.map((rule) => rule.treatment_type_id).filter(Boolean) as string[]
               )
-              breedIds.forEach((breedId) => {
-                breedRequiresApproval[breedId] = breedsWithApproval.has(breedId)
+              treatmentTypeIds.forEach((treatmentTypeId) => {
+                treatmentTypeRequiresApproval[treatmentTypeId] = treatmentTypesWithApproval.has(treatmentTypeId)
               })
             }
           }
 
-          const dogs = (dogsData || []).map((dog: DogWithBreed) => {
-            const breed = dog.breeds || null
+          const treatments = (treatmentsData || []).map((treatment: TreatmentWithTreatmentType) => {
+            const treatmentType = treatment.treatmentTypes || null
 
             return {
-              id: dog.id,
-              name: dog.name || "",
-              gender: dog.gender,
-              breed: breed?.name || "",
-              size: breed?.size_class || "",
-              isSmall: breed?.size_class === "small" || dog.is_small === true,
-              ownerId: dog.customer_id,
-              hasAppointmentHistory: Boolean(appointmentHistoryByDog[dog.id]),
-              requiresSpecialApproval: Boolean(breed?.id && breedRequiresApproval[breed.id]),
-              groomingMinPrice: breed?.min_groom_price ? Number(breed.min_groom_price) : null,
-              groomingMaxPrice: breed?.max_groom_price ? Number(breed.max_groom_price) : null,
+              id: treatment.id,
+              name: treatment.name || "",
+              gender: treatment.gender,
+              treatmentType: treatmentType?.name || "",
+              size: treatmentType?.size_class || "",
+              isSmall: treatmentType?.size_class === "small" || treatment.is_small === true,
+              ownerId: treatment.customer_id,
+              hasAppointmentHistory: Boolean(appointmentHistoryByTreatment[treatment.id]),
+              requiresSpecialApproval: Boolean(treatmentType?.id && treatmentTypeRequiresApproval[treatmentType.id]),
+              groomingMinPrice: treatmentType?.min_groom_price ? Number(treatmentType.min_groom_price) : null,
+              groomingMaxPrice: treatmentType?.max_groom_price ? Number(treatmentType.max_groom_price) : null,
               hasBeenToGarden: undefined,
               questionnaireSuitableForGarden: undefined,
               staffApprovedForGarden: undefined,
@@ -1907,33 +1907,33 @@ export const supabaseApi = createApi({
             }
           })
 
-          return { data: { dogs } }
+          return { data: { treatments } }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          console.error("❌ [listOwnerDogs RTK Query] Error fetching dogs:", error)
+          console.error("❌ [listOwnerTreatments RTK Query] Error fetching treatments:", error)
           return { error: { status: "SUPABASE_ERROR", data: message } }
         }
       },
-      providesTags: ["Dog"],
+      providesTags: ["Treatment"],
     }),
 
-    checkDogRegistration: builder.query({
-      query: (dogId: string) => ({
-        functionName: "check-dog-registration",
-        body: { dogId },
+    checkTreatmentRegistration: builder.query({
+      query: (treatmentId: string) => ({
+        functionName: "check-treatment-registration",
+        body: { treatmentId },
       }),
       transformResponse: (response) => unwrapResponse(response),
-      providesTags: ["Dog"],
+      providesTags: ["Treatment"],
     }),
 
-    createDog: builder.mutation({
+    createTreatment: builder.mutation({
       async queryFn({
         customerId,
-        ...dogData
+        ...treatmentData
       }: {
         customerId: string
         name: string
-        breed_id?: string | null
+        treatment_type_id?: string | null
         gender?: "male" | "female"
         birth_date?: string | null
         is_small?: boolean | null
@@ -1944,19 +1944,19 @@ export const supabaseApi = createApi({
         people_anxious?: boolean | null
       }) {
         try {
-          const result = await createDogRecord(customerId, dogData)
+          const result = await createTreatmentRecord(customerId, treatmentData)
           if (!result.success) {
             return {
               error: {
                 status: "SUPABASE_ERROR",
-                data: result.error || "Failed to create dog",
+                data: result.error || "Failed to create treatment",
               },
             }
           }
           return { data: result }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          console.error("❌ [createDog RTK Query] Error:", error)
+          console.error("❌ [createTreatment RTK Query] Error:", error)
           return {
             error: {
               status: "SUPABASE_ERROR",
@@ -1965,17 +1965,17 @@ export const supabaseApi = createApi({
           }
         }
       },
-      invalidatesTags: ["Dog"],
+      invalidatesTags: ["Treatment"],
     }),
 
-    updateDog: builder.mutation({
+    updateTreatment: builder.mutation({
       async queryFn({
-        dogId,
-        ...dogData
+        treatmentId,
+        ...treatmentData
       }: {
-        dogId: string
+        treatmentId: string
         name?: string
-        breed_id?: string | null
+        treatment_type_id?: string | null
         gender?: "male" | "female"
         birth_date?: string | null
         is_small?: boolean | null
@@ -1986,19 +1986,19 @@ export const supabaseApi = createApi({
         people_anxious?: boolean | null
       }) {
         try {
-          const result = await updateDogRecord(dogId, dogData)
+          const result = await updateTreatmentRecord(treatmentId, treatmentData)
           if (!result.success) {
             return {
               error: {
                 status: "SUPABASE_ERROR",
-                data: result.error || "Failed to update dog",
+                data: result.error || "Failed to update treatment",
               },
             }
           }
           return { data: result }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          console.error("❌ [updateDog RTK Query] Error:", error)
+          console.error("❌ [updateTreatment RTK Query] Error:", error)
           return {
             error: {
               status: "SUPABASE_ERROR",
@@ -2007,7 +2007,7 @@ export const supabaseApi = createApi({
           }
         }
       },
-      invalidatesTags: ["Dog"],
+      invalidatesTags: ["Treatment"],
     }),
 
     // Customer Search - using edge function with service_role to bypass RLS
@@ -2019,7 +2019,7 @@ export const supabaseApi = createApi({
           fullName?: string
           phone?: string
           email?: string
-          dogNames?: string
+          treatmentNames?: string
           recordId?: string
         }>
         count: number
@@ -2158,8 +2158,8 @@ export const {
   useGetSubscriptionTypesQuery,
 
   // Appointments
-  useGetDogAppointmentsQuery,
-  useGetDogGardenAppointmentsQuery,
+  useGetTreatmentAppointmentsQuery,
+  useGetTreatmentGardenAppointmentsQuery,
   useGetMergedAppointmentsQuery,
   useGetAvailableDatesQuery,
   useGetAvailableTimesQuery,
@@ -2169,8 +2169,8 @@ export const {
   useSearchManagerScheduleQuery,
   useLazySearchManagerScheduleQuery,
   useGetGroupAppointmentsQuery,
-  useGetBreedStationDurationQuery,
-  useLazyGetBreedStationDurationQuery,
+  useGetTreatmentTypeStationDurationQuery,
+  useLazyGetTreatmentTypeStationDurationQuery,
   useDeleteWaitingListEntryMutation,
   useMoveAppointmentMutation,
   useCreateManagerAppointmentMutation,
@@ -2191,11 +2191,11 @@ export const {
   useWorkerClockInMutation,
   useWorkerClockOutMutation,
 
-  // Dogs
-  useListOwnerDogsQuery,
-  useCheckDogRegistrationQuery,
-  useCreateDogMutation,
-  useUpdateDogMutation,
+  // Treatments
+  useListOwnerTreatmentsQuery,
+  useCheckTreatmentRegistrationQuery,
+  useCreateTreatmentMutation,
+  useUpdateTreatmentMutation,
 
   // Customer Search
   useSearchCustomersQuery,

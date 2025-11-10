@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, X } from "lucide-react"
 import { addMinutes } from "date-fns"
-import { useLazyGetBreedStationDurationQuery, useCreateManagerAppointmentMutation } from "@/store/services/supabaseApi"
+import { useLazyGetTreatmentTypeStationDurationQuery, useCreateManagerAppointmentMutation } from "@/store/services/supabaseApi"
 import { cn } from "@/lib/utils"
 import { AppointmentDetailsSection, type AppointmentStation, type AppointmentTimes } from "@/pages/ManagerSchedule/components/AppointmentDetailsSection"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerSearchInput, type Customer } from "@/components/CustomerSearchInput"
-import { DogSelectInput, type Dog } from "@/components/DogSelectInput"
+import { TreatmentSelectInput, type Treatment } from "@/components/TreatmentSelectInput"
 
 type ManagerStation = AppointmentStation
 
@@ -27,7 +27,7 @@ interface BusinessAppointmentModalProps {
     onCancel: () => void
     onSuccess?: () => void
     prefillCustomer?: Customer | null
-    prefillDog?: Dog | null
+    prefillTreatment?: Treatment | null
 }
 
 export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> = ({
@@ -38,10 +38,10 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     onCancel,
     onSuccess,
     prefillCustomer = null,
-    prefillDog = null
+    prefillTreatment = null
 }) => {
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-    const [selectedDog, setSelectedDog] = useState<Dog | null>(null)
+    const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null)
     const [appointmentTimes, setAppointmentTimes] = useState<FinalizedDragTimes | null>(() => finalizedDragTimes ? {
         startTime: finalizedDragTimes.startTime ? new Date(finalizedDragTimes.startTime) : null,
         endTime: finalizedDragTimes.endTime ? new Date(finalizedDragTimes.endTime) : null,
@@ -53,8 +53,8 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     const [isManualOverride, setIsManualOverride] = useState(false)
     const [originalEndTime, setOriginalEndTime] = useState<Date | null>(null)
 
-    const [triggerBreedDuration, breedDurationResult] = useLazyGetBreedStationDurationQuery()
-    const { data: breedDurationData, isError: isBreedDurationError, error: breedDurationError } = breedDurationResult
+    const [triggerTreatmentTypeDuration, treatmentTypeDurationResult] = useLazyGetTreatmentTypeStationDurationQuery()
+    const { data: treatmentTypeDurationData, isError: isTreatmentTypeDurationError, error: treatmentTypeDurationError } = treatmentTypeDurationResult
     const [createManagerAppointment, { isLoading: isCreatingAppointment }] = useCreateManagerAppointmentMutation()
     const { toast } = useToast()
 
@@ -64,7 +64,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     useEffect(() => {
         if (!open) {
             setSelectedCustomer(null)
-            setSelectedDog(null)
+            setSelectedTreatment(null)
             setIsManualOverride(false)
             setOriginalEndTime(null)
         }
@@ -77,10 +77,10 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     }, [open, prefillCustomer])
 
     useEffect(() => {
-        if (open && prefillDog) {
-            setSelectedDog(prefillDog)
+        if (open && prefillTreatment) {
+            setSelectedTreatment(prefillTreatment)
         }
-    }, [open, prefillDog])
+    }, [open, prefillTreatment])
 
     useEffect(() => {
         if (finalizedDragTimes) {
@@ -99,33 +99,33 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     }, [finalizedDragTimes])
 
     useEffect(() => {
-        if (selectedDog?.id && appointmentTimes?.stationId) {
+        if (selectedTreatment?.id && appointmentTimes?.stationId) {
             setDurationStatus('checking')
             setDurationMinutes(null)
             setDurationMessage(null)
-            triggerBreedDuration({ dogId: selectedDog.id, stationId: appointmentTimes.stationId, serviceType: 'grooming' })
+            triggerTreatmentTypeDuration({ treatmentId: selectedTreatment.id, stationId: appointmentTimes.stationId, serviceType: 'grooming' })
         } else {
             setDurationStatus('idle')
             setDurationMinutes(null)
             setDurationMessage(null)
         }
-    }, [selectedDog?.id, selectedDog?.breed, appointmentTimes?.stationId, triggerBreedDuration])
+    }, [selectedTreatment?.id, selectedTreatment?.treatmentType, appointmentTimes?.stationId, triggerTreatmentTypeDuration])
 
     useEffect(() => {
-        if (!breedDurationData) {
+        if (!treatmentTypeDurationData) {
             return
         }
 
-        if (selectedDog?.id && breedDurationData.dogId && breedDurationData.dogId !== selectedDog.id) {
+        if (selectedTreatment?.id && treatmentTypeDurationData.treatmentId && treatmentTypeDurationData.treatmentId !== selectedTreatment.id) {
             return
         }
 
-        if (appointmentTimes?.stationId && breedDurationData.stationId && breedDurationData.stationId !== appointmentTimes.stationId) {
+        if (appointmentTimes?.stationId && treatmentTypeDurationData.stationId && treatmentTypeDurationData.stationId !== appointmentTimes.stationId) {
             return
         }
 
-        if (breedDurationData.supported) {
-            const minutes = typeof breedDurationData.durationMinutes === 'number' ? breedDurationData.durationMinutes : null
+        if (treatmentTypeDurationData.supported) {
+            const minutes = typeof treatmentTypeDurationData.durationMinutes === 'number' ? treatmentTypeDurationData.durationMinutes : null
             if (minutes == null) {
                 setDurationStatus('error')
                 setDurationMinutes(null)
@@ -139,17 +139,17 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         } else {
             setDurationStatus('unsupported')
             setDurationMinutes(null)
-            setDurationMessage(breedDurationData.message ?? 'העמדה שנבחרה אינה תומכת בגזע זה.')
+            setDurationMessage(treatmentTypeDurationData.message ?? 'העמדה שנבחרה אינה תומכת בגזע זה.')
         }
-    }, [breedDurationData, selectedDog?.id, appointmentTimes?.stationId])
+    }, [treatmentTypeDurationData, selectedTreatment?.id, appointmentTimes?.stationId])
 
     useEffect(() => {
-        if (!isBreedDurationError) {
+        if (!isTreatmentTypeDurationError) {
             return
         }
 
-        const rawMessage = typeof breedDurationError === 'object' && breedDurationError !== null
-            ? (breedDurationError as { data?: unknown }).data
+        const rawMessage = typeof treatmentTypeDurationError === 'object' && treatmentTypeDurationError !== null
+            ? (treatmentTypeDurationError as { data?: unknown }).data
             : null
 
         let message: string | null = null
@@ -162,7 +162,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         setDurationStatus('error')
         setDurationMinutes(null)
         setDurationMessage(message ?? 'לא ניתן לבדוק את משך התספורת בשלב זה.')
-    }, [isBreedDurationError, breedDurationError])
+    }, [isTreatmentTypeDurationError, treatmentTypeDurationError])
 
     const startTimeKey = appointmentTimes?.startTime ? appointmentTimes.startTime.getTime() : null
 
@@ -216,7 +216,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 }
             })
         } else if (!isManualOverride && (durationStatus === 'unsupported' || durationStatus === 'error')) {
-            // Clear the end time when manual override is disabled and breed is not supported
+            // Clear the end time when manual override is disabled and treatmentType is not supported
             setAppointmentTimes((prev) => {
                 if (!prev) return prev
                 return {
@@ -229,20 +229,20 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
 
     const handleCustomerSelect = (customer: Customer) => {
         setSelectedCustomer(customer)
-        setSelectedDog(null) // Reset dog selection when customer changes
+        setSelectedTreatment(null) // Reset treatment selection when customer changes
     }
 
-    const handleDogSelect = (dog: Dog) => {
-        setSelectedDog(dog)
+    const handleTreatmentSelect = (treatment: Treatment) => {
+        setSelectedTreatment(treatment)
     }
 
     const handleClearCustomer = () => {
         setSelectedCustomer(null)
-        setSelectedDog(null)
+        setSelectedTreatment(null)
     }
 
-    const handleClearDog = () => {
-        setSelectedDog(null)
+    const handleClearTreatment = () => {
+        setSelectedTreatment(null)
     }
 
     const handleTimesUpdate = (times: FinalizedDragTimes) => {
@@ -264,7 +264,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
 
     const canCreateAppointment = Boolean(
         selectedCustomer &&
-        selectedDog &&
+        selectedTreatment &&
         (durationStatus === 'supported' || isManualOverride) &&
         (durationMinutes != null || isManualOverride) &&
         appointmentTimes?.startTime &&
@@ -272,7 +272,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     )
 
     const handleCreateBusinessAppointment = async () => {
-        if (!canCreateAppointment || !appointmentTimes?.startTime || !appointmentTimes?.endTime || !selectedCustomer || !selectedDog) {
+        if (!canCreateAppointment || !appointmentTimes?.startTime || !appointmentTimes?.endTime || !selectedCustomer || !selectedTreatment) {
             return
         }
 
@@ -285,14 +285,14 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 endTime: appointmentTimes.endTime.toISOString(),
                 appointmentType: "business",
                 customerId: selectedCustomer.id,
-                dogId: selectedDog.id,
+                treatmentId: selectedTreatment.id,
                 isManualOverride
             }).unwrap()
 
             // Close the modal and reset form
             onOpenChange(false)
             setSelectedCustomer(null)
-            setSelectedDog(null)
+            setSelectedTreatment(null)
             setIsManualOverride(false)
             setOriginalEndTime(null)
             setAppointmentTimes(null)
@@ -361,12 +361,12 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                                 onCustomerClear={handleClearCustomer}
                             />
 
-                            {/* Dog Selection */}
-                            <DogSelectInput
+                            {/* Treatment Selection */}
+                            <TreatmentSelectInput
                                 selectedCustomer={selectedCustomer}
-                                selectedDog={selectedDog}
-                                onDogSelect={handleDogSelect}
-                                onDogClear={handleClearDog}
+                                selectedTreatment={selectedTreatment}
+                                onTreatmentSelect={handleTreatmentSelect}
+                                onTreatmentClear={handleClearTreatment}
                             />
                         </div>
                     </div>

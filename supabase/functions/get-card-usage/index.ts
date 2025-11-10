@@ -13,7 +13,7 @@ interface AirtableRecord<T> {
 interface SubscriptionUsage {
   id: string
   date: string | null
-  dogName: string | null
+  treatmentName: string | null
   service: string | null
   planName: string | null
   staffMember: string | null
@@ -98,7 +98,7 @@ function mapUsageRecord(record: AirtableRecord<Record<string, unknown>>): Subscr
 
   const date = mapDateValue(coalesceField(fields, ["תאריך שימוש", "תאריך", "date"]))
   const createdAt = mapDateValue(coalesceField(fields, ["נוצר בתאריך", "Created", "created_at", "createdAt"]))
-  const dogName = coalesceField(fields, ["שם הכלב", "כלב", "dogName"])?.toString() ?? null
+  const treatmentName = coalesceField(fields, ["שם הכלב", "כלב", "treatmentName"])?.toString() ?? null
   const service = coalesceField(fields, ["שירות", "Service", "סוג שירות"])?.toString() ?? null
   const planName =
     coalesceField(fields, ["סוג כרטיסייה", "כרטיסייה", "חבילה", "שם כרטיסייה", "plan"])?.toString() ?? null
@@ -108,7 +108,7 @@ function mapUsageRecord(record: AirtableRecord<Record<string, unknown>>): Subscr
   return {
     id: record.id,
     date,
-    dogName,
+    treatmentName,
     service,
     planName,
     staffMember,

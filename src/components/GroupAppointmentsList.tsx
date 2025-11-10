@@ -70,8 +70,8 @@ export const GroupAppointmentsList: React.FC<GroupAppointmentsListProps> = ({
                     {appointments.map((appointment) => {
                         const startDate = new Date(appointment.startDateTime)
                         const endDate = new Date(appointment.endDateTime)
-                        const primaryDog = appointment.dogs[0]
-                        const dogName = primaryDog?.name ?? "ללא שיוך לכלב"
+                        const primaryTreatment = appointment.treatments[0]
+                        const treatmentName = primaryTreatment?.name ?? "ללא שיוך לכלב"
                         const isSelected = selectedAppointments.includes(appointment.id)
 
                         return (
@@ -102,13 +102,13 @@ export const GroupAppointmentsList: React.FC<GroupAppointmentsListProps> = ({
                                         <div className="text-sm font-medium text-gray-900">
                                             {appointment.isPersonalAppointment
                                                 ? (appointment.personalAppointmentDescription || "תור אישי")
-                                                : dogName
+                                                : treatmentName
                                             }
                                         </div>
 
-                                        {!appointment.isPersonalAppointment && primaryDog?.breed && (
+                                        {!appointment.isPersonalAppointment && primaryTreatment?.treatmentType && (
                                             <div className="text-xs text-gray-500">
-                                                {primaryDog.breed}
+                                                {primaryTreatment.treatmentType}
                                             </div>
                                         )}
 

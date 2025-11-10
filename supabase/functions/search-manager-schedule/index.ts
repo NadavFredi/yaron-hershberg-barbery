@@ -20,10 +20,10 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 type ManagerServiceType = "grooming" | "garden"
 
-interface ManagerDog {
+interface ManagerTreatment {
   id: string
   name: string
-  breed?: string
+  treatmentType?: string
   ownerId?: string
   clientClassification?: string
   clientName?: string
@@ -45,7 +45,7 @@ interface ManagerAppointment {
   notes: string
   internalNotes?: string
   hasCrossServiceAppointment?: boolean
-  dogs: ManagerDog[]
+  treatments: ManagerTreatment[]
   clientId?: string
   clientName?: string
   clientClassification?: string
@@ -72,7 +72,7 @@ interface ManagerAppointment {
   proposedNotes?: string
   proposedLinkedAppointmentId?: string
   proposedLinkedCustomerId?: string
-  proposedLinkedDogId?: string
+  proposedLinkedTreatmentId?: string
   proposedOriginalStart?: string
   proposedOriginalEnd?: string
 }
@@ -87,8 +87,8 @@ interface ClientSearchResult {
   address?: string
 }
 
-interface DogSearchResult {
-  dog: ManagerDog
+interface TreatmentSearchResult {
+  treatment: ManagerTreatment
   owner?: ClientSearchResult
 }
 
@@ -104,15 +104,15 @@ const GROOMING_SELECT = `
   appointment_kind,
   personal_reason,
   amount_due,
-  dog_id,
+  treatment_id,
   customer_id,
   stations(id, name),
-  dogs(
+  treatments(
     id,
     name,
-    breed_id,
+    treatment_type_id,
     customer_id,
-    breeds(name, size_class, min_groom_price, max_groom_price)
+    treatmentTypes(name, size_class, min_groom_price, max_groom_price)
   ),
   customers(
     id,
@@ -140,15 +140,15 @@ const DAYCARE_SELECT = `
   garden_brush,
   garden_bath,
   amount_due,
-  dog_id,
+  treatment_id,
   customer_id,
   stations(id, name),
-  dogs(
+  treatments(
     id,
     name,
-    breed_id,
+    treatment_type_id,
     customer_id,
-    breeds(name, size_class, min_groom_price, max_groom_price)
+    treatmentTypes(name, size_class, min_groom_price, max_groom_price)
   ),
   customers(
     id,
@@ -159,16 +159,16 @@ const DAYCARE_SELECT = `
   )
 `
 
-const DOG_SEARCH_SELECT = `
+const TREATMENT_SEARCH_SELECT = `
   id,
   name,
-  breed_id,
+  treatment_type_id,
   customer_id,
   gender,
   health_notes,
   vet_name,
   vet_phone,
-  breeds(name, min_groom_price, max_groom_price),
+  treatmentTypes(name, min_groom_price, max_groom_price),
   customers(
     id,
     full_name,
@@ -203,7 +203,7 @@ const PROPOSED_MEETING_SELECT = `
   notes,
   reschedule_appointment_id,
   reschedule_customer_id,
-  reschedule_dog_id,
+  reschedule_treatment_id,
   reschedule_original_start_at,
   reschedule_original_end_at,
   stations(id, name)
@@ -242,14 +242,14 @@ serve(async (req) => {
     const looseDigitsPattern = digitsOnly ? buildLooseDigitsPattern(digitsOnly) : null
     const limit = clampLimit(limitInput)
 
-    const [dogSearch, clientSearch] = await Promise.all([
-      searchDogs(normalizedWhitespace, limit * 2),
+    const [treatmentSearch, clientSearch] = await Promise.all([
+      searchTreatments(normalizedWhitespace, limit * 2),
       searchClients(normalizedWhitespace, looseDigitsPattern, limit * 2),
     ])
 
-    const dogIds = dogSearch.ids
+    const treatmentIds = treatmentSearch.ids
     const customerIdSet = new Set(clientSearch.ids)
-    dogSearch.records.forEach((record) => {
+    treatmentSearch.records.forEach((record) => {
       if (record.owner?.id) {
         customerIdSet.add(record.owner.id)
       }
@@ -257,8 +257,8 @@ serve(async (req) => {
     const customerIds = Array.from(customerIdSet)
 
     const [groomingAppointments, daycareAppointments, proposedMeetings] = await Promise.all([
-      fetchGroomingAppointments({ likeValue, dogIds, customerIds, limit }),
-      fetchDaycareAppointments({ likeValue, dogIds, customerIds, limit }),
+      fetchGroomingAppointments({ likeValue, treatmentIds, customerIds, limit }),
+      fetchDaycareAppointments({ likeValue, treatmentIds, customerIds, limit }),
       fetchProposedMeetings({ likeValue, digitsPattern: looseDigitsPattern, limit }),
     ])
 
@@ -278,7 +278,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         appointments: combined.slice(0, limit),
-        dogs: dogSearch.records.slice(0, limit),
+        treatments: treatmentSearch.records.slice(0, limit),
         clients: clientSearch.records.slice(0, limit),
       }),
       {
@@ -318,14 +318,14 @@ function buildLooseDigitsPattern(digits: string): string {
 
 type FetchArgs = {
   likeValue: string
-  dogIds: string[]
+  treatmentIds: string[]
   customerIds: string[]
   limit: number
 }
 
-async function fetchGroomingAppointments({ likeValue, dogIds, customerIds, limit }: FetchArgs): Promise<ManagerAppointment[]> {
+async function fetchGroomingAppointments({ likeValue, treatmentIds, customerIds, limit }: FetchArgs): Promise<ManagerAppointment[]> {
   const filters = buildAppointmentFilters({
-    dogIds,
+    treatmentIds,
     customerIds,
     likeValue,
     extraColumns: ["personal_reason"],
@@ -356,9 +356,9 @@ async function fetchGroomingAppointments({ likeValue, dogIds, customerIds, limit
   return appointments
 }
 
-async function fetchDaycareAppointments({ likeValue, dogIds, customerIds, limit }: FetchArgs): Promise<ManagerAppointment[]> {
+async function fetchDaycareAppointments({ likeValue, treatmentIds, customerIds, limit }: FetchArgs): Promise<ManagerAppointment[]> {
   const filters = buildAppointmentFilters({
-    dogIds,
+    treatmentIds,
     customerIds,
     likeValue,
     extraColumns: ["late_pickup_notes"],
@@ -434,19 +434,19 @@ async function fetchProposedMeetings({
 }
 
 type FilterArgs = {
-  dogIds: string[]
+  treatmentIds: string[]
   customerIds: string[]
   likeValue: string
   extraColumns?: string[]
 }
 
-function buildAppointmentFilters({ dogIds, customerIds, likeValue, extraColumns = [] }: FilterArgs): string[] {
+function buildAppointmentFilters({ treatmentIds, customerIds, likeValue, extraColumns = [] }: FilterArgs): string[] {
   const filters: string[] = []
-  const trimmedDogIds = dogIds.slice(0, 50)
+  const trimmedTreatmentIds = treatmentIds.slice(0, 50)
   const trimmedCustomerIds = customerIds.slice(0, 50)
 
-  if (trimmedDogIds.length) {
-    filters.push(`dog_id.in.(${trimmedDogIds.join(",")})`)
+  if (trimmedTreatmentIds.length) {
+    filters.push(`treatment_id.in.(${trimmedTreatmentIds.join(",")})`)
   }
   if (trimmedCustomerIds.length) {
     filters.push(`customer_id.in.(${trimmedCustomerIds.join(",")})`)
@@ -515,7 +515,7 @@ function mapProposedMeetingRow(row: Record<string, any> | null | undefined): Man
     notes: typeof row.summary === "string" && row.summary.trim() ? row.summary : "מפגש מוצע",
     internalNotes: typeof row.notes === "string" && row.notes.trim() ? row.notes : undefined,
     hasCrossServiceAppointment: false,
-    dogs: [],
+    treatments: [],
     appointmentType: "business",
     durationMinutes,
     isProposedMeeting: true,
@@ -529,7 +529,7 @@ function mapProposedMeetingRow(row: Record<string, any> | null | undefined): Man
       typeof row.reschedule_appointment_id === "string" ? row.reschedule_appointment_id : undefined,
     proposedLinkedCustomerId:
       typeof row.reschedule_customer_id === "string" ? row.reschedule_customer_id : undefined,
-    proposedLinkedDogId: typeof row.reschedule_dog_id === "string" ? row.reschedule_dog_id : undefined,
+    proposedLinkedTreatmentId: typeof row.reschedule_treatment_id === "string" ? row.reschedule_treatment_id : undefined,
     proposedOriginalStart:
       typeof row.reschedule_original_start_at === "string" ? row.reschedule_original_start_at : undefined,
     proposedOriginalEnd:
@@ -537,14 +537,14 @@ function mapProposedMeetingRow(row: Record<string, any> | null | undefined): Man
   }
 }
 
-async function searchDogs(term: string, limit: number): Promise<{ ids: string[]; records: DogSearchResult[] }> {
+async function searchTreatments(term: string, limit: number): Promise<{ ids: string[]; records: TreatmentSearchResult[] }> {
   if (!term) {
     return { ids: [], records: [] }
   }
   const likeValue = `%${escapeLike(term)}%`
   const { data, error } = await supabase
-    .from("dogs")
-    .select(DOG_SEARCH_SELECT)
+    .from("treatments")
+    .select(TREATMENT_SEARCH_SELECT)
     .ilike("name", likeValue)
     .order("name")
     .limit(limit)
@@ -553,32 +553,32 @@ async function searchDogs(term: string, limit: number): Promise<{ ids: string[];
     throw error
   }
 
-  const records: DogSearchResult[] = (data ?? []).map((row) => {
-    const breed = extractSingleRecord<any>(row.breeds)
+  const records: TreatmentSearchResult[] = (data ?? []).map((row) => {
+    const treatmentType = extractSingleRecord<any>(row.treatmentTypes)
     const ownerRow = extractSingleRecord<any>(row.customers)
     const owner = mapCustomerRowToClientResult(ownerRow)
-    const dog: ManagerDog = {
+    const treatment: ManagerTreatment = {
       id: row.id,
       name: row.name ?? "",
-      breed: breed?.name ?? undefined,
+      treatmentType: treatmentType?.name ?? undefined,
       ownerId: row.customer_id ?? undefined,
       clientName: owner?.name,
       clientClassification: owner?.classification,
-      minGroomingPrice: breed?.min_groom_price != null ? Number(breed.min_groom_price) : undefined,
-      maxGroomingPrice: breed?.max_groom_price != null ? Number(breed.max_groom_price) : undefined,
+      minGroomingPrice: treatmentType?.min_groom_price != null ? Number(treatmentType.min_groom_price) : undefined,
+      maxGroomingPrice: treatmentType?.max_groom_price != null ? Number(treatmentType.max_groom_price) : undefined,
       gender: row.gender ?? undefined,
       medicalNotes: row.health_notes ?? undefined,
       vetName: row.vet_name ?? undefined,
       vetPhone: row.vet_phone ?? undefined,
     }
     return {
-      dog,
+      treatment,
       owner,
     }
   })
 
   return {
-    ids: records.map((record) => record.dog.id),
+    ids: records.map((record) => record.treatment.id),
     records,
   }
 }
@@ -643,21 +643,21 @@ function mapGroomingRow(row: Record<string, unknown>): ManagerAppointment | null
   }
 
   const station = extractSingleRecord<{ id?: string; name?: string }>(row.stations)
-  const dog = extractSingleRecord<any>(row.dogs)
+  const treatment = extractSingleRecord<any>(row.treatments)
   const customer = extractSingleRecord<any>(row.customers)
-  const breed = dog?.breeds ? extractSingleRecord<any>(dog.breeds) : null
+  const treatmentType = treatment?.treatmentTypes ? extractSingleRecord<any>(treatment.treatmentTypes) : null
 
   const durationMinutes = calculateDurationMinutes(start, end)
-  const dogEntry: ManagerDog | undefined = dog
+  const treatmentEntry: ManagerTreatment | undefined = treatment
     ? {
-        id: dog.id,
-        name: dog.name ?? "",
-        breed: breed?.name ?? undefined,
-        ownerId: dog.customer_id ?? undefined,
+        id: treatment.id,
+        name: treatment.name ?? "",
+        treatmentType: treatmentType?.name ?? undefined,
+        ownerId: treatment.customer_id ?? undefined,
         clientClassification: customer?.classification ?? undefined,
         clientName: customer?.full_name ?? undefined,
-        minGroomingPrice: breed?.min_groom_price != null ? Number(breed.min_groom_price) : undefined,
-        maxGroomingPrice: breed?.max_groom_price != null ? Number(breed.max_groom_price) : undefined,
+        minGroomingPrice: treatmentType?.min_groom_price != null ? Number(treatmentType.min_groom_price) : undefined,
+        maxGroomingPrice: treatmentType?.max_groom_price != null ? Number(treatmentType.max_groom_price) : undefined,
       }
     : undefined
 
@@ -676,7 +676,7 @@ function mapGroomingRow(row: Record<string, unknown>): ManagerAppointment | null
     notes: typeof row.customer_notes === "string" ? row.customer_notes : "",
     internalNotes: typeof row.internal_notes === "string" ? row.internal_notes : undefined,
     hasCrossServiceAppointment: false,
-    dogs: dogEntry ? [dogEntry] : [],
+    treatments: treatmentEntry ? [treatmentEntry] : [],
     clientId: customer?.id ?? undefined,
     clientName: customer?.full_name ?? undefined,
     clientClassification: customer?.classification ?? undefined,
@@ -699,21 +699,21 @@ function mapDaycareRow(row: Record<string, unknown>): ManagerAppointment | null 
   }
 
   const station = extractSingleRecord<{ id?: string; name?: string }>(row.stations)
-  const dog = extractSingleRecord<any>(row.dogs)
+  const treatment = extractSingleRecord<any>(row.treatments)
   const customer = extractSingleRecord<any>(row.customers)
-  const breed = dog?.breeds ? extractSingleRecord<any>(dog.breeds) : null
+  const treatmentType = treatment?.treatmentTypes ? extractSingleRecord<any>(treatment.treatmentTypes) : null
 
   const durationMinutes = calculateDurationMinutes(start, end)
-  const dogEntry: ManagerDog | undefined = dog
+  const treatmentEntry: ManagerTreatment | undefined = treatment
     ? {
-        id: dog.id,
-        name: dog.name ?? "",
-        breed: breed?.name ?? undefined,
-        ownerId: dog.customer_id ?? undefined,
+        id: treatment.id,
+        name: treatment.name ?? "",
+        treatmentType: treatmentType?.name ?? undefined,
+        ownerId: treatment.customer_id ?? undefined,
         clientClassification: customer?.classification ?? undefined,
         clientName: customer?.full_name ?? undefined,
-        minGroomingPrice: breed?.min_groom_price != null ? Number(breed.min_groom_price) : undefined,
-        maxGroomingPrice: breed?.max_groom_price != null ? Number(breed.max_groom_price) : undefined,
+        minGroomingPrice: treatmentType?.min_groom_price != null ? Number(treatmentType.min_groom_price) : undefined,
+        maxGroomingPrice: treatmentType?.max_groom_price != null ? Number(treatmentType.max_groom_price) : undefined,
       }
     : undefined
 
@@ -735,7 +735,7 @@ function mapDaycareRow(row: Record<string, unknown>): ManagerAppointment | null 
     notes: typeof row.customer_notes === "string" ? row.customer_notes : "",
     internalNotes: typeof row.internal_notes === "string" ? row.internal_notes : undefined,
     hasCrossServiceAppointment: false,
-    dogs: dogEntry ? [dogEntry] : [],
+    treatments: treatmentEntry ? [treatmentEntry] : [],
     clientId: customer?.id ?? undefined,
     clientName: customer?.full_name ?? undefined,
     clientClassification: customer?.classification ?? undefined,

@@ -9,7 +9,7 @@ import {
     MessageSquare,
     Calendar,
     Search,
-    Dog as DogIcon,
+    Sparkles,
     User,
     ShieldCheck,
     Globe,
@@ -52,7 +52,7 @@ import {
 interface WaitlistEntry {
     id: string
     customer_id: string
-    dog_id: string
+    treatment_id: string
     service_scope: 'grooming' | 'daycare' | 'both'
     status: 'active' | 'fulfilled' | 'cancelled'
     start_date: string
@@ -66,17 +66,17 @@ interface WaitlistEntry {
         phone: string
         email: string | null
     }
-    dog?: {
+    treatment?: {
         id: string
         name: string
-        breed_id: string | null
-        breed?: {
+        treatment_type_id: string | null
+        treatmentType?: {
             id: string
             name: string
             size_class: string | null
         }
-        dog_types?: Array<{ id: string; name: string }>
-        dog_categories?: Array<{ id: string; name: string }>
+        treatment_types?: Array<{ id: string; name: string }>
+        treatment_categories?: Array<{ id: string; name: string }>
     }
 }
 
@@ -99,19 +99,18 @@ export default function WaitingListPage() {
     // New filters
     const [phoneFilter, setPhoneFilter] = useState("")
     const [customerNameFilter, setCustomerNameFilter] = useState("")
-    const [dogNameFilter, setDogNameFilter] = useState("")
+    const [treatmentNameFilter, setTreatmentNameFilter] = useState("")
     const [emailFilter, setEmailFilter] = useState("")
-    const [breedFilter, setBreedFilter] = useState<string>("all")
-    const [category1Filter, setCategory1Filter] = useState<string>("all") // dog_types
-    const [category2Filter, setCategory2Filter] = useState<string>("all") // dog_categories
+    const [treatmentTypeFilter, setTreatmentTypeFilter] = useState<string>("all")
+    const [category1Filter, setCategory1Filter] = useState<string>("all") // treatment_types
+    const [category2Filter, setCategory2Filter] = useState<string>("all") // treatment_categories
     const [startDateFilter, setStartDateFilter] = useState<Date | null>(null)
     const [endDateFilter, setEndDateFilter] = useState<Date | null>(null)
     const [singleDateFilter, setSingleDateFilter] = useState<Date | null>(null)
 
     // Filter options
-    const [breeds, setBreeds] = useState<Array<{ id: string; name: string }>>([])
-    const [dogTypes, setDogTypes] = useState<Array<{ id: string; name: string }>>([])
-    const [dogCategories, setDogCategories] = useState<Array<{ id: string; name: string }>>([])
+    const [treatmentTypes, setTreatmentTypes] = useState<Array<{ id: string; name: string }>>([])
+    const [treatmentCategories, setTreatmentCategories] = useState<Array<{ id: string; name: string }>>([])
     const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null)
     const [approveDialogOpen, setApproveDialogOpen] = useState(false)
     const [declineDialogOpen, setDeclineDialogOpen] = useState(false)
@@ -133,29 +132,21 @@ export default function WaitingListPage() {
 
     const loadFilterOptions = async () => {
         try {
-            // Load breeds
-            const { data: breedsData } = await supabase
-                .from("breeds")
-                .select("id, name")
-                .order("name")
-
-            if (breedsData) setBreeds(breedsData)
-
-            // Load dog types (category 1)
+            // Load treatment types (category 1)
             const { data: typesData } = await supabase
-                .from("dog_types")
+                .from("treatment_types")
                 .select("id, name")
                 .order("name")
 
-            if (typesData) setDogTypes(typesData)
+            if (typesData) setTreatmentTypes(typesData)
 
-            // Load dog categories (category 2)
+            // Load treatment categories (category 2)
             const { data: categoriesData } = await supabase
-                .from("dog_categories")
+                .from("treatment_categories")
                 .select("id, name")
                 .order("name")
 
-            if (categoriesData) setDogCategories(categoriesData)
+            if (categoriesData) setTreatmentCategories(categoriesData)
         } catch (error) {
             console.error("Error loading filter options:", error)
         }
@@ -200,10 +191,10 @@ export default function WaitingListPage() {
         return [...new Set((data || []).map(c => c.full_name).filter(Boolean))] as string[]
     }
 
-    const searchDogNames = async (searchTerm: string): Promise<string[]> => {
+    const searchTreatmentNames = async (searchTerm: string): Promise<string[]> => {
         const trimmedTerm = searchTerm.trim()
         let query = supabase
-            .from("dogs")
+            .from("treatments")
             .select("name")
             .not("name", "is", null)
 
@@ -255,9 +246,9 @@ export default function WaitingListPage() {
                 return
             }
 
-            // Get unique customer and dog IDs
+            // Get unique customer and treatment IDs
             const customerIds = [...new Set(waitlistData.map(e => e.customer_id))]
-            const dogIds = [...new Set(waitlistData.map(e => e.dog_id))]
+            const treatmentIds = [...new Set(waitlistData.map(e => e.treatment_id))]
 
             // Fetch customers
             const { data: customersData } = await supabase
@@ -265,75 +256,75 @@ export default function WaitingListPage() {
                 .select("id, full_name, phone, email")
                 .in("id", customerIds)
 
-            // Fetch dogs with breeds
-            const { data: dogsData } = await supabase
-                .from("dogs")
+            // Fetch treatments with treatmentTypes
+            const { data: treatmentsData } = await supabase
+                .from("treatments")
                 .select(`
                     id,
                     name,
-                    breed_id,
-                    breed:breeds (
+                    treatment_type_id,
+                    treatmentType:treatmentTypes (
                         id,
                         name,
                         size_class
                     )
                 `)
-                .in("id", dogIds)
+                .in("id", treatmentIds)
 
-            // Fetch breed types and categories
-            const breedIds = [...new Set((dogsData || []).map(d => d.breed_id).filter(Boolean))]
+            // Fetch treatmentType types and categories
+            const treatmentTypeIds = [...new Set((treatmentsData || []).map(d => d.treatment_type_id).filter(Boolean))]
 
             const [typesData, categoriesData] = await Promise.all([
-                breedIds.length > 0
+                treatmentTypeIds.length > 0
                     ? supabase
-                        .from("breed_dog_types")
+                        .from("treatmentType_treatment_types")
                         .select(`
-                            breed_id,
-                            dog_type_id,
-                            dog_type:dog_types (id, name)
+                            treatment_type_id,
+                            treatment_type_id,
+                            treatment_type:treatment_types (id, name)
                         `)
-                        .in("breed_id", breedIds)
+                        .in("treatment_type_id", treatmentTypeIds)
                     : { data: [], error: null },
-                breedIds.length > 0
+                treatmentTypeIds.length > 0
                     ? supabase
-                        .from("breed_dog_categories")
+                        .from("treatmentType_treatment_categories")
                         .select(`
-                            breed_id,
-                            dog_category_id,
-                            dog_category:dog_categories (id, name)
+                            treatment_type_id,
+                            treatment_category_id,
+                            treatment_category:treatment_categories (id, name)
                         `)
-                        .in("breed_id", breedIds)
+                        .in("treatment_type_id", treatmentTypeIds)
                     : { data: [], error: null }
             ])
 
             // Build lookup maps
             const customersMap = new Map((customersData || []).map(c => [c.id, c]))
-            const dogsMap = new Map((dogsData || []).map(d => [d.id, d]))
-            const typesByBreed = new Map<string, any[]>()
-            const categoriesByBreed = new Map<string, any[]>()
+            const treatmentsMap = new Map((treatmentsData || []).map(d => [d.id, d]))
+            const typesByTreatmentType = new Map<string, any[]>()
+            const categoriesByTreatmentType = new Map<string, any[]>()
 
                 ; (typesData.data || []).forEach((row: any) => {
-                    if (!typesByBreed.has(row.breed_id)) typesByBreed.set(row.breed_id, [])
-                    if (row.dog_type) typesByBreed.get(row.breed_id)!.push(row.dog_type)
+                    if (!typesByTreatmentType.has(row.treatment_type_id)) typesByTreatmentType.set(row.treatment_type_id, [])
+                    if (row.treatment_type) typesByTreatmentType.get(row.treatment_type_id)!.push(row.treatment_type)
                 })
 
                 ; (categoriesData.data || []).forEach((row: any) => {
-                    if (!categoriesByBreed.has(row.breed_id)) categoriesByBreed.set(row.breed_id, [])
-                    if (row.dog_category) categoriesByBreed.get(row.breed_id)!.push(row.dog_category)
+                    if (!categoriesByTreatmentType.has(row.treatment_type_id)) categoriesByTreatmentType.set(row.treatment_type_id, [])
+                    if (row.treatment_category) categoriesByTreatmentType.get(row.treatment_type_id)!.push(row.treatment_category)
                 })
 
             // Transform the data
             const transformedData: WaitlistEntry[] = waitlistData.map((entry: any) => {
-                const dog = dogsMap.get(entry.dog_id)
-                const breedId = dog?.breed_id
+                const treatment = treatmentsMap.get(entry.treatment_id)
+                const treatmentTypeId = treatment?.treatment_type_id
 
                 return {
                     ...entry,
                     customer: customersMap.get(entry.customer_id) || undefined,
-                    dog: dog ? {
-                        ...dog,
-                        dog_types: breedId ? (typesByBreed.get(breedId) || []) : [],
-                        dog_categories: breedId ? (categoriesByBreed.get(breedId) || []) : []
+                    treatment: treatment ? {
+                        ...treatment,
+                        treatment_types: treatmentTypeId ? (typesByTreatmentType.get(treatmentTypeId) || []) : [],
+                        treatment_categories: treatmentTypeId ? (categoriesByTreatmentType.get(treatmentTypeId) || []) : []
                     } : undefined
                 }
             })
@@ -371,10 +362,10 @@ export default function WaitingListPage() {
                 if (!customerName.includes(customerNameFilter.toLowerCase())) return false
             }
 
-            // Dog name filter
-            if (dogNameFilter) {
-                const dogName = entry.dog?.name?.toLowerCase() || ""
-                if (!dogName.includes(dogNameFilter.toLowerCase())) return false
+            // Treatment name filter
+            if (treatmentNameFilter) {
+                const treatmentName = entry.treatment?.name?.toLowerCase() || ""
+                if (!treatmentName.includes(treatmentNameFilter.toLowerCase())) return false
             }
 
             // Email filter
@@ -383,28 +374,28 @@ export default function WaitingListPage() {
                 if (!email.includes(emailFilter.toLowerCase())) return false
             }
 
-            // Breed filter
-            if (breedFilter !== "all") {
-                if (entry.dog?.breed_id !== breedFilter) return false
+            // TreatmentType filter
+            if (treatmentTypeFilter !== "all") {
+                if (entry.treatment?.treatment_type_id !== treatmentTypeFilter) return false
             }
 
-            // Category 1 filter (dog_types)
+            // Category 1 filter (treatment_types)
             if (category1Filter !== "all") {
-                const hasCategory1 = entry.dog?.dog_types?.some(
+                const hasCategory1 = entry.treatment?.treatment_types?.some(
                     type => type.id === category1Filter
                 )
                 if (!hasCategory1) return false
             }
 
-            // Category 2 filter (dog_categories)
+            // Category 2 filter (treatment_categories)
             if (category2Filter !== "all") {
-                const hasCategory2 = entry.dog?.dog_categories?.some(
+                const hasCategory2 = entry.treatment?.treatment_categories?.some(
                     category => category.id === category2Filter
                 )
                 if (!hasCategory2) return false
             }
 
-            // Single date filter (show all waiting dogs on this date)
+            // Single date filter (show all waiting treatments on this date)
             if (singleDateFilter) {
                 const filterDate = format(singleDateFilter, 'yyyy-MM-dd')
                 const startDate = format(new Date(entry.start_date), 'yyyy-MM-dd')
@@ -435,13 +426,13 @@ export default function WaitingListPage() {
             if (searchTerm) {
                 const term = searchTerm.toLowerCase()
                 const customerName = entry.customer?.full_name?.toLowerCase() || ""
-                const dogName = entry.dog?.name?.toLowerCase() || ""
-                const breedName = entry.dog?.breed?.name?.toLowerCase() || ""
+                const treatmentName = entry.treatment?.name?.toLowerCase() || ""
+                const treatmentTypeName = entry.treatment?.treatmentType?.name?.toLowerCase() || ""
                 const phone = entry.customer?.phone?.toLowerCase() || ""
 
                 if (!customerName.includes(term) &&
-                    !dogName.includes(term) &&
-                    !breedName.includes(term) &&
+                    !treatmentName.includes(term) &&
+                    !treatmentTypeName.includes(term) &&
                     !phone.includes(term)) {
                     return false
                 }
@@ -456,9 +447,9 @@ export default function WaitingListPage() {
         searchTerm,
         phoneFilter,
         customerNameFilter,
-        dogNameFilter,
+        treatmentNameFilter,
         emailFilter,
-        breedFilter,
+        treatmentTypeFilter,
         category1Filter,
         category2Filter,
         startDateFilter,
@@ -483,7 +474,7 @@ export default function WaitingListPage() {
             const startTime = new Date(approveDate)
             startTime.setHours(hours, minutes, 0, 0)
 
-            // Calculate end time based on service type and breed (default 60 minutes for grooming, 480 for daycare)
+            // Calculate end time based on service type and treatmentType (default 60 minutes for grooming, 480 for daycare)
             const endTime = new Date(startTime)
             const durationMinutes = selectedEntry.service_scope === 'daycare' ? 480 : 60
             endTime.setMinutes(endTime.getMinutes() + durationMinutes)
@@ -494,7 +485,7 @@ export default function WaitingListPage() {
 
             await createAppointment({
                 customerId: selectedEntry.customer_id,
-                dogId: selectedEntry.dog_id,
+                treatmentId: selectedEntry.treatment_id,
                 serviceType,
                 startTime: startTime.toISOString(),
                 endTime: endTime.toISOString(),
@@ -695,7 +686,7 @@ export default function WaitingListPage() {
                         </Select>
                     </div>
 
-                    {/* Customer/Dog Details Filters Row */}
+                    {/* Customer/Treatment Details Filters Row */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                             <Label className="text-sm mb-2 block">שם לקוח</Label>
@@ -713,10 +704,10 @@ export default function WaitingListPage() {
                         <div>
                             <Label className="text-sm mb-2 block">שם כלב</Label>
                             <AutocompleteFilter
-                                value={dogNameFilter}
-                                onChange={setDogNameFilter}
+                                value={treatmentNameFilter}
+                                onChange={setTreatmentNameFilter}
                                 placeholder="שם כלב..."
-                                searchFn={searchDogNames}
+                                searchFn={searchTreatmentNames}
                                 minSearchLength={0}
                                 autoSearchOnFocus
                                 initialLoadOnMount
@@ -751,18 +742,18 @@ export default function WaitingListPage() {
                         </div>
                     </div>
 
-                    {/* Breed and Categories Filters Row */}
+                    {/* TreatmentType and Categories Filters Row */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <Label className="text-sm mb-2 block">גזע</Label>
-                            <Select value={breedFilter} onValueChange={setBreedFilter}>
+                            <Select value={treatmentTypeFilter} onValueChange={setTreatmentTypeFilter}>
                                 <SelectTrigger dir="rtl">
                                     <SelectValue placeholder="בחר גזע" />
                                 </SelectTrigger>
                                 <SelectContent dir="rtl">
                                     <SelectItem value="all">הכל</SelectItem>
-                                    {breeds.map(breed => (
-                                        <SelectItem key={breed.id} value={breed.id}>{breed.name}</SelectItem>
+                                    {treatmentTypes.map(treatmentType => (
+                                        <SelectItem key={treatmentType.id} value={treatmentType.id}>{treatmentType.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -775,7 +766,7 @@ export default function WaitingListPage() {
                                 </SelectTrigger>
                                 <SelectContent dir="rtl">
                                     <SelectItem value="all">הכל</SelectItem>
-                                    {dogTypes.map(type => (
+                                    {treatmentTypes.map(type => (
                                         <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
                                     ))}
                                 </SelectContent>
@@ -789,7 +780,7 @@ export default function WaitingListPage() {
                                 </SelectTrigger>
                                 <SelectContent dir="rtl">
                                     <SelectItem value="all">הכל</SelectItem>
-                                    {dogCategories.map(category => (
+                                    {treatmentCategories.map(category => (
                                         <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
                                     ))}
                                 </SelectContent>
@@ -840,8 +831,8 @@ export default function WaitingListPage() {
                     </div>
 
                     {/* Clear Filters Button */}
-                    {(phoneFilter || customerNameFilter || dogNameFilter || emailFilter ||
-                        breedFilter !== "all" || category1Filter !== "all" || category2Filter !== "all" ||
+                    {(phoneFilter || customerNameFilter || treatmentNameFilter || emailFilter ||
+                        treatmentTypeFilter !== "all" || category1Filter !== "all" || category2Filter !== "all" ||
                         startDateFilter || endDateFilter || singleDateFilter) && (
                             <div className="flex justify-start pt-2">
                                 <Button
@@ -849,9 +840,9 @@ export default function WaitingListPage() {
                                     onClick={() => {
                                         setPhoneFilter("")
                                         setCustomerNameFilter("")
-                                        setDogNameFilter("")
+                                        setTreatmentNameFilter("")
                                         setEmailFilter("")
-                                        setBreedFilter("all")
+                                        setTreatmentTypeFilter("all")
                                         setCategory1Filter("all")
                                         setCategory2Filter("all")
                                         setStartDateFilter(null)
@@ -970,7 +961,7 @@ export default function WaitingListPage() {
                     <DialogHeader>
                         <DialogTitle>אשר בקשה מרשימת המתנה</DialogTitle>
                         <DialogDescription>
-                            צור תור חדש עבור {selectedEntry?.dog?.name} ({selectedEntry?.customer?.full_name})
+                            צור תור חדש עבור {selectedEntry?.treatment?.name} ({selectedEntry?.customer?.full_name})
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -1026,7 +1017,7 @@ export default function WaitingListPage() {
                     <DialogHeader>
                         <DialogTitle>דחה בקשה מרשימת המתנה</DialogTitle>
                         <DialogDescription>
-                            האם אתה בטוח שברצונך לדחות את הבקשה עבור {selectedEntry?.dog?.name}?
+                            האם אתה בטוח שברצונך לדחות את הבקשה עבור {selectedEntry?.treatment?.name}?
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -1064,7 +1055,7 @@ export default function WaitingListPage() {
                     <DialogHeader>
                         <DialogTitle>הצע זמן חלופי</DialogTitle>
                         <DialogDescription>
-                            הצע תאריך ושעה חלופיים עבור {selectedEntry?.dog?.name}
+                            הצע תאריך ושעה חלופיים עבור {selectedEntry?.treatment?.name}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -1204,21 +1195,21 @@ function WaitlistEntryRow({
                     </Button>
                 </td>
                 <td className="px-3 py-3 align-middle text-right">
-                    <span className="text-sm text-gray-900">{entry.dog?.name || "ללא שם"}</span>
+                    <span className="text-sm text-gray-900">{entry.treatment?.name || "ללא שם"}</span>
                 </td>
                 <td className="px-3 py-3 align-middle text-right text-sm text-gray-700">
-                    {entry.dog?.breed?.name || "-"}
+                    {entry.treatment?.treatmentType?.name || "-"}
                 </td>
                 <td className="px-3 py-3 align-middle text-right text-xs text-gray-600">
                     {[
-                        ...(entry.dog?.dog_types?.map((type) => type.name) ?? []),
-                        ...(entry.dog?.dog_categories?.map((category) => category.name) ?? []),
+                        ...(entry.treatment?.treatment_types?.map((type) => type.name) ?? []),
+                        ...(entry.treatment?.treatment_categories?.map((category) => category.name) ?? []),
                     ]
                         .filter(Boolean)
                         .join(", ") || "-"}
                 </td>
                 <td className="px-3 py-3 align-middle text-center text-sm text-gray-700">
-                    {getSizeLabel(entry.dog?.breed?.size_class || null)}
+                    {getSizeLabel(entry.treatment?.treatmentType?.size_class || null)}
                 </td>
                 <td className="px-3 py-3 align-middle text-center text-sm text-gray-700">
                     <div className="inline-flex items-center gap-2">
@@ -1271,22 +1262,22 @@ function WaitlistEntryRow({
                         <div className="space-y-6">
                             <div className="grid gap-8 lg:grid-cols-3">
                                 <InfoSection
-                                    icon={<DogIcon className="h-4 w-4" />}
+                                    icon={<Sparkles className="h-4 w-4" />}
                                     title="פרטי הכלב"
                                     rows={[
-                                        { label: "שם", value: entry.dog?.name || "-" },
-                                        { label: "גזע", value: entry.dog?.breed?.name || "-" },
-                                        { label: "גודל", value: getSizeLabel(entry.dog?.breed?.size_class || null) },
-                                        entry.dog?.dog_types?.length
+                                        { label: "שם", value: entry.treatment?.name || "-" },
+                                        { label: "גזע", value: entry.treatment?.treatmentType?.name || "-" },
+                                        { label: "גודל", value: getSizeLabel(entry.treatment?.treatmentType?.size_class || null) },
+                                        entry.treatment?.treatment_types?.length
                                             ? {
                                                 label: "קטגוריות ראשיות",
-                                                value: entry.dog.dog_types.map((type) => type.name).join(", "),
+                                                value: entry.treatment.treatment_types.map((type) => type.name).join(", "),
                                             }
                                             : null,
-                                        entry.dog?.dog_categories?.length
+                                        entry.treatment?.treatment_categories?.length
                                             ? {
                                                 label: "קטגוריות משנה",
-                                                value: entry.dog.dog_categories.map((category) => category.name).join(", "),
+                                                value: entry.treatment.treatment_categories.map((category) => category.name).join(", "),
                                             }
                                             : null,
                                     ].filter(Boolean) as DetailRowProps[]}

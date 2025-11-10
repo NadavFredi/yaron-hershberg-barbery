@@ -1,4 +1,4 @@
 export { AppointmentDetailsSheet } from "./AppointmentDetailsSheet"
-export { DogDetailsSheet } from "./DogDetailsSheet"
+export { TreatmentDetailsSheet } from "./TreatmentDetailsSheet"
 export { ClientDetailsSheet } from "./ClientDetailsSheet"
 export { ConstraintDetailsSheet } from "./ConstraintDetailsSheet"

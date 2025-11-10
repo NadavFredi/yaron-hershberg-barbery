@@ -13,7 +13,7 @@ interface ManagerAppointment {
     startDateTime: string
     endDateTime: string
     serviceType: 'grooming' | 'garden'
-    dogs: Array<{ name: string }>
+    treatments: Array<{ name: string }>
     clientName?: string
     appointmentGroupId?: string
 }
@@ -109,7 +109,7 @@ export const DuplicateSeriesModal: React.FC<DuplicateSeriesModalProps> = ({
                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                             <h3 className="text-lg font-semibold text-gray-900 mb-3">פרטי התור המקורי</h3>
                             <div className="space-y-2 text-sm">
-                                <div><span className="font-medium">כלב:</span> {appointment.dogs[0]?.name || 'לא ידוע'}</div>
+                                <div><span className="font-medium">כלב:</span> {appointment.treatments[0]?.name || 'לא ידוע'}</div>
                                 <div><span className="font-medium">לקוח:</span> {appointment.clientName || 'לא ידוע'}</div>
                                 <div><span className="font-medium">זמן:</span> {format(new Date(appointment.startDateTime), 'HH:mm')} - {format(new Date(appointment.endDateTime), 'HH:mm')}</div>
                                 <div><span className="font-medium">שירות:</span> {appointment.serviceType === 'garden' ? 'גן' : 'מספרה'}</div>

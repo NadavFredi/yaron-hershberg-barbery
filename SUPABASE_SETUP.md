@@ -55,9 +55,9 @@ Frontend (React) → Supabase Client → Individual Edge Functions → Airtable 
 ```
 supabase/
 ├── functions/
-│   ├── list-owner-dogs/      # List owner dogs endpoint
-│   ├── check-dog-registration/ # Check dog registration endpoint
-│   ├── get-dog-appointments/  # Get dog appointments endpoint
+│   ├── list-owner-treatments/      # List owner treatments endpoint
+│   ├── check-treatment-registration/ # Check treatment registration endpoint
+│   ├── get-treatment-appointments/  # Get treatment appointments endpoint
 │   ├── get-available-dates/   # Get available dates endpoint
 │   └── get-available-times/   # Get available times endpoint
 ├── config.toml               # Supabase configuration
@@ -75,34 +75,34 @@ src/
 
 ## 🔧 **Available API Functions**
 
-### 1. **List Owner Dogs**
+### 1. **List Owner Treatments**
 
 ```typescript
-const dogs = await listOwnerDogs(ownerId)
+const treatments = await listOwnerTreatments(ownerId)
 ```
 
-### 2. **Check Dog Registration**
+### 2. **Check Treatment Registration**
 
 ```typescript
-const status = await checkDogRegistration(dogId)
+const status = await checkTreatmentRegistration(treatmentId)
 ```
 
-### 3. **Get Dog Appointments**
+### 3. **Get Treatment Appointments**
 
 ```typescript
-const appointments = await getDogAppointments(dogId)
+const appointments = await getTreatmentAppointments(treatmentId)
 ```
 
 ### 4. **Get Available Dates**
 
 ```typescript
-const dates = await getAvailableDates(dogId, month)
+const dates = await getAvailableDates(treatmentId, month)
 ```
 
 ### 5. **Get Available Times**
 
 ```typescript
-const times = await getAvailableTimes(dogId, date)
+const times = await getAvailableTimes(treatmentId, date)
 ```
 
 ## 🧪 **Testing**
@@ -167,7 +167,7 @@ const response = await fetch("https://api.airtable.com/v0/...", {
 
 ```typescript
 // ✅ DO THIS - tokens stay secure
-const dogs = await listOwnerDogs(ownerId)
+const treatments = await listOwnerTreatments(ownerId)
 ```
 
 ## 🐛 **Troubleshooting**

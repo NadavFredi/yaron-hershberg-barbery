@@ -5,12 +5,12 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-    listOwnerDogs,
-    checkDogRegistration,
-    getDogAppointments,
+    listOwnerTreatments,
+    checkTreatmentRegistration,
+    getTreatmentAppointments,
     getAvailableDates,
     getAvailableTimes,
-    type DogRecord,
+    type TreatmentRecord,
     type AppointmentRecord,
     type AvailableDate,
     type AvailableTime
@@ -18,11 +18,11 @@ import {
 
 export function SecureAirtableDemo() {
     const [ownerId, setOwnerId] = useState("recPenfkmmn37ZvTb")
-    const [dogId, setDogId] = useState("rec1TmuoExAy7pP31")
+    const [treatmentId, setTreatmentId] = useState("rec1TmuoExAy7pP31")
     // daysAhead is controlled in the backend via calendar_settings (default 30)
     const [date, setDate] = useState("2025-01-20")
 
-    const [dogs, setDogs] = useState<DogRecord[]>([])
+    const [treatments, setTreatments] = useState<TreatmentRecord[]>([])
     const [registration, setRegistration] = useState<any>(null)
     const [appointments, setAppointments] = useState<AppointmentRecord[]>([])
     const [availableDates, setAvailableDates] = useState<AvailableDate[]>([])
@@ -31,16 +31,16 @@ export function SecureAirtableDemo() {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const handleListDogs = async () => {
+    const handleListTreatments = async () => {
         setIsLoading(true)
         setError(null)
         try {
-            const result = await listOwnerDogs(ownerId)
-            setDogs(result.dogs)
-            console.log("✅ Dogs loaded:", result.dogs)
+            const result = await listOwnerTreatments(ownerId)
+            setTreatments(result.treatments)
+            console.log("✅ Treatments loaded:", result.treatments)
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load dogs")
-            console.error("❌ Error loading dogs:", err)
+            setError(err instanceof Error ? err.message : "Failed to load treatments")
+            console.error("❌ Error loading treatments:", err)
         } finally {
             setIsLoading(false)
         }
@@ -50,7 +50,7 @@ export function SecureAirtableDemo() {
         setIsLoading(true)
         setError(null)
         try {
-            const result = await checkDogRegistration(dogId)
+            const result = await checkTreatmentRegistration(treatmentId)
             setRegistration(result)
             console.log("✅ Registration checked:", result)
         } catch (err) {
@@ -65,7 +65,7 @@ export function SecureAirtableDemo() {
         setIsLoading(true)
         setError(null)
         try {
-            const result = await getDogAppointments(dogId)
+            const result = await getTreatmentAppointments(treatmentId)
             setAppointments(result.appointments)
             console.log("✅ Appointments loaded:", result.appointments)
         } catch (err) {
@@ -80,7 +80,7 @@ export function SecureAirtableDemo() {
         setIsLoading(true)
         setError(null)
         try {
-            const result = await getAvailableDates(dogId, "grooming")
+            const result = await getAvailableDates(treatmentId, "grooming")
             setAvailableDates(result.availableDates)
             console.log("✅ Available dates loaded:", result)
         } catch (err) {
@@ -95,7 +95,7 @@ export function SecureAirtableDemo() {
         setIsLoading(true)
         setError(null)
         try {
-            const result = await getAvailableTimes(dogId, date)
+            const result = await getAvailableTimes(treatmentId, date)
             setAvailableTimes(result.availableTimes)
             console.log("✅ Available times loaded:", result.availableTimes)
         } catch (err) {
@@ -138,12 +138,12 @@ export function SecureAirtableDemo() {
                             />
                         </div>
                         <div>
-                            <Label htmlFor="dog-id">Dog ID</Label>
+                            <Label htmlFor="treatment-id">Treatment ID</Label>
                             <Input
-                                id="dog-id"
-                                value={dogId}
-                                onChange={(e) => setDogId(e.target.value)}
-                                placeholder="Dog ID"
+                                id="treatment-id"
+                                value={treatmentId}
+                                onChange={(e) => setTreatmentId(e.target.value)}
+                                placeholder="Treatment ID"
                             />
                         </div>
                         <div>
@@ -169,11 +169,11 @@ export function SecureAirtableDemo() {
                     {/* Action Buttons */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <Button
-                            onClick={handleListDogs}
+                            onClick={handleListTreatments}
                             disabled={isLoading}
                             className="bg-blue-600 hover:bg-blue-700"
                         >
-                            {isLoading ? "Loading..." : "🐕 List Dogs"}
+                            {isLoading ? "Loading..." : "🐕 List Treatments"}
                         </Button>
 
                         <Button
@@ -220,21 +220,21 @@ export function SecureAirtableDemo() {
 
                     {/* Results Display */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Dogs List */}
-                        {dogs.length > 0 && (
+                        {/* Treatments List */}
+                        {treatments.length > 0 && (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>🐕 Owner's Dogs ({dogs.length})</CardTitle>
+                                    <CardTitle>🐕 Owner's Treatments ({treatments.length})</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-2">
-                                        {dogs.map((dog) => (
-                                            <div key={dog.id} className="p-3 bg-gray-50 rounded-lg">
-                                                <div className="font-semibold">{dog.name}</div>
+                                        {treatments.map((treatment) => (
+                                            <div key={treatment.id} className="p-3 bg-gray-50 rounded-lg">
+                                                <div className="font-semibold">{treatment.name}</div>
                                                 <div className="text-sm text-gray-600">
-                                                    Breed: {dog.breed} | Size: {dog.size} | Small: {dog.isSmall ? "Yes" : "No"}
+                                                    TreatmentType: {treatment.treatmentType} | Size: {treatment.size} | Small: {treatment.isSmall ? "Yes" : "No"}
                                                 </div>
-                                                <div className="text-xs text-gray-500">ID: {dog.id}</div>
+                                                <div className="text-xs text-gray-500">ID: {treatment.id}</div>
                                             </div>
                                         ))}
                                     </div>
@@ -251,7 +251,7 @@ export function SecureAirtableDemo() {
                                 <CardContent>
                                     <div className="p-3 bg-gray-50 rounded-lg">
                                         <div className="font-semibold">
-                                            Dog ID: {registration.dogId}
+                                            Treatment ID: {registration.treatmentId}
                                         </div>
                                         <div className="text-sm text-gray-600">
                                             Registered: {registration.isRegistered ? "Yes" : "No"}

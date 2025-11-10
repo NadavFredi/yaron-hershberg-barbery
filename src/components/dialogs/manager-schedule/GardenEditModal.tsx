@@ -16,7 +16,7 @@ interface ManagerAppointment {
     stationName?: string
     clientName?: string
     clientPhone?: string
-    dogs: Array<{ name: string; breed?: string }>
+    treatments: Array<{ name: string; treatmentType?: string }>
     serviceType: 'grooming' | 'garden'
     gardenAppointmentType?: 'full-day' | 'hourly' | 'trial'
     gardenIsTrial?: boolean
@@ -137,10 +137,10 @@ export const GardenEditModal: React.FC<GardenEditModalProps> = ({
                             <h3 className="text-lg font-semibold text-gray-900 mb-3 text-right">פרטי התור הנוכחיים</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                 <div className="text-right">
-                                    <span className="font-medium text-gray-600">כלב:</span> {editingAppointment.dogs[0]?.name || 'לא ידוע'}
+                                    <span className="font-medium text-gray-600">כלב:</span> {editingAppointment.treatments[0]?.name || 'לא ידוע'}
                                 </div>
                                 <div className="text-right">
-                                    <span className="font-medium text-gray-600">גזע:</span> {editingAppointment.dogs[0]?.breed || 'לא ידוע'}
+                                    <span className="font-medium text-gray-600">גזע:</span> {editingAppointment.treatments[0]?.treatmentType || 'לא ידוע'}
                                 </div>
                                 <div className="text-right">
                                     <span className="font-medium text-gray-600">בעלים:</span> {editingAppointment.clientName || 'לא ידוע'}

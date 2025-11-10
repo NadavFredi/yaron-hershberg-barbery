@@ -172,7 +172,7 @@ export function AirtableDemo() {
                             onChange={(e) => setTableName(e.target.value)}
                         />
                         <p className="text-sm text-muted-foreground">
-                            Try: לקוחות (Clients), כלבים (Dogs), תורים למספרה (Grooming Appointments)
+                            Try: לקוחות (Clients), כלבים (Treatments), תורים למספרה (Grooming Appointments)
                         </p>
                     </div>
                 </CardContent>

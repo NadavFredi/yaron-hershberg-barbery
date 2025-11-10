@@ -8,9 +8,9 @@ async function testGetAvailableTimes() {
   console.log("==================================================")
 
   try {
-    // Test data - you'll need to provide a valid dogId
+    // Test data - you'll need to provide a valid treatmentId
     const testData = {
-      dogId: "test-dog-id", // Replace with actual dog ID from your system
+      treatmentId: "test-treatment-id", // Replace with actual treatment ID from your system
       daysAhead: 45, // Test with 45 days ahead
     }
 

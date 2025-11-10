@@ -124,7 +124,7 @@ export const CancelConfirmationDialog: React.FC<CancelConfirmationDialogProps> =
                                 <div><strong>שעה:</strong> {format(new Date(appointmentToCancel.startDateTime), 'HH:mm')} - {format(new Date(appointmentToCancel.endDateTime), 'HH:mm')}</div>
                                 <div><strong>עמדה:</strong> {appointmentToCancel.stationName || 'לא זמין'}</div>
                                 <div><strong>לקוח:</strong> {appointmentToCancel.clientName || 'לא זמין'}</div>
-                                <div><strong>כלב:</strong> {appointmentToCancel.dogs[0]?.name || 'לא זמין'}</div>
+                                <div><strong>כלב:</strong> {appointmentToCancel.treatments[0]?.name || 'לא זמין'}</div>
                                 <div><strong>שירות:</strong> {appointmentToCancel.serviceType === 'grooming' ? 'מספרה' : 'גן'}</div>
                                 {hasGroupId && (
                                     <div><strong>מזהה קבוצה:</strong> {appointmentToCancel.groupAppointmentId}</div>

@@ -10,7 +10,7 @@ export const airtableApi = createApi({
       return headers
     },
   }),
-  tagTypes: ["Appointment", "Dog", "Client", "Service", "Breed", "Station"],
+  tagTypes: ["Appointment", "Treatment", "Client", "Service", "TreatmentType", "Station"],
   endpoints: (builder) => ({
     // Appointments
     getAppointments: builder.query({
@@ -49,32 +49,32 @@ export const airtableApi = createApi({
       invalidatesTags: ["Appointment"],
     }),
 
-    // Dogs
-    getDogs: builder.query({
+    // Treatments
+    getTreatments: builder.query({
       query: (config: AirtableConfig) => ({
-        url: "/dogs",
+        url: "/treatments",
         method: "POST",
         body: config,
       }),
-      providesTags: ["Dog"],
+      providesTags: ["Treatment"],
     }),
 
-    createDog: builder.mutation({
-      query: ({ config, dog }) => ({
-        url: "/dogs",
+    createTreatment: builder.mutation({
+      query: ({ config, treatment }) => ({
+        url: "/treatments",
         method: "POST",
-        body: { config, dog },
+        body: { config, treatment },
       }),
-      invalidatesTags: ["Dog"],
+      invalidatesTags: ["Treatment"],
     }),
 
-    updateDog: builder.mutation({
+    updateTreatment: builder.mutation({
       query: ({ config, id, updates }) => ({
-        url: `/dogs/${id}`,
+        url: `/treatments/${id}`,
         method: "PATCH",
         body: { config, updates },
       }),
-      invalidatesTags: ["Dog"],
+      invalidatesTags: ["Treatment"],
     }),
 
     // Clients
@@ -133,32 +133,32 @@ export const airtableApi = createApi({
       invalidatesTags: ["Service"],
     }),
 
-    // Breeds
-    getBreeds: builder.query({
+    // TreatmentTypes
+    getTreatmentTypes: builder.query({
       query: (config: AirtableConfig) => ({
-        url: "/breeds",
+        url: "/treatmentTypes",
         method: "POST",
         body: config,
       }),
-      providesTags: ["Breed"],
+      providesTags: ["TreatmentType"],
     }),
 
-    createBreed: builder.mutation({
-      query: ({ config, breed }) => ({
-        url: "/breeds",
+    createTreatmentType: builder.mutation({
+      query: ({ config, treatmentType }) => ({
+        url: "/treatmentTypes",
         method: "POST",
-        body: { config, breed },
+        body: { config, treatmentType },
       }),
-      invalidatesTags: ["Breed"],
+      invalidatesTags: ["TreatmentType"],
     }),
 
-    updateBreed: builder.mutation({
+    updateTreatmentType: builder.mutation({
       query: ({ config, id, updates }) => ({
-        url: `/breeds/${id}`,
+        url: `/treatmentTypes/${id}`,
         method: "PATCH",
         body: { config, updates },
       }),
-      invalidatesTags: ["Breed"],
+      invalidatesTags: ["TreatmentType"],
     }),
 
     // Stations
@@ -198,10 +198,10 @@ export const {
   useUpdateAppointmentMutation,
   useDeleteAppointmentMutation,
 
-  // Dogs
-  useGetDogsQuery,
-  useCreateDogMutation,
-  useUpdateDogMutation,
+  // Treatments
+  useGetTreatmentsQuery,
+  useCreateTreatmentMutation,
+  useUpdateTreatmentMutation,
 
   // Clients
   useGetClientsQuery,
@@ -213,10 +213,10 @@ export const {
   useCreateServiceMutation,
   useUpdateServiceMutation,
 
-  // Breeds
-  useGetBreedsQuery,
-  useCreateBreedMutation,
-  useUpdateBreedMutation,
+  // TreatmentTypes
+  useGetTreatmentTypesQuery,
+  useCreateTreatmentTypeMutation,
+  useUpdateTreatmentTypeMutation,
 
   // Stations
   useGetStationsQuery,

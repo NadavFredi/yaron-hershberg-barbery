@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom"
 import { addDays, endOfDay, format, startOfDay, subDays } from "date-fns"
 import { Loader2, RefreshCw, Search, MoreHorizontal, CalendarClock, CheckCircle2, XCircle, Calendar as CalendarIcon } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
-import type { ManagerAppointment, ManagerDog } from "@/types/managerSchedule"
+import type { ManagerAppointment, ManagerTreatment } from "@/types/managerSchedule"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import type { DateRange } from "react-day-picker"
@@ -27,7 +27,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { AppointmentDetailsSheet, ClientDetailsSheet, DogDetailsSheet } from "@/pages/ManagerSchedule/sheets"
+import { AppointmentDetailsSheet, ClientDetailsSheet, TreatmentDetailsSheet } from "@/pages/ManagerSchedule/sheets"
 
 type AppointmentStatus = "pending" | "approved" | "cancelled" | "matched"
 type ServiceFilter = "all" | "grooming" | "garden"
@@ -41,15 +41,15 @@ type EnrichedAppointment = ManagerAppointment & {
 type ClientDetailsSheetProps = ComponentProps<typeof ClientDetailsSheet>
 type ClientDetailsPayload = ClientDetailsSheetProps["selectedClient"]
 
-type DogDetailsSheetProps = ComponentProps<typeof DogDetailsSheet>
-type DogDetailsPayload = DogDetailsSheetProps["selectedDog"]
+type TreatmentDetailsSheetProps = ComponentProps<typeof TreatmentDetailsSheet>
+type TreatmentDetailsPayload = TreatmentDetailsSheetProps["selectedTreatment"]
 
 interface OptionItem {
     id: string
     name: string
 }
 
-type CategorizedDog = ManagerDog & {
+type CategorizedTreatment = ManagerTreatment & {
     category1Ids?: string[]
     category1Names?: string[]
     category2Ids?: string[]
@@ -57,17 +57,17 @@ type CategorizedDog = ManagerDog & {
     customerTypeName?: string
 }
 
-interface RawBreedRecord {
+interface RawTreatmentTypeRecord {
     id?: string
     name?: string | null
 }
 
-interface RawDogRecord {
+interface RawTreatmentRecord {
     id: string
     name?: string | null
     customer_id?: string | null
-    breed_id?: string | null
-    breeds?: RawBreedRecord | RawBreedRecord[] | null
+    treatment_type_id?: string | null
+    treatmentTypes?: RawTreatmentTypeRecord | RawTreatmentTypeRecord[] | null
 }
 
 interface RawCustomerRecord {
@@ -105,7 +105,7 @@ interface GroomingAppointmentRow {
     internal_notes?: string | null
     station_id?: string | null
     customer_id: string
-    dogs?: RawDogRecord | RawDogRecord[] | null
+    treatments?: RawTreatmentRecord | RawTreatmentRecord[] | null
     customers?: RawCustomerRecord | RawCustomerRecord[] | null
     stations?: RawStationRecord | RawStationRecord[] | null
     services?: RawServiceRecord | RawServiceRecord[] | null
@@ -128,19 +128,19 @@ interface DaycareAppointmentRow {
     garden_bath?: boolean | null
     station_id?: string | null
     customer_id: string
-    dogs?: RawDogRecord | RawDogRecord[] | null
+    treatments?: RawTreatmentRecord | RawTreatmentRecord[] | null
     customers?: RawCustomerRecord | RawCustomerRecord[] | null
     stations?: RawStationRecord | RawStationRecord[] | null
 }
 
-interface BreedDogTypeRow {
-    breed_id: string
-    dog_type?: { id?: string | null; name?: string | null } | null
+interface TreatmentTypeTreatmentTypeRow {
+    treatment_type_id: string
+    treatment_type?: { id?: string | null; name?: string | null } | null
 }
 
-interface BreedDogCategoryRow {
-    breed_id: string
-    dog_category?: { id?: string | null; name?: string | null } | null
+interface TreatmentTypeTreatmentCategoryRow {
+    treatment_type_id: string
+    treatment_category?: { id?: string | null; name?: string | null } | null
 }
 
 const getFirst = <T,>(value: T | T[] | null | undefined): T | null => {
@@ -224,17 +224,17 @@ export default function AppointmentsSection() {
     const [rowActionLoading, setRowActionLoading] = useState<string | null>(null)
     const [selectedAppointment, setSelectedAppointment] = useState<EnrichedAppointment | null>(null)
     const [customerTypes, setCustomerTypes] = useState<OptionItem[]>([])
-    const [dogCategory1Options, setDogCategory1Options] = useState<OptionItem[]>([])
-    const [dogCategory2Options, setDogCategory2Options] = useState<OptionItem[]>([])
+    const [treatmentCategory1Options, setTreatmentCategory1Options] = useState<OptionItem[]>([])
+    const [treatmentCategory2Options, setTreatmentCategory2Options] = useState<OptionItem[]>([])
     const [customerCategoryFilter, setCustomerCategoryFilter] = useState<string>("all")
-    const [dogCategory1Filter, setDogCategory1Filter] = useState<string>("all")
-    const [dogCategory2Filter, setDogCategory2Filter] = useState<string>("all")
+    const [treatmentCategory1Filter, setTreatmentCategory1Filter] = useState<string>("all")
+    const [treatmentCategory2Filter, setTreatmentCategory2Filter] = useState<string>("all")
     const [isAppointmentSheetOpen, setIsAppointmentSheetOpen] = useState(false)
     const [isClientSheetOpen, setIsClientSheetOpen] = useState(false)
-    const [isDogSheetOpen, setIsDogSheetOpen] = useState(false)
+    const [isTreatmentSheetOpen, setIsTreatmentSheetOpen] = useState(false)
     const [selectedClient, setSelectedClient] = useState<ClientDetailsPayload>(null)
-    const [selectedDog, setSelectedDog] = useState<DogDetailsPayload>(null)
-    const [showAllDogAppointments, setShowAllDogAppointments] = useState(false)
+    const [selectedTreatment, setSelectedTreatment] = useState<TreatmentDetailsPayload>(null)
+    const [showAllTreatmentAppointments, setShowAllTreatmentAppointments] = useState(false)
     const appliedModeRef = useRef<string | null>(null)
 
     useEffect(() => {
@@ -276,20 +276,20 @@ export default function AppointmentsSection() {
 
     const fetchFilterOptions = useCallback(async () => {
         try {
-            const [{ data: customerTypeData, error: customerTypeError }, { data: dogTypeData, error: dogTypeError }, { data: dogCategoryData, error: dogCategoryError }] =
+            const [{ data: customerTypeData, error: customerTypeError }, { data: treatmentTypeData, error: treatmentTypeError }, { data: treatmentCategoryData, error: treatmentCategoryError }] =
                 await Promise.all([
                     supabase.from("customer_types").select("id, name").order("priority", { ascending: true }),
-                    supabase.from("dog_types").select("id, name").order("name"),
-                    supabase.from("dog_categories").select("id, name").order("name"),
+                    supabase.from("treatment_types").select("id, name").order("name"),
+                    supabase.from("treatment_categories").select("id, name").order("name"),
                 ])
 
-            if (customerTypeError || dogTypeError || dogCategoryError) {
-                throw customerTypeError || dogTypeError || dogCategoryError
+            if (customerTypeError || treatmentTypeError || treatmentCategoryError) {
+                throw customerTypeError || treatmentTypeError || treatmentCategoryError
             }
 
             setCustomerTypes(customerTypeData || [])
-            setDogCategory1Options(dogTypeData || [])
-            setDogCategory2Options(dogCategoryData || [])
+            setTreatmentCategory1Options(treatmentTypeData || [])
+            setTreatmentCategory2Options(treatmentCategoryData || [])
         } catch (fetchError) {
             console.error("Failed to fetch filter options:", fetchError)
             toast({
@@ -330,12 +330,12 @@ export default function AppointmentsSection() {
                         internal_notes,
                         station_id,
                         customer_id,
-                        dogs (
+                        treatments (
                             id,
                             name,
                             customer_id,
-                            breed_id,
-                            breeds (
+                            treatment_type_id,
+                            treatmentTypes (
                                 id,
                                 name
                             )
@@ -403,12 +403,12 @@ export default function AppointmentsSection() {
                         garden_bath,
                         station_id,
                         customer_id,
-                        dogs (
+                        treatments (
                             id,
                             name,
                             customer_id,
-                            breed_id,
-                            breeds (
+                            treatment_type_id,
+                            treatmentTypes (
                                 id,
                                 name
                             )
@@ -452,111 +452,111 @@ export default function AppointmentsSection() {
 
             const [groomingData, daycareData] = await Promise.all([groomingPromise(), daycarePromise()])
 
-            const breedIdSet = new Set<string>()
-            const collectBreedIds = (rows: Array<{ dogs?: RawDogRecord | RawDogRecord[] | null }>) => {
+            const treatmentTypeIdSet = new Set<string>()
+            const collectTreatmentTypeIds = (rows: Array<{ treatments?: RawTreatmentRecord | RawTreatmentRecord[] | null }>) => {
                 rows.forEach((row) => {
-                    const dog = getFirst<RawDogRecord>(row.dogs)
-                    const breed = getFirst<RawBreedRecord>(dog?.breeds)
-                    const breedId = dog?.breed_id ?? breed?.id
-                    if (breedId) {
-                        breedIdSet.add(breedId)
+                    const treatment = getFirst<RawTreatmentRecord>(row.treatments)
+                    const treatmentType = getFirst<RawTreatmentTypeRecord>(treatment?.treatmentTypes)
+                    const treatmentTypeId = treatment?.treatment_type_id ?? treatmentType?.id
+                    if (treatmentTypeId) {
+                        treatmentTypeIdSet.add(treatmentTypeId)
                     }
                 })
             }
 
-            collectBreedIds(groomingData)
-            collectBreedIds(daycareData)
+            collectTreatmentTypeIds(groomingData)
+            collectTreatmentTypeIds(daycareData)
 
-            const breedIdList = Array.from(breedIdSet)
-            const typesByBreed = new Map<string, OptionItem[]>()
-            const categoriesByBreed = new Map<string, OptionItem[]>()
+            const treatmentTypeIdList = Array.from(treatmentTypeIdSet)
+            const typesByTreatmentType = new Map<string, OptionItem[]>()
+            const categoriesByTreatmentType = new Map<string, OptionItem[]>()
 
-            if (breedIdList.length > 0) {
+            if (treatmentTypeIdList.length > 0) {
                 const [{ data: typesData, error: typesError }, { data: categoriesData, error: categoriesError }] = await Promise.all([
                     supabase
-                        .from("breed_dog_types")
+                        .from("treatmentType_treatment_types")
                         .select(
                             `
-                            breed_id,
-                            dog_type:dog_types (
+                            treatment_type_id,
+                            treatment_type:treatment_types (
                                 id,
                                 name
                             )
                         `
                         )
-                        .in("breed_id", breedIdList),
+                        .in("treatment_type_id", treatmentTypeIdList),
                     supabase
-                        .from("breed_dog_categories")
+                        .from("treatmentType_treatment_categories")
                         .select(
                             `
-                            breed_id,
-                            dog_category:dog_categories (
+                            treatment_type_id,
+                            treatment_category:treatment_categories (
                                 id,
                                 name
                             )
                         `
                         )
-                        .in("breed_id", breedIdList),
+                        .in("treatment_type_id", treatmentTypeIdList),
                 ])
 
                 if (typesError || categoriesError) {
-                    console.error("Failed to fetch breed categories", { typesError, categoriesError })
+                    console.error("Failed to fetch treatmentType categories", { typesError, categoriesError })
                 } else {
-                    const typedTypesData = (typesData ?? []) as BreedDogTypeRow[]
+                    const typedTypesData = (typesData ?? []) as TreatmentTypeTreatmentTypeRow[]
                     typedTypesData.forEach((row) => {
-                        if (!row?.breed_id) return
-                        const normalizedType = normalizeOption(row.dog_type)
+                        if (!row?.treatment_type_id) return
+                        const normalizedType = normalizeOption(row.treatment_type)
                         if (!normalizedType) return
-                        if (!typesByBreed.has(row.breed_id)) {
-                            typesByBreed.set(row.breed_id, [])
+                        if (!typesByTreatmentType.has(row.treatment_type_id)) {
+                            typesByTreatmentType.set(row.treatment_type_id, [])
                         }
-                        typesByBreed.get(row.breed_id)!.push(normalizedType)
+                        typesByTreatmentType.get(row.treatment_type_id)!.push(normalizedType)
                     })
 
-                    const typedCategoriesData = (categoriesData ?? []) as BreedDogCategoryRow[]
+                    const typedCategoriesData = (categoriesData ?? []) as TreatmentTypeTreatmentCategoryRow[]
                     typedCategoriesData.forEach((row) => {
-                        if (!row?.breed_id) return
-                        const normalizedCategory = normalizeOption(row.dog_category)
+                        if (!row?.treatment_type_id) return
+                        const normalizedCategory = normalizeOption(row.treatment_category)
                         if (!normalizedCategory) return
-                        if (!categoriesByBreed.has(row.breed_id)) {
-                            categoriesByBreed.set(row.breed_id, [])
+                        if (!categoriesByTreatmentType.has(row.treatment_type_id)) {
+                            categoriesByTreatmentType.set(row.treatment_type_id, [])
                         }
-                        categoriesByBreed.get(row.breed_id)!.push(normalizedCategory)
+                        categoriesByTreatmentType.get(row.treatment_type_id)!.push(normalizedCategory)
                     })
                 }
             }
 
-            const enhanceDog = (dogRecord: RawDogRecord | null, customerRecord: RawCustomerRecord | null) => {
-                if (!dogRecord) return null
-                const breed = getFirst<RawBreedRecord>(dogRecord.breeds)
-                const breedId = dogRecord.breed_id ?? breed?.id
-                const typeEntries = breedId ? typesByBreed.get(breedId) ?? [] : []
-                const categoryEntries = breedId ? categoriesByBreed.get(breedId) ?? [] : []
+            const enhanceTreatment = (treatmentRecord: RawTreatmentRecord | null, customerRecord: RawCustomerRecord | null) => {
+                if (!treatmentRecord) return null
+                const treatmentType = getFirst<RawTreatmentTypeRecord>(treatmentRecord.treatmentTypes)
+                const treatmentTypeId = treatmentRecord.treatment_type_id ?? treatmentType?.id
+                const typeEntries = treatmentTypeId ? typesByTreatmentType.get(treatmentTypeId) ?? [] : []
+                const categoryEntries = treatmentTypeId ? categoriesByTreatmentType.get(treatmentTypeId) ?? [] : []
 
-                const managerDog: CategorizedDog = {
-                    id: dogRecord.id,
-                    name: dogRecord.name || "",
-                    ownerId: dogRecord.customer_id || undefined,
-                    breed: breed?.name ?? undefined,
+                const managerTreatment: CategorizedTreatment = {
+                    id: treatmentRecord.id,
+                    name: treatmentRecord.name || "",
+                    ownerId: treatmentRecord.customer_id || undefined,
+                    treatmentType: treatmentType?.name ?? undefined,
                     clientClassification: customerRecord?.classification || undefined,
                     clientName: customerRecord?.full_name || undefined,
                 }
 
-                managerDog.category1Ids = typeEntries.map((item) => item.id)
-                managerDog.category1Names = typeEntries.map((item) => item.name)
-                managerDog.category2Ids = categoryEntries.map((item) => item.id)
-                managerDog.category2Names = categoryEntries.map((item) => item.name)
-                managerDog.customerTypeName = customerRecord?.customer_type?.name ?? undefined
+                managerTreatment.category1Ids = typeEntries.map((item) => item.id)
+                managerTreatment.category1Names = typeEntries.map((item) => item.name)
+                managerTreatment.category2Ids = categoryEntries.map((item) => item.id)
+                managerTreatment.category2Names = categoryEntries.map((item) => item.name)
+                managerTreatment.customerTypeName = customerRecord?.customer_type?.name ?? undefined
 
-                return managerDog
+                return managerTreatment
             }
 
             const mappedGrooming: EnrichedAppointment[] = groomingData.map((apt) => {
-                const dog = getFirst<RawDogRecord>(apt.dogs)
+                const treatment = getFirst<RawTreatmentRecord>(apt.treatments)
                 const customer = getFirst<RawCustomerRecord>(apt.customers)
                 const station = getFirst<RawStationRecord>(apt.stations)
                 const service = getFirst<RawServiceRecord>(apt.services)
-                const managerDog = enhanceDog(dog, customer)
+                const managerTreatment = enhanceTreatment(treatment, customer)
 
                 return {
                     id: apt.id,
@@ -572,7 +572,7 @@ export default function AppointmentsSection() {
                     internalNotes: apt.internal_notes || undefined,
                     appointmentType: apt.appointment_kind === "personal" ? "private" : "business",
                     price: apt.amount_due ? Number(apt.amount_due) : undefined,
-                    dogs: managerDog ? [managerDog] : [],
+                    treatments: managerTreatment ? [managerTreatment] : [],
                     clientId: apt.customer_id,
                     clientName: customer?.full_name || undefined,
                     clientClassification: customer?.classification || undefined,
@@ -585,10 +585,10 @@ export default function AppointmentsSection() {
             })
 
             const mappedDaycare: EnrichedAppointment[] = daycareData.map((apt) => {
-                const dog = getFirst<RawDogRecord>(apt.dogs)
+                const treatment = getFirst<RawTreatmentRecord>(apt.treatments)
                 const customer = getFirst<RawCustomerRecord>(apt.customers)
                 const station = getFirst<RawStationRecord>(apt.stations)
-                const managerDog = enhanceDog(dog, customer)
+                const managerTreatment = enhanceTreatment(treatment, customer)
 
                 const serviceLabel = (() => {
                     switch (apt.service_type) {
@@ -622,7 +622,7 @@ export default function AppointmentsSection() {
                     gardenTrimNails: apt.garden_trim_nails ?? undefined,
                     gardenBrush: apt.garden_brush ?? undefined,
                     gardenBath: apt.garden_bath ?? undefined,
-                    dogs: managerDog ? [managerDog] : [],
+                    treatments: managerTreatment ? [managerTreatment] : [],
                     clientId: apt.customer_id,
                     clientName: customer?.full_name || undefined,
                     clientClassification: customer?.classification || undefined,
@@ -668,20 +668,20 @@ export default function AppointmentsSection() {
                 }
             }
 
-            const matchesDogCategory = (selectedId: string, key: "category1Ids" | "category2Ids") => {
+            const matchesTreatmentCategory = (selectedId: string, key: "category1Ids" | "category2Ids") => {
                 if (selectedId === "all") return true
-                return appointment.dogs?.some((dog) => {
-                    const typedDog = dog as CategorizedDog
-                    const ids = key === "category1Ids" ? typedDog.category1Ids : typedDog.category2Ids
+                return appointment.treatments?.some((treatment) => {
+                    const typedTreatment = treatment as CategorizedTreatment
+                    const ids = key === "category1Ids" ? typedTreatment.category1Ids : typedTreatment.category2Ids
                     return Array.isArray(ids) && ids.includes(selectedId)
                 })
             }
 
-            if (dogCategory1Filter !== "all" && !matchesDogCategory(dogCategory1Filter, "category1Ids")) {
+            if (treatmentCategory1Filter !== "all" && !matchesTreatmentCategory(treatmentCategory1Filter, "category1Ids")) {
                 return false
             }
 
-            if (dogCategory2Filter !== "all" && !matchesDogCategory(dogCategory2Filter, "category2Ids")) {
+            if (treatmentCategory2Filter !== "all" && !matchesTreatmentCategory(treatmentCategory2Filter, "category2Ids")) {
                 return false
             }
 
@@ -696,8 +696,8 @@ export default function AppointmentsSection() {
                 appointment.stationName,
                 appointment.notes,
                 appointment.internalNotes,
-                appointment.dogs?.[0]?.name,
-                appointment.dogs?.[0]?.breed,
+                appointment.treatments?.[0]?.name,
+                appointment.treatments?.[0]?.treatmentType,
             ]
                 .filter(Boolean)
                 .join(" ")
@@ -705,7 +705,7 @@ export default function AppointmentsSection() {
 
             return haystack.includes(normalized)
         })
-    }, [appointments, searchTerm, showOnlyFuture, customerCategoryFilter, dogCategory1Filter, dogCategory2Filter])
+    }, [appointments, searchTerm, showOnlyFuture, customerCategoryFilter, treatmentCategory1Filter, treatmentCategory2Filter])
 
     const stats = useMemo(() => {
         return filteredAppointments.reduce(
@@ -781,8 +781,8 @@ export default function AppointmentsSection() {
         })
         setShowOnlyFuture(true)
         setCustomerCategoryFilter("all")
-        setDogCategory1Filter("all")
-        setDogCategory2Filter("all")
+        setTreatmentCategory1Filter("all")
+        setTreatmentCategory2Filter("all")
     }
 
     const buildClientDetailsFromAppointment = (appointment: EnrichedAppointment): ClientDetailsPayload => ({
@@ -798,19 +798,19 @@ export default function AppointmentsSection() {
         setIsClientSheetOpen(true)
     }
 
-    const buildDogDetailsPayload = (dog: ManagerDog, appointment?: EnrichedAppointment): DogDetailsPayload => {
-        const typedDog = dog as CategorizedDog
-        const ownerName = appointment?.clientName || typedDog.clientName || ""
+    const buildTreatmentDetailsPayload = (treatment: ManagerTreatment, appointment?: EnrichedAppointment): TreatmentDetailsPayload => {
+        const typedTreatment = treatment as CategorizedTreatment
+        const ownerName = appointment?.clientName || typedTreatment.clientName || ""
         return {
-            id: typedDog.id,
-            name: typedDog.name || "כלב ללא שם",
-            breed: typedDog.breed,
-            clientClassification: typedDog.clientClassification || appointment?.clientClassification,
+            id: typedTreatment.id,
+            name: typedTreatment.name || "כלב ללא שם",
+            treatmentType: typedTreatment.treatmentType,
+            clientClassification: typedTreatment.clientClassification || appointment?.clientClassification,
             owner: ownerName
                 ? {
                       name: ownerName,
-                      classification: appointment?.clientClassification || typedDog.clientClassification,
-                      customerTypeName: appointment?.clientCustomerTypeName || typedDog.customerTypeName,
+                      classification: appointment?.clientClassification || typedTreatment.clientClassification,
+                      customerTypeName: appointment?.clientCustomerTypeName || typedTreatment.customerTypeName,
                       phone: appointment?.clientPhone,
                       email: appointment?.clientEmail,
                   }
@@ -820,10 +820,10 @@ export default function AppointmentsSection() {
         }
     }
 
-    const openDogSheet = (dog: ManagerDog, appointment?: EnrichedAppointment) => {
-        const payload = buildDogDetailsPayload(dog, appointment)
-        setSelectedDog(payload)
-        setIsDogSheetOpen(true)
+    const openTreatmentSheet = (treatment: ManagerTreatment, appointment?: EnrichedAppointment) => {
+        const payload = buildTreatmentDetailsPayload(treatment, appointment)
+        setSelectedTreatment(payload)
+        setIsTreatmentSheetOpen(true)
     }
 
     const openAppointmentSheet = (appointment: EnrichedAppointment) => {
@@ -836,19 +836,19 @@ export default function AppointmentsSection() {
         openClientSheet(buildClientDetailsFromAppointment(appointment))
     }
 
-    const handleDogCellClick = (event: MouseEvent<HTMLButtonElement>, appointment: EnrichedAppointment) => {
+    const handleTreatmentCellClick = (event: MouseEvent<HTMLButtonElement>, appointment: EnrichedAppointment) => {
         event.stopPropagation()
-        const dog = appointment.dogs?.[0]
-        if (dog) {
-            openDogSheet(dog as ManagerDog, appointment)
+        const treatment = appointment.treatments?.[0]
+        if (treatment) {
+            openTreatmentSheet(treatment as ManagerTreatment, appointment)
         }
     }
 
-    const handleAppointmentDogClick = (dog: ManagerDog) => {
+    const handleAppointmentTreatmentClick = (treatment: ManagerTreatment) => {
         if (selectedAppointment) {
-            openDogSheet(dog, selectedAppointment)
+            openTreatmentSheet(treatment, selectedAppointment)
         } else {
-            openDogSheet(dog)
+            openTreatmentSheet(treatment)
         }
     }
 
@@ -865,19 +865,19 @@ export default function AppointmentsSection() {
         }
     }
 
-    const handleDogSheetAppointmentClick = (appointment: ManagerAppointment) => {
+    const handleTreatmentSheetAppointmentClick = (appointment: ManagerAppointment) => {
         const fullAppointment = appointments.find((item) => item.id === appointment.id)
         if (fullAppointment) {
             openAppointmentSheet(fullAppointment)
         }
     }
 
-    const handleShowDogAppointments = (dogId: string, dogName: string) => {
-        setIsDogSheetOpen(false)
-        setSearchTerm(dogName)
+    const handleShowTreatmentAppointments = (treatmentId: string, treatmentName: string) => {
+        setIsTreatmentSheetOpen(false)
+        setSearchTerm(treatmentName)
         toast({
             title: "סינון לפי כלב",
-            description: `מציג נתונים עבור ${dogName}`,
+            description: `מציג נתונים עבור ${treatmentName}`,
         })
     }
 
@@ -1128,14 +1128,14 @@ export default function AppointmentsSection() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="dog-cat1">קטגוריית כלב 1</Label>
-                                <Select value={dogCategory1Filter} onValueChange={setDogCategory1Filter}>
-                                    <SelectTrigger id="dog-cat1">
+                                <Label htmlFor="treatment-cat1">קטגוריית כלב 1</Label>
+                                <Select value={treatmentCategory1Filter} onValueChange={setTreatmentCategory1Filter}>
+                                    <SelectTrigger id="treatment-cat1">
                                         <SelectValue placeholder="כל הקטגוריות" />
                                     </SelectTrigger>
                                     <SelectContent dir="rtl">
                                         <SelectItem value="all">כל הקטגוריות</SelectItem>
-                                        {dogCategory1Options.map((item) => (
+                                        {treatmentCategory1Options.map((item) => (
                                             <SelectItem key={item.id} value={item.id}>
                                                 {item.name}
                                             </SelectItem>
@@ -1144,14 +1144,14 @@ export default function AppointmentsSection() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="dog-cat2">קטגוריית כלב 2</Label>
-                                <Select value={dogCategory2Filter} onValueChange={setDogCategory2Filter}>
-                                    <SelectTrigger id="dog-cat2">
+                                <Label htmlFor="treatment-cat2">קטגוריית כלב 2</Label>
+                                <Select value={treatmentCategory2Filter} onValueChange={setTreatmentCategory2Filter}>
+                                    <SelectTrigger id="treatment-cat2">
                                         <SelectValue placeholder="כל הקטגוריות" />
                                     </SelectTrigger>
                                     <SelectContent dir="rtl">
                                         <SelectItem value="all">כל הקטגוריות</SelectItem>
-                                        {dogCategory2Options.map((item) => (
+                                        {treatmentCategory2Options.map((item) => (
                                             <SelectItem key={item.id} value={item.id}>
                                                 {item.name}
                                             </SelectItem>
@@ -1236,7 +1236,7 @@ export default function AppointmentsSection() {
                                 </TableHeader>
                                 <TableBody>
                                     {filteredAppointments.map((appointment) => {
-                                        const primaryDog = appointment.dogs?.[0] as ManagerDog | undefined
+                                        const primaryTreatment = appointment.treatments?.[0] as ManagerTreatment | undefined
                                         return (
                                             <TableRow
                                                 key={`${appointment.sourceTable}-${appointment.id}`}
@@ -1273,19 +1273,19 @@ export default function AppointmentsSection() {
                                                     <div className="text-xs text-slate-500">{appointment.clientPhone || appointment.clientEmail || "—"}</div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {primaryDog ? (
+                                                    {primaryTreatment ? (
                                                         <button
                                                             type="button"
-                                                            onClick={(event) => handleDogCellClick(event, appointment)}
+                                                            onClick={(event) => handleTreatmentCellClick(event, appointment)}
                                                             className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
                                                         >
-                                                            {primaryDog.name || "—"}
+                                                            {primaryTreatment.name || "—"}
                                                         </button>
                                                     ) : (
                                                         <div className="font-medium text-slate-500">—</div>
                                                     )}
                                                     <div className="text-xs text-slate-500">
-                                                        {primaryDog?.breed || "ללא ציון"}
+                                                        {primaryTreatment?.treatmentType || "ללא ציון"}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -1328,7 +1328,7 @@ export default function AppointmentsSection() {
                     open={isAppointmentSheetOpen}
                     onOpenChange={setIsAppointmentSheetOpen}
                     selectedAppointment={selectedAppointment}
-                    onDogClick={handleAppointmentDogClick}
+                    onTreatmentClick={handleAppointmentTreatmentClick}
                     onClientClick={handleAppointmentClientClick}
                     onEditAppointment={(appointment) =>
                         toast({ title: "עריכת תור", description: `עריכת תורים תתאפשר בקרוב עבור ${appointment?.clientName ?? "לקוח"}.` })
@@ -1343,19 +1343,19 @@ export default function AppointmentsSection() {
                     onOpenChange={setIsClientSheetOpen}
                     selectedClient={selectedClient}
                     data={{ appointments }}
-                    onDogClick={(dog) => openDogSheet(dog)}
+                    onTreatmentClick={(treatment) => openTreatmentSheet(treatment)}
                 />
 
-                <DogDetailsSheet
-                    open={isDogSheetOpen}
-                    onOpenChange={setIsDogSheetOpen}
-                    selectedDog={selectedDog}
-                    showAllPastAppointments={showAllDogAppointments}
-                    setShowAllPastAppointments={setShowAllDogAppointments}
+                <TreatmentDetailsSheet
+                    open={isTreatmentSheetOpen}
+                    onOpenChange={setIsTreatmentSheetOpen}
+                    selectedTreatment={selectedTreatment}
+                    showAllPastAppointments={showAllTreatmentAppointments}
+                    setShowAllPastAppointments={setShowAllTreatmentAppointments}
                     data={{ appointments }}
                     onClientClick={(client) => openClientSheet(client)}
-                    onAppointmentClick={handleDogSheetAppointmentClick}
-                    onShowDogAppointments={handleShowDogAppointments}
+                    onAppointmentClick={handleTreatmentSheetAppointmentClick}
+                    onShowTreatmentAppointments={handleShowTreatmentAppointments}
                 />
             </div>
         </div>

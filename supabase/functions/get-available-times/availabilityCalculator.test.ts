@@ -19,7 +19,7 @@ Deno.test("Scenario 1: Simple case with a completely free day", () => {
     year: 2025,
     month: 8,
     workstations: [MOCK_WORKSTATIONS[0]],
-    durationRules: [{ id: "rule-1", breedId: "breed-1", stationId: "station1", durationInMinutes: 60 }],
+    durationRules: [{ id: "rule-1", treatmentTypeId: "treatmentType-1", stationId: "station1", durationInMinutes: 60 }],
     operatingHours: { 4: { open: { hour: 9, minute: 0 }, close: { hour: 12, minute: 0 } } }, // Thursday 9-12
     appointments: [],
     constraints: [],
@@ -39,7 +39,7 @@ Deno.test("Scenario 2: Day with one appointment in the middle", () => {
     year: 2025,
     month: 8,
     workstations: [MOCK_WORKSTATIONS[0]],
-    durationRules: [{ id: "rule-1", breedId: "breed-1", stationId: "station1", durationInMinutes: 60 }],
+    durationRules: [{ id: "rule-1", treatmentTypeId: "treatmentType-1", stationId: "station1", durationInMinutes: 60 }],
     operatingHours: { 4: { open: { hour: 9, minute: 0 }, close: { hour: 13, minute: 0 } } },
     appointments: [
       {
@@ -64,7 +64,7 @@ Deno.test("Scenario 3: Day with a multi-hour constraint", () => {
     year: 2025,
     month: 8,
     workstations: [MOCK_WORKSTATIONS[0]],
-    durationRules: [{ id: "rule-1", breedId: "breed-1", stationId: "station1", durationInMinutes: 60 }],
+    durationRules: [{ id: "rule-1", treatmentTypeId: "treatmentType-1", stationId: "station1", durationInMinutes: 60 }],
     operatingHours: { 4: { open: { hour: 9, minute: 0 }, close: { hour: 13, minute: 0 } } },
     appointments: [],
     constraints: [
@@ -98,7 +98,7 @@ Deno.test("Scenario 4: Respects closing time", () => {
     year: 2025,
     month: 8,
     workstations: [MOCK_WORKSTATIONS[0]],
-    durationRules: [{ id: "rule-1", breedId: "breed-1", stationId: "station1", durationInMinutes: 90 }], // 1.5 hours
+    durationRules: [{ id: "rule-1", treatmentTypeId: "treatmentType-1", stationId: "station1", durationInMinutes: 90 }], // 1.5 hours
     operatingHours: { 4: { open: { hour: 9, minute: 0 }, close: { hour: 17, minute: 0 } } },
     appointments: [],
     constraints: [],
@@ -117,8 +117,8 @@ Deno.test("Scenario 5: Two workstations, one is fully booked", () => {
     month: 8,
     workstations: MOCK_WORKSTATIONS,
     durationRules: [
-      { id: "rule-1", breedId: "breed-1", stationId: "station1", durationInMinutes: 60 },
-      { id: "rule-2", breedId: "breed-1", stationId: "station2", durationInMinutes: 60 },
+      { id: "rule-1", treatmentTypeId: "treatmentType-1", stationId: "station1", durationInMinutes: 60 },
+      { id: "rule-2", treatmentTypeId: "treatmentType-1", stationId: "station2", durationInMinutes: 60 },
     ],
     operatingHours: { 4: { open: { hour: 9, minute: 0 }, close: { hour: 11, minute: 0 } } },
     appointments: [
@@ -149,7 +149,7 @@ Deno.test("Scenario 6: Non-working day (e.g. Saturday)", () => {
     year: 2025,
     month: 8,
     workstations: MOCK_WORKSTATIONS,
-    durationRules: [{ id: "rule-1", breedId: "breed-1", stationId: "station1", durationInMinutes: 60 }],
+    durationRules: [{ id: "rule-1", treatmentTypeId: "treatmentType-1", stationId: "station1", durationInMinutes: 60 }],
     operatingHours: { 4: { open: { hour: 9, minute: 0 }, close: { hour: 17, minute: 0 } } }, // Only Thursday is a working day
     appointments: [],
     constraints: [],
@@ -165,7 +165,7 @@ Deno.test("Scenario 7: Long appointment shifts subsequent slots to appointment e
     year: 2025,
     month: 8,
     workstations: [MOCK_WORKSTATIONS[0]],
-    durationRules: [{ id: "rule-1", breedId: "breed-1", stationId: "station1", durationInMinutes: 60 }],
+    durationRules: [{ id: "rule-1", treatmentTypeId: "treatmentType-1", stationId: "station1", durationInMinutes: 60 }],
     operatingHours: { 4: { open: { hour: 8, minute: 0 }, close: { hour: 18, minute: 0 } } },
     appointments: [
       {

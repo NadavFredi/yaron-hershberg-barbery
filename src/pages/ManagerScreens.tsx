@@ -6,11 +6,11 @@ import { useSupabaseAuth } from "@/hooks/useSupabaseAuth"
 import Settings from "@/pages/Settings/Settings"
 import WaitingListPage from "@/pages/WaitingListPage"
 import CustomersSection from "@/pages/CustomersSection"
-import DogsSection from "@/pages/DogsSection"
+import TreatmentsSection from "@/pages/TreatmentsSection"
 import AppointmentsSection from "@/pages/AppointmentsSection"
 import WorkersSection from "@/pages/WorkersSection"
 
-const VALID_SECTIONS = ["settings", "waiting-list", "customers", "dogs", "appointments", "workers"] as const
+const VALID_SECTIONS = ["settings", "waiting-list", "customers", "treatments", "appointments", "workers"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function ManagerScreens() {
@@ -64,7 +64,7 @@ export default function ManagerScreens() {
                     {activeSection === "settings" && <Settings />}
                     {activeSection === "waiting-list" && <WaitingListPage />}
                     {activeSection === "customers" && <CustomersSection />}
-                    {activeSection === "dogs" && <DogsSection />}
+                    {activeSection === "treatments" && <TreatmentsSection />}
                     {activeSection === "appointments" && <AppointmentsSection />}
           {activeSection === "workers" && <WorkersSection />}
                 </div>

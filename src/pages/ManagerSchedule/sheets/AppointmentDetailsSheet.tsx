@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-import type { ManagerAppointment, ManagerDog } from "@/types/managerSchedule"
+import type { ManagerAppointment, ManagerTreatment } from "@/types/managerSchedule"
 
 const SERVICE_LABELS: Record<string, string> = {
     grooming: "מספרה",
@@ -83,7 +83,7 @@ interface AppointmentDetailsSheetProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     selectedAppointment: ManagerAppointment | null
-    onDogClick: (dog: ManagerDog) => void
+    onTreatmentClick: (treatment: ManagerTreatment) => void
     onClientClick: (client: ClientDetails) => void
     onEditAppointment: (appointment: ManagerAppointment) => void
     onCancelAppointment: (appointment: ManagerAppointment) => void
@@ -95,7 +95,7 @@ export const AppointmentDetailsSheet = ({
     open,
     onOpenChange,
     selectedAppointment,
-    onDogClick,
+    onTreatmentClick,
     onClientClick,
     onEditAppointment,
     onCancelAppointment,
@@ -131,11 +131,11 @@ export const AppointmentDetailsSheet = ({
                         ? { badge: "border-purple-200 bg-purple-100 text-purple-800" }
                         : SERVICE_STYLES[selectedAppointment.serviceType]
                     const statusStyle = getStatusStyle(selectedAppointment.status, selectedAppointment)
-                    const primaryDog = selectedAppointment.dogs[0]
+                    const primaryTreatment = selectedAppointment.treatments[0]
                     const clientName =
-                        selectedAppointment.clientName ?? primaryDog?.clientName ?? "לא ידוע"
+                        selectedAppointment.clientName ?? primaryTreatment?.clientName ?? "לא ידוע"
                     const classification =
-                        selectedAppointment.clientClassification ?? primaryDog?.clientClassification ?? "לא ידוע"
+                        selectedAppointment.clientClassification ?? primaryTreatment?.clientClassification ?? "לא ידוע"
                     const subscriptionName = selectedAppointment.subscriptionName
                     const clientEmail = selectedAppointment.clientEmail
                     const clientPhone = selectedAppointment.clientPhone
@@ -218,23 +218,23 @@ export const AppointmentDetailsSheet = ({
                             <div className="space-y-3">
                                 <h3 className="text-sm font-medium text-gray-900">כלבים בתור</h3>
                                 <div className="space-y-3">
-                                    {selectedAppointment.dogs.map((dog) => (
+                                    {selectedAppointment.treatments.map((treatment) => (
                                         <div
-                                            key={dog.id}
+                                            key={treatment.id}
                                             className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
                                         >
                                             <div className="flex items-center justify-between text-sm font-semibold text-gray-900">
                                                 <button
                                                     type="button"
-                                                    onClick={() => onDogClick(dog)}
+                                                    onClick={() => onTreatmentClick(treatment)}
                                                     className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                                 >
-                                                    {dog.name}
+                                                    {treatment.name}
                                                 </button>
-                                                {dog.breed ? <span className="text-xs text-gray-600">{dog.breed}</span> : null}
+                                                {treatment.treatmentType ? <span className="text-xs text-gray-600">{treatment.treatmentType}</span> : null}
                                             </div>
                                             <div className="mt-1 text-xs text-gray-600">
-                                                סיווג: <span className="font-medium text-gray-700">{dog.clientClassification ?? classification}</span>
+                                                סיווג: <span className="font-medium text-gray-700">{treatment.clientClassification ?? classification}</span>
                                             </div>
                                         </div>
                                     ))}

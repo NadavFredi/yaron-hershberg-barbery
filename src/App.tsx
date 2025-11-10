@@ -9,19 +9,19 @@ import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ResetPassword from "./pages/ResetPassword";
 import Admin from "./pages/Admin";
-import BreedsManagementPage from "./pages/BreedsManagement";
+import TreatmentTypesManagementPage from "./pages/TreatmentTypesManagement";
 import StationsManagementPage from "./pages/StationsManagement";
 import NotFound from "./pages/NotFound";
 import { AirtableDemo } from "./components/AirtableDemo";
 import { SimpleTest } from "./components/SimpleTest";
-import { OwnerDogsList } from "./components/BreedSelector";
+import { OwnerTreatmentsList } from "./components/TreatmentTypeSelector";
 import { SecureAirtableDemo } from "./components/SecureAirtableDemo";
 import { AuthContainer } from "./components/auth/AuthContainer";
 import { UserOnboarding } from "./components/auth/UserOnboarding";
 import { Navbar } from "./components/navigation/Navbar";
 import { ManagerSubnav } from "./components/navigation/ManagerSubnav";
 import { AppFooter } from "./components/layout/AppFooter";
-import MyDogs from "./pages/MyDogs"
+import MyTreatments from "./pages/MyTreatments"
 import SetupAppointment from "./pages/SetupAppointment"
 import Appointments from "./pages/Appointments/Appointments"
 import ProfileSettings from "./pages/ProfileSettings"
@@ -59,7 +59,7 @@ const AppContent = () => {
             <Route path="/admin" element={<Admin />} />
             <Route path="/auth" element={<AuthContainer />} />
             <Route path="/onboarding" element={<UserOnboarding userEmail="" onBackToAuth={() => { }} />} />
-            <Route path="/my-dogs" element={<MyDogs />} />
+            <Route path="/my-treatments" element={<MyTreatments />} />
             <Route path="/setup-appointment" element={<SetupAppointment />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/subscriptions" element={<Subscriptions />} />
@@ -68,9 +68,9 @@ const AppContent = () => {
             <Route path="/profile" element={<ProfileSettings />} />
             <Route path="/airtable-demo" element={<AirtableDemo />} />
             <Route path="/test" element={<SimpleTest />} />
-            <Route path="/breeds" element={<OwnerDogsList />} />
+            <Route path="/treatmentTypes" element={<OwnerTreatmentsList />} />
             <Route path="/secure-demo" element={<SecureAirtableDemo />} />
-            <Route path="/admin/breeds" element={<BreedsManagementPage />} />
+            <Route path="/admin/treatmentTypes" element={<TreatmentTypesManagementPage />} />
             <Route path="/admin/stations" element={<StationsManagementPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/manager-screens" element={<ManagerScreens />} />

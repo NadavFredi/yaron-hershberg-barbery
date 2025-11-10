@@ -6,11 +6,11 @@ import {
   getBusinessHours,
   getDaycareAppointmentsForRange,
   getDaycareCapacityLimits,
-  getDogRecord,
+  getTreatmentRecord,
   getOperatingHours,
   getStationAllowedCustomerTypes,
   getStationBaseDurations,
-  getStationBreedRulesForBreed,
+  getStationTreatmentTypeRulesForTreatmentType,
   getStationUnavailability,
   getWorkstations,
   supabase,
@@ -89,7 +89,7 @@ export interface AvailabilityContext {
   startDate: Date
   endDate: Date
   maxDaysAhead: number
-  dog: NonNullable<Awaited<ReturnType<typeof getDogRecord>>>
+  treatment: NonNullable<Awaited<ReturnType<typeof getTreatmentRecord>>>
   isGrooming: boolean
   isGarden: boolean
   stationProfiles: StationProfile[]
@@ -306,13 +306,13 @@ function clampIntervalsToBusinessHours(intervals: Interval[], businessIntervals:
 }
 
 async function buildAvailabilityContext(params: {
-  dog: NonNullable<Awaited<ReturnType<typeof getDogRecord>>>
+  treatment: NonNullable<Awaited<ReturnType<typeof getTreatmentRecord>>>
   serviceType: ServiceSelection
   startDate: Date
   endDate: Date
   maxDaysAhead: number
 }): Promise<AvailabilityContext> {
-  const { dog, serviceType, startDate, endDate, maxDaysAhead } = params
+  const { treatment, serviceType, startDate, endDate, maxDaysAhead } = params
   const isGrooming = serviceType === "grooming" || serviceType === "both"
   const isGarden = serviceType === "garden" || serviceType === "both"
 
@@ -343,7 +343,7 @@ async function buildAvailabilityContext(params: {
         getAppointmentsForDateRange(startDate, endDate),
         getStationUnavailability(startDate, endDate),
         getStationAllowedCustomerTypes(),
-        getStationBreedRulesForBreed(dog.breed_id ?? ""),
+        getStationTreatmentTypeRulesForTreatmentType(treatment.treatment_type_id ?? ""),
       ])
     businessHourRows = businessHours
 
@@ -403,7 +403,7 @@ async function buildAvailabilityContext(params: {
 
       const allowedSet = allowedCustomerTypeMap.get(rule.station_id)
       if (allowedSet && allowedSet.size > 0) {
-        if (!dog.customer_type_id || !allowedSet.has(dog.customer_type_id)) {
+        if (!treatment.customer_type_id || !allowedSet.has(treatment.customer_type_id)) {
           console.log(
             `⛔️ Station ${rule.station_id} restricted to customer types ${Array.from(allowedSet).join(", ")}, skipping`
           )
@@ -579,7 +579,7 @@ async function buildAvailabilityContext(params: {
   )
 
   return {
-    dog,
+    treatment,
     serviceType,
     startDate,
     endDate,
@@ -733,16 +733,16 @@ if (SUPPRESS_EDGE_SERVE) {
 
     try {
       const body = await req.json()
-      const { dogId, serviceType, date, mode, debug } = body as {
-        dogId?: string
+      const { treatmentId, serviceType, date, mode, debug } = body as {
+        treatmentId?: string
         serviceType?: ServiceSelection
         date?: string
         mode?: "date" | "time"
         debug?: boolean
       }
 
-      if (!dogId) {
-        throw new Error("dogId is required")
+      if (!treatmentId) {
+        throw new Error("treatmentId is required")
       }
 
       if (!serviceType) {
@@ -754,7 +754,7 @@ if (SUPPRESS_EDGE_SERVE) {
         throw new Error("Invalid serviceType. Must be one of: grooming, garden, both")
       }
 
-      console.log(`🔍 Processing request for dog ${dogId}, service: ${serviceType}`)
+      console.log(`🔍 Processing request for treatment ${treatmentId}, service: ${serviceType}`)
 
       const today = new Date()
       today.setHours(0, 0, 0, 0)
@@ -764,18 +764,18 @@ if (SUPPRESS_EDGE_SERVE) {
       endDate.setDate(endDate.getDate() + normalizedDaysAhead)
       console.log(`📅 [get-available-times] Calendar window configured for ${normalizedDaysAhead} days ahead`)
 
-      // Get dog information
-      const dog = await getDogRecord(dogId)
+      // Get treatment information
+      const treatment = await getTreatmentRecord(treatmentId)
 
-      if (!dog) {
-        return new Response(JSON.stringify({ success: false, error: `Dog with ID ${dogId} not found` }), {
+      if (!treatment) {
+        return new Response(JSON.stringify({ success: false, error: `Treatment with ID ${treatmentId} not found` }), {
           headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
           status: 404,
         })
       }
 
-      if (!dog.breed_id && serviceType !== "garden") {
-        console.warn(`⚠️ Dog ${dog.name} missing breed, cannot compute grooming availability`)
+      if (!treatment.treatment_type_id && serviceType !== "garden") {
+        console.warn(`⚠️ Treatment ${treatment.name} missing treatmentType, cannot compute grooming availability`)
         return new Response(JSON.stringify({ success: true, availableDates: [] }), {
           headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
           status: 200,
@@ -783,7 +783,7 @@ if (SUPPRESS_EDGE_SERVE) {
       }
 
       const context = await buildAvailabilityContext({
-        dog,
+        treatment,
         serviceType,
         startDate: today,
         endDate,

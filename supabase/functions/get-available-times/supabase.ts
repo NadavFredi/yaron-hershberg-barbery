@@ -24,9 +24,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   },
 })
 
-interface DogRecord {
+interface TreatmentRecord {
   id: string
-  breed_id: string | null
+  treatment_type_id: string | null
   name: string
   customer_id: string | null
   customer_type_id: string | null
@@ -77,9 +77,9 @@ interface BusinessHour {
   close_time: string
 }
 
-interface StationBreedRuleRow {
+interface StationTreatmentTypeRuleRow {
   station_id: string
-  breed_id: string | null
+  treatment_type_id: string | null
   is_active: boolean
   remote_booking_allowed: boolean
   requires_staff_approval: boolean
@@ -93,7 +93,7 @@ interface StationAllowedCustomerTypeRow {
 
 interface DaycareAppointment {
   id: string
-  dog_id: string
+  treatment_id: string
   station_id: string | null
   start_at: string
   end_at: string
@@ -112,63 +112,63 @@ interface DaycareCapacityLimitRow {
 }
 
 /**
- * Get dog record with breed information
+ * Get treatment record with treatmentType information
  */
-export async function getDogRecord(dogId: string): Promise<DogRecord | null> {
-  console.log(`🔍 [getDogRecord] Fetching dog ${dogId}`)
+export async function getTreatmentRecord(treatmentId: string): Promise<TreatmentRecord | null> {
+  console.log(`🔍 [getTreatmentRecord] Fetching treatment ${treatmentId}`)
 
-  // First check if we have any dogs in the database
-  const { count: totalCount } = await supabase.from("dogs").select("*", { count: "exact", head: true })
+  // First check if we have any treatments in the database
+  const { count: totalCount } = await supabase.from("treatments").select("*", { count: "exact", head: true })
 
-  console.log(`🔍 [getDogRecord] Total dogs in database: ${totalCount}`)
+  console.log(`🔍 [getTreatmentRecord] Total treatments in database: ${totalCount}`)
 
   const { data, error } = await supabase
-    .from("dogs")
+    .from("treatments")
     .select(
       `
         id,
         name,
-        breed_id,
+        treatment_type_id,
         customer_id,
         customer:customers!left(customer_type_id)
       `,
     )
-    .eq("id", dogId)
+    .eq("id", treatmentId)
     .limit(1)
 
   if (error) {
-    console.error(`❌ [getDogRecord] Error fetching dog:`, error)
-    throw new Error(`Failed to fetch dog: ${error.message}`)
+    console.error(`❌ [getTreatmentRecord] Error fetching treatment:`, error)
+    throw new Error(`Failed to fetch treatment: ${error.message}`)
   }
 
   if (!data || data.length === 0) {
-    console.error(`❌ [getDogRecord] Dog ${dogId} not found in database`)
+    console.error(`❌ [getTreatmentRecord] Treatment ${treatmentId} not found in database`)
     return null
   }
 
-  const rawDog = data[0] as {
+  const rawTreatment = data[0] as {
     id: string
     name: string
-    breed_id: string | null
+    treatment_type_id: string | null
     customer_id: string | null
     customer: { customer_type_id: string | null }[] | { customer_type_id: string | null } | null
   }
 
   const customer =
-    Array.isArray(rawDog.customer) ? rawDog.customer[0] : rawDog.customer ?? { customer_type_id: null }
+    Array.isArray(rawTreatment.customer) ? rawTreatment.customer[0] : rawTreatment.customer ?? { customer_type_id: null }
 
-  const dog: DogRecord = {
-    id: rawDog.id,
-    name: rawDog.name,
-    breed_id: rawDog.breed_id,
-    customer_id: rawDog.customer_id ?? null,
+  const treatment: TreatmentRecord = {
+    id: rawTreatment.id,
+    name: rawTreatment.name,
+    treatment_type_id: rawTreatment.treatment_type_id,
+    customer_id: rawTreatment.customer_id ?? null,
     customer_type_id: customer?.customer_type_id ?? null,
   }
 
   console.log(
-    `✅ Found dog: ${dog.name}, breed_id: ${dog.breed_id}, customer_id: ${dog.customer_id}, customer_type: ${dog.customer_type_id}`,
+    `✅ Found treatment: ${treatment.name}, treatment_type_id: ${treatment.treatment_type_id}, customer_id: ${treatment.customer_id}, customer_type: ${treatment.customer_type_id}`,
   )
-  return dog
+  return treatment
 }
 
 /**
@@ -252,7 +252,7 @@ export async function getStationUnavailability(startDate: Date, endDate: Date): 
 }
 
 /**
- * Get breed modifiers for duration calculations
+ * Get treatmentType modifiers for duration calculations
  */
 /**
  * Get service-station matrix for a service
@@ -269,16 +269,16 @@ export async function getBusinessHours(): Promise<BusinessHour[]> {
   return data || []
 }
 
-export async function getStationBreedRulesForBreed(breedId: string): Promise<StationBreedRuleRow[]> {
-  console.log(`🔍 [getStationBreedRulesForBreed] Fetching rules for breed ${breedId}`)
+export async function getStationTreatmentTypeRulesForTreatmentType(treatmentTypeId: string): Promise<StationTreatmentTypeRuleRow[]> {
+  console.log(`🔍 [getStationTreatmentTypeRulesForTreatmentType] Fetching rules for treatmentType ${treatmentTypeId}`)
 
   const { data, error } = await supabase
-    .from("station_breed_rules")
-    .select("station_id, breed_id, is_active, remote_booking_allowed, requires_staff_approval, duration_modifier_minutes")
-    .eq("breed_id", breedId)
+    .from("station_treatmentType_rules")
+    .select("station_id, treatment_type_id, is_active, remote_booking_allowed, requires_staff_approval, duration_modifier_minutes")
+    .eq("treatment_type_id", treatmentTypeId)
 
   if (error) {
-    throw new Error(`Failed to fetch station breed rules: ${error.message}`)
+    throw new Error(`Failed to fetch station treatmentType rules: ${error.message}`)
   }
 
   return data || []
@@ -335,7 +335,7 @@ export async function getDaycareAppointmentsForRange(
 
   const { data, error } = await supabase
     .from("daycare_appointments")
-    .select("id, dog_id, station_id, start_at, end_at, status, service_type")
+    .select("id, treatment_id, station_id, start_at, end_at, status, service_type")
     .gte("start_at", startDate.toISOString())
     .lte("start_at", endDate.toISOString())
     .neq("status", "cancelled")

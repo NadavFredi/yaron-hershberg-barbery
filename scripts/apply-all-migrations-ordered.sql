@@ -23,8 +23,8 @@ CREATE TABLE public.stations (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Create the breeds table
-CREATE TABLE public.breeds (
+-- Create the treatmentTypes table
+CREATE TABLE public.treatmentTypes (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
@@ -41,14 +41,14 @@ CREATE TABLE public.service_station_matrix (
   UNIQUE(service_id, station_id)
 );
 
--- Create the breed_modifiers table for breed-specific time adjustments
-CREATE TABLE public.breed_modifiers (
+-- Create the treatmentType_modifiers table for treatmentType-specific time adjustments
+CREATE TABLE public.treatmentType_modifiers (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   service_id UUID NOT NULL REFERENCES public.services(id) ON DELETE CASCADE,
-  breed_id UUID NOT NULL REFERENCES public.breeds(id) ON DELETE CASCADE,
+  treatment_type_id UUID NOT NULL REFERENCES public.treatmentTypes(id) ON DELETE CASCADE,
   time_modifier_minutes INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  UNIQUE(service_id, breed_id)
+  UNIQUE(service_id, treatment_type_id)
 );
 
 -- Create the profiles table for user profile information
@@ -65,17 +65,17 @@ CREATE TABLE public.profiles (
 -- Enable Row Level Security
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.breeds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.treatmentTypes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.service_station_matrix ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.breed_modifiers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.treatmentType_modifiers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for public access (since this is an admin interface)
 CREATE POLICY "Allow all operations on services" ON public.services FOR ALL USING (true);
 CREATE POLICY "Allow all operations on stations" ON public.stations FOR ALL USING (true);
-CREATE POLICY "Allow all operations on breeds" ON public.breeds FOR ALL USING (true);
+CREATE POLICY "Allow all operations on treatmentTypes" ON public.treatmentTypes FOR ALL USING (true);
 CREATE POLICY "Allow all operations on service_station_matrix" ON public.service_station_matrix FOR ALL USING (true);
-CREATE POLICY "Allow all operations on breed_modifiers" ON public.breed_modifiers FOR ALL USING (true);
+CREATE POLICY "Allow all operations on treatmentType_modifiers" ON public.treatmentType_modifiers FOR ALL USING (true);
 
 -- Create policies for profiles table
 CREATE POLICY "Users can view their own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
@@ -99,7 +99,7 @@ INSERT INTO public.stations (name, is_active, break_between_appointments, slot_i
   ('עמדה 3', true, 20, 60),
   ('עמדה 4', false, 15, 60);
 
-INSERT INTO public.breeds (name) VALUES
+INSERT INTO public.treatmentTypes (name) VALUES
   ('יורקשייר טרייר'),
   ('גולדן רטריבר'),
   ('לברדור'),
@@ -138,78 +138,78 @@ WHERE st.is_active = true;
 
 
 -- =========================================
--- Migration: 20250119000000_add_dog_categories.sql
+-- Migration: 20250119000000_add_treatment_categories.sql
 -- =========================================
--- Create tables for dog types and categories
--- This migration adds support for main categories (dog types) and sub categories
+-- Create tables for treatment types and categories
+-- This migration adds support for main categories (treatment types) and sub categories
 
 BEGIN;
 
--- Create dog_types table (סוג כלב)
-CREATE TABLE IF NOT EXISTS public.dog_types (
+-- Create treatment_types table (סוג כלב)
+CREATE TABLE IF NOT EXISTS public.treatment_types (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL UNIQUE,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_dog_types_name 
-  ON public.dog_types(name);
+CREATE INDEX IF NOT EXISTS idx_treatment_types_name 
+  ON public.treatment_types(name);
 
 -- Trigger for updated_at
-CREATE TRIGGER set_dog_types_updated_at 
-  BEFORE UPDATE ON public.dog_types
+CREATE TRIGGER set_treatment_types_updated_at 
+  BEFORE UPDATE ON public.treatment_types
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Create dog_categories table (קטגוריה)
-CREATE TABLE IF NOT EXISTS public.dog_categories (
+-- Create treatment_categories table (קטגוריה)
+CREATE TABLE IF NOT EXISTS public.treatment_categories (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL UNIQUE,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_dog_categories_name 
-  ON public.dog_categories(name);
+CREATE INDEX IF NOT EXISTS idx_treatment_categories_name 
+  ON public.treatment_categories(name);
 
 -- Trigger for updated_at
-CREATE TRIGGER set_dog_categories_updated_at 
-  BEFORE UPDATE ON public.dog_categories
+CREATE TRIGGER set_treatment_categories_updated_at 
+  BEFORE UPDATE ON public.treatment_categories
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Create junction table for breeds and dog_types (many-to-many)
-CREATE TABLE IF NOT EXISTS public.breed_dog_types (
+-- Create junction table for treatmentTypes and treatment_types (many-to-many)
+CREATE TABLE IF NOT EXISTS public.treatmentType_treatment_types (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  breed_id uuid NOT NULL REFERENCES public.breeds(id) ON DELETE CASCADE,
-  dog_type_id uuid NOT NULL REFERENCES public.dog_types(id) ON DELETE CASCADE,
+  treatment_type_id uuid NOT NULL REFERENCES public.treatmentTypes(id) ON DELETE CASCADE,
+  treatment_type_id uuid NOT NULL REFERENCES public.treatment_types(id) ON DELETE CASCADE,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(breed_id, dog_type_id)
+  UNIQUE(treatment_type_id, treatment_type_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_breed_dog_types_breed_id 
-  ON public.breed_dog_types(breed_id);
-CREATE INDEX IF NOT EXISTS idx_breed_dog_types_dog_type_id 
-  ON public.breed_dog_types(dog_type_id);
+CREATE INDEX IF NOT EXISTS idx_treatmentType_treatment_types_treatment_type_id 
+  ON public.treatmentType_treatment_types(treatment_type_id);
+CREATE INDEX IF NOT EXISTS idx_treatmentType_treatment_types_treatment_type_id 
+  ON public.treatmentType_treatment_types(treatment_type_id);
 
--- Create junction table for breeds and dog_categories (many-to-many)
-CREATE TABLE IF NOT EXISTS public.breed_dog_categories (
+-- Create junction table for treatmentTypes and treatment_categories (many-to-many)
+CREATE TABLE IF NOT EXISTS public.treatmentType_treatment_categories (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  breed_id uuid NOT NULL REFERENCES public.breeds(id) ON DELETE CASCADE,
-  dog_category_id uuid NOT NULL REFERENCES public.dog_categories(id) ON DELETE CASCADE,
+  treatment_type_id uuid NOT NULL REFERENCES public.treatmentTypes(id) ON DELETE CASCADE,
+  treatment_category_id uuid NOT NULL REFERENCES public.treatment_categories(id) ON DELETE CASCADE,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(breed_id, dog_category_id)
+  UNIQUE(treatment_type_id, treatment_category_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_breed_dog_categories_breed_id 
-  ON public.breed_dog_categories(breed_id);
-CREATE INDEX IF NOT EXISTS idx_breed_dog_categories_dog_category_id 
-  ON public.breed_dog_categories(dog_category_id);
+CREATE INDEX IF NOT EXISTS idx_treatmentType_treatment_categories_treatment_type_id 
+  ON public.treatmentType_treatment_categories(treatment_type_id);
+CREATE INDEX IF NOT EXISTS idx_treatmentType_treatment_categories_treatment_category_id 
+  ON public.treatmentType_treatment_categories(treatment_category_id);
 
--- RLS policies for dog_types
-ALTER TABLE public.dog_types ENABLE ROW LEVEL SECURITY;
+-- RLS policies for treatment_types
+ALTER TABLE public.treatment_types ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY dog_types_select_manager 
-  ON public.dog_types
+CREATE POLICY treatment_types_select_manager 
+  ON public.treatment_types
   FOR SELECT 
   TO authenticated
   USING (
@@ -219,8 +219,8 @@ CREATE POLICY dog_types_select_manager
     )
   );
 
-CREATE POLICY dog_types_insert_manager 
-  ON public.dog_types
+CREATE POLICY treatment_types_insert_manager 
+  ON public.treatment_types
   FOR INSERT 
   TO authenticated
   WITH CHECK (
@@ -230,8 +230,8 @@ CREATE POLICY dog_types_insert_manager
     )
   );
 
-CREATE POLICY dog_types_update_manager 
-  ON public.dog_types
+CREATE POLICY treatment_types_update_manager 
+  ON public.treatment_types
   FOR UPDATE 
   TO authenticated
   USING (
@@ -241,8 +241,8 @@ CREATE POLICY dog_types_update_manager
     )
   );
 
-CREATE POLICY dog_types_delete_manager 
-  ON public.dog_types
+CREATE POLICY treatment_types_delete_manager 
+  ON public.treatment_types
   FOR DELETE 
   TO authenticated
   USING (
@@ -252,11 +252,11 @@ CREATE POLICY dog_types_delete_manager
     )
   );
 
--- RLS policies for dog_categories
-ALTER TABLE public.dog_categories ENABLE ROW LEVEL SECURITY;
+-- RLS policies for treatment_categories
+ALTER TABLE public.treatment_categories ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY dog_categories_select_manager 
-  ON public.dog_categories
+CREATE POLICY treatment_categories_select_manager 
+  ON public.treatment_categories
   FOR SELECT 
   TO authenticated
   USING (
@@ -266,8 +266,8 @@ CREATE POLICY dog_categories_select_manager
     )
   );
 
-CREATE POLICY dog_categories_insert_manager 
-  ON public.dog_categories
+CREATE POLICY treatment_categories_insert_manager 
+  ON public.treatment_categories
   FOR INSERT 
   TO authenticated
   WITH CHECK (
@@ -277,8 +277,8 @@ CREATE POLICY dog_categories_insert_manager
     )
   );
 
-CREATE POLICY dog_categories_update_manager 
-  ON public.dog_categories
+CREATE POLICY treatment_categories_update_manager 
+  ON public.treatment_categories
   FOR UPDATE 
   TO authenticated
   USING (
@@ -288,8 +288,8 @@ CREATE POLICY dog_categories_update_manager
     )
   );
 
-CREATE POLICY dog_categories_delete_manager 
-  ON public.dog_categories
+CREATE POLICY treatment_categories_delete_manager 
+  ON public.treatment_categories
   FOR DELETE 
   TO authenticated
   USING (
@@ -299,11 +299,11 @@ CREATE POLICY dog_categories_delete_manager
     )
   );
 
--- RLS policies for breed_dog_types
-ALTER TABLE public.breed_dog_types ENABLE ROW LEVEL SECURITY;
+-- RLS policies for treatmentType_treatment_types
+ALTER TABLE public.treatmentType_treatment_types ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY breed_dog_types_select_manager 
-  ON public.breed_dog_types
+CREATE POLICY treatmentType_treatment_types_select_manager 
+  ON public.treatmentType_treatment_types
   FOR SELECT 
   TO authenticated
   USING (
@@ -313,8 +313,8 @@ CREATE POLICY breed_dog_types_select_manager
     )
   );
 
-CREATE POLICY breed_dog_types_insert_manager 
-  ON public.breed_dog_types
+CREATE POLICY treatmentType_treatment_types_insert_manager 
+  ON public.treatmentType_treatment_types
   FOR INSERT 
   TO authenticated
   WITH CHECK (
@@ -324,8 +324,8 @@ CREATE POLICY breed_dog_types_insert_manager
     )
   );
 
-CREATE POLICY breed_dog_types_delete_manager 
-  ON public.breed_dog_types
+CREATE POLICY treatmentType_treatment_types_delete_manager 
+  ON public.treatmentType_treatment_types
   FOR DELETE 
   TO authenticated
   USING (
@@ -335,11 +335,11 @@ CREATE POLICY breed_dog_types_delete_manager
     )
   );
 
--- RLS policies for breed_dog_categories
-ALTER TABLE public.breed_dog_categories ENABLE ROW LEVEL SECURITY;
+-- RLS policies for treatmentType_treatment_categories
+ALTER TABLE public.treatmentType_treatment_categories ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY breed_dog_categories_select_manager 
-  ON public.breed_dog_categories
+CREATE POLICY treatmentType_treatment_categories_select_manager 
+  ON public.treatmentType_treatment_categories
   FOR SELECT 
   TO authenticated
   USING (
@@ -349,8 +349,8 @@ CREATE POLICY breed_dog_categories_select_manager
     )
   );
 
-CREATE POLICY breed_dog_categories_insert_manager 
-  ON public.breed_dog_categories
+CREATE POLICY treatmentType_treatment_categories_insert_manager 
+  ON public.treatmentType_treatment_categories
   FOR INSERT 
   TO authenticated
   WITH CHECK (
@@ -360,8 +360,8 @@ CREATE POLICY breed_dog_categories_insert_manager
     )
   );
 
-CREATE POLICY breed_dog_categories_delete_manager 
-  ON public.breed_dog_categories
+CREATE POLICY treatmentType_treatment_categories_delete_manager 
+  ON public.treatmentType_treatment_categories
   FOR DELETE 
   TO authenticated
   USING (
@@ -451,8 +451,8 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'customer_class') THEN
     CREATE TYPE public.customer_class AS ENUM ('extra_vip', 'vip', 'existing', 'new');
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'dog_gender') THEN
-    CREATE TYPE public.dog_gender AS ENUM ('male', 'female');
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'treatment_gender') THEN
+    CREATE TYPE public.treatment_gender AS ENUM ('male', 'female');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'appointment_status') THEN
     CREATE TYPE public.appointment_status AS ENUM ('pending', 'approved', 'cancelled', 'matched');
@@ -516,22 +516,22 @@ CREATE INDEX IF NOT EXISTS idx_customers_phone_trgm
 CREATE INDEX IF NOT EXISTS idx_customers_phone_search_trgm
   ON public.customers USING gin (phone_search gin_trgm_ops);
 
--- Breeds enrichment
-ALTER TABLE public.breeds
+-- TreatmentTypes enrichment
+ALTER TABLE public.treatmentTypes
   ADD COLUMN IF NOT EXISTS airtable_id text UNIQUE,
   ADD COLUMN IF NOT EXISTS size_class text,
   ADD COLUMN IF NOT EXISTS requires_staff_approval boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS min_groom_price numeric(10,2),
   ADD COLUMN IF NOT EXISTS max_groom_price numeric(10,2);
 
--- Dogs table
-CREATE TABLE IF NOT EXISTS public.dogs (
+-- Treatments table
+CREATE TABLE IF NOT EXISTS public.treatments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   airtable_id text UNIQUE,
   customer_id uuid NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
   name text NOT NULL,
-  gender public.dog_gender NOT NULL DEFAULT 'male',
-  breed_id uuid REFERENCES public.breeds(id),
+  gender public.treatment_gender NOT NULL DEFAULT 'male',
+  treatment_type_id uuid REFERENCES public.treatmentTypes(id),
   birth_date date,
   health_notes text,
   vet_name text,
@@ -544,15 +544,15 @@ CREATE TABLE IF NOT EXISTS public.dogs (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_dogs_customer ON public.dogs(customer_id);
-CREATE INDEX IF NOT EXISTS idx_dogs_name_trgm ON public.dogs USING gin (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_treatments_customer ON public.treatments(customer_id);
+CREATE INDEX IF NOT EXISTS idx_treatments_name_trgm ON public.treatments USING gin (name gin_trgm_ops);
 
 -- Garden questionnaires
 CREATE TABLE IF NOT EXISTS public.garden_questionnaires (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   airtable_id text UNIQUE,
-  dog_id uuid NOT NULL REFERENCES public.dogs(id) ON DELETE CASCADE,
-  aggressive_towards_dogs boolean,
+  treatment_id uuid NOT NULL REFERENCES public.treatments(id) ON DELETE CASCADE,
+  aggressive_towards_treatments boolean,
   bites_people boolean,
   terms_accepted boolean,
   photo_url text,
@@ -564,7 +564,7 @@ CREATE TABLE IF NOT EXISTS public.garden_questionnaires (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_garden_questionnaires_dog ON public.garden_questionnaires(dog_id);
+CREATE INDEX IF NOT EXISTS idx_garden_questionnaires_treatment ON public.garden_questionnaires(treatment_id);
 
 -- Services adjustments
 ALTER TABLE public.services
@@ -610,7 +610,7 @@ CREATE TABLE IF NOT EXISTS public.daycare_appointments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   airtable_id text UNIQUE,
   customer_id uuid NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
-  dog_id uuid NOT NULL REFERENCES public.dogs(id) ON DELETE CASCADE,
+  treatment_id uuid NOT NULL REFERENCES public.treatments(id) ON DELETE CASCADE,
   station_id uuid REFERENCES public.stations(id),
   status public.appointment_status NOT NULL DEFAULT 'pending',
   payment_status public.payment_status NOT NULL DEFAULT 'unpaid',
@@ -633,8 +633,8 @@ CREATE TABLE IF NOT EXISTS public.daycare_appointments (
 );
 CREATE INDEX IF NOT EXISTS idx_daycare_appointments_customer
   ON public.daycare_appointments(customer_id, start_at);
-CREATE INDEX IF NOT EXISTS idx_daycare_appointments_dog
-  ON public.daycare_appointments(dog_id, start_at);
+CREATE INDEX IF NOT EXISTS idx_daycare_appointments_treatment
+  ON public.daycare_appointments(treatment_id, start_at);
 CREATE INDEX IF NOT EXISTS idx_daycare_appointments_station
   ON public.daycare_appointments(station_id, start_at) WHERE status <> 'cancelled';
 
@@ -643,7 +643,7 @@ CREATE TABLE IF NOT EXISTS public.grooming_appointments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   airtable_id text UNIQUE,
   customer_id uuid NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
-  dog_id uuid NOT NULL REFERENCES public.dogs(id) ON DELETE CASCADE,
+  treatment_id uuid NOT NULL REFERENCES public.treatments(id) ON DELETE CASCADE,
   service_id uuid REFERENCES public.services(id),
   station_id uuid REFERENCES public.stations(id),
   status public.appointment_status NOT NULL DEFAULT 'pending',
@@ -665,8 +665,8 @@ CREATE TABLE IF NOT EXISTS public.grooming_appointments (
 );
 CREATE INDEX IF NOT EXISTS idx_grooming_appointments_customer
   ON public.grooming_appointments(customer_id, start_at);
-CREATE INDEX IF NOT EXISTS idx_grooming_appointments_dog
-  ON public.grooming_appointments(dog_id, start_at);
+CREATE INDEX IF NOT EXISTS idx_grooming_appointments_treatment
+  ON public.grooming_appointments(treatment_id, start_at);
 CREATE INDEX IF NOT EXISTS idx_grooming_appointments_station
   ON public.grooming_appointments(station_id, start_at) WHERE status <> 'cancelled';
 
@@ -684,7 +684,7 @@ CREATE TABLE IF NOT EXISTS public.daycare_waitlist (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   airtable_id text UNIQUE,
   customer_id uuid NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
-  dog_id uuid NOT NULL REFERENCES public.dogs(id) ON DELETE CASCADE,
+  treatment_id uuid NOT NULL REFERENCES public.treatments(id) ON DELETE CASCADE,
   service_scope public.service_scope NOT NULL DEFAULT 'daycare',
   status public.waitlist_status NOT NULL DEFAULT 'active',
   start_date date NOT NULL,
@@ -696,8 +696,8 @@ CREATE TABLE IF NOT EXISTS public.daycare_waitlist (
 );
 CREATE INDEX IF NOT EXISTS idx_daycare_waitlist_customer
   ON public.daycare_waitlist(customer_id);
-CREATE INDEX IF NOT EXISTS idx_daycare_waitlist_dog
-  ON public.daycare_waitlist(dog_id);
+CREATE INDEX IF NOT EXISTS idx_daycare_waitlist_treatment
+  ON public.daycare_waitlist(treatment_id);
 CREATE INDEX IF NOT EXISTS idx_daycare_waitlist_range
   ON public.daycare_waitlist USING gist (requested_range);
 
@@ -731,7 +731,7 @@ CREATE TABLE IF NOT EXISTS public.ticket_usages (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   airtable_id text UNIQUE,
   ticket_id uuid NOT NULL REFERENCES public.tickets(id) ON DELETE CASCADE,
-  dog_id uuid REFERENCES public.dogs(id) ON DELETE SET NULL,
+  treatment_id uuid REFERENCES public.treatments(id) ON DELETE SET NULL,
   units_used numeric(6,2) NOT NULL DEFAULT 1,
   grooming_appointment_id uuid REFERENCES public.grooming_appointments(id) ON DELETE SET NULL,
   daycare_appointment_id uuid REFERENCES public.daycare_appointments(id) ON DELETE SET NULL,
@@ -817,16 +817,16 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 );
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON public.order_items(order_id);
 
--- Station breed rules
-CREATE TABLE IF NOT EXISTS public.station_breed_rules (
+-- Station treatmentType rules
+CREATE TABLE IF NOT EXISTS public.station_treatmentType_rules (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   station_id uuid NOT NULL REFERENCES public.stations(id) ON DELETE CASCADE,
-  breed_id uuid REFERENCES public.breeds(id) ON DELETE CASCADE,
+  treatment_type_id uuid REFERENCES public.treatmentTypes(id) ON DELETE CASCADE,
   duration_modifier_minutes integer DEFAULT 0,
   price_modifier numeric(10,2),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (station_id, breed_id)
+  UNIQUE (station_id, treatment_type_id)
 );
 
 -- Capacity limits and business hours
@@ -853,7 +853,7 @@ CREATE TABLE IF NOT EXISTS public.business_hours (
 -- Triggers for updated_at
 CREATE TRIGGER set_customers_updated_at BEFORE UPDATE ON public.customers
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-CREATE TRIGGER set_dogs_updated_at BEFORE UPDATE ON public.dogs
+CREATE TRIGGER set_treatments_updated_at BEFORE UPDATE ON public.treatments
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER set_garden_questionnaires_updated_at BEFORE UPDATE ON public.garden_questionnaires
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -879,7 +879,7 @@ CREATE TRIGGER set_orders_updated_at BEFORE UPDATE ON public.orders
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER set_order_items_updated_at BEFORE UPDATE ON public.order_items
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-CREATE TRIGGER set_station_breed_rules_updated_at BEFORE UPDATE ON public.station_breed_rules
+CREATE TRIGGER set_station_treatmentType_rules_updated_at BEFORE UPDATE ON public.station_treatmentType_rules
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER set_daycare_capacity_limits_updated_at BEFORE UPDATE ON public.daycare_capacity_limits
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -888,7 +888,7 @@ CREATE TRIGGER set_business_hours_updated_at BEFORE UPDATE ON public.business_ho
 
 -- Enable RLS and policies
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.dogs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.treatments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.garden_questionnaires ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.station_unavailability ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daycare_appointments ENABLE ROW LEVEL SECURITY;
@@ -904,7 +904,7 @@ ALTER TABLE public.appointment_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.station_breed_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.station_treatmentType_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daycare_capacity_limits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.business_hours ENABLE ROW LEVEL SECURITY;
 
@@ -938,15 +938,15 @@ BEGIN
 END;
 $$;
 
--- Dog policies
+-- Treatment policies
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_select_self'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_select_self'
   ) THEN
     EXECUTE $policy$
-      CREATE POLICY dogs_select_self ON public.dogs
+      CREATE POLICY treatments_select_self ON public.treatments
         FOR SELECT USING (
           EXISTS (
             SELECT 1 FROM public.customers c
@@ -957,10 +957,10 @@ BEGIN
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_modify_self'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_modify_self'
   ) THEN
     EXECUTE $policy$
-      CREATE POLICY dogs_modify_self ON public.dogs
+      CREATE POLICY treatments_modify_self ON public.treatments
         FOR UPDATE USING (
           EXISTS (
             SELECT 1 FROM public.customers c
@@ -977,10 +977,10 @@ BEGIN
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_insert_self'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_insert_self'
   ) THEN
     EXECUTE $policy$
-      CREATE POLICY dogs_insert_self ON public.dogs
+      CREATE POLICY treatments_insert_self ON public.treatments
         FOR INSERT WITH CHECK (
           EXISTS (
             SELECT 1 FROM public.customers c
@@ -991,9 +991,9 @@ BEGIN
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_service_role_all'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_service_role_all'
   ) THEN
-    EXECUTE 'CREATE POLICY dogs_service_role_all ON public.dogs FOR ALL USING (auth.role() = ''service_role'') WITH CHECK (auth.role() = ''service_role'')';
+    EXECUTE 'CREATE POLICY treatments_service_role_all ON public.treatments FOR ALL USING (auth.role() = ''service_role'') WITH CHECK (auth.role() = ''service_role'')';
   END IF;
 END;
 $$;
@@ -1016,7 +1016,7 @@ DECLARE
     'products',
     'orders',
     'order_items',
-    'station_breed_rules',
+    'station_treatmentType_rules',
     'daycare_capacity_limits',
     'business_hours',
     'garden_questionnaires'
@@ -1058,10 +1058,10 @@ DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_delete_self'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_delete_self'
   ) THEN
     EXECUTE $policy$
-      CREATE POLICY dogs_delete_self ON public.dogs
+      CREATE POLICY treatments_delete_self ON public.treatments
         FOR DELETE USING (
           EXISTS (
             SELECT 1 FROM public.customers c
@@ -1084,9 +1084,9 @@ BEGIN
         FOR SELECT USING (
           EXISTS (
             SELECT 1
-            FROM public.dogs d
+            FROM public.treatments d
             JOIN public.customers c ON c.id = d.customer_id
-            WHERE d.id = dog_id AND c.auth_user_id = auth.uid()
+            WHERE d.id = treatment_id AND c.auth_user_id = auth.uid()
           )
         )
     $policy$;
@@ -1105,9 +1105,9 @@ BEGIN
         FOR SELECT USING (
           EXISTS (
             SELECT 1
-            FROM public.dogs d
+            FROM public.treatments d
             JOIN public.customers c ON c.id = d.customer_id
-            WHERE d.id = dog_id AND c.auth_user_id = auth.uid()
+            WHERE d.id = treatment_id AND c.auth_user_id = auth.uid()
           )
         )
     $policy$;
@@ -1231,58 +1231,58 @@ COMMIT;
 
 
 -- =========================================
--- Migration: 20251016130000_add_manager_dogs_policies.sql
+-- Migration: 20251016130000_add_manager_treatments_policies.sql
 -- =========================================
--- Add RLS policies to allow authenticated users (managers) to manage dogs
+-- Add RLS policies to allow authenticated users (managers) to manage treatments
 -- NOTE: This is a temporary migration that will be replaced by 20251016150000_update_manager_policies_with_role.sql
 -- once the role column is added to profiles. It allows all authenticated users for now.
--- This enables managers to create/update/delete dogs for any customer
+-- This enables managers to create/update/delete treatments for any customer
 
 BEGIN;
 
--- Dogs policies for managers (temporary - will be replaced with role-based checks)
+-- Treatments policies for managers (temporary - will be replaced with role-based checks)
 DO $$
 BEGIN
-  -- Allow authenticated users to select all dogs (for manager operations)
+  -- Allow authenticated users to select all treatments (for manager operations)
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_select_authenticated'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_select_authenticated'
   ) THEN
-    CREATE POLICY dogs_select_authenticated ON public.dogs
+    CREATE POLICY treatments_select_authenticated ON public.treatments
       FOR SELECT 
       TO authenticated
       USING (true);
   END IF;
 
-  -- Allow authenticated users to insert dogs for any customer (for manager operations)
+  -- Allow authenticated users to insert treatments for any customer (for manager operations)
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_insert_authenticated'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_insert_authenticated'
   ) THEN
-    CREATE POLICY dogs_insert_authenticated ON public.dogs
+    CREATE POLICY treatments_insert_authenticated ON public.treatments
       FOR INSERT 
       TO authenticated
       WITH CHECK (true);
   END IF;
 
-  -- Allow authenticated users to update dogs for any customer (for manager operations)
+  -- Allow authenticated users to update treatments for any customer (for manager operations)
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_update_authenticated'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_update_authenticated'
   ) THEN
-    CREATE POLICY dogs_update_authenticated ON public.dogs
+    CREATE POLICY treatments_update_authenticated ON public.treatments
       FOR UPDATE 
       TO authenticated
       USING (true)
       WITH CHECK (true);
   END IF;
 
-  -- Allow authenticated users to delete dogs for any customer (for manager operations)
+  -- Allow authenticated users to delete treatments for any customer (for manager operations)
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_delete_authenticated'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_delete_authenticated'
   ) THEN
-    CREATE POLICY dogs_delete_authenticated ON public.dogs
+    CREATE POLICY treatments_delete_authenticated ON public.treatments
       FOR DELETE 
       TO authenticated
       USING (true);
@@ -1291,7 +1291,7 @@ END;
 $$;
 
 -- Grant necessary permissions to authenticated role
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.dogs TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.treatments TO authenticated;
 
 COMMIT;
 
@@ -1335,11 +1335,11 @@ COMMIT;
 
 BEGIN;
 
--- Drop old dogs policies that allowed all authenticated users
-DROP POLICY IF EXISTS dogs_select_authenticated ON public.dogs;
-DROP POLICY IF EXISTS dogs_insert_authenticated ON public.dogs;
-DROP POLICY IF EXISTS dogs_update_authenticated ON public.dogs;
-DROP POLICY IF EXISTS dogs_delete_authenticated ON public.dogs;
+-- Drop old treatments policies that allowed all authenticated users
+DROP POLICY IF EXISTS treatments_select_authenticated ON public.treatments;
+DROP POLICY IF EXISTS treatments_insert_authenticated ON public.treatments;
+DROP POLICY IF EXISTS treatments_update_authenticated ON public.treatments;
+DROP POLICY IF EXISTS treatments_delete_authenticated ON public.treatments;
 
 -- Drop old appointment policies that allowed all authenticated users
 DROP POLICY IF EXISTS grooming_appointments_insert_authenticated ON public.grooming_appointments;
@@ -1350,14 +1350,14 @@ DROP POLICY IF EXISTS daycare_appointments_update_authenticated ON public.daycar
 DROP POLICY IF EXISTS daycare_appointments_delete_authenticated ON public.daycare_appointments;
 DROP POLICY IF EXISTS combined_appointments_all_authenticated ON public.combined_appointments;
 
--- Recreate dogs policies with role check
+-- Recreate treatments policies with role check
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_select_manager'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_select_manager'
   ) THEN
-    CREATE POLICY dogs_select_manager ON public.dogs
+    CREATE POLICY treatments_select_manager ON public.treatments
       FOR SELECT 
       TO authenticated
       USING (
@@ -1370,9 +1370,9 @@ BEGIN
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_insert_manager'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_insert_manager'
   ) THEN
-    CREATE POLICY dogs_insert_manager ON public.dogs
+    CREATE POLICY treatments_insert_manager ON public.treatments
       FOR INSERT 
       TO authenticated
       WITH CHECK (
@@ -1385,9 +1385,9 @@ BEGIN
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_update_manager'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_update_manager'
   ) THEN
-    CREATE POLICY dogs_update_manager ON public.dogs
+    CREATE POLICY treatments_update_manager ON public.treatments
       FOR UPDATE 
       TO authenticated
       USING (
@@ -1406,9 +1406,9 @@ BEGIN
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'dogs' AND policyname = 'dogs_delete_manager'
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'treatments_delete_manager'
   ) THEN
-    CREATE POLICY dogs_delete_manager ON public.dogs
+    CREATE POLICY treatments_delete_manager ON public.treatments
       FOR DELETE 
       TO authenticated
       USING (
@@ -1669,29 +1669,29 @@ COMMIT;
 -- =========================================
 -- Migration: 20251016165000_add_settings_fields.sql
 -- =========================================
--- Migration to add settings-related fields to breeds table
+-- Migration to add settings-related fields to treatmentTypes table
 -- This migration adds hourly_price, notes, and remote_booking_allowed fields
 
 BEGIN;
 
--- Add hourly_price to breeds table
-ALTER TABLE public.breeds
+-- Add hourly_price to treatmentTypes table
+ALTER TABLE public.treatmentTypes
   ADD COLUMN IF NOT EXISTS hourly_price numeric(10,2);
 
--- Add notes to breeds table
-ALTER TABLE public.breeds
+-- Add notes to treatmentTypes table
+ALTER TABLE public.treatmentTypes
   ADD COLUMN IF NOT EXISTS notes text;
 
--- Add remote_booking_allowed to breeds table
-ALTER TABLE public.breeds
+-- Add remote_booking_allowed to treatmentTypes table
+ALTER TABLE public.treatmentTypes
   ADD COLUMN IF NOT EXISTS remote_booking_allowed boolean NOT NULL DEFAULT false;
 
 -- Add indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_breeds_remote_booking ON public.breeds(remote_booking_allowed);
+CREATE INDEX IF NOT EXISTS idx_treatmentTypes_remote_booking ON public.treatmentTypes(remote_booking_allowed);
 
-COMMENT ON COLUMN public.breeds.hourly_price IS 'מחיר שעתי לגזע זה';
-COMMENT ON COLUMN public.breeds.notes IS 'הערות נוספות על הגזע';
-COMMENT ON COLUMN public.breeds.remote_booking_allowed IS 'האם לקוחות יכולים לקבוע תור מרחוק עבור גזע זה';
+COMMENT ON COLUMN public.treatmentTypes.hourly_price IS 'מחיר שעתי לגזע זה';
+COMMENT ON COLUMN public.treatmentTypes.notes IS 'הערות נוספות על הגזע';
+COMMENT ON COLUMN public.treatmentTypes.remote_booking_allowed IS 'האם לקוחות יכולים לקבוע תור מרחוק עבור גזע זה';
 
 COMMIT;
 
@@ -2010,70 +2010,70 @@ COMMIT;
 
 
 -- =========================================
--- Migration: 20251016191000_add_is_active_to_breeds.sql
+-- Migration: 20251016191000_add_is_active_to_treatmentTypes.sql
 -- =========================================
--- Migration to add is_active column to breeds table
--- This migration adds the is_active field to control whether customers can book appointments for a breed
+-- Migration to add is_active column to treatmentTypes table
+-- This migration adds the is_active field to control whether customers can book appointments for a treatmentType
 
 BEGIN;
 
--- Add is_active to breeds table
-ALTER TABLE public.breeds
+-- Add is_active to treatmentTypes table
+ALTER TABLE public.treatmentTypes
   ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
 
 -- Add index for better query performance
-CREATE INDEX IF NOT EXISTS idx_breeds_is_active ON public.breeds(is_active);
+CREATE INDEX IF NOT EXISTS idx_treatmentTypes_is_active ON public.treatmentTypes(is_active);
 
-COMMENT ON COLUMN public.breeds.is_active IS 'האם הגזע פעיל - רק גזעים פעילים יכולים לקבוע תורים';
+COMMENT ON COLUMN public.treatmentTypes.is_active IS 'האם הגזע פעיל - רק גזעים פעילים יכולים לקבוע תורים';
 
 COMMIT;
 
 
 
 -- =========================================
--- Migration: 20251016200000_add_station_breed_availability_fields.sql
+-- Migration: 20251016200000_add_station_treatmentType_availability_fields.sql
 -- =========================================
--- Migration to add is_active and remote_booking_allowed fields to station_breed_rules table
--- This allows managing breed-station specific active status and remote booking availability
+-- Migration to add is_active and remote_booking_allowed fields to station_treatmentType_rules table
+-- This allows managing treatmentType-station specific active status and remote booking availability
 
 BEGIN;
 
--- Add is_active to station_breed_rules table
-ALTER TABLE public.station_breed_rules
+-- Add is_active to station_treatmentType_rules table
+ALTER TABLE public.station_treatmentType_rules
   ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
 
--- Add remote_booking_allowed to station_breed_rules table
-ALTER TABLE public.station_breed_rules
+-- Add remote_booking_allowed to station_treatmentType_rules table
+ALTER TABLE public.station_treatmentType_rules
   ADD COLUMN IF NOT EXISTS remote_booking_allowed boolean NOT NULL DEFAULT false;
 
 -- Add indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_station_breed_rules_is_active ON public.station_breed_rules(is_active);
-CREATE INDEX IF NOT EXISTS idx_station_breed_rules_remote_booking ON public.station_breed_rules(remote_booking_allowed);
+CREATE INDEX IF NOT EXISTS idx_station_treatmentType_rules_is_active ON public.station_treatmentType_rules(is_active);
+CREATE INDEX IF NOT EXISTS idx_station_treatmentType_rules_remote_booking ON public.station_treatmentType_rules(remote_booking_allowed);
 
-COMMENT ON COLUMN public.station_breed_rules.is_active IS 'האם הגזע פעיל עבור עמדה זו';
-COMMENT ON COLUMN public.station_breed_rules.remote_booking_allowed IS 'האם ניתן לקבוע תור מרחוק עבור גזע זה בעמדה זו';
+COMMENT ON COLUMN public.station_treatmentType_rules.is_active IS 'האם הגזע פעיל עבור עמדה זו';
+COMMENT ON COLUMN public.station_treatmentType_rules.remote_booking_allowed IS 'האם ניתן לקבוע תור מרחוק עבור גזע זה בעמדה זו';
 
 COMMIT;
 
 
 
 -- =========================================
--- Migration: 20251016210000_add_station_breed_rules_policies.sql
+-- Migration: 20251016210000_add_station_treatmentType_rules_policies.sql
 -- =========================================
--- Add RLS policies to allow managers to manage station_breed_rules
--- This enables the settings page to create/update station-breed rules
+-- Add RLS policies to allow managers to manage station_treatmentType_rules
+-- This enables the settings page to create/update station-treatmentType rules
 
 BEGIN;
 
--- Station breed rules policies for managers
+-- Station treatmentType rules policies for managers
 DO $$
 BEGIN
-  -- Allow managers to select all station breed rules
+  -- Allow managers to select all station treatmentType rules
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'station_breed_rules' AND policyname = 'station_breed_rules_select_manager'
+    WHERE schemaname = 'public' AND tablename = 'station_treatmentType_rules' AND policyname = 'station_treatmentType_rules_select_manager'
   ) THEN
-    CREATE POLICY station_breed_rules_select_manager ON public.station_breed_rules
+    CREATE POLICY station_treatmentType_rules_select_manager ON public.station_treatmentType_rules
       FOR SELECT 
       TO authenticated
       USING (
@@ -2084,12 +2084,12 @@ BEGIN
       );
   END IF;
 
-  -- Allow managers to insert station breed rules
+  -- Allow managers to insert station treatmentType rules
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'station_breed_rules' AND policyname = 'station_breed_rules_insert_manager'
+    WHERE schemaname = 'public' AND tablename = 'station_treatmentType_rules' AND policyname = 'station_treatmentType_rules_insert_manager'
   ) THEN
-    CREATE POLICY station_breed_rules_insert_manager ON public.station_breed_rules
+    CREATE POLICY station_treatmentType_rules_insert_manager ON public.station_treatmentType_rules
       FOR INSERT 
       TO authenticated
       WITH CHECK (
@@ -2100,12 +2100,12 @@ BEGIN
       );
   END IF;
 
-  -- Allow managers to update station breed rules
+  -- Allow managers to update station treatmentType rules
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'station_breed_rules' AND policyname = 'station_breed_rules_update_manager'
+    WHERE schemaname = 'public' AND tablename = 'station_treatmentType_rules' AND policyname = 'station_treatmentType_rules_update_manager'
   ) THEN
-    CREATE POLICY station_breed_rules_update_manager ON public.station_breed_rules
+    CREATE POLICY station_treatmentType_rules_update_manager ON public.station_treatmentType_rules
       FOR UPDATE 
       TO authenticated
       USING (
@@ -2122,12 +2122,12 @@ BEGIN
       );
   END IF;
 
-  -- Allow managers to delete station breed rules
+  -- Allow managers to delete station treatmentType rules
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'station_breed_rules' AND policyname = 'station_breed_rules_delete_manager'
+    WHERE schemaname = 'public' AND tablename = 'station_treatmentType_rules' AND policyname = 'station_treatmentType_rules_delete_manager'
   ) THEN
-    CREATE POLICY station_breed_rules_delete_manager ON public.station_breed_rules
+    CREATE POLICY station_treatmentType_rules_delete_manager ON public.station_treatmentType_rules
       FOR DELETE 
       TO authenticated
       USING (
@@ -2144,40 +2144,40 @@ COMMIT;
 
 
 -- =========================================
--- Migration: 20251016210001_add_requires_staff_approval_to_station_breed_rules.sql
+-- Migration: 20251016210001_add_requires_staff_approval_to_station_treatmentType_rules.sql
 -- =========================================
--- Migration to add requires_staff_approval to station_breed_rules table
--- This allows managing breed-station specific staff approval requirements
+-- Migration to add requires_staff_approval to station_treatmentType_rules table
+-- This allows managing treatmentType-station specific staff approval requirements
 
 BEGIN;
 
--- Add requires_staff_approval to station_breed_rules table
-ALTER TABLE public.station_breed_rules
+-- Add requires_staff_approval to station_treatmentType_rules table
+ALTER TABLE public.station_treatmentType_rules
   ADD COLUMN IF NOT EXISTS requires_staff_approval boolean NOT NULL DEFAULT false;
 
 -- Add index for better query performance
-CREATE INDEX IF NOT EXISTS idx_station_breed_rules_requires_staff_approval ON public.station_breed_rules(requires_staff_approval);
+CREATE INDEX IF NOT EXISTS idx_station_treatmentType_rules_requires_staff_approval ON public.station_treatmentType_rules(requires_staff_approval);
 
-COMMENT ON COLUMN public.station_breed_rules.requires_staff_approval IS 'האם גזע זה דורש אישור צוות בעמדה זו';
+COMMENT ON COLUMN public.station_treatmentType_rules.requires_staff_approval IS 'האם גזע זה דורש אישור צוות בעמדה זו';
 
 COMMIT;
 
 
 
 -- =========================================
--- Migration: 20251016210002_remove_requires_staff_approval_from_breeds.sql
+-- Migration: 20251016210002_remove_requires_staff_approval_from_treatmentTypes.sql
 -- =========================================
--- Migration to remove requires_staff_approval from breeds table
--- This field is now calculated dynamically from station_breed_rules
--- The actual values are stored at the station-breed level in station_breed_rules table
+-- Migration to remove requires_staff_approval from treatmentTypes table
+-- This field is now calculated dynamically from station_treatmentType_rules
+-- The actual values are stored at the station-treatmentType level in station_treatmentType_rules table
 
 BEGIN;
 
 -- Drop index if it exists
-DROP INDEX IF EXISTS public.idx_breeds_requires_staff_approval;
+DROP INDEX IF EXISTS public.idx_treatmentTypes_requires_staff_approval;
 
--- Remove column from breeds table
-ALTER TABLE public.breeds
+-- Remove column from treatmentTypes table
+ALTER TABLE public.treatmentTypes
   DROP COLUMN IF EXISTS requires_staff_approval;
 
 COMMIT;
@@ -2231,78 +2231,78 @@ CREATE POLICY custom_absence_reasons_insert_manager
 
 
 -- =========================================
--- Migration: 20251016230000_add_dog_categories.sql
+-- Migration: 20251016230000_add_treatment_categories.sql
 -- =========================================
--- Create tables for dog types and categories
--- This migration adds support for main categories (dog types) and sub categories
+-- Create tables for treatment types and categories
+-- This migration adds support for main categories (treatment types) and sub categories
 
 BEGIN;
 
--- Create dog_types table (סוג כלב)
-CREATE TABLE IF NOT EXISTS public.dog_types (
+-- Create treatment_types table (סוג כלב)
+CREATE TABLE IF NOT EXISTS public.treatment_types (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL UNIQUE,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_dog_types_name 
-  ON public.dog_types(name);
+CREATE INDEX IF NOT EXISTS idx_treatment_types_name 
+  ON public.treatment_types(name);
 
 -- Trigger for updated_at
-CREATE TRIGGER set_dog_types_updated_at 
-  BEFORE UPDATE ON public.dog_types
+CREATE TRIGGER set_treatment_types_updated_at 
+  BEFORE UPDATE ON public.treatment_types
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Create dog_categories table (קטגוריה)
-CREATE TABLE IF NOT EXISTS public.dog_categories (
+-- Create treatment_categories table (קטגוריה)
+CREATE TABLE IF NOT EXISTS public.treatment_categories (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL UNIQUE,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_dog_categories_name 
-  ON public.dog_categories(name);
+CREATE INDEX IF NOT EXISTS idx_treatment_categories_name 
+  ON public.treatment_categories(name);
 
 -- Trigger for updated_at
-CREATE TRIGGER set_dog_categories_updated_at 
-  BEFORE UPDATE ON public.dog_categories
+CREATE TRIGGER set_treatment_categories_updated_at 
+  BEFORE UPDATE ON public.treatment_categories
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Create junction table for breeds and dog_types (many-to-many)
-CREATE TABLE IF NOT EXISTS public.breed_dog_types (
+-- Create junction table for treatmentTypes and treatment_types (many-to-many)
+CREATE TABLE IF NOT EXISTS public.treatmentType_treatment_types (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  breed_id uuid NOT NULL REFERENCES public.breeds(id) ON DELETE CASCADE,
-  dog_type_id uuid NOT NULL REFERENCES public.dog_types(id) ON DELETE CASCADE,
+  treatment_type_id uuid NOT NULL REFERENCES public.treatmentTypes(id) ON DELETE CASCADE,
+  treatment_type_id uuid NOT NULL REFERENCES public.treatment_types(id) ON DELETE CASCADE,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(breed_id, dog_type_id)
+  UNIQUE(treatment_type_id, treatment_type_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_breed_dog_types_breed_id 
-  ON public.breed_dog_types(breed_id);
-CREATE INDEX IF NOT EXISTS idx_breed_dog_types_dog_type_id 
-  ON public.breed_dog_types(dog_type_id);
+CREATE INDEX IF NOT EXISTS idx_treatmentType_treatment_types_treatment_type_id 
+  ON public.treatmentType_treatment_types(treatment_type_id);
+CREATE INDEX IF NOT EXISTS idx_treatmentType_treatment_types_treatment_type_id 
+  ON public.treatmentType_treatment_types(treatment_type_id);
 
--- Create junction table for breeds and dog_categories (many-to-many)
-CREATE TABLE IF NOT EXISTS public.breed_dog_categories (
+-- Create junction table for treatmentTypes and treatment_categories (many-to-many)
+CREATE TABLE IF NOT EXISTS public.treatmentType_treatment_categories (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  breed_id uuid NOT NULL REFERENCES public.breeds(id) ON DELETE CASCADE,
-  dog_category_id uuid NOT NULL REFERENCES public.dog_categories(id) ON DELETE CASCADE,
+  treatment_type_id uuid NOT NULL REFERENCES public.treatmentTypes(id) ON DELETE CASCADE,
+  treatment_category_id uuid NOT NULL REFERENCES public.treatment_categories(id) ON DELETE CASCADE,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(breed_id, dog_category_id)
+  UNIQUE(treatment_type_id, treatment_category_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_breed_dog_categories_breed_id 
-  ON public.breed_dog_categories(breed_id);
-CREATE INDEX IF NOT EXISTS idx_breed_dog_categories_dog_category_id 
-  ON public.breed_dog_categories(dog_category_id);
+CREATE INDEX IF NOT EXISTS idx_treatmentType_treatment_categories_treatment_type_id 
+  ON public.treatmentType_treatment_categories(treatment_type_id);
+CREATE INDEX IF NOT EXISTS idx_treatmentType_treatment_categories_treatment_category_id 
+  ON public.treatmentType_treatment_categories(treatment_category_id);
 
--- RLS policies for dog_types
-ALTER TABLE public.dog_types ENABLE ROW LEVEL SECURITY;
+-- RLS policies for treatment_types
+ALTER TABLE public.treatment_types ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY dog_types_select_manager 
-  ON public.dog_types
+CREATE POLICY treatment_types_select_manager 
+  ON public.treatment_types
   FOR SELECT 
   TO authenticated
   USING (
@@ -2312,8 +2312,8 @@ CREATE POLICY dog_types_select_manager
     )
   );
 
-CREATE POLICY dog_types_insert_manager 
-  ON public.dog_types
+CREATE POLICY treatment_types_insert_manager 
+  ON public.treatment_types
   FOR INSERT 
   TO authenticated
   WITH CHECK (
@@ -2323,8 +2323,8 @@ CREATE POLICY dog_types_insert_manager
     )
   );
 
-CREATE POLICY dog_types_update_manager 
-  ON public.dog_types
+CREATE POLICY treatment_types_update_manager 
+  ON public.treatment_types
   FOR UPDATE 
   TO authenticated
   USING (
@@ -2334,8 +2334,8 @@ CREATE POLICY dog_types_update_manager
     )
   );
 
-CREATE POLICY dog_types_delete_manager 
-  ON public.dog_types
+CREATE POLICY treatment_types_delete_manager 
+  ON public.treatment_types
   FOR DELETE 
   TO authenticated
   USING (
@@ -2345,11 +2345,11 @@ CREATE POLICY dog_types_delete_manager
     )
   );
 
--- RLS policies for dog_categories
-ALTER TABLE public.dog_categories ENABLE ROW LEVEL SECURITY;
+-- RLS policies for treatment_categories
+ALTER TABLE public.treatment_categories ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY dog_categories_select_manager 
-  ON public.dog_categories
+CREATE POLICY treatment_categories_select_manager 
+  ON public.treatment_categories
   FOR SELECT 
   TO authenticated
   USING (
@@ -2359,8 +2359,8 @@ CREATE POLICY dog_categories_select_manager
     )
   );
 
-CREATE POLICY dog_categories_insert_manager 
-  ON public.dog_categories
+CREATE POLICY treatment_categories_insert_manager 
+  ON public.treatment_categories
   FOR INSERT 
   TO authenticated
   WITH CHECK (
@@ -2370,8 +2370,8 @@ CREATE POLICY dog_categories_insert_manager
     )
   );
 
-CREATE POLICY dog_categories_update_manager 
-  ON public.dog_categories
+CREATE POLICY treatment_categories_update_manager 
+  ON public.treatment_categories
   FOR UPDATE 
   TO authenticated
   USING (
@@ -2381,8 +2381,8 @@ CREATE POLICY dog_categories_update_manager
     )
   );
 
-CREATE POLICY dog_categories_delete_manager 
-  ON public.dog_categories
+CREATE POLICY treatment_categories_delete_manager 
+  ON public.treatment_categories
   FOR DELETE 
   TO authenticated
   USING (
@@ -2392,11 +2392,11 @@ CREATE POLICY dog_categories_delete_manager
     )
   );
 
--- RLS policies for breed_dog_types
-ALTER TABLE public.breed_dog_types ENABLE ROW LEVEL SECURITY;
+-- RLS policies for treatmentType_treatment_types
+ALTER TABLE public.treatmentType_treatment_types ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY breed_dog_types_select_manager 
-  ON public.breed_dog_types
+CREATE POLICY treatmentType_treatment_types_select_manager 
+  ON public.treatmentType_treatment_types
   FOR SELECT 
   TO authenticated
   USING (
@@ -2406,8 +2406,8 @@ CREATE POLICY breed_dog_types_select_manager
     )
   );
 
-CREATE POLICY breed_dog_types_insert_manager 
-  ON public.breed_dog_types
+CREATE POLICY treatmentType_treatment_types_insert_manager 
+  ON public.treatmentType_treatment_types
   FOR INSERT 
   TO authenticated
   WITH CHECK (
@@ -2417,8 +2417,8 @@ CREATE POLICY breed_dog_types_insert_manager
     )
   );
 
-CREATE POLICY breed_dog_types_delete_manager 
-  ON public.breed_dog_types
+CREATE POLICY treatmentType_treatment_types_delete_manager 
+  ON public.treatmentType_treatment_types
   FOR DELETE 
   TO authenticated
   USING (
@@ -2428,11 +2428,11 @@ CREATE POLICY breed_dog_types_delete_manager
     )
   );
 
--- RLS policies for breed_dog_categories
-ALTER TABLE public.breed_dog_categories ENABLE ROW LEVEL SECURITY;
+-- RLS policies for treatmentType_treatment_categories
+ALTER TABLE public.treatmentType_treatment_categories ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY breed_dog_categories_select_manager 
-  ON public.breed_dog_categories
+CREATE POLICY treatmentType_treatment_categories_select_manager 
+  ON public.treatmentType_treatment_categories
   FOR SELECT 
   TO authenticated
   USING (
@@ -2442,8 +2442,8 @@ CREATE POLICY breed_dog_categories_select_manager
     )
   );
 
-CREATE POLICY breed_dog_categories_insert_manager 
-  ON public.breed_dog_categories
+CREATE POLICY treatmentType_treatment_categories_insert_manager 
+  ON public.treatmentType_treatment_categories
   FOR INSERT 
   TO authenticated
   WITH CHECK (
@@ -2453,8 +2453,8 @@ CREATE POLICY breed_dog_categories_insert_manager
     )
   );
 
-CREATE POLICY breed_dog_categories_delete_manager 
-  ON public.breed_dog_categories
+CREATE POLICY treatmentType_treatment_categories_delete_manager 
+  ON public.treatmentType_treatment_categories
   FOR DELETE 
   TO authenticated
   USING (
@@ -2469,23 +2469,23 @@ COMMIT;
 
 
 -- =========================================
--- Migration: 20251101201830_remove_breed_level_active_remote_fields.sql
+-- Migration: 20251101201830_remove_treatmentType_level_active_remote_fields.sql
 -- =========================================
--- Migration to remove is_active and remote_booking_allowed from breeds table
--- These fields are now calculated dynamically from station_breed_rules
--- The actual values are stored at the station-breed level in station_breed_rules table
+-- Migration to remove is_active and remote_booking_allowed from treatmentTypes table
+-- These fields are now calculated dynamically from station_treatmentType_rules
+-- The actual values are stored at the station-treatmentType level in station_treatmentType_rules table
 
 BEGIN;
 
 -- Drop indexes if they exist
-DROP INDEX IF EXISTS public.idx_breeds_is_active;
-DROP INDEX IF EXISTS public.idx_breeds_remote_booking;
+DROP INDEX IF EXISTS public.idx_treatmentTypes_is_active;
+DROP INDEX IF EXISTS public.idx_treatmentTypes_remote_booking;
 
--- Remove columns from breeds table
-ALTER TABLE public.breeds
+-- Remove columns from treatmentTypes table
+ALTER TABLE public.treatmentTypes
   DROP COLUMN IF EXISTS is_active;
 
-ALTER TABLE public.breeds
+ALTER TABLE public.treatmentTypes
   DROP COLUMN IF EXISTS remote_booking_allowed;
 
 COMMIT;

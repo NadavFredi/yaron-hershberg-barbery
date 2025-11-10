@@ -41,13 +41,13 @@ const buildDefaultSummary = (appointment: ManagerAppointment | null) => {
   if (!appointment) {
     return "הצעת זמן חדש עבור התור הקיים"
   }
-  const dogName = appointment.dogs?.[0]?.name
+  const treatmentName = appointment.treatments?.[0]?.name
   const clientName = appointment.clientName
-  if (dogName && clientName) {
-    return `הצעת זמן חדש עבור ${dogName} (${clientName})`
+  if (treatmentName && clientName) {
+    return `הצעת זמן חדש עבור ${treatmentName} (${clientName})`
   }
-  if (dogName) {
-    return `הצעת זמן חדש עבור ${dogName}`
+  if (treatmentName) {
+    return `הצעת זמן חדש עבור ${treatmentName}`
   }
   if (clientName) {
     return `הצעת זמן חדש ל${clientName}`

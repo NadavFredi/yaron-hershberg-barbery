@@ -29,7 +29,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
 type AppointmentType = "grooming" | "garden" | "both"
 
 interface ReservationRequest {
-  dogId: string
+  treatmentId: string
   date: string
   stationId?: string
   startTime?: string
@@ -49,10 +49,10 @@ interface WebhookResponse {
   error?: string
 }
 
-interface DogRecord {
+interface TreatmentRecord {
   id: string
   customer_id: string
-  breed_id: string | null
+  treatment_type_id: string | null
 }
 
 interface GroomingAppointmentRow {
@@ -101,8 +101,8 @@ serve(async (req) => {
     const baseStartTime = body.startTime?.trim()
     const effectiveStartTime = baseStartTime && baseStartTime.length > 0 ? baseStartTime : "09:00"
 
-    if (!body.dogId || !body.date) {
-      return badRequest("dogId and date are required")
+    if (!body.treatmentId || !body.date) {
+      return badRequest("treatmentId and date are required")
     }
 
     if (requiresGrooming) {
@@ -126,7 +126,7 @@ serve(async (req) => {
       return badRequest("Cannot reserve appointments for past dates")
     }
 
-    const dog = await fetchDogRecord(body.dogId)
+    const treatment = await fetchTreatmentRecord(body.treatmentId)
 
     let groomingAppointment: GroomingAppointmentRow | null = null
     let daycareAppointment: DaycareAppointmentRow | null = null
@@ -134,11 +134,11 @@ serve(async (req) => {
 
     try {
       if (requiresGrooming) {
-        groomingAppointment = await createGroomingAppointment(body, dog)
+        groomingAppointment = await createGroomingAppointment(body, treatment)
       }
 
       if (requiresGarden) {
-        daycareAppointment = await createDaycareAppointment(body, dog, effectiveStartTime)
+        daycareAppointment = await createDaycareAppointment(body, treatment, effectiveStartTime)
       }
 
       if (requiresGarden && requiresGrooming && groomingAppointment && daycareAppointment) {
@@ -150,7 +150,7 @@ serve(async (req) => {
     }
 
     const webhookResponse = await callReservationWebhook({
-      dogId: body.dogId,
+      treatmentId: body.treatmentId,
       date: body.date,
       stationId: body.stationId,
       startTime: effectiveStartTime,
@@ -273,40 +273,40 @@ function minutesToMs(minutes: number) {
   return minutes * 60 * 1000
 }
 
-async function fetchDogRecord(dogId: string): Promise<DogRecord> {
+async function fetchTreatmentRecord(treatmentId: string): Promise<TreatmentRecord> {
   const { data, error } = await supabase
-    .from("dogs")
-    .select("id, customer_id, breed_id")
-    .eq("id", dogId)
-    .maybeSingle<DogRecord>()
+    .from("treatments")
+    .select("id, customer_id, treatment_type_id")
+    .eq("id", treatmentId)
+    .maybeSingle<TreatmentRecord>()
 
   if (error) {
-    throw new Error(`Failed to fetch dog: ${error.message}`)
+    throw new Error(`Failed to fetch treatment: ${error.message}`)
   }
 
   if (!data) {
-    throw new Error(`Dog ${dogId} not found`)
+    throw new Error(`Treatment ${treatmentId} not found`)
   }
 
   if (!data.customer_id) {
-    throw new Error(`Dog ${dogId} is missing a customer reference`)
+    throw new Error(`Treatment ${treatmentId} is missing a customer reference`)
   }
 
   return data
 }
 
-async function calculateGroomingDurationMinutes(stationId: string, breedId: string | null): Promise<number> {
-  if (breedId) {
+async function calculateGroomingDurationMinutes(stationId: string, treatmentTypeId: string | null): Promise<number> {
+  if (treatmentTypeId) {
     const { data, error } = await supabase
-      .from("station_breed_rules")
+      .from("station_treatmentType_rules")
       .select("duration_modifier_minutes")
       .eq("station_id", stationId)
-      .eq("breed_id", breedId)
+      .eq("treatment_type_id", treatmentTypeId)
       .eq("is_active", true)
       .maybeSingle<{ duration_modifier_minutes: number | null }>()
 
     if (error) {
-      throw new Error(`Failed to fetch station breed rule: ${error.message}`)
+      throw new Error(`Failed to fetch station treatmentType rule: ${error.message}`)
     }
 
     const minutes = data?.duration_modifier_minutes ?? 0
@@ -332,7 +332,7 @@ async function calculateGroomingDurationMinutes(stationId: string, breedId: stri
 
 async function createGroomingAppointment(
   request: ReservationRequest,
-  dog: DogRecord,
+  treatment: TreatmentRecord,
 ): Promise<GroomingAppointmentRow> {
   if (!request.stationId) {
     throw new Error("stationId is required for grooming appointments")
@@ -342,14 +342,14 @@ async function createGroomingAppointment(
   }
 
   const startAt = toUtcDate(request.date, request.startTime)
-  const durationMinutes = await calculateGroomingDurationMinutes(request.stationId, dog.breed_id)
+  const durationMinutes = await calculateGroomingDurationMinutes(request.stationId, treatment.treatment_type_id)
   const endAt = new Date(startAt.getTime() + minutesToMs(durationMinutes))
-  const requiresApproval = await doesBreedRequireApprovalForStation(request.stationId, dog.breed_id)
+  const requiresApproval = await doesTreatmentTypeRequireApprovalForStation(request.stationId, treatment.treatment_type_id)
   const status = requiresApproval ? "pending" : "approved"
 
   console.log("🔍 [createGroomingAppointment] Determined approval requirement:", {
     stationId: request.stationId,
-    breedId: dog.breed_id,
+    treatmentTypeId: treatment.treatment_type_id,
     requiresApproval,
     status,
   })
@@ -357,8 +357,8 @@ async function createGroomingAppointment(
   const { data, error } = await supabase
     .from("grooming_appointments")
     .insert({
-      customer_id: dog.customer_id,
-      dog_id: dog.id,
+      customer_id: treatment.customer_id,
+      treatment_id: treatment.id,
       station_id: request.stationId,
       start_at: startAt.toISOString(),
       end_at: endAt.toISOString(),
@@ -381,39 +381,39 @@ async function createGroomingAppointment(
   return data
 }
 
-async function doesBreedRequireApprovalForStation(
+async function doesTreatmentTypeRequireApprovalForStation(
   stationId: string | null | undefined,
-  breedId: string | null,
+  treatmentTypeId: string | null,
 ): Promise<boolean> {
-  if (!stationId || !breedId) {
-    console.log("ℹ️ [createGroomingAppointment] Missing station or breed, defaulting requiresApproval=false", {
+  if (!stationId || !treatmentTypeId) {
+    console.log("ℹ️ [createGroomingAppointment] Missing station or treatmentType, defaulting requiresApproval=false", {
       stationId,
-      breedId,
+      treatmentTypeId,
     })
     return false
   }
 
   const { data, error } = await supabase
-    .from("station_breed_rules")
+    .from("station_treatmentType_rules")
     .select("requires_staff_approval")
     .eq("station_id", stationId)
-    .eq("breed_id", breedId)
+    .eq("treatment_type_id", treatmentTypeId)
     .eq("is_active", true)
     .maybeSingle<{ requires_staff_approval: boolean | null }>()
 
   if (error) {
-    console.error("❌ [createGroomingAppointment] Failed to check station breed approval requirement", {
+    console.error("❌ [createGroomingAppointment] Failed to check station treatmentType approval requirement", {
       stationId,
-      breedId,
+      treatmentTypeId,
       error,
     })
     throw new Error(`Failed to determine approval requirement: ${error.message}`)
   }
 
   const requiresApproval = Boolean(data?.requires_staff_approval)
-  console.log("🔎 [createGroomingAppointment] Station breed approval lookup result", {
+  console.log("🔎 [createGroomingAppointment] Station treatmentType approval lookup result", {
     stationId,
-    breedId,
+    treatmentTypeId,
     requiresApproval,
   })
   return requiresApproval
@@ -421,7 +421,7 @@ async function doesBreedRequireApprovalForStation(
 
 async function createDaycareAppointment(
   request: ReservationRequest,
-  dog: DogRecord,
+  treatment: TreatmentRecord,
   startTime: string,
 ): Promise<DaycareAppointmentRow> {
   const startAt = toUtcDate(request.date, startTime)
@@ -434,8 +434,8 @@ async function createDaycareAppointment(
   const { data, error } = await supabase
     .from("daycare_appointments")
     .insert({
-      customer_id: dog.customer_id,
-      dog_id: dog.id,
+      customer_id: treatment.customer_id,
+      treatment_id: treatment.id,
       station_id: stationId,
       status: "pending",
       payment_status: "unpaid",

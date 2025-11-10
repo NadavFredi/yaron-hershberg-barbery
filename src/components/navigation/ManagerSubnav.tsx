@@ -5,7 +5,7 @@ import {
   Settings,
   CalendarClock,
   Users,
-  Dog,
+  Sparkles,
   LayoutDashboard,
   ClipboardList,
   UserCog
@@ -79,12 +79,12 @@ export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
       pathname === "/manager-screens" && sectionParam === "customers"
   },
   {
-    id: "dogs",
-    to: "/manager-screens?section=dogs",
+    id: "treatments",
+    to: "/manager-screens?section=treatments",
     label: "כלבים",
-    icon: <Dog className="h-4 w-4" />,
+    icon: <Sparkles className="h-4 w-4" />,
     match: (pathname, sectionParam) =>
-      pathname === "/manager-screens" && sectionParam === "dogs"
+      pathname === "/manager-screens" && sectionParam === "treatments"
   },
   {
     id: "workers",

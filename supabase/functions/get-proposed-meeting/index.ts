@@ -58,7 +58,7 @@ serve(async (req) => {
         notes,
         reschedule_appointment_id,
         reschedule_customer_id,
-        reschedule_dog_id,
+        reschedule_treatment_id,
         reschedule_original_start_at,
         reschedule_original_end_at,
         stations(id, name),
@@ -107,7 +107,7 @@ serve(async (req) => {
       notes: meeting.notes ?? null,
       rescheduleAppointmentId: meeting.reschedule_appointment_id ?? null,
       rescheduleCustomerId: meeting.reschedule_customer_id ?? null,
-      rescheduleDogId: meeting.reschedule_dog_id ?? null,
+      rescheduleTreatmentId: meeting.reschedule_treatment_id ?? null,
       rescheduleOriginalStartAt: meeting.reschedule_original_start_at ?? null,
       rescheduleOriginalEndAt: meeting.reschedule_original_end_at ?? null,
       invites: (meeting.proposed_meeting_invites ?? []).map((invite: any) => ({

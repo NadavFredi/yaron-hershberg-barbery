@@ -124,7 +124,7 @@ export const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> =
                                 <div><strong>שעה:</strong> {format(new Date(appointmentToDelete.startDateTime), 'HH:mm')} - {format(new Date(appointmentToDelete.endDateTime), 'HH:mm')}</div>
                                 <div><strong>עמדה:</strong> {appointmentToDelete.stationName || 'לא זמין'}</div>
                                 <div><strong>לקוח:</strong> {appointmentToDelete.clientName || 'לא זמין'}</div>
-                                <div><strong>כלב:</strong> {appointmentToDelete.dogs[0]?.name || 'לא זמין'}</div>
+                                <div><strong>כלב:</strong> {appointmentToDelete.treatments[0]?.name || 'לא זמין'}</div>
                                 <div><strong>שירות:</strong> {appointmentToDelete.serviceType === 'grooming' ? 'מספרה' : 'גן'}</div>
                                 {hasGroupId && (
                                     <div><strong>מזהה קבוצה:</strong> {appointmentToDelete.groupAppointmentId}</div>

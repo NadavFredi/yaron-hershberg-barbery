@@ -7,24 +7,24 @@ import type {
   ManagerScheduleData,
   ManagerAppointment,
   ManagerStation,
-  ManagerDog,
+  ManagerTreatment,
   ManagerServiceFilter,
   ManagerScheduleSearchResponse,
-  ManagerScheduleDogSearchResult,
+  ManagerScheduleTreatmentSearchResult,
   ManagerScheduleSearchClient,
 } from "@/types/managerSchedule"
 import type { ProposedMeetingPublicDetails } from "@/types/proposedMeeting"
 
-type DogTableRow = Database["public"]["Tables"]["dogs"]["Row"]
-type BreedSummary = Pick<
-  Database["public"]["Tables"]["breeds"]["Row"],
+type TreatmentTableRow = Database["public"]["Tables"]["treatments"]["Row"]
+type TreatmentTypeSummary = Pick<
+  Database["public"]["Tables"]["treatmentTypes"]["Row"],
   "name" | "size_class" | "min_groom_price" | "max_groom_price"
 >
-type DogRowWithBreed = DogTableRow & { breeds: BreedSummary | null }
-type DaycareAppointmentSummary = Pick<Database["public"]["Tables"]["daycare_appointments"]["Row"], "dog_id" | "status">
+type TreatmentRowWithTreatmentType = TreatmentTableRow & { treatmentTypes: TreatmentTypeSummary | null }
+type DaycareAppointmentSummary = Pick<Database["public"]["Tables"]["daycare_appointments"]["Row"], "treatment_id" | "status">
 type GroomingAppointmentSummary = Pick<
   Database["public"]["Tables"]["grooming_appointments"]["Row"],
-  "dog_id" | "status"
+  "treatment_id" | "status"
 >
 type CustomerRow = Database["public"]["Tables"]["customers"]["Row"]
 type CustomerTypeRow = Database["public"]["Tables"]["customer_types"]["Row"]
@@ -55,10 +55,10 @@ const asSingle = <T>(value: T | T[] | null | undefined): T | null => {
   return value ?? null
 }
 
-export interface DogRecord {
+export interface TreatmentRecord {
   id: string
   name: string
-  breed: string
+  treatmentType: string
   size: string
   isSmall: boolean
   ownerId: string
@@ -75,7 +75,7 @@ export interface DogRecord {
 
 export interface AppointmentRecord {
   id: string
-  dogId: string
+  treatmentId: string
   date: string
   time: string
   service: string
@@ -109,16 +109,16 @@ export interface AvailableDatesResult {
   gardenQuestionnaire?: GardenQuestionnaireStatus
 }
 
-export interface DogRegistrationStatus {
+export interface TreatmentRegistrationStatus {
   isRegistered: boolean
   registrationDate: string
-  dogId: string
+  treatmentId: string
 }
 
 export interface MergedAppointment {
   id: string
-  dogId: string
-  dogName?: string
+  treatmentId: string
+  treatmentName?: string
   date: string
   time: string
   service: "grooming" | "garden" | "both"
@@ -150,28 +150,28 @@ export interface ClientProfile {
   customerTypeName?: string | null
 }
 
-async function hasDogAppointmentHistory(dogId: string): Promise<boolean> {
+async function hasTreatmentAppointmentHistory(treatmentId: string): Promise<boolean> {
   if (!supabase) {
     throw new Error("Supabase client not initialized")
   }
 
-  if (!dogId) {
-    throw new Error("dogId is required")
+  if (!treatmentId) {
+    throw new Error("treatmentId is required")
   }
 
   const [{ count: groomingCount, error: groomingError }, { count: daycareCount, error: daycareError }] =
     await Promise.all([
-      supabase.from("grooming_appointments").select("id", { count: "exact", head: true }).eq("dog_id", dogId),
-      supabase.from("daycare_appointments").select("id", { count: "exact", head: true }).eq("dog_id", dogId),
+      supabase.from("grooming_appointments").select("id", { count: "exact", head: true }).eq("treatment_id", treatmentId),
+      supabase.from("daycare_appointments").select("id", { count: "exact", head: true }).eq("treatment_id", treatmentId),
     ])
 
   if (groomingError) {
-    console.error("❌ [hasDogAppointmentHistory] Failed to check grooming appointments", groomingError)
+    console.error("❌ [hasTreatmentAppointmentHistory] Failed to check grooming appointments", groomingError)
     throw groomingError
   }
 
   if (daycareError) {
-    console.error("❌ [hasDogAppointmentHistory] Failed to check daycare appointments", daycareError)
+    console.error("❌ [hasTreatmentAppointmentHistory] Failed to check daycare appointments", daycareError)
     throw daycareError
   }
 
@@ -262,21 +262,21 @@ async function callProductionFunction(functionName: string, params: Record<strin
   }
 }
 
-// 1. List all dogs of owner
-export async function listOwnerDogs(ownerId: string): Promise<{ dogs: DogRecord[] }> {
+// 1. List all treatments of owner
+export async function listOwnerTreatments(ownerId: string): Promise<{ treatments: TreatmentRecord[] }> {
   // verbose log removed
   if (!ownerId) {
-    console.error("❌ [listOwnerDogs] ownerId is required")
+    console.error("❌ [listOwnerTreatments] ownerId is required")
     throw new Error("ownerId is required")
   }
 
   if (!supabase) {
-    console.error("❌ [listOwnerDogs] Supabase client not initialized")
+    console.error("❌ [listOwnerTreatments] Supabase client not initialized")
     throw new Error("Supabase client not initialized")
   }
 
-  const { data: dogRows, error } = await supabase
-    .from("dogs")
+  const { data: treatmentRows, error } = await supabase
+    .from("treatments")
     .select(
       `
       id,
@@ -284,7 +284,7 @@ export async function listOwnerDogs(ownerId: string): Promise<{ dogs: DogRecord[
       is_small,
       customer_id,
       questionnaire_result,
-      breeds (
+      treatmentTypes (
         name,
         size_class,
         min_groom_price,
@@ -296,7 +296,7 @@ export async function listOwnerDogs(ownerId: string): Promise<{ dogs: DogRecord[
     .order("name", { ascending: true })
 
   if (error) {
-    console.error("❌ [listOwnerDogs] Failed to load owner dogs:", {
+    console.error("❌ [listOwnerTreatments] Failed to load owner treatments:", {
       error,
       message: error.message,
       details: error.details,
@@ -307,117 +307,117 @@ export async function listOwnerDogs(ownerId: string): Promise<{ dogs: DogRecord[
     throw error
   }
 
-  const typedDogRows = (dogRows ?? []) as DogRowWithBreed[]
-  const dogIds = typedDogRows.map((dog) => dog.id)
+  const typedTreatmentRows = (treatmentRows ?? []) as TreatmentRowWithTreatmentType[]
+  const treatmentIds = typedTreatmentRows.map((treatment) => treatment.id)
 
-  // Get all unique breed IDs from the dogs
-  const breedIds = [...new Set(typedDogRows.map((dog) => dog.breed_id).filter(Boolean) as string[])]
+  // Get all unique treatmentType IDs from the treatments
+  const treatmentTypeIds = [...new Set(typedTreatmentRows.map((treatment) => treatment.treatment_type_id).filter(Boolean) as string[])]
 
-  // Fetch station_breed_rules for all breeds to calculate requires_staff_approval
-  let breedRequiresApproval: Record<string, boolean> = {}
-  if (breedIds.length > 0) {
+  // Fetch station_treatmentType_rules for all treatmentTypes to calculate requires_staff_approval
+  let treatmentTypeRequiresApproval: Record<string, boolean> = {}
+  if (treatmentTypeIds.length > 0) {
     // verbose log removed
-    const { data: stationBreedRules, error: rulesError } = await supabase
-      .from("station_breed_rules")
-      .select("breed_id, is_active, requires_staff_approval")
-      .in("breed_id", breedIds)
+    const { data: stationTreatmentTypeRules, error: rulesError } = await supabase
+      .from("station_treatmentType_rules")
+      .select("treatment_type_id, is_active, requires_staff_approval")
+      .in("treatment_type_id", treatmentTypeIds)
       .eq("is_active", true)
       .eq("requires_staff_approval", true)
 
     if (rulesError) {
-      console.error("❌ [listOwnerDogs] Failed to load station_breed_rules:", {
+      console.error("❌ [listOwnerTreatments] Failed to load station_treatmentType_rules:", {
         error: rulesError,
         message: rulesError.message,
-        breedIds,
+        treatmentTypeIds,
       })
       // Don't throw - just continue with false values
     } else {
       // verbose log removed
 
-      // If any active station requires approval for a breed, mark that breed as requiring approval
-      const breedsWithApproval = new Set(
-        (stationBreedRules ?? []).map((rule) => rule.breed_id).filter(Boolean) as string[]
+      // If any active station requires approval for a treatmentType, mark that treatmentType as requiring approval
+      const treatmentTypesWithApproval = new Set(
+        (stationTreatmentTypeRules ?? []).map((rule) => rule.treatment_type_id).filter(Boolean) as string[]
       )
-      breedIds.forEach((breedId) => {
-        breedRequiresApproval[breedId] = breedsWithApproval.has(breedId)
+      treatmentTypeIds.forEach((treatmentTypeId) => {
+        treatmentTypeRequiresApproval[treatmentTypeId] = treatmentTypesWithApproval.has(treatmentTypeId)
       })
     }
   }
 
-  let daycareVisitsByDog: Record<string, boolean> = {}
-  let appointmentHistoryByDog: Record<string, boolean> = {}
-  if (dogIds.length > 0) {
+  let daycareVisitsByTreatment: Record<string, boolean> = {}
+  let appointmentHistoryByTreatment: Record<string, boolean> = {}
+  if (treatmentIds.length > 0) {
     const { data: daycareRows, error: daycareError } = await supabase
       .from("daycare_appointments")
-      .select("dog_id, status")
-      .in("dog_id", dogIds)
+      .select("treatment_id, status")
+      .in("treatment_id", treatmentIds)
 
     if (daycareError) {
-      console.error("❌ [listOwnerDogs] Failed to load daycare appointments for dogs:", {
+      console.error("❌ [listOwnerTreatments] Failed to load daycare appointments for treatments:", {
         error: daycareError,
         message: daycareError.message,
         details: daycareError.details,
         hint: daycareError.hint,
         code: daycareError.code,
-        dogIds,
+        treatmentIds,
       })
       throw daycareError
     }
 
     const typedDaycareRows = (daycareRows ?? []) as DaycareAppointmentSummary[]
-    daycareVisitsByDog = typedDaycareRows.reduce<Record<string, boolean>>((acc, row) => {
-      if (!row?.dog_id) {
+    daycareVisitsByTreatment = typedDaycareRows.reduce<Record<string, boolean>>((acc, row) => {
+      if (!row?.treatment_id) {
         return acc
       }
 
-      appointmentHistoryByDog[row.dog_id] = true
+      appointmentHistoryByTreatment[row.treatment_id] = true
 
       const isCompletedAppointment = row.status === "approved" || row.status === "matched" || row.status === "pending"
 
       if (isCompletedAppointment) {
-        acc[row.dog_id] = true
+        acc[row.treatment_id] = true
       }
 
       return acc
     }, {})
   }
 
-  if (dogIds.length > 0) {
+  if (treatmentIds.length > 0) {
     // verbose log removed
     const { data: groomingRows, error: groomingError } = await supabase
       .from("grooming_appointments")
-      .select("dog_id, status")
-      .in("dog_id", dogIds)
+      .select("treatment_id, status")
+      .in("treatment_id", treatmentIds)
 
     if (groomingError) {
-      console.error("❌ [listOwnerDogs] Failed to load grooming appointments for dogs:", {
+      console.error("❌ [listOwnerTreatments] Failed to load grooming appointments for treatments:", {
         error: groomingError,
         message: groomingError.message,
         details: groomingError.details,
         hint: groomingError.hint,
         code: groomingError.code,
-        dogIds,
+        treatmentIds,
       })
       throw groomingError
     }
 
     const typedGroomingRows = (groomingRows ?? []) as GroomingAppointmentSummary[]
     typedGroomingRows.forEach((row) => {
-      if (row?.dog_id) {
-        appointmentHistoryByDog[row.dog_id] = true
+      if (row?.treatment_id) {
+        appointmentHistoryByTreatment[row.treatment_id] = true
       }
     })
 
     // verbose log removed
   }
 
-  const dogs: DogRecord[] = typedDogRows.map((dog) => {
-    const breedInfo = dog.breeds
+  const treatments: TreatmentRecord[] = typedTreatmentRows.map((treatment) => {
+    const treatmentTypeInfo = treatment.treatmentTypes
 
     let questionnaireSuitableForGarden: boolean | undefined
     let staffApprovedForGarden = ""
 
-    switch (dog.questionnaire_result) {
+    switch (treatment.questionnaire_result) {
       case "approved":
         questionnaireSuitableForGarden = true
         staffApprovedForGarden = "נמצא מתאים"
@@ -431,45 +431,45 @@ export async function listOwnerDogs(ownerId: string): Promise<{ dogs: DogRecord[
         staffApprovedForGarden = ""
     }
 
-    const hasGardenHistory = Boolean(daycareVisitsByDog[dog.id])
-    const hasAppointmentHistory = Boolean(appointmentHistoryByDog[dog.id])
+    const hasGardenHistory = Boolean(daycareVisitsByTreatment[treatment.id])
+    const hasAppointmentHistory = Boolean(appointmentHistoryByTreatment[treatment.id])
 
-    // Determine size: prefer breed size_class, fallback to is_small field
-    let sizeDisplay = breedInfo?.size_class ?? ""
-    if (!sizeDisplay && dog.is_small !== null && dog.is_small !== undefined) {
-      sizeDisplay = dog.is_small ? "קטן" : "גדול"
+    // Determine size: prefer treatmentType size_class, fallback to is_small field
+    let sizeDisplay = treatmentTypeInfo?.size_class ?? ""
+    if (!sizeDisplay && treatment.is_small !== null && treatment.is_small !== undefined) {
+      sizeDisplay = treatment.is_small ? "קטן" : "גדול"
     }
     if (!sizeDisplay) {
       sizeDisplay = "לא צוין"
     }
 
     return {
-      id: dog.id,
-      name: dog.name ?? "",
-      breed: breedInfo?.name ?? "",
+      id: treatment.id,
+      name: treatment.name ?? "",
+      treatmentType: treatmentTypeInfo?.name ?? "",
       size: sizeDisplay,
-      isSmall: Boolean(dog.is_small),
-      ownerId: dog.customer_id,
+      isSmall: Boolean(treatment.is_small),
+      ownerId: treatment.customer_id,
       hasAppointmentHistory,
       hasBeenToGarden: hasGardenHistory,
       questionnaireSuitableForGarden,
       staffApprovedForGarden,
       hasRegisteredToGardenBefore: hasGardenHistory,
-      requiresSpecialApproval: Boolean(dog.breed_id && breedRequiresApproval[dog.breed_id]),
-      groomingMinPrice: typeof breedInfo?.min_groom_price === "number" ? Number(breedInfo.min_groom_price) : null,
-      groomingMaxPrice: typeof breedInfo?.max_groom_price === "number" ? Number(breedInfo.max_groom_price) : null,
+      requiresSpecialApproval: Boolean(treatment.treatment_type_id && treatmentTypeRequiresApproval[treatment.treatment_type_id]),
+      groomingMinPrice: typeof treatmentTypeInfo?.min_groom_price === "number" ? Number(treatmentTypeInfo.min_groom_price) : null,
+      groomingMaxPrice: typeof treatmentTypeInfo?.max_groom_price === "number" ? Number(treatmentTypeInfo.max_groom_price) : null,
     }
   })
 
-  return { dogs }
+  return { treatments }
 }
 
-// Create a new dog
-export async function createDog(
+// Create a new treatment
+export async function createTreatment(
   customerId: string,
-  dogData: {
+  treatmentData: {
     name: string
-    breed_id: string
+    treatment_type_id: string
     gender?: "male" | "female"
     birth_date?: string | null
     health_notes?: string | null
@@ -478,44 +478,44 @@ export async function createDog(
     aggression_risk?: boolean | null
     people_anxious?: boolean | null
   }
-): Promise<{ success: boolean; dogId?: string; error?: string }> {
+): Promise<{ success: boolean; treatmentId?: string; error?: string }> {
   // verbose log removed
 
   if (!supabase) {
-    console.error("❌ [createDog] Supabase client not initialized")
+    console.error("❌ [createTreatment] Supabase client not initialized")
     throw new Error("Supabase client not initialized")
   }
 
   if (!customerId) {
-    console.error("❌ [createDog] customerId is required")
+    console.error("❌ [createTreatment] customerId is required")
     throw new Error("customerId is required")
   }
 
-  if (!dogData.name || dogData.name.trim().length === 0) {
-    console.error("❌ [createDog] Dog name is required")
-    throw new Error("Dog name is required")
+  if (!treatmentData.name || treatmentData.name.trim().length === 0) {
+    console.error("❌ [createTreatment] Treatment name is required")
+    throw new Error("Treatment name is required")
   }
 
-  const insertPayload: Database["public"]["Tables"]["dogs"]["Insert"] = {
+  const insertPayload: Database["public"]["Tables"]["treatments"]["Insert"] = {
     customer_id: customerId,
-    name: dogData.name.trim(),
-    breed_id: dogData.breed_id,
-    ...(dogData.gender && { gender: dogData.gender }),
-    ...(dogData.birth_date && { birth_date: dogData.birth_date }),
-    ...(dogData.health_notes && { health_notes: dogData.health_notes.trim() }),
-    ...(dogData.vet_name && { vet_name: dogData.vet_name.trim() }),
-    ...(dogData.vet_phone && { vet_phone: dogData.vet_phone.trim() }),
-    ...(dogData.aggression_risk !== undefined && { aggression_risk: dogData.aggression_risk }),
-    ...(dogData.people_anxious !== undefined && { people_anxious: dogData.people_anxious }),
+    name: treatmentData.name.trim(),
+    treatment_type_id: treatmentData.treatment_type_id,
+    ...(treatmentData.gender && { gender: treatmentData.gender }),
+    ...(treatmentData.birth_date && { birth_date: treatmentData.birth_date }),
+    ...(treatmentData.health_notes && { health_notes: treatmentData.health_notes.trim() }),
+    ...(treatmentData.vet_name && { vet_name: treatmentData.vet_name.trim() }),
+    ...(treatmentData.vet_phone && { vet_phone: treatmentData.vet_phone.trim() }),
+    ...(treatmentData.aggression_risk !== undefined && { aggression_risk: treatmentData.aggression_risk }),
+    ...(treatmentData.people_anxious !== undefined && { people_anxious: treatmentData.people_anxious }),
     questionnaire_result: "pending",
   }
 
   // verbose log removed
 
-  const { data: newDog, error } = await supabase.from("dogs").insert(insertPayload).select("id").single()
+  const { data: newTreatment, error } = await supabase.from("treatments").insert(insertPayload).select("id").single()
 
   if (error) {
-    console.error("❌ [createDog] Failed to create dog:", {
+    console.error("❌ [createTreatment] Failed to create treatment:", {
       error,
       message: error.message,
       details: error.details,
@@ -525,7 +525,7 @@ export async function createDog(
 
     // Check if this is an authentication/authorization error
     if (isAuthError(error)) {
-      console.warn("🔒 [createDog] Auth error detected, logging out...", error)
+      console.warn("🔒 [createTreatment] Auth error detected, logging out...", error)
       handleInvalidToken()
       return {
         success: false,
@@ -535,7 +535,7 @@ export async function createDog(
 
     return {
       success: false,
-      error: error.message || "Failed to create dog",
+      error: error.message || "Failed to create treatment",
     }
   }
 
@@ -543,17 +543,17 @@ export async function createDog(
 
   return {
     success: true,
-    dogId: newDog.id,
+    treatmentId: newTreatment.id,
   }
 }
 
-// Get a single dog by ID with all fields
-export async function getDogById(dogId: string): Promise<{
+// Get a single treatment by ID with all fields
+export async function getTreatmentById(treatmentId: string): Promise<{
   success: boolean
-  dog?: {
+  treatment?: {
     id: string
     name: string
-    breed_id: string | null
+    treatment_type_id: string | null
     gender: "male" | "female"
     birth_date: string | null
     is_small: boolean | null
@@ -569,36 +569,36 @@ export async function getDogById(dogId: string): Promise<{
   // verbose log removed
 
   if (!supabase) {
-    console.error("❌ [getDogById] Supabase client not initialized")
+    console.error("❌ [getTreatmentById] Supabase client not initialized")
     throw new Error("Supabase client not initialized")
   }
 
-  if (!dogId) {
-    console.error("❌ [getDogById] dogId is required")
-    throw new Error("dogId is required")
+  if (!treatmentId) {
+    console.error("❌ [getTreatmentById] treatmentId is required")
+    throw new Error("treatmentId is required")
   }
 
-  const { data: dog, error } = await supabase.from("dogs").select("*").eq("id", dogId).single()
+  const { data: treatment, error } = await supabase.from("treatments").select("*").eq("id", treatmentId).single()
 
   if (error) {
-    console.error("❌ [getDogById] Failed to fetch dog:", {
+    console.error("❌ [getTreatmentById] Failed to fetch treatment:", {
       error,
       message: error.message,
       details: error.details,
       hint: error.hint,
       code: error.code,
-      dogId,
+      treatmentId,
     })
     return {
       success: false,
-      error: error.message || "Failed to fetch dog",
+      error: error.message || "Failed to fetch treatment",
     }
   }
 
-  if (!dog) {
+  if (!treatment) {
     return {
       success: false,
-      error: "Dog not found",
+      error: "Treatment not found",
     }
   }
 
@@ -606,29 +606,29 @@ export async function getDogById(dogId: string): Promise<{
 
   return {
     success: true,
-    dog: {
-      id: dog.id,
-      name: dog.name,
-      breed_id: dog.breed_id,
-      gender: dog.gender,
-      birth_date: dog.birth_date,
-      is_small: dog.is_small,
-      health_notes: dog.health_notes,
-      vet_name: dog.vet_name,
-      vet_phone: dog.vet_phone,
-      aggression_risk: dog.aggression_risk,
-      people_anxious: dog.people_anxious,
-      customer_id: dog.customer_id,
+    treatment: {
+      id: treatment.id,
+      name: treatment.name,
+      treatment_type_id: treatment.treatment_type_id,
+      gender: treatment.gender,
+      birth_date: treatment.birth_date,
+      is_small: treatment.is_small,
+      health_notes: treatment.health_notes,
+      vet_name: treatment.vet_name,
+      vet_phone: treatment.vet_phone,
+      aggression_risk: treatment.aggression_risk,
+      people_anxious: treatment.people_anxious,
+      customer_id: treatment.customer_id,
     },
   }
 }
 
-// Update an existing dog
-export async function updateDog(
-  dogId: string,
-  dogData: {
+// Update an existing treatment
+export async function updateTreatment(
+  treatmentId: string,
+  treatmentData: {
     name?: string
-    breed_id?: string
+    treatment_type_id?: string
     gender?: "male" | "female"
     birth_date?: string | null
     health_notes?: string | null
@@ -641,80 +641,80 @@ export async function updateDog(
   // verbose log removed
 
   if (!supabase) {
-    console.error("❌ [updateDog] Supabase client not initialized")
+    console.error("❌ [updateTreatment] Supabase client not initialized")
     throw new Error("Supabase client not initialized")
   }
 
-  if (!dogId) {
-    console.error("❌ [updateDog] dogId is required")
-    throw new Error("dogId is required")
+  if (!treatmentId) {
+    console.error("❌ [updateTreatment] treatmentId is required")
+    throw new Error("treatmentId is required")
   }
 
-  const { data: existingDog, error: existingDogError } = await supabase
-    .from("dogs")
-    .select("breed_id")
-    .eq("id", dogId)
+  const { data: existingTreatment, error: existingTreatmentError } = await supabase
+    .from("treatments")
+    .select("treatment_type_id")
+    .eq("id", treatmentId)
     .maybeSingle()
 
-  if (existingDogError) {
-    console.error("❌ [updateDog] Failed to load current dog state:", existingDogError)
-    throw existingDogError
+  if (existingTreatmentError) {
+    console.error("❌ [updateTreatment] Failed to load current treatment state:", existingTreatmentError)
+    throw existingTreatmentError
   }
 
-  const updatePayload: Database["public"]["Tables"]["dogs"]["Update"] = {}
+  const updatePayload: Database["public"]["Tables"]["treatments"]["Update"] = {}
 
-  if (dogData.name !== undefined) {
-    if (!dogData.name || dogData.name.trim().length === 0) {
-      throw new Error("Dog name cannot be empty")
+  if (treatmentData.name !== undefined) {
+    if (!treatmentData.name || treatmentData.name.trim().length === 0) {
+      throw new Error("Treatment name cannot be empty")
     }
-    updatePayload.name = dogData.name.trim()
+    updatePayload.name = treatmentData.name.trim()
   }
 
-  if (dogData.breed_id !== undefined) {
-    const normalizedBreedId = dogData.breed_id || null
-    const existingBreedId = existingDog?.breed_id ?? null
-    const isBreedChanging = normalizedBreedId !== existingBreedId
+  if (treatmentData.treatment_type_id !== undefined) {
+    const normalizedTreatmentTypeId = treatmentData.treatment_type_id || null
+    const existingTreatmentTypeId = existingTreatment?.treatment_type_id ?? null
+    const isTreatmentTypeChanging = normalizedTreatmentTypeId !== existingTreatmentTypeId
 
-    if (isBreedChanging) {
-      const hasHistory = await hasDogAppointmentHistory(dogId)
+    if (isTreatmentTypeChanging) {
+      const hasHistory = await hasTreatmentAppointmentHistory(treatmentId)
       if (hasHistory) {
         throw new Error("לא ניתן לשנות גזע לכלב שכבר הוזמנו לו תורים")
       }
     }
 
-    updatePayload.breed_id = normalizedBreedId
+    updatePayload.treatment_type_id = normalizedTreatmentTypeId
   }
-  if (dogData.gender !== undefined) {
-    updatePayload.gender = dogData.gender
+  if (treatmentData.gender !== undefined) {
+    updatePayload.gender = treatmentData.gender
   }
-  if (dogData.birth_date !== undefined) {
-    updatePayload.birth_date = dogData.birth_date || null
+  if (treatmentData.birth_date !== undefined) {
+    updatePayload.birth_date = treatmentData.birth_date || null
   }
-  if (dogData.health_notes !== undefined) {
-    updatePayload.health_notes = dogData.health_notes?.trim() || null
+  if (treatmentData.health_notes !== undefined) {
+    updatePayload.health_notes = treatmentData.health_notes?.trim() || null
   }
-  if (dogData.vet_name !== undefined) {
-    updatePayload.vet_name = dogData.vet_name?.trim() || null
+  if (treatmentData.vet_name !== undefined) {
+    updatePayload.vet_name = treatmentData.vet_name?.trim() || null
   }
-  if (dogData.vet_phone !== undefined) {
-    updatePayload.vet_phone = dogData.vet_phone?.trim() || null
+  if (treatmentData.vet_phone !== undefined) {
+    updatePayload.vet_phone = treatmentData.vet_phone?.trim() || null
   }
-  if (dogData.aggression_risk !== undefined) {
-    updatePayload.aggression_risk = dogData.aggression_risk
+  if (treatmentData.aggression_risk !== undefined) {
+    updatePayload.aggression_risk = treatmentData.aggression_risk
   }
-  if (dogData.people_anxious !== undefined) {
-    updatePayload.people_anxious = dogData.people_anxious
+  if (treatmentData.people_anxious !== undefined) {
+    updatePayload.people_anxious = treatmentData.people_anxious
   }
 
   if (Object.keys(updatePayload).length === 0) {
-    console.warn("⚠️ [updateDog] No fields to update")
+    console.warn("⚠️ [updateTreatment] No fields to update")
     return { success: true }
   }
 
-  const { error } = await supabase.from("dogs").update(updatePayload).eq("id", dogId)
+  const { error } = await supabase.from("treatments").update(updatePayload).eq("id", treatmentId)
 
   if (error) {
-    console.error("❌ [updateDog] Failed to update dog:", {
+    console.error("❌ [updateTreatment] Failed to update treatment:", {
       error,
       message: error.message,
       details: error.details,
@@ -723,7 +723,7 @@ export async function updateDog(
     })
     return {
       success: false,
-      error: error.message || "Failed to update dog",
+      error: error.message || "Failed to update treatment",
     }
   }
 
@@ -732,42 +732,42 @@ export async function updateDog(
   }
 }
 
-// 2. Check if dog is already registered
-export async function checkDogRegistration(dogId: string): Promise<DogRegistrationStatus> {
-  const result = await callSupabaseFunction("check-dog-registration", { dogId })
+// 2. Check if treatment is already registered
+export async function checkTreatmentRegistration(treatmentId: string): Promise<TreatmentRegistrationStatus> {
+  const result = await callSupabaseFunction("check-treatment-registration", { treatmentId })
   return result.data || result
 }
 
-// 3. Show all appointments for dog ID
-export async function getDogAppointments(dogId: string): Promise<{ appointments: AppointmentRecord[] }> {
-  const result = await callSupabaseFunction("get-dog-appointments", { dogId })
+// 3. Show all appointments for treatment ID
+export async function getTreatmentAppointments(treatmentId: string): Promise<{ appointments: AppointmentRecord[] }> {
+  const result = await callSupabaseFunction("get-treatment-appointments", { treatmentId })
   return result.data || result
 }
 
 // Get merged appointments directly from Supabase (grooming + garden combined)
-export async function getMergedAppointments(dogId: string): Promise<{ appointments: MergedAppointment[] }> {
+export async function getMergedAppointments(treatmentId: string): Promise<{ appointments: MergedAppointment[] }> {
   try {
-    // Get dog name for the appointments
-    const { data: dog, error: dogError } = await supabase.from("dogs").select("name").eq("id", dogId).single()
+    // Get treatment name for the appointments
+    const { data: treatment, error: treatmentError } = await supabase.from("treatments").select("name").eq("id", treatmentId).single()
 
-    if (dogError || !dog) {
-      throw new Error(`Dog with ID ${dogId} not found: ${dogError?.message || "Unknown error"}`)
+    if (treatmentError || !treatment) {
+      throw new Error(`Treatment with ID ${treatmentId} not found: ${treatmentError?.message || "Unknown error"}`)
     }
 
-    const dogName = dog.name
+    const treatmentName = treatment.name
 
-    // Fetch grooming and daycare appointments for this dog
+    // Fetch grooming and daycare appointments for this treatment
     const [groomingResult, daycareResult, combinedResult] = await Promise.all([
       supabase
         .from("grooming_appointments")
         .select("id, status, station_id, start_at, end_at, customer_notes, internal_notes")
-        .eq("dog_id", dogId),
+        .eq("treatment_id", treatmentId),
       supabase
         .from("daycare_appointments")
         .select(
           "id, status, station_id, start_at, end_at, customer_notes, internal_notes, late_pickup_requested, late_pickup_notes, garden_trim_nails, garden_brush, garden_bath"
         )
-        .eq("dog_id", dogId),
+        .eq("treatment_id", treatmentId),
       supabase.from("combined_appointments").select("grooming_appointment_id, daycare_appointment_id"),
     ])
 
@@ -835,8 +835,8 @@ export async function getMergedAppointments(dogId: string): Promise<{ appointmen
 
         mergedAppointments.push({
           id: `combined-${groomingAppt.id}-${daycareAppt.id}`,
-          dogId,
-          dogName,
+          treatmentId,
+          treatmentName,
           date,
           time,
           service: "both",
@@ -869,8 +869,8 @@ export async function getMergedAppointments(dogId: string): Promise<{ appointmen
 
         mergedAppointments.push({
           id: groomingAppt.id,
-          dogId,
-          dogName,
+          treatmentId,
+          treatmentName,
           date,
           time,
           service: "grooming",
@@ -891,8 +891,8 @@ export async function getMergedAppointments(dogId: string): Promise<{ appointmen
 
         mergedAppointments.push({
           id: daycareAppt.id,
-          dogId,
-          dogName,
+          treatmentId,
+          treatmentName,
           date,
           time,
           service: "garden",
@@ -926,11 +926,11 @@ export async function getMergedAppointments(dogId: string): Promise<{ appointmen
   }
 }
 
-// Get available dates for a dog using the backend-configured calendar window
-export async function getAvailableDates(dogId: string, serviceType: string): Promise<AvailableDatesResult> {
+// Get available dates for a treatment using the backend-configured calendar window
+export async function getAvailableDates(treatmentId: string, serviceType: string): Promise<AvailableDatesResult> {
   try {
     // Use the new direct Supabase implementation instead of edge function
-    const availableDates = await getAvailableDatesDirectly(dogId, serviceType)
+    const availableDates = await getAvailableDatesDirectly(treatmentId, serviceType)
 
     return { availableDates }
   } catch (error) {
@@ -939,12 +939,12 @@ export async function getAvailableDates(dogId: string, serviceType: string): Pro
   }
 }
 
-// Get available times for a dog on a specific date
-export async function getAvailableTimes(dogId: string, date: string): Promise<AvailableTime[]> {
+// Get available times for a treatment on a specific date
+export async function getAvailableTimes(treatmentId: string, date: string): Promise<AvailableTime[]> {
   try {
     // Edge function will handle all complex calculation - this just calls it
     const result = await callSupabaseFunction("get-available-times", {
-      dogId,
+      treatmentId,
       date,
       mode: "time",
     })
@@ -956,9 +956,9 @@ export async function getAvailableTimes(dogId: string, date: string): Promise<Av
   }
 }
 
-// 6. Reserve appointment for dog on a specific date
+// 6. Reserve appointment for treatment on a specific date
 export async function reserveAppointment(
-  dogId: string,
+  treatmentId: string,
   date: string,
   stationId: string,
   startTime: string,
@@ -977,7 +977,7 @@ export async function reserveAppointment(
   error?: string
 }> {
   const payload = {
-    dogId,
+    treatmentId,
     date,
     stationId,
     startTime,
@@ -1051,7 +1051,7 @@ export async function checkUserExists(email: string): Promise<{
 
 // 8. Register for waiting list
 export async function registerWaitingList(
-  dogId: string,
+  treatmentId: string,
   serviceType: string,
   dateRanges: Array<{ startDate: string; endDate: string }>,
   userId?: string
@@ -1063,7 +1063,7 @@ export async function registerWaitingList(
   try {
     // Use direct Supabase insert instead of edge function
     const { registerWaitingList } = await import("@/pages/Appointments/Appointments.module")
-    return await registerWaitingList(dogId, serviceType, dateRanges, userId)
+    return await registerWaitingList(treatmentId, serviceType, dateRanges, userId)
   } catch (error) {
     console.error("Failed to register waiting list:", error)
     return {
@@ -1075,7 +1075,7 @@ export async function registerWaitingList(
 
 export async function updateWaitingListEntry(
   entryId: string,
-  dogId: string,
+  treatmentId: string,
   serviceType: string,
   dateRanges: Array<{ startDate: string; endDate: string }>,
   userId?: string
@@ -1087,7 +1087,7 @@ export async function updateWaitingListEntry(
   try {
     // Use direct Supabase update instead of edge function
     const { updateWaitingListEntry } = await import("@/pages/Appointments/Appointments.module")
-    return await updateWaitingListEntry(entryId, dogId, serviceType, dateRanges)
+    return await updateWaitingListEntry(entryId, treatmentId, serviceType, dateRanges)
   } catch (error) {
     console.error("Failed to update waiting list entry:", error)
     return {
@@ -1097,24 +1097,24 @@ export async function updateWaitingListEntry(
   }
 }
 
-export async function deleteDog(
-  dogId: string,
-  options?: { ownerId?: string; dogName?: string }
+export async function deleteTreatment(
+  treatmentId: string,
+  options?: { ownerId?: string; treatmentName?: string }
 ): Promise<{
   success: boolean
   message?: string
   error?: string
 }> {
   try {
-    if (!dogId) {
-      throw new Error("dogId is required")
+    if (!treatmentId) {
+      throw new Error("treatmentId is required")
     }
 
     if (!supabase) {
       throw new Error("Supabase client not initialized")
     }
 
-    const hasHistory = await hasDogAppointmentHistory(dogId)
+    const hasHistory = await hasTreatmentAppointmentHistory(treatmentId)
     if (hasHistory) {
       return {
         success: false,
@@ -1122,7 +1122,7 @@ export async function deleteDog(
       }
     }
 
-    const { error } = await supabase.from("dogs").delete().eq("id", dogId)
+    const { error } = await supabase.from("treatments").delete().eq("id", treatmentId)
 
     if (error) {
       throw error
@@ -1130,13 +1130,13 @@ export async function deleteDog(
 
     return {
       success: true,
-      message: options?.dogName ? `הכלב ${options.dogName} הוסר בהצלחה` : undefined,
+      message: options?.treatmentName ? `הכלב ${options.treatmentName} הוסר בהצלחה` : undefined,
     }
   } catch (error) {
-    console.error("Failed to delete dog:", error)
+    console.error("Failed to delete treatment:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to delete dog",
+      error: error instanceof Error ? error.message : "Failed to delete treatment",
     }
   }
 }
@@ -1287,7 +1287,7 @@ export async function cancelAppointment(appointmentId: string): Promise<{
 export interface CancelAppointmentOptions {
   serviceType?: "grooming" | "garden" | "both"
   appointmentTime?: string
-  dogId?: string
+  treatmentId?: string
   stationId?: string
 }
 
@@ -1309,7 +1309,7 @@ export async function cancelAppointmentWebhook(
       appointmentId,
       appointmentTime: options.appointmentTime,
       serviceType: options.serviceType,
-      dogId: options.dogId,
+      treatmentId: options.treatmentId,
       stationId: options.stationId,
     })
   } catch (error) {
@@ -1514,7 +1514,7 @@ const mapProposedMeetingRowToAppointment = (row: ProposedMeetingRow | null): Man
     notes: row.summary || "מפגש מוצע",
     internalNotes: row.notes || undefined,
     hasCrossServiceAppointment: false,
-    dogs: [],
+    treatments: [],
     clientId: undefined,
     clientName: row.title || undefined,
     clientClassification: undefined,
@@ -1534,7 +1534,7 @@ const mapProposedMeetingRowToAppointment = (row: ProposedMeetingRow | null): Man
     proposedCategories: categories,
     proposedLinkedAppointmentId: row.reschedule_appointment_id || undefined,
     proposedLinkedCustomerId: row.reschedule_customer_id || undefined,
-    proposedLinkedDogId: row.reschedule_dog_id || undefined,
+    proposedLinkedTreatmentId: row.reschedule_treatment_id || undefined,
     proposedOriginalStart: row.reschedule_original_start_at || undefined,
     proposedOriginalEnd: row.reschedule_original_end_at || undefined,
   }
@@ -1602,10 +1602,10 @@ export async function getManagerSchedule(
               payment_status,
               appointment_kind,
               amount_due,
-              dog_id,
+              treatment_id,
               customer_id,
               stations(id, name),
-              dogs(id, name, breed_id, customer_id, breeds(name, size_class, min_groom_price, max_groom_price)),
+              treatments(id, name, treatment_type_id, customer_id, treatmentTypes(name, size_class, min_groom_price, max_groom_price)),
               customers(id, full_name, phone, email, classification)
             `
             )
@@ -1636,10 +1636,10 @@ export async function getManagerSchedule(
               garden_brush,
               garden_bath,
               questionnaire_result,
-              dog_id,
+              treatment_id,
               customer_id,
               stations(id, name),
-              dogs(id, name, breed_id, customer_id, breeds(name, size_class, min_groom_price, max_groom_price)),
+              treatments(id, name, treatment_type_id, customer_id, treatmentTypes(name, size_class, min_groom_price, max_groom_price)),
               customers(id, full_name, phone, email, classification)
             `
             )
@@ -1682,21 +1682,21 @@ export async function getManagerSchedule(
     // Process grooming appointments
     for (const apt of groomingAppointments) {
       const station = Array.isArray(apt.stations) ? apt.stations[0] : apt.stations
-      const dog = Array.isArray(apt.dogs) ? apt.dogs[0] : apt.dogs
+      const treatment = Array.isArray(apt.treatments) ? apt.treatments[0] : apt.treatments
       const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
-      const breed = dog?.breeds ? (Array.isArray(dog.breeds) ? dog.breeds[0] : dog.breeds) : null
+      const treatmentType = treatment?.treatmentTypes ? (Array.isArray(treatment.treatmentTypes) ? treatment.treatmentTypes[0] : treatment.treatmentTypes) : null
 
-      if (!dog) continue
+      if (!treatment) continue
 
-      const managerDog: ManagerDog = {
-        id: dog.id,
-        name: dog.name || "",
-        breed: breed?.name,
-        ownerId: dog.customer_id,
+      const managerTreatment: ManagerTreatment = {
+        id: treatment.id,
+        name: treatment.name || "",
+        treatmentType: treatmentType?.name,
+        ownerId: treatment.customer_id,
         clientClassification: customer?.classification,
         clientName: customer?.full_name,
-        minGroomingPrice: breed?.min_groom_price ? Number(breed.min_groom_price) : undefined,
-        maxGroomingPrice: breed?.max_groom_price ? Number(breed.max_groom_price) : undefined,
+        minGroomingPrice: treatmentType?.min_groom_price ? Number(treatmentType.min_groom_price) : undefined,
+        maxGroomingPrice: treatmentType?.max_groom_price ? Number(treatmentType.max_groom_price) : undefined,
       }
 
       const hasCrossService = combinedGroomingIds.has(apt.id)
@@ -1713,7 +1713,7 @@ export async function getManagerSchedule(
         notes: apt.customer_notes || "",
         internalNotes: apt.internal_notes || undefined,
         hasCrossServiceAppointment: hasCrossService,
-        dogs: [managerDog],
+        treatments: [managerTreatment],
         clientId: apt.customer_id,
         clientName: customer?.full_name || undefined,
         clientClassification: customer?.classification || undefined,
@@ -1728,21 +1728,21 @@ export async function getManagerSchedule(
 
     // Process daycare appointments
     for (const apt of daycareAppointments) {
-      const dog = Array.isArray(apt.dogs) ? apt.dogs[0] : apt.dogs
+      const treatment = Array.isArray(apt.treatments) ? apt.treatments[0] : apt.treatments
       const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
-      const breed = dog?.breeds ? (Array.isArray(dog.breeds) ? dog.breeds[0] : dog.breeds) : null
+      const treatmentType = treatment?.treatmentTypes ? (Array.isArray(treatment.treatmentTypes) ? treatment.treatmentTypes[0] : treatment.treatmentTypes) : null
 
-      if (!dog) continue
+      if (!treatment) continue
 
-      const managerDog: ManagerDog = {
-        id: dog.id,
-        name: dog.name || "",
-        breed: breed?.name,
-        ownerId: dog.customer_id,
+      const managerTreatment: ManagerTreatment = {
+        id: treatment.id,
+        name: treatment.name || "",
+        treatmentType: treatmentType?.name,
+        ownerId: treatment.customer_id,
         clientClassification: customer?.classification,
         clientName: customer?.full_name,
-        minGroomingPrice: breed?.min_groom_price ? Number(breed.min_groom_price) : undefined,
-        maxGroomingPrice: breed?.max_groom_price ? Number(breed.max_groom_price) : undefined,
+        minGroomingPrice: treatmentType?.min_groom_price ? Number(treatmentType.min_groom_price) : undefined,
+        maxGroomingPrice: treatmentType?.max_groom_price ? Number(treatmentType.max_groom_price) : undefined,
       }
 
       const hasCrossService = combinedDaycareIds.has(apt.id)
@@ -1773,7 +1773,7 @@ export async function getManagerSchedule(
         notes: apt.customer_notes || "",
         internalNotes: apt.internal_notes || undefined,
         hasCrossServiceAppointment: hasCrossService,
-        dogs: [managerDog],
+        treatments: [managerTreatment],
         clientId: apt.customer_id,
         clientName: customer?.full_name || undefined,
         clientClassification: customer?.classification || undefined,
@@ -1812,7 +1812,7 @@ export async function getManagerSchedule(
             notes,
             reschedule_appointment_id,
             reschedule_customer_id,
-            reschedule_dog_id,
+            reschedule_treatment_id,
             reschedule_original_start_at,
             reschedule_original_end_at,
             created_at,
@@ -1928,10 +1928,10 @@ export async function moveAppointment(params: {
   }
 }
 
-// Helper function to get or create system customer and dog for private appointments
-async function getOrCreateSystemCustomerAndDog(
+// Helper function to get or create system customer and treatment for private appointments
+async function getOrCreateSystemCustomerAndTreatment(
   appointmentName: string
-): Promise<{ customerId: string; dogId: string }> {
+): Promise<{ customerId: string; treatmentId: string }> {
   const SYSTEM_CUSTOMER_NAME = "צוות פנימי"
   const SYSTEM_CUSTOMER_EMAIL = "internal@wagtime.co.il"
   const SYSTEM_PHONE = "0000000000"
@@ -1975,15 +1975,15 @@ async function getOrCreateSystemCustomerAndDog(
     systemCustomer = newCustomer
   }
 
-  // Create a dog with the appointment name (or use a generic name if too long)
-  const dogName = appointmentName || "תור פרטי"
-  const { data: systemDog, error: dogError } = await supabase
-    .from("dogs")
+  // Create a treatment with the appointment name (or use a generic name if too long)
+  const treatmentName = appointmentName || "תור פרטי"
+  const { data: systemTreatment, error: treatmentError } = await supabase
+    .from("treatments")
     .insert({
-      name: dogName.length > 100 ? "תור פרטי" : dogName,
+      name: treatmentName.length > 100 ? "תור פרטי" : treatmentName,
       customer_id: systemCustomer.id,
-      breed_id: null, // No breed for system dogs
-      gender: "male", // Required field - default value for system dogs
+      treatment_type_id: null, // No treatmentType for system treatments
+      gender: "male", // Required field - default value for system treatments
       birth_date: null,
       is_small: false,
       health_notes: null,
@@ -1995,11 +1995,11 @@ async function getOrCreateSystemCustomerAndDog(
     .select("id")
     .single()
 
-  if (dogError || !systemDog) {
-    throw new Error(`Failed to create system dog: ${dogError?.message || "Unknown error"}`)
+  if (treatmentError || !systemTreatment) {
+    throw new Error(`Failed to create system treatment: ${treatmentError?.message || "Unknown error"}`)
   }
 
-  return { customerId: systemCustomer.id, dogId: systemDog.id }
+  return { customerId: systemCustomer.id, treatmentId: systemTreatment.id }
 }
 
 // Create manager appointment via edge function
@@ -2012,7 +2012,7 @@ export async function createManagerAppointment(params: {
   appointmentType: "private" | "business" | "garden"
   groupId?: string
   customerId?: string
-  dogId?: string
+  treatmentId?: string
   isManualOverride?: boolean
   gardenAppointmentType?: "full-day" | "hourly" | "trial"
   services?: {
@@ -2198,11 +2198,11 @@ export async function managerCancelAppointment(params: {
   appointmentId: string
   appointmentTime: string
   serviceType: "grooming" | "garden"
-  dogId?: string
+  treatmentId?: string
   stationId?: string
   updateCustomer?: boolean
   clientName?: string
-  dogName?: string
+  treatmentName?: string
   appointmentDate?: string
   groupId?: string
 }): Promise<{ success: boolean; message?: string; error?: string }> {
@@ -2243,11 +2243,11 @@ export async function managerDeleteAppointment(params: {
   appointmentId: string
   appointmentTime: string
   serviceType: "grooming" | "garden"
-  dogId?: string
+  treatmentId?: string
   stationId?: string
   updateCustomer?: boolean
   clientName?: string
-  dogName?: string
+  treatmentName?: string
   appointmentDate?: string
   groupId?: string
 }): Promise<{ success: boolean; message?: string; error?: string }> {
@@ -2287,7 +2287,7 @@ export async function getSingleManagerAppointment(
         payment_status,
         appointment_kind,
         amount_due,
-        dog_id,
+        treatment_id,
         customer_id,
         ${
           serviceType === "garden"
@@ -2295,7 +2295,7 @@ export async function getSingleManagerAppointment(
             : ""
         }
         stations(id, name),
-        dogs(id, name, breed_id, customer_id, breeds(name, size_class, min_groom_price, max_groom_price)),
+        treatments(id, name, treatment_type_id, customer_id, treatmentTypes(name, size_class, min_groom_price, max_groom_price)),
         customers(id, full_name, phone, email, classification)
       `
       )
@@ -2316,23 +2316,23 @@ export async function getSingleManagerAppointment(
     const hasCrossService = !!combinedData
 
     const station = Array.isArray(data.stations) ? data.stations[0] : data.stations
-    const dog = Array.isArray(data.dogs) ? data.dogs[0] : data.dogs
+    const treatment = Array.isArray(data.treatments) ? data.treatments[0] : data.treatments
     const customer = Array.isArray(data.customers) ? data.customers[0] : data.customers
-    const breed = dog?.breeds ? (Array.isArray(dog.breeds) ? dog.breeds[0] : dog.breeds) : null
+    const treatmentType = treatment?.treatmentTypes ? (Array.isArray(treatment.treatmentTypes) ? treatment.treatmentTypes[0] : treatment.treatmentTypes) : null
 
-    if (!dog) {
-      throw new Error("Dog information not found")
+    if (!treatment) {
+      throw new Error("Treatment information not found")
     }
 
-    const managerDog: ManagerDog = {
-      id: dog.id,
-      name: dog.name || "",
-      breed: breed?.name,
-      ownerId: dog.customer_id,
+    const managerTreatment: ManagerTreatment = {
+      id: treatment.id,
+      name: treatment.name || "",
+      treatmentType: treatmentType?.name,
+      ownerId: treatment.customer_id,
       clientClassification: customer?.classification,
       clientName: customer?.full_name,
-      minGroomingPrice: breed?.min_groom_price ? Number(breed.min_groom_price) : undefined,
-      maxGroomingPrice: breed?.max_groom_price ? Number(breed.max_groom_price) : undefined,
+      minGroomingPrice: treatmentType?.min_groom_price ? Number(treatmentType.min_groom_price) : undefined,
+      maxGroomingPrice: treatmentType?.max_groom_price ? Number(treatmentType.max_groom_price) : undefined,
     }
 
     const appointment: ManagerAppointment = {
@@ -2347,7 +2347,7 @@ export async function getSingleManagerAppointment(
       notes: data.customer_notes || "",
       internalNotes: data.internal_notes || undefined,
       hasCrossServiceAppointment: hasCrossService,
-      dogs: [managerDog],
+      treatments: [managerTreatment],
       clientId: data.customer_id,
       clientName: customer?.full_name || undefined,
       clientClassification: customer?.classification || undefined,
@@ -2405,7 +2405,7 @@ export async function searchManagerSchedule({
 }): Promise<ManagerScheduleSearchResponse> {
   const normalizedTerm = term.trim()
   if (!normalizedTerm) {
-    return { appointments: [], dogs: [], clients: [] }
+    return { appointments: [], treatments: [], clients: [] }
   }
 
   if (!supabase) {
@@ -2433,7 +2433,7 @@ export async function searchManagerSchedule({
     const response = (data ?? {}) as {
       success?: boolean
       appointments?: ManagerAppointment[]
-      dogs?: ManagerScheduleDogSearchResult[]
+      treatments?: ManagerScheduleTreatmentSearchResult[]
       clients?: ManagerScheduleSearchClient[]
       error?: string
     }
@@ -2443,10 +2443,10 @@ export async function searchManagerSchedule({
     }
 
     const appointments: ManagerAppointment[] = Array.isArray(response.appointments) ? response.appointments : []
-    const dogs: ManagerScheduleDogSearchResult[] = Array.isArray(response.dogs) ? response.dogs : []
+    const treatments: ManagerScheduleTreatmentSearchResult[] = Array.isArray(response.treatments) ? response.treatments : []
     const clients: ManagerScheduleSearchClient[] = Array.isArray(response.clients) ? response.clients : []
 
-    return { appointments, dogs, clients }
+    return { appointments, treatments, clients }
   } catch (error) {
     console.error("❌ [searchManagerSchedule] Unexpected failure", {
       normalizedTerm,
@@ -2480,11 +2480,11 @@ export async function getProposedMeetingPublic(meetingId: string): Promise<Propo
 
 export async function bookProposedMeeting(params: {
   meetingId: string
-  dogId: string
+  treatmentId: string
   code?: string
 }): Promise<{ success: boolean; appointmentId?: string }> {
-  if (!params.meetingId || !params.dogId) {
-    throw new Error("meetingId and dogId are required")
+  if (!params.meetingId || !params.treatmentId) {
+    throw new Error("meetingId and treatmentId are required")
   }
 
   const { data, error } = await supabase.functions.invoke("book-proposed-meeting", {
@@ -2517,7 +2517,7 @@ export interface ProposedMeetingInput {
   code?: string
   rescheduleAppointmentId?: string | null
   rescheduleCustomerId?: string | null
-  rescheduleDogId?: string | null
+  rescheduleTreatmentId?: string | null
   rescheduleOriginalStartAt?: string | null
   rescheduleOriginalEndAt?: string | null
 }
@@ -2546,7 +2546,7 @@ export async function createProposedMeeting(params: ProposedMeetingInput): Promi
     status: params.status || "proposed",
     reschedule_appointment_id: params.rescheduleAppointmentId ?? null,
     reschedule_customer_id: params.rescheduleCustomerId ?? null,
-    reschedule_dog_id: params.rescheduleDogId ?? null,
+    reschedule_treatment_id: params.rescheduleTreatmentId ?? null,
     reschedule_original_start_at: params.rescheduleOriginalStartAt ?? null,
     reschedule_original_end_at: params.rescheduleOriginalEndAt ?? null,
   }
@@ -2612,7 +2612,7 @@ export async function updateProposedMeeting(params: ProposedMeetingUpdateInput):
     status: params.status || "proposed",
     reschedule_appointment_id: params.rescheduleAppointmentId ?? null,
     reschedule_customer_id: params.rescheduleCustomerId ?? null,
-    reschedule_dog_id: params.rescheduleDogId ?? null,
+    reschedule_treatment_id: params.rescheduleTreatmentId ?? null,
     reschedule_original_start_at: params.rescheduleOriginalStartAt ?? null,
     reschedule_original_end_at: params.rescheduleOriginalEndAt ?? null,
   }

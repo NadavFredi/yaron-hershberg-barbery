@@ -7,7 +7,7 @@ const testInput: CalculationInput = {
   year: 2025,
   month: 8,
   workstations: [{ id: "station1", name: "עמדה 1" }],
-  durationRules: [{ id: "rule-1", breedId: "breed-1", stationId: "station1", durationInMinutes: 60 }],
+  durationRules: [{ id: "rule-1", treatmentTypeId: "treatmentType-1", stationId: "station1", durationInMinutes: 60 }],
   operatingHours: {
     4: {
       // Thursday

@@ -6,9 +6,9 @@ export interface ServiceStationConfig {
   price: number;
 }
 
-export interface ServiceBreedModifier {
+export interface ServiceTreatmentTypeModifier {
   serviceId: string;
-  breedId: string;
+  treatmentTypeId: string;
   timeModifierMinutes: number;
 }
 

@@ -9,7 +9,7 @@ import { ArrowRight, Plus, X, Search, Clock } from 'lucide-react';
 import { useServiceConfiguration } from '@/hooks/useServiceConfiguration';
 import ServiceBasePriceEditor from './ServiceBasePriceEditor';
 import PriceStepper from './PriceStepper';
-import SmartBreedSelectorMultiple from './SmartBreedSelectorMultiple';
+import SmartTreatmentTypeSelectorMultiple from './SmartTreatmentTypeSelectorMultiple';
 import { useToast } from '@/hooks/use-toast';
 
 interface ServiceEditorProps {
@@ -113,8 +113,8 @@ const StationCard = React.memo(({
 
 const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
   // All hooks must be called at the top level, unconditionally
-  const [isBreedSelectorOpen, setIsBreedSelectorOpen] = useState(false);
-  const [breedSearchTerm, setBreedSearchTerm] = useState('');
+  const [isTreatmentTypeSelectorOpen, setIsTreatmentTypeSelectorOpen] = useState(false);
+  const [treatmentTypeSearchTerm, setTreatmentTypeSearchTerm] = useState('');
   const [isApplyAllDialogOpen, setIsApplyAllDialogOpen] = useState(false);
   const [applyAllTime, setApplyAllTime] = useState(60);
   const { toast } = useToast();
@@ -122,29 +122,29 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
   const {
     service,
     stations,
-    breedAdjustments,
+    treatmentTypeAdjustments,
     isLoading,
     updateStationConfig,
-    addBreedAdjustments,
-    removeBreedAdjustment,
-    updateBreedTimeAdjustment,
+    addTreatmentTypeAdjustments,
+    removeTreatmentTypeAdjustment,
+    updateTreatmentTypeTimeAdjustment,
     applyTimeToAllStations
   } = useServiceConfiguration(serviceId);
 
-  // Filter breed adjustments based on search term and sort alphabetically
-  const filteredBreedAdjustments = useMemo(() => {
-    if (!breedAdjustments) return [];
+  // Filter treatmentType adjustments based on search term and sort alphabetically
+  const filteredTreatmentTypeAdjustments = useMemo(() => {
+    if (!treatmentTypeAdjustments) return [];
     
-    let filtered = breedAdjustments;
+    let filtered = treatmentTypeAdjustments;
     
-    if (breedSearchTerm.trim()) {
-      filtered = breedAdjustments.filter(adj => 
-        adj.breed_name.toLowerCase().includes(breedSearchTerm.toLowerCase())
+    if (treatmentTypeSearchTerm.trim()) {
+      filtered = treatmentTypeAdjustments.filter(adj => 
+        adj.treatment_type_name.toLowerCase().includes(treatmentTypeSearchTerm.toLowerCase())
       );
     }
     
-    return filtered.sort((a, b) => a.breed_name.localeCompare(b.breed_name, 'he'));
-  }, [breedAdjustments, breedSearchTerm]);
+    return filtered.sort((a, b) => a.treatment_type_name.localeCompare(b.treatment_type_name, 'he'));
+  }, [treatmentTypeAdjustments, treatmentTypeSearchTerm]);
 
   const handleStationTimeChange = useCallback(async (stationId: string, newTimeMinutes: number) => {
     return updateStationConfig({
@@ -164,38 +164,38 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
     });
   }, [serviceId, stations, updateStationConfig]);
 
-  const handleBreedsSelect = useCallback(async (breedIds: string[]) => {
+  const handleTreatmentTypesSelect = useCallback(async (treatmentTypeIds: string[]) => {
     try {
-      await addBreedAdjustments(breedIds);
+      await addTreatmentTypeAdjustments(treatmentTypeIds);
       toast({
         title: "גזעים נוספו בהצלחה",
-        description: `${breedIds.length} גזעים נוספו לשירות`,
+        description: `${treatmentTypeIds.length} גזעים נוספו לשירות`,
       });
     } catch (error) {
-      console.error('Error adding breeds:', error);
+      console.error('Error adding treatmentTypes:', error);
       toast({
         title: "שגיאה בהוספת הגזעים",
         description: "אנא נסה שוב",
         variant: "destructive",
       });
     }
-  }, [addBreedAdjustments, toast]);
+  }, [addTreatmentTypeAdjustments, toast]);
 
-  const handleRemoveBreed = useCallback(async (breedId: string) => {
+  const handleRemoveTreatmentType = useCallback(async (treatmentTypeId: string) => {
     try {
-      await removeBreedAdjustment(breedId);
+      await removeTreatmentTypeAdjustment(treatmentTypeId);
     } catch (error) {
-      console.error('Error removing breed:', error);
+      console.error('Error removing treatmentType:', error);
     }
-  }, [removeBreedAdjustment]);
+  }, [removeTreatmentTypeAdjustment]);
 
-  const handleBreedTimeChange = useCallback(async (breedId: string, newTimeAdjustment: number) => {
+  const handleTreatmentTypeTimeChange = useCallback(async (treatmentTypeId: string, newTimeAdjustment: number) => {
     try {
-      await updateBreedTimeAdjustment(breedId, newTimeAdjustment);
+      await updateTreatmentTypeTimeAdjustment(treatmentTypeId, newTimeAdjustment);
     } catch (error) {
-      console.error('Error updating breed time:', error);
+      console.error('Error updating treatmentType time:', error);
     }
-  }, [updateBreedTimeAdjustment]);
+  }, [updateTreatmentTypeTimeAdjustment]);
 
   const handleApplyTimeToAll = useCallback(async () => {
     try {
@@ -227,8 +227,8 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
     );
   }
 
-  // Get excluded breed IDs for the selector
-  const excludeBreedIds = breedAdjustments?.map(adj => adj.breed_id) || [];
+  // Get excluded treatmentType IDs for the selector
+  const excludeTreatmentTypeIds = treatmentTypeAdjustments?.map(adj => adj.treatment_type_id) || [];
 
   // Sort stations by creation order (id) for consistent display
   const sortedStations = stations?.slice().sort((a, b) => a.id.localeCompare(b.id)) || [];
@@ -290,7 +290,7 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
         </CardContent>
       </Card>
 
-      {/* Breed Adjustments */}
+      {/* TreatmentType Adjustments */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -301,7 +301,7 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
               </p>
             </div>
             <Button
-              onClick={() => setIsBreedSelectorOpen(true)}
+              onClick={() => setIsTreatmentTypeSelectorOpen(true)}
               className="bg-blue-600 hover:bg-blue-700"
             >
               <Plus className="w-4 h-4 ml-2" />
@@ -311,35 +311,35 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
         </CardHeader>
         <CardContent>
           {/* Search Box - Always Visible */}
-          {breedAdjustments && breedAdjustments.length > 0 && (
+          {treatmentTypeAdjustments && treatmentTypeAdjustments.length > 0 && (
             <div className="mb-4">
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
                   placeholder="חפש/י גזע ברשימה..."
-                  value={breedSearchTerm}
-                  onChange={(e) => setBreedSearchTerm(e.target.value)}
+                  value={treatmentTypeSearchTerm}
+                  onChange={(e) => setTreatmentTypeSearchTerm(e.target.value)}
                   className="pr-10"
                 />
               </div>
             </div>
           )}
 
-          {/* Breed Adjustments List */}
-          {filteredBreedAdjustments.length > 0 ? (
+          {/* TreatmentType Adjustments List */}
+          {filteredTreatmentTypeAdjustments.length > 0 ? (
             <div className="space-y-3">
-              {filteredBreedAdjustments.map((adjustment) => (
+              {filteredTreatmentTypeAdjustments.map((adjustment) => (
                 <div
-                  key={adjustment.breed_id}
+                  key={adjustment.treatment_type_id}
                   className="flex items-center justify-between p-4 border rounded-lg bg-gray-50"
                 >
                   <div className="flex items-center space-x-4 space-x-reverse flex-1">
-                    <div className="font-medium text-lg">{adjustment.breed_name}</div>
+                    <div className="font-medium text-lg">{adjustment.treatment_type_name}</div>
                     <div className="flex items-center space-x-2 space-x-reverse">
                       <span className="text-sm text-gray-600">זמן נוסף:</span>
                       <PriceStepper
                         value={adjustment.time_modifier_minutes}
-                        onChange={(newTime) => handleBreedTimeChange(adjustment.breed_id, newTime)}
+                        onChange={(newTime) => handleTreatmentTypeTimeChange(adjustment.treatment_type_id, newTime)}
                         step={5}
                         min={-30}
                         max={120}
@@ -351,20 +351,20 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
                     variant="ghost"
                     size="icon"
                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => handleRemoveBreed(adjustment.breed_id)}
+                    onClick={() => handleRemoveTreatmentType(adjustment.treatment_type_id)}
                   >
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
               ))}
             </div>
-          ) : breedAdjustments && breedAdjustments.length > 0 && breedSearchTerm ? (
+          ) : treatmentTypeAdjustments && treatmentTypeAdjustments.length > 0 && treatmentTypeSearchTerm ? (
             // Show "no results" but keep search visible
             <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">לא נמצאו גזעים התואמים לחיפוש "{breedSearchTerm}"</p>
+              <p className="text-gray-500 mb-4">לא נמצאו גזעים התואמים לחיפוש "{treatmentTypeSearchTerm}"</p>
               <Button
                 variant="outline"
-                onClick={() => setBreedSearchTerm('')}
+                onClick={() => setTreatmentTypeSearchTerm('')}
               >
                 נקה חיפוש
               </Button>
@@ -414,12 +414,12 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
         </DialogContent>
       </Dialog>
 
-      {/* Smart Breed Selector */}
-      <SmartBreedSelectorMultiple
-        open={isBreedSelectorOpen}
-        onOpenChange={setIsBreedSelectorOpen}
-        onBreedsSelect={handleBreedsSelect}
-        excludeBreedIds={excludeBreedIds}
+      {/* Smart TreatmentType Selector */}
+      <SmartTreatmentTypeSelectorMultiple
+        open={isTreatmentTypeSelectorOpen}
+        onOpenChange={setIsTreatmentTypeSelectorOpen}
+        onTreatmentTypesSelect={handleTreatmentTypesSelect}
+        excludeTreatmentTypeIds={excludeTreatmentTypeIds}
       />
     </div>
   );

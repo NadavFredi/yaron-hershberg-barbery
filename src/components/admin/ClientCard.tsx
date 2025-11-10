@@ -10,10 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 
-interface Dog {
+interface Treatment {
   id: string;
   name: string;
-  breed: string;
+  treatmentType: string;
   notes?: string;
   groomingMinPrice?: number | null;
   groomingMaxPrice?: number | null;
@@ -25,7 +25,7 @@ interface Client {
   phone: string;
   email: string;
   status: string;
-  dogs: Dog[];
+  treatments: Treatment[];
   nextAppointment?: string | null;
   lastAppointment: string;
   generalNotes?: string;
@@ -43,7 +43,7 @@ const mockAppointmentHistory = [
     id: '1',
     date: '2024-01-18 09:00',
     service: 'תספורת מלאה',
-    dogName: 'רקסי',
+    treatmentName: 'רקסי',
     station: 'עמדה 1 - יוסי',
     status: 'הושלם'
   },
@@ -51,7 +51,7 @@ const mockAppointmentHistory = [
     id: '2',
     date: '2024-01-25 14:00',
     service: 'רחצה ויבוש',
-    dogName: 'בוני',
+    treatmentName: 'בוני',
     station: 'עמדה 2 - שרה',
     status: 'עתידי'
   },
@@ -59,7 +59,7 @@ const mockAppointmentHistory = [
     id: '3',
     date: '2024-01-10 10:30',
     service: 'גיזום ציפורניים',
-    dogName: 'רקסי',
+    treatmentName: 'רקסי',
     station: 'עמדה 1 - יוסי',
     status: 'הושלם'
   }
@@ -73,7 +73,7 @@ const statusOptions = [
 ];
 
 const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
-  const [dogs, setDogs] = useState(client.dogs);
+  const [treatments, setTreatments] = useState(client.treatments);
   const [generalNotes, setGeneralNotes] = useState(client.generalNotes || '');
   const [clientDetails, setClientDetails] = useState({
     name: client.name,
@@ -109,9 +109,9 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
     }
   };
 
-  const updateDogNotes = (dogId: string, notes: string) => {
-    setDogs(prev => prev.map(dog =>
-      dog.id === dogId ? { ...dog, notes } : dog
+  const updateTreatmentNotes = (treatmentId: string, notes: string) => {
+    setTreatments(prev => prev.map(treatment =>
+      treatment.id === treatmentId ? { ...treatment, notes } : treatment
     ));
   };
 
@@ -165,7 +165,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
         <Tabs defaultValue="appointments" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="appointments">היסטוריית תורים</TabsTrigger>
-            <TabsTrigger value="dogs">הכלבים שלי</TabsTrigger>
+            <TabsTrigger value="treatments">הכלבים שלי</TabsTrigger>
             <TabsTrigger value="notes">הערות ופרטים</TabsTrigger>
           </TabsList>
 
@@ -197,7 +197,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                       <TableRow key={appointment.id}>
                         <TableCell>{formatDate(appointment.date)}</TableCell>
                         <TableCell>{appointment.service}</TableCell>
-                        <TableCell>{appointment.dogName}</TableCell>
+                        <TableCell>{appointment.treatmentName}</TableCell>
                         <TableCell>{appointment.station}</TableCell>
                         <TableCell>
                           <Badge className={getStatusBadgeColor(appointment.status)}>
@@ -212,30 +212,30 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
             </Card>
           </TabsContent>
 
-          {/* Dogs Tab */}
-          <TabsContent value="dogs">
+          {/* Treatments Tab */}
+          <TabsContent value="treatments">
             <div className="space-y-4">
-              {dogs.map((dog) => (
-                <Card key={dog.id}>
+              {treatments.map((treatment) => (
+                <Card key={treatment.id}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <PawPrint className="w-5 h-5 text-blue-600" />
-                      שם הכלב: {dog.name}
+                      שם הכלב: {treatment.name}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        גזע: {dog.breed}
+                        גזע: {treatment.treatmentType}
                       </label>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        הערות ורגישויות לגבי {dog.name}:
+                        הערות ורגישויות לגבי {treatment.name}:
                       </label>
                       <Textarea
-                        value={dog.notes || ''}
-                        onChange={(e) => updateDogNotes(dog.id, e.target.value)}
+                        value={treatment.notes || ''}
+                        onChange={(e) => updateTreatmentNotes(treatment.id, e.target.value)}
                         placeholder="למשל: רגיש במיוחד באוזניים, לא אוהב את המייבש, נובח כשרואה כלבים אחרים..."
                         className="min-h-[100px]"
                       />

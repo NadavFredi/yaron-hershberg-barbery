@@ -55,12 +55,12 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}))
     const meetingId = typeof body?.meetingId === "string" ? body.meetingId.trim() : ""
-    const dogId = typeof body?.dogId === "string" ? body.dogId.trim() : ""
+    const treatmentId = typeof body?.treatmentId === "string" ? body.treatmentId.trim() : ""
     const code = typeof body?.code === "string" ? body.code.trim() : ""
 
-    if (!meetingId || !dogId) {
+    if (!meetingId || !treatmentId) {
       return new Response(
-        JSON.stringify({ success: false, error: "meetingId and dogId are required" }),
+        JSON.stringify({ success: false, error: "meetingId and treatmentId are required" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -91,20 +91,20 @@ serve(async (req) => {
 
     const customerId = customerRow.id
 
-    const { data: dogRow, error: dogError } = await serviceClient
-      .from("dogs")
+    const { data: treatmentRow, error: treatmentError } = await serviceClient
+      .from("treatments")
       .select("id, customer_id")
-      .eq("id", dogId)
+      .eq("id", treatmentId)
       .maybeSingle()
 
-    if (dogError) {
-      console.error("❌ [book-proposed-meeting] Failed to load dog:", dogError)
-      throw dogError
+    if (treatmentError) {
+      console.error("❌ [book-proposed-meeting] Failed to load treatment:", treatmentError)
+      throw treatmentError
     }
 
-    if (!dogRow || dogRow.customer_id !== customerId) {
+    if (!treatmentRow || treatmentRow.customer_id !== customerId) {
       return new Response(
-        JSON.stringify({ success: false, error: "Only invited customers can select this dog" }),
+        JSON.stringify({ success: false, error: "Only invited customers can select this treatment" }),
         {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -128,7 +128,7 @@ serve(async (req) => {
         notes,
         reschedule_appointment_id,
         reschedule_customer_id,
-        reschedule_dog_id,
+        reschedule_treatment_id,
         reschedule_original_start_at,
         reschedule_original_end_at,
         proposed_meeting_invites(id, customer_id),
@@ -193,7 +193,7 @@ serve(async (req) => {
       )
     }
 
-    if (meeting.reschedule_dog_id && meeting.reschedule_dog_id !== dogId) {
+    if (meeting.reschedule_treatment_id && meeting.reschedule_treatment_id !== treatmentId) {
       return new Response(
         JSON.stringify({ success: false, error: "אפשר לאשר רק עם הכלב ששויך להצעה" }),
         {
@@ -237,13 +237,13 @@ serve(async (req) => {
           meetingId,
           appointmentId: meeting.reschedule_appointment_id,
           customerId,
-          dogId,
+          treatmentId,
           serviceType: meeting.service_type,
         })
 
         const { data: originalAppointment, error: originalError } = await serviceClient
           .from(tableName)
-          .select("id, customer_id, dog_id, appointment_kind, status")
+          .select("id, customer_id, treatment_id, appointment_kind, status")
           .eq("id", meeting.reschedule_appointment_id)
           .maybeSingle()
 
@@ -271,7 +271,7 @@ serve(async (req) => {
           )
         }
 
-        if (meeting.reschedule_dog_id && originalAppointment.dog_id !== meeting.reschedule_dog_id) {
+        if (meeting.reschedule_treatment_id && originalAppointment.treatment_id !== meeting.reschedule_treatment_id) {
           return new Response(
             JSON.stringify({ success: false, error: "התור המקורי שייך לכלב אחר" }),
             {
@@ -329,7 +329,7 @@ serve(async (req) => {
         console.log("🌿 [book-proposed-meeting] Creating daycare appointment from proposed meeting", {
           meetingId,
           customerId,
-          dogId,
+          treatmentId,
           startAt: meeting.start_at,
           endAt: meeting.end_at,
         })
@@ -338,7 +338,7 @@ serve(async (req) => {
           .insert({
             station_id: meeting.station_id,
             customer_id: customerId,
-            dog_id: dogId,
+            treatment_id: treatmentId,
             start_at: meeting.start_at,
             end_at: meeting.end_at,
             status: "approved",
@@ -361,7 +361,7 @@ serve(async (req) => {
         console.log("✂️ [book-proposed-meeting] Creating grooming appointment from proposed meeting", {
           meetingId,
           customerId,
-          dogId,
+          treatmentId,
           startAt: meeting.start_at,
           endAt: meeting.end_at,
         })
@@ -370,7 +370,7 @@ serve(async (req) => {
           .insert({
             station_id: meeting.station_id,
             customer_id: customerId,
-            dog_id: dogId,
+            treatment_id: treatmentId,
             start_at: meeting.start_at,
             end_at: meeting.end_at,
             status: "approved",

@@ -98,7 +98,7 @@ const AppointmentsList = ({
                         </Badge>
                       </div>
                       <div className="text-sm text-gray-600">
-                        <span className="font-medium">{appointment.dogName}</span>
+                        <span className="font-medium">{appointment.treatmentName}</span>
                         <span className="mx-2">•</span>
                         <span>{appointment.serviceName}</span>
                         <span className="mx-2">•</span>

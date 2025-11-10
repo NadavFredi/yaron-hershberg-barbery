@@ -22,9 +22,9 @@ src/store/
 └── slices/               # Redux slices for different domains
     ├── authSlice.ts      # Authentication state
     ├── appointmentsSlice.ts # Appointments state
-    ├── dogsSlice.ts      # Dogs state
+    ├── treatmentsSlice.ts      # Treatments state
     ├── servicesSlice.ts  # Services state
-    ├── breedsSlice.ts    # Breeds state
+    ├── treatmentTypesSlice.ts    # TreatmentTypes state
     └── stationsSlice.ts  # Stations state
 ```
 
@@ -49,10 +49,10 @@ src/store/
 ### Using RTK Query Hooks
 
 ```typescript
-import { useGetDogAppointmentsQuery } from "@/store/services/supabaseApi"
+import { useGetTreatmentAppointmentsQuery } from "@/store/services/supabaseApi"
 
 function MyComponent() {
-  const { data: appointments, isLoading, error } = useGetDogAppointmentsQuery(userId)
+  const { data: appointments, isLoading, error } = useGetTreatmentAppointmentsQuery(userId)
 
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error: {error}</div>
@@ -154,18 +154,18 @@ function AppointmentForm() {
 - `useCreateAppointmentMutation` - Create new appointment
 - `useUpdateAppointmentMutation` - Update existing appointment
 - `useDeleteAppointmentMutation` - Delete appointment
-- `useGetDogsQuery` - Fetch dogs
+- `useGetTreatmentsQuery` - Fetch treatments
 - `useGetServicesQuery` - Fetch services
-- `useGetBreedsQuery` - Fetch breeds
+- `useGetTreatmentTypesQuery` - Fetch treatmentTypes
 - `useGetStationsQuery` - Fetch stations
 
 ### Supabase API
 
 - `useCheckUserExistsQuery` - Check if user exists
-- `useGetDogAppointmentsQuery` - Get dog appointments
+- `useGetTreatmentAppointmentsQuery` - Get treatment appointments
 - `useGetAvailableDatesQuery` - Get available dates
 - `useGetAvailableTimesQuery` - Get available times
-- `useListOwnerDogsQuery` - List owner's dogs
+- `useListOwnerTreatmentsQuery` - List owner's treatments
 
 ## 🚨 Best Practices
 

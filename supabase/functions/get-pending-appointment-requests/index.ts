@@ -43,8 +43,8 @@ type PendingAppointmentRequest = {
   customerId: string | null
   customerName: string | null
   customerPhone: string | null
-  dogId: string | null
-  dogName: string | null
+  treatmentId: string | null
+  treatmentName: string | null
   stationName: string | null
   serviceLabel: string | null
   notes: string | null
@@ -61,7 +61,7 @@ type GroomingRow = {
   customer_notes?: string | null
   appointment_kind?: string | null
   customers?: Record<string, unknown> | Record<string, unknown>[] | null
-  dogs?: Record<string, unknown> | Record<string, unknown>[] | null
+  treatments?: Record<string, unknown> | Record<string, unknown>[] | null
   stations?: Record<string, unknown> | Record<string, unknown>[] | null
   services?: Record<string, unknown> | Record<string, unknown>[] | null
 }
@@ -76,7 +76,7 @@ type DaycareRow = {
   service_type?: string | null
   questionnaire_result?: string | null
   customers?: Record<string, unknown> | Record<string, unknown>[] | null
-  dogs?: Record<string, unknown> | Record<string, unknown>[] | null
+  treatments?: Record<string, unknown> | Record<string, unknown>[] | null
   stations?: Record<string, unknown> | Record<string, unknown>[] | null
 }
 
@@ -121,7 +121,7 @@ const mapGroomingRow = (row: GroomingRow): PendingAppointmentRequest | null => {
   }
 
   const customer = extractFirst<Record<string, unknown>>(row.customers)
-  const dog = extractFirst<Record<string, unknown>>(row.dogs)
+  const treatment = extractFirst<Record<string, unknown>>(row.treatments)
   const station = extractFirst<Record<string, unknown>>(row.stations)
   const service = extractFirst<Record<string, unknown>>(row.services)
 
@@ -134,8 +134,8 @@ const mapGroomingRow = (row: GroomingRow): PendingAppointmentRequest | null => {
     customerId: customer?.id ? String(customer.id) : null,
     customerName: typeof customer?.full_name === "string" ? customer.full_name : null,
     customerPhone: typeof customer?.phone === "string" ? customer.phone : null,
-    dogId: dog?.id ? String(dog.id) : null,
-    dogName: typeof dog?.name === "string" ? dog.name : null,
+    treatmentId: treatment?.id ? String(treatment.id) : null,
+    treatmentName: typeof treatment?.name === "string" ? treatment.name : null,
     stationName: typeof station?.name === "string" ? (station.name as string) : null,
     serviceLabel: typeof service?.name === "string" ? (service.name as string) : "מספרה",
     notes: row.customer_notes ?? null,
@@ -149,7 +149,7 @@ const mapDaycareRow = (row: DaycareRow): PendingAppointmentRequest | null => {
   }
 
   const customer = extractFirst<Record<string, unknown>>(row.customers)
-  const dog = extractFirst<Record<string, unknown>>(row.dogs)
+  const treatment = extractFirst<Record<string, unknown>>(row.treatments)
   const station = extractFirst<Record<string, unknown>>(row.stations)
 
   const serviceLabel = (() => {
@@ -175,8 +175,8 @@ const mapDaycareRow = (row: DaycareRow): PendingAppointmentRequest | null => {
     customerId: customer?.id ? String(customer.id) : null,
     customerName: typeof customer?.full_name === "string" ? customer.full_name : null,
     customerPhone: typeof customer?.phone === "string" ? customer.phone : null,
-    dogId: dog?.id ? String(dog.id) : null,
-    dogName: typeof dog?.name === "string" ? dog.name : null,
+    treatmentId: treatment?.id ? String(treatment.id) : null,
+    treatmentName: typeof treatment?.name === "string" ? treatment.name : null,
     stationName: typeof station?.name === "string" ? (station.name as string) : "גן הכלבים",
     serviceLabel,
     notes: row.customer_notes ?? null,
@@ -289,7 +289,7 @@ serve(async (req) => {
               full_name,
               phone
             ),
-            dogs (
+            treatments (
               id,
               name
             ),
@@ -323,7 +323,7 @@ serve(async (req) => {
               full_name,
               phone
             ),
-            dogs (
+            treatments (
               id,
               name
             ),

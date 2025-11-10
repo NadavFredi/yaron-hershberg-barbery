@@ -12,19 +12,19 @@ import { he } from 'date-fns/locale';
 import { CalendarIcon, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BookingStep } from '@/types';
-import { breeds, services, timeMatrix, adminAvailability, appointments, stations } from '@/data/mockData';
+import { treatmentTypes, services, timeMatrix, adminAvailability, appointments, stations } from '@/data/mockData';
 import { toast } from '@/hooks/use-toast';
 
 const BookingWizard = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingStep>({
     serviceId: '',
-    breedId: '',
+    treatmentTypeId: '',
   });
   const [availableSlots, setAvailableSlots] = useState<{ time: string; stationId: string }[]>([]);
 
   const selectedService = services.find(s => s.id === bookingData.serviceId);
-  const selectedBreed = breeds.find(b => b.id === bookingData.breedId);
+  const selectedTreatmentType = treatmentTypes.find(b => b.id === bookingData.treatmentTypeId);
 
   const calculateAvailableSlots = (date: Date) => {
     const dayOfWeek = date.getDay() === 0 ? 7 : date.getDay(); // Convert Sunday=0 to Sunday=7
@@ -32,9 +32,9 @@ const BookingWizard = () => {
     
     if (!availability) return [];
 
-    // Get possible durations for this service+breed combination
+    // Get possible durations for this service+treatmentType combination
     const possibleTimes = timeMatrix.filter(tm => 
-      tm.serviceId === bookingData.serviceId && tm.breedId === bookingData.breedId
+      tm.serviceId === bookingData.serviceId && tm.treatmentTypeId === bookingData.treatmentTypeId
     );
 
     const slots: { time: string; stationId: string }[] = [];
@@ -68,8 +68,8 @@ const BookingWizard = () => {
     return slots.sort((a, b) => a.time.localeCompare(b.time));
   };
 
-  const handleServiceBreedNext = () => {
-    if (!bookingData.serviceId || !bookingData.breedId) {
+  const handleServiceTreatmentTypeNext = () => {
+    if (!bookingData.serviceId || !bookingData.treatmentTypeId) {
       toast({
         title: "שגיאה",
         description: "אנא בחר שירות וגזע כלב",
@@ -93,7 +93,7 @@ const BookingWizard = () => {
   };
 
   const handleBookingSubmit = () => {
-    if (!bookingData.customerName || !bookingData.customerPhone || !bookingData.dogName) {
+    if (!bookingData.customerName || !bookingData.customerPhone || !bookingData.treatmentName) {
       toast({
         title: "שגיאה",
         description: "אנא מלא את כל השדות הנדרשים",
@@ -105,7 +105,7 @@ const BookingWizard = () => {
     // Here would be the actual booking logic
     toast({
       title: "התור נקבע בהצלחה!",
-      description: `התור של ${bookingData.dogName} נקבע ל-${format(bookingData.selectedDate!, 'dd/MM/yyyy', { locale: he })} בשעה ${bookingData.selectedTime}`,
+      description: `התור של ${bookingData.treatmentName} נקבע ל-${format(bookingData.selectedDate!, 'dd/MM/yyyy', { locale: he })} בשעה ${bookingData.selectedTime}`,
     });
 
     // Reset wizard
@@ -155,21 +155,21 @@ const BookingWizard = () => {
 
             <div className="space-y-2">
               <Label>איזה גזע כלב יש לך?</Label>
-              <Select value={bookingData.breedId} onValueChange={(value) => setBookingData({...bookingData, breedId: value})}>
+              <Select value={bookingData.treatmentTypeId} onValueChange={(value) => setBookingData({...bookingData, treatmentTypeId: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="בחר גזע" />
                 </SelectTrigger>
                 <SelectContent>
-                  {breeds.map(breed => (
-                    <SelectItem key={breed.id} value={breed.id}>
-                      {breed.name}
+                  {treatmentTypes.map(treatmentType => (
+                    <SelectItem key={treatmentType.id} value={treatmentType.id}>
+                      {treatmentType.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <Button onClick={handleServiceBreedNext} className="w-full">
+            <Button onClick={handleServiceTreatmentTypeNext} className="w-full">
               המשך לבחירת תאריך ושעה
             </Button>
           </CardContent>
@@ -181,7 +181,7 @@ const BookingWizard = () => {
           <CardHeader>
             <CardTitle className="text-center text-2xl">בחירת תאריך ושעה</CardTitle>
             <p className="text-center text-muted-foreground">
-              {selectedService?.name} עבור {selectedBreed?.name}
+              {selectedService?.name} עבור {selectedTreatmentType?.name}
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -259,7 +259,7 @@ const BookingWizard = () => {
           <CardHeader>
             <CardTitle className="text-center text-2xl">פרטים אישיים</CardTitle>
             <p className="text-center text-muted-foreground">
-              {selectedService?.name} • {selectedBreed?.name}<br/>
+              {selectedService?.name} • {selectedTreatmentType?.name}<br/>
               {bookingData.selectedDate && format(bookingData.selectedDate, "PPP", { locale: he })} בשעה {bookingData.selectedTime}
             </p>
           </CardHeader>
@@ -285,11 +285,11 @@ const BookingWizard = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dogName">שם הכלב *</Label>
+              <Label htmlFor="treatmentName">שם הכלב *</Label>
               <Input
-                id="dogName"
-                value={bookingData.dogName || ''}
-                onChange={(e) => setBookingData({...bookingData, dogName: e.target.value})}
+                id="treatmentName"
+                value={bookingData.treatmentName || ''}
+                onChange={(e) => setBookingData({...bookingData, treatmentName: e.target.value})}
                 placeholder="הכנס את שם הכלב"
               />
             </div>
@@ -318,9 +318,9 @@ const BookingWizard = () => {
           <CardContent className="text-center space-y-4">
             <CheckCircle className="w-16 h-16 text-green-600 mx-auto" />
             <div className="space-y-2">
-              <p className="text-lg font-semibold">התור של {bookingData.dogName} נקבע</p>
+              <p className="text-lg font-semibold">התור של {bookingData.treatmentName} נקבע</p>
               <p className="text-muted-foreground">
-                {selectedService?.name} • {selectedBreed?.name}<br/>
+                {selectedService?.name} • {selectedTreatmentType?.name}<br/>
                 {bookingData.selectedDate && format(bookingData.selectedDate, "PPP", { locale: he })} בשעה {bookingData.selectedTime}
               </p>
             </div>
@@ -330,7 +330,7 @@ const BookingWizard = () => {
             <Button 
               onClick={() => {
                 setCurrentStep(1);
-                setBookingData({ serviceId: '', breedId: '' });
+                setBookingData({ serviceId: '', treatmentTypeId: '' });
                 setAvailableSlots([]);
               }}
               className="w-full"

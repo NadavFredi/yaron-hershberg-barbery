@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "../components/ui/badge.tsx"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card.tsx"
 import { cn } from "../lib/utils.ts"
-import { useBreeds } from "../hooks/useBreeds.ts"
+import { useTreatmentTypes } from "../hooks/useTreatmentTypes.ts"
 import { AutocompleteFilter } from "../components/AutocompleteFilter.tsx"
 import { groomingPriceCopy, groomingPriceSections } from "../copy/pricing.ts"
 
@@ -54,7 +54,7 @@ const experienceOptions: Record<ExperienceId, ExperienceOption> = {
     }
 }
 
-type PricingBreed = {
+type PricingTreatmentType = {
     id: string
     name: string
     size_class?: string | null
@@ -207,17 +207,17 @@ function FilloutEmbed({ filloutId, accent }: FilloutEmbedProps) {
 }
 
 function PricingExperience() {
-    const { data: breeds, isLoading, isError, error } = useBreeds()
-    const [selectedBreedId, setSelectedBreedId] = useState<string | undefined>(undefined)
+    const { data: treatmentTypes, isLoading, isError, error } = useTreatmentTypes()
+    const [selectedTreatmentTypeId, setSelectedTreatmentTypeId] = useState<string | undefined>(undefined)
     const [inputValue, setInputValue] = useState("")
 
-    const sortedBreeds = useMemo<PricingBreed[]>(() => {
-        if (!breeds?.length) {
+    const sortedTreatmentTypes = useMemo<PricingTreatmentType[]>(() => {
+        if (!treatmentTypes?.length) {
             return []
         }
 
-        const normalized = (breeds as unknown[]).map((breed) => {
-            const record = breed as PricingBreed & { [key: string]: unknown }
+        const normalized = (treatmentTypes as unknown[]).map((treatmentType) => {
+            const record = treatmentType as PricingTreatmentType & { [key: string]: unknown }
             return {
                 id: record.id,
                 name: record.name,
@@ -228,45 +228,45 @@ function PricingExperience() {
         })
 
         return normalized.sort((a, b) => a.name.localeCompare(b.name, "he"))
-    }, [breeds])
+    }, [treatmentTypes])
 
     useEffect(() => {
-        if (sortedBreeds.length) {
-            console.log("🐾 [PricingExperience] נטענו", sortedBreeds.length, "גזעים להצגת מחירים")
+        if (sortedTreatmentTypes.length) {
+            console.log("🐾 [PricingExperience] נטענו", sortedTreatmentTypes.length, "גזעים להצגת מחירים")
         }
-    }, [sortedBreeds])
+    }, [sortedTreatmentTypes])
 
-    const selectedBreed = useMemo<PricingBreed | null>(() => {
-        return sortedBreeds.find((breed) => breed.id === selectedBreedId) ?? null
-    }, [selectedBreedId, sortedBreeds])
+    const selectedTreatmentType = useMemo<PricingTreatmentType | null>(() => {
+        return sortedTreatmentTypes.find((treatmentType) => treatmentType.id === selectedTreatmentTypeId) ?? null
+    }, [selectedTreatmentTypeId, sortedTreatmentTypes])
 
     useEffect(() => {
-        if (selectedBreed) {
+        if (selectedTreatmentType) {
             console.log("💡 [PricingExperience] הגזע שנבחר עבור תמחור:", {
-                id: selectedBreed.id,
-                name: selectedBreed.name,
-                size: selectedBreed.size_class,
-                minPrice: selectedBreed.min_groom_price,
-                maxPrice: selectedBreed.max_groom_price
+                id: selectedTreatmentType.id,
+                name: selectedTreatmentType.name,
+                size: selectedTreatmentType.size_class,
+                minPrice: selectedTreatmentType.min_groom_price,
+                maxPrice: selectedTreatmentType.max_groom_price
             })
         }
-    }, [selectedBreed])
+    }, [selectedTreatmentType])
 
-    const searchBreeds = (term: string) => {
-        if (!sortedBreeds.length) {
+    const searchTreatmentTypes = (term: string) => {
+        if (!sortedTreatmentTypes.length) {
             return Promise.resolve<string[]>([])
         }
 
         const needle = term.trim().toLowerCase()
         if (!needle) {
-            return Promise.resolve(sortedBreeds.slice(0, 8).map((breed) => breed.name))
+            return Promise.resolve(sortedTreatmentTypes.slice(0, 8).map((treatmentType) => treatmentType.name))
         }
 
         return Promise.resolve(
-            sortedBreeds
-                .filter((breed) => breed.name.toLowerCase().includes(needle))
+            sortedTreatmentTypes
+                .filter((treatmentType) => treatmentType.name.toLowerCase().includes(needle))
                 .slice(0, 8)
-                .map((breed) => breed.name)
+                .map((treatmentType) => treatmentType.name)
         )
     }
 
@@ -296,7 +296,7 @@ function PricingExperience() {
     }
 
     const hasPriceData =
-        typeof selectedBreed?.min_groom_price === "number" || typeof selectedBreed?.max_groom_price === "number"
+        typeof selectedTreatmentType?.min_groom_price === "number" || typeof selectedTreatmentType?.max_groom_price === "number"
 
     return (
         <div className="space-y-4 text-right" dir="rtl">
@@ -314,13 +314,13 @@ function PricingExperience() {
                 </div>
             ) : null}
 
-            {!isLoading && !isError && !sortedBreeds.length ? (
+            {!isLoading && !isError && !sortedTreatmentTypes.length ? (
                 <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
                     עוד לא הזנו מחירים בטבלה – דברו איתנו כדי לקבל הצעת מחיר מותאמת.
                 </div>
             ) : null}
 
-            {!isLoading && !isError && sortedBreeds.length ? (
+            {!isLoading && !isError && sortedTreatmentTypes.length ? (
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <span className="text-sm font-medium text-gray-800">
@@ -331,24 +331,24 @@ function PricingExperience() {
                             onChange={(value) => {
                                 setInputValue(value)
                                 if (!value.trim()) {
-                                    setSelectedBreedId(undefined)
+                                    setSelectedTreatmentTypeId(undefined)
                                     return
                                 }
                             }}
                             onSelect={(value) => {
                                 setInputValue(value)
-                                const breed = sortedBreeds.find((option) => option.name === value)
-                                if (breed) {
-                                    setSelectedBreedId(breed.id)
+                                const treatmentType = sortedTreatmentTypes.find((option) => option.name === value)
+                                if (treatmentType) {
+                                    setSelectedTreatmentTypeId(treatmentType.id)
                                     console.log("🎯 [PricingExperience] משתמש בחר גזע חדש:", {
-                                        id: breed.id,
-                                        name: breed.name
+                                        id: treatmentType.id,
+                                        name: treatmentType.name
                                     })
                                 }
                             }}
                             placeholder="הקלידו את שם הגזע..."
                             className="rounded-2xl border border-blue-200 bg-white/90 py-5 text-base font-medium text-gray-900"
-                            searchFn={searchBreeds}
+                            searchFn={searchTreatmentTypes}
                             minSearchLength={1}
                             debounceMs={150}
                             initialLoadOnMount
@@ -372,19 +372,19 @@ function PricingExperience() {
                         ))}
                     </div>
 
-                    {selectedBreed ? (
+                    {selectedTreatmentType ? (
                         <div className="space-y-3 rounded-2xl border border-blue-200 bg-white/95 p-4">
                             <div className="flex flex-col gap-1">
                                 <span className="text-sm text-gray-500">
-                                    טווח המחירים המשוער ל{translateSize(selectedBreed.size_class)}
+                                    טווח המחירים המשוער ל{translateSize(selectedTreatmentType.size_class)}
                                 </span>
                                 {hasPriceData ? (
                                     <div className="text-2xl font-bold text-blue-700">
-                                        {formatPrice(selectedBreed.min_groom_price)} – {formatPrice(selectedBreed.max_groom_price)}
+                                        {formatPrice(selectedTreatmentType.min_groom_price)} – {formatPrice(selectedTreatmentType.max_groom_price)}
                                     </div>
                                 ) : (
                                     <div className="text-sm text-amber-700">
-                                        עוד לא הזנו טווח מחירים לגזע {selectedBreed.name}. נשמח להתאים הצעת מחיר אישית.
+                                        עוד לא הזנו טווח מחירים לגזע {selectedTreatmentType.name}. נשמח להתאים הצעת מחיר אישית.
                                     </div>
                                 )}
                             </div>

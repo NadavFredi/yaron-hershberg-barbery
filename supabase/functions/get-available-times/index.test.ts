@@ -17,10 +17,10 @@ function createGardenContext(params: {
     serviceType: "garden",
     startDate: params.startDate,
     endDate: params.endDate,
-    dog: {
-      id: "test-dog",
-      name: "Test Dog",
-      breed_id: null,
+    treatment: {
+      id: "test-treatment",
+      name: "Test Treatment",
+      treatment_type_id: null,
       customer_id: null,
       customer_type_id: null,
     },
@@ -48,10 +48,10 @@ function createGroomingContext(params: {
     serviceType: "grooming",
     startDate: params.startDate,
     endDate: params.endDate,
-    dog: {
-      id: "test-grooming-dog",
-      name: "Grooming Dog",
-      breed_id: "breed-1",
+    treatment: {
+      id: "test-grooming-treatment",
+      name: "Grooming Treatment",
+      treatment_type_id: "treatmentType-1",
       customer_id: "customer-1",
       customer_type_id: "type-1",
     },

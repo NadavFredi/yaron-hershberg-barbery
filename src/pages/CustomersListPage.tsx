@@ -11,8 +11,8 @@ import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AutocompleteFilter } from "@/components/AutocompleteFilter"
-import { ClientDetailsSheet, DogDetailsSheet } from "@/pages/ManagerSchedule/sheets/index"
-import type { ManagerDog } from "@/types/managerSchedule"
+import { ClientDetailsSheet, TreatmentDetailsSheet } from "@/pages/ManagerSchedule/sheets/index"
+import type { ManagerTreatment } from "@/types/managerSchedule"
 import { AddCustomerDialog } from "@/components/AddCustomerDialog"
 import { EditCustomerDialog } from "@/components/EditCustomerDialog"
 import { BulkCustomersDeleteDialog } from "@/components/dialogs/customers/BulkCustomersDeleteDialog"
@@ -48,10 +48,10 @@ type SelectedClientDetails = {
     address?: string
 }
 
-type SelectedDogDetails = {
+type SelectedTreatmentDetails = {
     id: string
     name: string
-    breed?: string
+    treatmentType?: string
     clientClassification?: string
     gender?: string
     healthIssues?: string | null
@@ -98,8 +98,8 @@ export default function CustomersListPage() {
     const [phoneFilter, setPhoneFilter] = useState("")
     const [emailFilter, setEmailFilter] = useState("")
     const [nameFilter, setNameFilter] = useState("")
-    const [dogNameFilter, setDogNameFilter] = useState("")
-    const [breedFilter, setBreedFilter] = useState("")
+    const [treatmentNameFilter, setTreatmentNameFilter] = useState("")
+    const [treatmentTypeFilter, setTreatmentTypeFilter] = useState("")
 
     useEffect(() => {
         if (customerTypeParam && customerTypeParam !== customerTypeFilter) {
@@ -124,10 +124,10 @@ export default function CustomersListPage() {
 
     // Sheet states
     const [isClientDetailsOpen, setIsClientDetailsOpen] = useState(false)
-    const [isDogDetailsOpen, setIsDogDetailsOpen] = useState(false)
+    const [isTreatmentDetailsOpen, setIsTreatmentDetailsOpen] = useState(false)
     const [selectedClientForSheet, setSelectedClientForSheet] = useState<SelectedClientDetails | null>(null)
-    const [selectedDogForSheet, setSelectedDogForSheet] = useState<SelectedDogDetails | null>(null)
-    const [clientDogs, setClientDogs] = useState<ManagerDog[]>([])
+    const [selectedTreatmentForSheet, setSelectedTreatmentForSheet] = useState<SelectedTreatmentDetails | null>(null)
+    const [clientTreatments, setClientTreatments] = useState<ManagerTreatment[]>([])
 
     useEffect(() => {
         fetchCustomers()
@@ -210,7 +210,7 @@ export default function CustomersListPage() {
                 .select(`
                     *,
                     customer_type:customer_types(id, name, priority),
-                    dogs:dogs(id, name, breed_id, breed:breeds(id, name))
+                    treatments:treatments(id, name, treatment_type_id, treatmentType:treatmentTypes(id, name))
                 `)
                 .order("created_at", { ascending: false })
 
@@ -292,10 +292,10 @@ export default function CustomersListPage() {
         return [...new Set((data || []).map(c => c.email).filter(Boolean))] as string[]
     }
 
-    const searchDogNames = async (searchTerm: string): Promise<string[]> => {
+    const searchTreatmentNames = async (searchTerm: string): Promise<string[]> => {
         const trimmedTerm = searchTerm.trim()
         let query = supabase
-            .from("dogs")
+            .from("treatments")
             .select("name")
             .not("name", "is", null)
 
@@ -311,10 +311,10 @@ export default function CustomersListPage() {
         return [...new Set((data || []).map(d => d.name).filter(Boolean))] as string[]
     }
 
-    const searchBreeds = async (searchTerm: string): Promise<string[]> => {
+    const searchTreatmentTypes = async (searchTerm: string): Promise<string[]> => {
         const trimmedTerm = searchTerm.trim()
         let query = supabase
-            .from("breeds")
+            .from("treatmentTypes")
             .select("name")
             .not("name", "is", null)
 
@@ -356,20 +356,20 @@ export default function CustomersListPage() {
             return false
         }
 
-        // Dog name filter
-        if (dogNameFilter) {
-            const hasMatchingDog = customer.dogs?.some((dog: any) =>
-                dog.name?.toLowerCase().includes(dogNameFilter.toLowerCase())
+        // Treatment name filter
+        if (treatmentNameFilter) {
+            const hasMatchingTreatment = customer.treatments?.some((treatment: any) =>
+                treatment.name?.toLowerCase().includes(treatmentNameFilter.toLowerCase())
             )
-            if (!hasMatchingDog) return false
+            if (!hasMatchingTreatment) return false
         }
 
-        // Breed filter
-        if (breedFilter) {
-            const hasMatchingBreed = customer.dogs?.some((dog: any) =>
-                dog.breed?.name?.toLowerCase().includes(breedFilter.toLowerCase())
+        // TreatmentType filter
+        if (treatmentTypeFilter) {
+            const hasMatchingTreatmentType = customer.treatments?.some((treatment: any) =>
+                treatment.treatmentType?.name?.toLowerCase().includes(treatmentTypeFilter.toLowerCase())
             )
-            if (!hasMatchingBreed) return false
+            if (!hasMatchingTreatmentType) return false
         }
 
         return true
@@ -612,17 +612,17 @@ export default function CustomersListPage() {
 
     // Handle customer click to open sheet
     const handleCustomerClick = async (customer: Customer) => {
-        // Fetch all dogs for this customer
-        const { data: dogsData, error } = await supabase
-            .from("dogs")
+        // Fetch all treatments for this customer
+        const { data: treatmentsData, error } = await supabase
+            .from("treatments")
             .select(`
                 *,
-                breed:breeds(id, name)
+                treatmentType:treatmentTypes(id, name)
             `)
             .eq("customer_id", customer.id)
 
         if (error) {
-            console.error("Error fetching customer dogs:", error)
+            console.error("Error fetching customer treatments:", error)
             toast({
                 title: "שגיאה",
                 description: "לא ניתן לטעון את כלבי הלקוח",
@@ -631,22 +631,22 @@ export default function CustomersListPage() {
             return
         }
 
-        // Transform dogs to ManagerDog format
-        const managerDogs: ManagerDog[] = (dogsData || []).map((dog: any) => ({
-            id: dog.id,
-            name: dog.name,
-            breed: dog.breed?.name,
+        // Transform treatments to ManagerTreatment format
+        const managerTreatments: ManagerTreatment[] = (treatmentsData || []).map((treatment: any) => ({
+            id: treatment.id,
+            name: treatment.name,
+            treatmentType: treatment.treatmentType?.name,
             clientName: customer.full_name,
             clientClassification: customer.classification,
-            gender: dog.gender === 'male' ? 'זכר' : 'נקבה',
-            healthIssues: dog.health_notes,
-            vetName: dog.vet_name,
-            vetPhone: dog.vet_phone,
-            birthDate: dog.birth_date,
-            internalNotes: dog.staff_notes,
+            gender: treatment.gender === 'male' ? 'זכר' : 'נקבה',
+            healthIssues: treatment.health_notes,
+            vetName: treatment.vet_name,
+            vetPhone: treatment.vet_phone,
+            birthDate: treatment.birth_date,
+            internalNotes: treatment.staff_notes,
         }))
 
-        setClientDogs(managerDogs)
+        setClientTreatments(managerTreatments)
 
         const clientDetails = {
             name: customer.full_name,
@@ -660,33 +660,33 @@ export default function CustomersListPage() {
         setIsClientDetailsOpen(true)
     }
 
-    // Handle dog click from client sheet
-    const handleDogClick = (dog: ManagerDog) => {
-        const dogDetails = {
-            id: dog.id,
-            name: dog.name,
-            breed: dog.breed,
-            clientClassification: dog.clientClassification,
+    // Handle treatment click from client sheet
+    const handleTreatmentClick = (treatment: ManagerTreatment) => {
+        const treatmentDetails = {
+            id: treatment.id,
+            name: treatment.name,
+            treatmentType: treatment.treatmentType,
+            clientClassification: treatment.clientClassification,
             owner: selectedClientForSheet ? {
                 name: selectedClientForSheet.name,
                 phone: selectedClientForSheet.phone,
                 email: selectedClientForSheet.email,
                 customerTypeName: selectedClientForSheet.customerTypeName,
             } : undefined,
-            gender: dog.gender,
-            healthIssues: dog.healthIssues,
-            vetName: dog.vetName,
-            vetPhone: dog.vetPhone,
-            birthDate: dog.birthDate,
-            internalNotes: dog.internalNotes,
+            gender: treatment.gender,
+            healthIssues: treatment.healthIssues,
+            vetName: treatment.vetName,
+            vetPhone: treatment.vetPhone,
+            birthDate: treatment.birthDate,
+            internalNotes: treatment.internalNotes,
         }
-        setSelectedDogForSheet(dogDetails)
-        setIsDogDetailsOpen(true)
+        setSelectedTreatmentForSheet(treatmentDetails)
+        setIsTreatmentDetailsOpen(true)
         setIsClientDetailsOpen(false)
     }
 
-    // Handle client click from dog sheet
-    const handleClientClickFromDog = (client: {
+    // Handle client click from treatment sheet
+    const handleClientClickFromTreatment = (client: {
         name?: string
         phone?: string
         email?: string
@@ -702,7 +702,7 @@ export default function CustomersListPage() {
         }
         setSelectedClientForSheet(clientDetails)
         setIsClientDetailsOpen(true)
-        setIsDogDetailsOpen(false)
+        setIsTreatmentDetailsOpen(false)
     }
 
     useEffect(() => {
@@ -876,10 +876,10 @@ export default function CustomersListPage() {
                             <div>
                                 <Label className="text-sm mb-2 block">שם כלב</Label>
                                 <AutocompleteFilter
-                                    value={dogNameFilter}
-                                    onChange={setDogNameFilter}
+                                    value={treatmentNameFilter}
+                                    onChange={setTreatmentNameFilter}
                                     placeholder="שם כלב..."
-                                    searchFn={searchDogNames}
+                                    searchFn={searchTreatmentNames}
                                     minSearchLength={0}
                                     autoSearchOnFocus
                                     initialLoadOnMount
@@ -889,10 +889,10 @@ export default function CustomersListPage() {
                             <div>
                                 <Label className="text-sm mb-2 block">גזע</Label>
                                 <AutocompleteFilter
-                                    value={breedFilter}
-                                    onChange={setBreedFilter}
+                                    value={treatmentTypeFilter}
+                                    onChange={setTreatmentTypeFilter}
                                     placeholder="גזע..."
-                                    searchFn={searchBreeds}
+                                    searchFn={searchTreatmentTypes}
                                     minSearchLength={0}
                                     autoSearchOnFocus
                                     initialLoadOnMount
@@ -900,7 +900,7 @@ export default function CustomersListPage() {
                                 />
                             </div>
                         </div>
-                        {(customerTypeFilter !== "all" || phoneFilter || emailFilter || nameFilter || dogNameFilter || breedFilter) && (
+                        {(customerTypeFilter !== "all" || phoneFilter || emailFilter || nameFilter || treatmentNameFilter || treatmentTypeFilter) && (
                             <Button
                                 variant="outline"
                                 onClick={() => {
@@ -908,8 +908,8 @@ export default function CustomersListPage() {
                                     setPhoneFilter("")
                                     setEmailFilter("")
                                     setNameFilter("")
-                                    setDogNameFilter("")
-                                    setBreedFilter("")
+                                    setTreatmentNameFilter("")
+                                    setTreatmentTypeFilter("")
                                 }}
                             >
                                 נקה כל הסינונים
@@ -1149,27 +1149,27 @@ export default function CustomersListPage() {
                 onOpenChange={setIsClientDetailsOpen}
                 selectedClient={selectedClientForSheet}
                 data={{
-                    appointments: clientDogs.map(dog => ({
-                        id: `dummy-${dog.id}`,
-                        dogs: [dog],
+                    appointments: clientTreatments.map(treatment => ({
+                        id: `dummy-${treatment.id}`,
+                        treatments: [treatment],
                         clientName: selectedClientForSheet?.name,
                         clientClassification: selectedClientForSheet?.classification,
                     })),
                 }}
-                onDogClick={handleDogClick}
+                onTreatmentClick={handleTreatmentClick}
             />
 
-            {/* Dog Details Sheet */}
-            <DogDetailsSheet
-                open={isDogDetailsOpen}
-                onOpenChange={setIsDogDetailsOpen}
-                selectedDog={selectedDogForSheet}
+            {/* Treatment Details Sheet */}
+            <TreatmentDetailsSheet
+                open={isTreatmentDetailsOpen}
+                onOpenChange={setIsTreatmentDetailsOpen}
+                selectedTreatment={selectedTreatmentForSheet}
                 showAllPastAppointments={false}
                 setShowAllPastAppointments={() => { }}
                 data={{}}
-                onClientClick={handleClientClickFromDog}
+                onClientClick={handleClientClickFromTreatment}
                 onAppointmentClick={() => { }}
-                onShowDogAppointments={() => { }}
+                onShowTreatmentAppointments={() => { }}
             />
         </div>
     )

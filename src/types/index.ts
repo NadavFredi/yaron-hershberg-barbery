@@ -7,17 +7,17 @@ export interface User {
   role: 'לקוח' | 'מנהל';
 }
 
-export interface Dog {
+export interface Treatment {
   id: string;
   name: string;
-  breedId: string;
+  treatmentTypeId: string;
   ownerId: string;
   specialNotes?: string;
   groomingMinPrice?: number | null;
   groomingMaxPrice?: number | null;
 }
 
-export interface Breed {
+export interface TreatmentType {
   id: string;
   name: string;
   created_at?: string;
@@ -49,9 +49,9 @@ export interface ServiceStationMatrix {
   price: number;
 }
 
-export interface BreedModifier {
+export interface TreatmentTypeModifier {
   id: string;
-  breedId: string;
+  treatmentTypeId: string;
   serviceId: string;
   timeModifierMinutes: number; // יכול להיות חיובי או שלילי
 }
@@ -60,13 +60,13 @@ export interface ClientProfile {
   id: string;
   userId: string;
   clientNotes: string;
-  dogNotes: string;
+  treatmentNotes: string;
 }
 
 export interface RecurringAppointment {
   id: string;
   customerId: string;
-  dogId: string;
+  treatmentId: string;
   serviceId: string;
   frequency: 'שבועי' | 'דו-שבועי' | 'חודשי';
   startDate: Date;
@@ -76,7 +76,7 @@ export interface RecurringAppointment {
 export interface TimeMatrix {
   id: string;
   serviceId: string;
-  breedId: string;
+  treatmentTypeId: string;
   stationId: string;
   durationMinutes: number;
 }
@@ -84,7 +84,7 @@ export interface TimeMatrix {
 export interface Appointment {
   id: string;
   customerId: string;
-  dogId: string;
+  treatmentId: string;
   serviceId: string;
   stationId: string;
   startTime: Date;
@@ -93,7 +93,7 @@ export interface Appointment {
   status: 'מאושר' | 'ממתין' | 'בוטל' | 'הושלם';
   customerName: string;
   customerPhone: string;
-  dogName: string;
+  treatmentName: string;
   serviceName: string;
   stationName: string;
   internalNotes?: string;
@@ -110,10 +110,10 @@ export interface AdminAvailability {
 
 export interface BookingStep {
   serviceId: string;
-  breedId: string;
+  treatmentTypeId: string;
   selectedDate?: Date;
   selectedTime?: string;
   customerName?: string;
   customerPhone?: string;
-  dogName?: string;
+  treatmentName?: string;
 }

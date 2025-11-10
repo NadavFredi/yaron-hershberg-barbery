@@ -5,7 +5,7 @@ export interface CustomerSearchResult {
   fullName?: string
   phone?: string
   email?: string
-  dogNames?: string
+  treatmentNames?: string
   recordId?: string
 }
 
@@ -39,48 +39,48 @@ export async function searchCustomers(searchTerm: string): Promise<{
 
   console.log(`Found ${customersData?.length || 0} customers matching "${searchTerm}"`)
 
-  // For each customer, get their dogs' names
-  const customersWithDogs: CustomerSearchResult[] = []
+  // For each customer, get their treatments' names
+  const customersWithTreatments: CustomerSearchResult[] = []
 
   if (customersData && customersData.length > 0) {
     // Get all customer IDs
     const customerIds = customersData.map((c) => c.id)
 
-    // Fetch dogs for all customers at once
-    const { data: dogsData, error: dogsError } = await supabase
-      .from("dogs")
+    // Fetch treatments for all customers at once
+    const { data: treatmentsData, error: treatmentsError } = await supabase
+      .from("treatments")
       .select("id, name, customer_id")
       .in("customer_id", customerIds)
 
-    if (dogsError) {
-      console.warn("Error fetching dogs for customers:", dogsError)
+    if (treatmentsError) {
+      console.warn("Error fetching treatments for customers:", treatmentsError)
     }
 
-    // Group dogs by customer_id
-    const dogsByCustomer: Record<string, string[]> = {}
-    dogsData?.forEach((dog) => {
-      if (!dogsByCustomer[dog.customer_id]) {
-        dogsByCustomer[dog.customer_id] = []
+    // Group treatments by customer_id
+    const treatmentsByCustomer: Record<string, string[]> = {}
+    treatmentsData?.forEach((treatment) => {
+      if (!treatmentsByCustomer[treatment.customer_id]) {
+        treatmentsByCustomer[treatment.customer_id] = []
       }
-      dogsByCustomer[dog.customer_id].push(dog.name)
+      treatmentsByCustomer[treatment.customer_id].push(treatment.name)
     })
 
     // Build result array
     customersData.forEach((customer) => {
-      customersWithDogs.push({
+      customersWithTreatments.push({
         id: customer.id,
         fullName: customer.full_name || undefined,
         phone: customer.phone || undefined,
         email: customer.email || undefined,
-        dogNames: dogsByCustomer[customer.id]?.join(", ") || undefined,
+        treatmentNames: treatmentsByCustomer[customer.id]?.join(", ") || undefined,
         recordId: customer.airtable_id || undefined,
       })
     })
   }
 
   return {
-    customers: customersWithDogs,
-    count: customersWithDogs.length,
+    customers: customersWithTreatments,
+    count: customersWithTreatments.length,
     searchTerm,
   }
 }

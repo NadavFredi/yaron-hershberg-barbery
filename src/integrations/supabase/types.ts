@@ -58,23 +58,23 @@ export type Database = {
           },
         ]
       }
-      breed_modifiers: {
+      treatmentType_modifiers: {
         Row: {
-          breed_id: string
+          treatment_type_id: string
           created_at: string
           id: string
           service_id: string
           time_modifier_minutes: number
         }
         Insert: {
-          breed_id: string
+          treatment_type_id: string
           created_at?: string
           id?: string
           service_id: string
           time_modifier_minutes?: number
         }
         Update: {
-          breed_id?: string
+          treatment_type_id?: string
           created_at?: string
           id?: string
           service_id?: string
@@ -82,14 +82,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "breed_modifiers_breed_id_fkey"
-            columns: ["breed_id"]
+            foreignKeyName: "treatmentType_modifiers_treatment_type_id_fkey"
+            columns: ["treatment_type_id"]
             isOneToOne: false
-            referencedRelation: "breeds"
+            referencedRelation: "treatmentTypes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "breed_modifiers_service_id_fkey"
+            foreignKeyName: "treatmentType_modifiers_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
@@ -97,7 +97,7 @@ export type Database = {
           },
         ]
       }
-      breeds: {
+      treatmentTypes: {
         Row: {
           airtable_id: string | null
           created_at: string
@@ -313,7 +313,7 @@ export type Database = {
           created_at: string
           customer_id: string
           customer_notes: string | null
-          dog_id: string
+          treatment_id: string
           end_at: string
           garden_bath: boolean | null
           garden_brush: boolean | null
@@ -337,7 +337,7 @@ export type Database = {
           created_at?: string
           customer_id: string
           customer_notes?: string | null
-          dog_id: string
+          treatment_id: string
           end_at: string
           garden_bath?: boolean | null
           garden_brush?: boolean | null
@@ -361,7 +361,7 @@ export type Database = {
           created_at?: string
           customer_id?: string
           customer_notes?: string | null
-          dog_id?: string
+          treatment_id?: string
           end_at?: string
           garden_bath?: boolean | null
           garden_brush?: boolean | null
@@ -388,10 +388,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "daycare_appointments_dog_id_fkey"
-            columns: ["dog_id"]
+            foreignKeyName: "daycare_appointments_treatment_id_fkey"
+            columns: ["treatment_id"]
             isOneToOne: false
-            referencedRelation: "dogs"
+            referencedRelation: "treatments"
             referencedColumns: ["id"]
           },
           {
@@ -435,7 +435,7 @@ export type Database = {
           airtable_id: string | null
           created_at: string
           customer_id: string
-          dog_id: string
+          treatment_id: string
           end_date: string | null
           id: string
           notes: string | null
@@ -449,7 +449,7 @@ export type Database = {
           airtable_id?: string | null
           created_at?: string
           customer_id: string
-          dog_id: string
+          treatment_id: string
           end_date?: string | null
           id?: string
           notes?: string | null
@@ -463,7 +463,7 @@ export type Database = {
           airtable_id?: string | null
           created_at?: string
           customer_id?: string
-          dog_id?: string
+          treatment_id?: string
           end_date?: string | null
           id?: string
           notes?: string | null
@@ -482,23 +482,23 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "daycare_waitlist_dog_id_fkey"
-            columns: ["dog_id"]
+            foreignKeyName: "daycare_waitlist_treatment_id_fkey"
+            columns: ["treatment_id"]
             isOneToOne: false
-            referencedRelation: "dogs"
+            referencedRelation: "treatments"
             referencedColumns: ["id"]
           },
         ]
       }
-      dogs: {
+      treatments: {
         Row: {
           aggression_risk: boolean | null
           airtable_id: string | null
           birth_date: string | null
-          breed_id: string | null
+          treatment_type_id: string | null
           created_at: string
           customer_id: string
-          gender: Database["public"]["Enums"]["dog_gender"]
+          gender: Database["public"]["Enums"]["treatment_gender"]
           health_notes: string | null
           id: string
           is_small: boolean | null
@@ -514,10 +514,10 @@ export type Database = {
           aggression_risk?: boolean | null
           airtable_id?: string | null
           birth_date?: string | null
-          breed_id?: string | null
+          treatment_type_id?: string | null
           created_at?: string
           customer_id: string
-          gender?: Database["public"]["Enums"]["dog_gender"]
+          gender?: Database["public"]["Enums"]["treatment_gender"]
           health_notes?: string | null
           id?: string
           is_small?: boolean | null
@@ -533,10 +533,10 @@ export type Database = {
           aggression_risk?: boolean | null
           airtable_id?: string | null
           birth_date?: string | null
-          breed_id?: string | null
+          treatment_type_id?: string | null
           created_at?: string
           customer_id?: string
-          gender?: Database["public"]["Enums"]["dog_gender"]
+          gender?: Database["public"]["Enums"]["treatment_gender"]
           health_notes?: string | null
           id?: string
           is_small?: boolean | null
@@ -550,14 +550,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "dogs_breed_id_fkey"
-            columns: ["breed_id"]
+            foreignKeyName: "treatments_treatment_type_id_fkey"
+            columns: ["treatment_type_id"]
             isOneToOne: false
-            referencedRelation: "breeds"
+            referencedRelation: "treatmentTypes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "dogs_customer_id_fkey"
+            foreignKeyName: "treatments_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
@@ -567,11 +567,11 @@ export type Database = {
       }
       garden_questionnaires: {
         Row: {
-          aggressive_towards_dogs: boolean | null
+          aggressive_towards_treatments: boolean | null
           airtable_id: string | null
           bites_people: boolean | null
           created_at: string
-          dog_id: string
+          treatment_id: string
           id: string
           photo_url: string | null
           result: Database["public"]["Enums"]["questionnaire_result"]
@@ -583,11 +583,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          aggressive_towards_dogs?: boolean | null
+          aggressive_towards_treatments?: boolean | null
           airtable_id?: string | null
           bites_people?: boolean | null
           created_at?: string
-          dog_id: string
+          treatment_id: string
           id?: string
           photo_url?: string | null
           result?: Database["public"]["Enums"]["questionnaire_result"]
@@ -599,11 +599,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          aggressive_towards_dogs?: boolean | null
+          aggressive_towards_treatments?: boolean | null
           airtable_id?: string | null
           bites_people?: boolean | null
           created_at?: string
-          dog_id?: string
+          treatment_id?: string
           id?: string
           photo_url?: string | null
           result?: Database["public"]["Enums"]["questionnaire_result"]
@@ -616,10 +616,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "garden_questionnaires_dog_id_fkey"
-            columns: ["dog_id"]
+            foreignKeyName: "garden_questionnaires_treatment_id_fkey"
+            columns: ["treatment_id"]
             isOneToOne: false
-            referencedRelation: "dogs"
+            referencedRelation: "treatments"
             referencedColumns: ["id"]
           },
           {
@@ -641,7 +641,7 @@ export type Database = {
           created_at: string
           customer_id: string
           customer_notes: string | null
-          dog_id: string
+          treatment_id: string
           end_at: string
           id: string
           internal_notes: string | null
@@ -664,7 +664,7 @@ export type Database = {
           created_at?: string
           customer_id: string
           customer_notes?: string | null
-          dog_id: string
+          treatment_id: string
           end_at: string
           id?: string
           internal_notes?: string | null
@@ -687,7 +687,7 @@ export type Database = {
           created_at?: string
           customer_id?: string
           customer_notes?: string | null
-          dog_id?: string
+          treatment_id?: string
           end_at?: string
           id?: string
           internal_notes?: string | null
@@ -710,10 +710,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "grooming_appointments_dog_id_fkey"
-            columns: ["dog_id"]
+            foreignKeyName: "grooming_appointments_treatment_id_fkey"
+            columns: ["treatment_id"]
             isOneToOne: false
-            referencedRelation: "dogs"
+            referencedRelation: "treatments"
             referencedColumns: ["id"]
           },
           {
@@ -1036,9 +1036,9 @@ export type Database = {
         }
         Relationships: []
       }
-      station_breed_rules: {
+      station_treatmentType_rules: {
         Row: {
-          breed_id: string | null
+          treatment_type_id: string | null
           created_at: string
           duration_modifier_minutes: number | null
           id: string
@@ -1050,7 +1050,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          breed_id?: string | null
+          treatment_type_id?: string | null
           created_at?: string
           duration_modifier_minutes?: number | null
           id?: string
@@ -1062,7 +1062,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          breed_id?: string | null
+          treatment_type_id?: string | null
           created_at?: string
           duration_modifier_minutes?: number | null
           id?: string
@@ -1075,14 +1075,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "station_breed_rules_breed_id_fkey"
-            columns: ["breed_id"]
+            foreignKeyName: "station_treatmentType_rules_treatment_type_id_fkey"
+            columns: ["treatment_type_id"]
             isOneToOne: false
-            referencedRelation: "breeds"
+            referencedRelation: "treatmentTypes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "station_breed_rules_station_id_fkey"
+            foreignKeyName: "station_treatmentType_rules_station_id_fkey"
             columns: ["station_id"]
             isOneToOne: false
             referencedRelation: "stations"
@@ -1217,7 +1217,7 @@ export type Database = {
           airtable_id: string | null
           created_at: string
           daycare_appointment_id: string | null
-          dog_id: string | null
+          treatment_id: string | null
           grooming_appointment_id: string | null
           id: string
           ticket_id: string
@@ -1228,7 +1228,7 @@ export type Database = {
           airtable_id?: string | null
           created_at?: string
           daycare_appointment_id?: string | null
-          dog_id?: string | null
+          treatment_id?: string | null
           grooming_appointment_id?: string | null
           id?: string
           ticket_id: string
@@ -1239,7 +1239,7 @@ export type Database = {
           airtable_id?: string | null
           created_at?: string
           daycare_appointment_id?: string | null
-          dog_id?: string | null
+          treatment_id?: string | null
           grooming_appointment_id?: string | null
           id?: string
           ticket_id?: string
@@ -1255,10 +1255,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ticket_usages_dog_id_fkey"
-            columns: ["dog_id"]
+            foreignKeyName: "ticket_usages_treatment_id_fkey"
+            columns: ["treatment_id"]
             isOneToOne: false
-            referencedRelation: "dogs"
+            referencedRelation: "treatments"
             referencedColumns: ["id"]
           },
           {
@@ -1335,7 +1335,7 @@ export type Database = {
           notes: string | null
           reschedule_appointment_id: string | null
           reschedule_customer_id: string | null
-          reschedule_dog_id: string | null
+          reschedule_treatment_id: string | null
           reschedule_original_end_at: string | null
           reschedule_original_start_at: string | null
           service_type: "grooming" | "garden"
@@ -1355,7 +1355,7 @@ export type Database = {
           notes?: string | null
           reschedule_appointment_id?: string | null
           reschedule_customer_id?: string | null
-          reschedule_dog_id?: string | null
+          reschedule_treatment_id?: string | null
           reschedule_original_end_at?: string | null
           reschedule_original_start_at?: string | null
           service_type?: "grooming" | "garden"
@@ -1375,7 +1375,7 @@ export type Database = {
           notes?: string | null
           reschedule_appointment_id?: string | null
           reschedule_customer_id?: string | null
-          reschedule_dog_id?: string | null
+          reschedule_treatment_id?: string | null
           reschedule_original_end_at?: string | null
           reschedule_original_start_at?: string | null
           service_type?: "grooming" | "garden"
@@ -1409,10 +1409,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "proposed_meetings_reschedule_dog_id_fkey"
-            columns: ["reschedule_dog_id"]
+            foreignKeyName: "proposed_meetings_reschedule_treatment_id_fkey"
+            columns: ["reschedule_treatment_id"]
             isOneToOne: false
-            referencedRelation: "dogs"
+            referencedRelation: "treatments"
             referencedColumns: ["id"]
           },
           {
@@ -1676,7 +1676,7 @@ export type Database = {
       appointment_status: "pending" | "approved" | "cancelled" | "matched"
       customer_class: "extra_vip" | "vip" | "existing" | "new"
       daycare_service_type: "full_day" | "trial" | "hourly"
-      dog_gender: "male" | "female"
+      treatment_gender: "male" | "female"
       payment_status: "unpaid" | "paid" | "partial"
       questionnaire_result: "not_required" | "pending" | "approved" | "rejected"
       service_category: "grooming" | "daycare" | "retail"
@@ -1830,7 +1830,7 @@ export const Constants = {
       appointment_status: ["pending", "approved", "cancelled", "matched"],
       customer_class: ["extra_vip", "vip", "existing", "new"],
       daycare_service_type: ["full_day", "trial", "hourly"],
-      dog_gender: ["male", "female"],
+      treatment_gender: ["male", "female"],
       payment_status: ["unpaid", "paid", "partial"],
       questionnaire_result: ["not_required", "pending", "approved", "rejected"],
       service_category: ["grooming", "daycare", "retail"],

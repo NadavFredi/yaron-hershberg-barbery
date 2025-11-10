@@ -9,10 +9,10 @@ export interface ManagerStation {
   displayOrder?: number
 }
 
-export interface ManagerDog {
+export interface ManagerTreatment {
   id: string
   name: string
-  breed?: string
+  treatmentType?: string
   ownerId?: string
   clientClassification?: string
   clientName?: string
@@ -26,7 +26,7 @@ export interface ManagerDog {
   healthIssues?: string
   birthDate?: string
   tendsToBite?: string
-  aggressiveWithOtherDogs?: string
+  aggressiveWithOtherTreatments?: string
   hasBeenToGarden?: boolean
   suitableForGardenFromQuestionnaire?: boolean
   notSuitableForGardenFromQuestionnaire?: boolean
@@ -70,7 +70,7 @@ export interface ManagerAppointment {
   notes: string
   internalNotes?: string
   hasCrossServiceAppointment?: boolean
-  dogs: ManagerDog[]
+  treatments: ManagerTreatment[]
   serviceName?: string
   subscriptionName?: string
   clientId?: string
@@ -105,7 +105,7 @@ export interface ManagerAppointment {
   proposedCategories?: ProposedMeetingCategory[]
   proposedLinkedAppointmentId?: string
   proposedLinkedCustomerId?: string
-  proposedLinkedDogId?: string
+  proposedLinkedTreatmentId?: string
   proposedOriginalStart?: string
   proposedOriginalEnd?: string
 }
@@ -127,13 +127,13 @@ export interface ManagerScheduleSearchClient {
   address?: string
 }
 
-export interface ManagerScheduleDogSearchResult {
-  dog: ManagerDog
+export interface ManagerScheduleTreatmentSearchResult {
+  treatment: ManagerTreatment
   owner?: ManagerScheduleSearchClient
 }
 
 export interface ManagerScheduleSearchResponse {
   appointments: ManagerAppointment[]
-  dogs: ManagerScheduleDogSearchResult[]
+  treatments: ManagerScheduleTreatmentSearchResult[]
   clients: ManagerScheduleSearchClient[]
 }

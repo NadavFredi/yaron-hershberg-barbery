@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useServices } from './useServices';
 import { useStations } from './useStations';
-import { useBreeds } from './useBreeds';
+import { useTreatmentTypes } from './useTreatmentTypes';
 
 export interface ServiceStationConfig {
   id: string;
@@ -13,17 +13,17 @@ export interface ServiceStationConfig {
   created_at: string;
 }
 
-export interface BreedModifier {
+export interface TreatmentTypeModifier {
   id: string;
   service_id: string;
-  breed_id: string;
+  treatment_type_id: string;
   time_modifier_minutes: number;
   created_at: string;
 }
 
-export interface BreedAdjustment {
-  breed_id: string;
-  breed_name: string;
+export interface TreatmentTypeAdjustment {
+  treatment_type_id: string;
+  treatment_type_name: string;
   time_modifier_minutes: number;
 }
 
@@ -50,16 +50,16 @@ export const useServiceStationConfigs = (serviceId: string) => {
   });
 };
 
-export const useBreedModifiers = (serviceId: string) => {
+export const useTreatmentTypeModifiers = (serviceId: string) => {
   return useQuery({
-    queryKey: ['breed-modifiers', serviceId],
+    queryKey: ['treatmentType-modifiers', serviceId],
     queryFn: async () => {
-      // Join with breeds table to get breed names
+      // Join with treatmentTypes table to get treatmentType names
       const { data, error } = await supabase
-        .from('breed_modifiers')
+        .from('treatmentType_modifiers')
         .select(`
           *,
-          breeds!breed_modifiers_breed_id_fkey(
+          treatmentTypes!treatmentType_modifiers_treatment_type_id_fkey(
             id,
             name
           )
@@ -154,47 +154,47 @@ export const useDeleteServiceStationConfig = () => {
   });
 };
 
-export const useUpdateBreedModifier = () => {
+export const useUpdateTreatmentTypeModifier = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
       serviceId, 
-      breedId, 
+      treatmentTypeId, 
       timeModifierMinutes 
     }: { 
       serviceId: string; 
-      breedId: string; 
+      treatmentTypeId: string; 
       timeModifierMinutes: number 
     }) => {
       if (timeModifierMinutes === 0) {
         // Delete the modifier if it's 0
         const { error } = await supabase
-          .from('breed_modifiers')
+          .from('treatmentType_modifiers')
           .delete()
           .eq('service_id', serviceId)
-          .eq('breed_id', breedId);
+          .eq('treatment_type_id', treatmentTypeId);
         
         if (error) throw error;
         return null;
       } else {
         // Check if record exists
         const { data: existing } = await supabase
-          .from('breed_modifiers')
+          .from('treatmentType_modifiers')
           .select('id')
           .eq('service_id', serviceId)
-          .eq('breed_id', breedId)
+          .eq('treatment_type_id', treatmentTypeId)
           .single();
 
         if (existing) {
           // Update existing record
           const { data, error } = await supabase
-            .from('breed_modifiers')
+            .from('treatmentType_modifiers')
             .update({
               time_modifier_minutes: timeModifierMinutes
             })
             .eq('service_id', serviceId)
-            .eq('breed_id', breedId)
+            .eq('treatment_type_id', treatmentTypeId)
             .select()
             .single();
           
@@ -203,10 +203,10 @@ export const useUpdateBreedModifier = () => {
         } else {
           // Insert new record
           const { data, error } = await supabase
-            .from('breed_modifiers')
+            .from('treatmentType_modifiers')
             .insert({
               service_id: serviceId,
-              breed_id: breedId,
+              treatment_type_id: treatmentTypeId,
               time_modifier_minutes: timeModifierMinutes
             })
             .select()
@@ -218,7 +218,7 @@ export const useUpdateBreedModifier = () => {
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['breed-modifiers', variables.serviceId] });
+      queryClient.invalidateQueries({ queryKey: ['treatmentType-modifiers', variables.serviceId] });
     }
   });
 };
@@ -227,11 +227,11 @@ export const useUpdateBreedModifier = () => {
 export const useServiceConfiguration = (serviceId: string) => {
   const { data: services } = useServices();
   const { data: allStations } = useStations();
-  const { data: allBreeds } = useBreeds();
+  const { data: allTreatmentTypes } = useTreatmentTypes();
   const { data: stationConfigs } = useServiceStationConfigs(serviceId);
-  const { data: breedModifiersWithBreeds } = useBreedModifiers(serviceId);
+  const { data: treatmentTypeModifiersWithTreatmentTypes } = useTreatmentTypeModifiers(serviceId);
   const updateStationConfigMutation = useUpdateServiceStationConfig();
-  const updateBreedModifierMutation = useUpdateBreedModifier();
+  const updateTreatmentTypeModifierMutation = useUpdateTreatmentTypeModifier();
 
   const service = services?.find(s => s.id === serviceId);
 
@@ -247,10 +247,10 @@ export const useServiceConfiguration = (serviceId: string) => {
     };
   }) || [];
 
-  // Get breed adjustments with proper names from the joined data
-  const breedAdjustments: BreedAdjustment[] = breedModifiersWithBreeds?.map(modifier => ({
-    breed_id: modifier.breed_id,
-    breed_name: modifier.breeds?.name || 'גזע לא ידוע',
+  // Get treatmentType adjustments with proper names from the joined data
+  const treatmentTypeAdjustments: TreatmentTypeAdjustment[] = treatmentTypeModifiersWithTreatmentTypes?.map(modifier => ({
+    treatment_type_id: modifier.treatment_type_id,
+    treatment_type_name: modifier.treatmentTypes?.name || 'גזע לא ידוע',
     time_modifier_minutes: modifier.time_modifier_minutes
   })) || [];
 
@@ -263,29 +263,29 @@ export const useServiceConfiguration = (serviceId: string) => {
     return updateStationConfigMutation.mutateAsync(params);
   };
 
-  const addBreedAdjustments = async (breedIds: string[]) => {
-    const promises = breedIds.map(breedId => 
-      updateBreedModifierMutation.mutateAsync({
+  const addTreatmentTypeAdjustments = async (treatmentTypeIds: string[]) => {
+    const promises = treatmentTypeIds.map(treatmentTypeId => 
+      updateTreatmentTypeModifierMutation.mutateAsync({
         serviceId,
-        breedId,
+        treatmentTypeId,
         timeModifierMinutes: 15 // Default adjustment
       })
     );
     return Promise.all(promises);
   };
 
-  const removeBreedAdjustment = async (breedId: string) => {
-    return updateBreedModifierMutation.mutateAsync({
+  const removeTreatmentTypeAdjustment = async (treatmentTypeId: string) => {
+    return updateTreatmentTypeModifierMutation.mutateAsync({
       serviceId,
-      breedId,
+      treatmentTypeId,
       timeModifierMinutes: 0 // This will delete the record
     });
   };
 
-  const updateBreedTimeAdjustment = async (breedId: string, timeModifierMinutes: number) => {
-    return updateBreedModifierMutation.mutateAsync({
+  const updateTreatmentTypeTimeAdjustment = async (treatmentTypeId: string, timeModifierMinutes: number) => {
+    return updateTreatmentTypeModifierMutation.mutateAsync({
       serviceId,
-      breedId,
+      treatmentTypeId,
       timeModifierMinutes
     });
   };
@@ -305,12 +305,12 @@ export const useServiceConfiguration = (serviceId: string) => {
   return {
     service,
     stations,
-    breedAdjustments,
+    treatmentTypeAdjustments,
     isLoading: !services || !allStations,
     updateStationConfig,
-    addBreedAdjustments,
-    removeBreedAdjustment,
-    updateBreedTimeAdjustment,
+    addTreatmentTypeAdjustments,
+    removeTreatmentTypeAdjustment,
+    updateTreatmentTypeTimeAdjustment,
     applyTimeToAllStations
   };
 };
