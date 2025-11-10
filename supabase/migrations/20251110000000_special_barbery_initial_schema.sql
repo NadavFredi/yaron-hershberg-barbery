@@ -139,11 +139,46 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email TEXT,
   client_id UUID REFERENCES public.clients(id) ON DELETE SET NULL,
   role TEXT NOT NULL DEFAULT 'client',
+  worker_is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
 -- Triggers to maintain updated_at ---------------------------------------------
+-- Customers & Treatments ------------------------------------------------------
+CREATE TYPE public.treatment_gender AS ENUM ('male', 'female', 'unknown');
+
+CREATE TYPE public.customer_class AS ENUM ('new', 'vip', 'standard', 'inactive');
+
+CREATE TABLE IF NOT EXISTS public.customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  full_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT,
+  phone_search TEXT,
+  address TEXT,
+  customer_type_id UUID,
+  notes TEXT,
+  classification public.customer_class NOT NULL DEFAULT 'new',
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE(phone)
+);
+
+CREATE TABLE IF NOT EXISTS public.treatments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  gender public.treatment_gender NOT NULL DEFAULT 'unknown',
+  treatment_type_id UUID REFERENCES public.treatment_types(id) ON DELETE SET NULL,
+  birth_date DATE,
+  notes TEXT,
+  is_small BOOLEAN,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -158,6 +193,14 @@ CREATE TRIGGER set_updated_at_clients
 
 CREATE TRIGGER set_updated_at_treatment_types
   BEFORE UPDATE ON public.treatment_types
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER set_updated_at_customers
+  BEFORE UPDATE ON public.customers
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER set_updated_at_treatments
+  BEFORE UPDATE ON public.treatments
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 CREATE TRIGGER set_updated_at_stations
@@ -204,6 +247,8 @@ ALTER TABLE public.station_treatment_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.station_unavailability ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.treatments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.business_hours ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.station_working_hours ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daycare_capacity_limits ENABLE ROW LEVEL SECURITY;
@@ -238,6 +283,20 @@ BEGIN
     WHERE schemaname = 'public' AND tablename = 'station_treatment_types' AND policyname = 'Allow all operations on station_treatment_types'
   ) THEN
     EXECUTE 'CREATE POLICY "Allow all operations on station_treatment_types" ON public.station_treatment_types FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'customers' AND policyname = 'Allow all operations on customers'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow all operations on customers" ON public.customers FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'treatments' AND policyname = 'Allow all operations on treatments'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow all operations on treatments" ON public.treatments FOR ALL USING (true);';
   END IF;
 
   IF NOT EXISTS (

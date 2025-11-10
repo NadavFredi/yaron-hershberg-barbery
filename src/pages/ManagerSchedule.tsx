@@ -3243,9 +3243,10 @@ const ManagerSchedule = () => {
       if (!appointment.clientName) {
         return
       }
+      const primaryTreatment = Array.isArray(appointment.treatments) ? appointment.treatments[0] : undefined
       handleScheduleSearchOpenClientFromDetails({
         name: appointment.clientName,
-        classification: appointment.clientClassification ?? appointment.treatments[0]?.clientClassification,
+        classification: appointment.clientClassification ?? primaryTreatment?.clientClassification,
         phone: appointment.clientPhone,
         email: appointment.clientEmail,
         recordId: appointment.recordId,
@@ -3350,6 +3351,7 @@ const ManagerSchedule = () => {
       return
     }
     const { start: startDate, end: endDate } = dates
+    const treatments = Array.isArray(appointment.treatments) ? appointment.treatments : []
 
     setEditingAppointment(appointment)
 
@@ -5635,8 +5637,8 @@ const ManagerSchedule = () => {
       appointment.subscriptionName ||
       (appointment.serviceType === "garden" && (appointment.gardenTrimNails || appointment.gardenBrush || appointment.gardenBath || appointment.latePickupRequested)) ||
       appointment.clientName ||
-      appointment.treatments[0]?.treatmentType ||
-      appointment.treatments.length > 1 // Multiple treatments
+      treatments[0]?.treatmentType ||
+      treatments.length > 1 // Multiple treatments
     )
 
     // Use expanded height if card is expanded, otherwise original height
@@ -5644,7 +5646,7 @@ const ManagerSchedule = () => {
       ? Math.max(originalHeight, 150) // More generous expanded height
       : originalHeight
 
-    const primaryTreatment = appointment.treatments[0]
+    const primaryTreatment = treatments[0]
     const treatmentName = primaryTreatment?.name ?? "ללא שיוך לכלב"
     const rawTreatmentTypeName = primaryTreatment?.treatmentType ?? appointment.serviceName ?? ""
     const treatmentTypeName = rawTreatmentTypeName?.trim() ? rawTreatmentTypeName.trim() : undefined
