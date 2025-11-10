@@ -83,6 +83,54 @@ CREATE TABLE IF NOT EXISTS public.station_unavailability (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+-- Business operations ---------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.business_hours (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  weekday TEXT NOT NULL,
+  shift_order INTEGER NOT NULL DEFAULT 0,
+  open_time TIME NOT NULL,
+  close_time TIME NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  CONSTRAINT business_hours_weekday_shift_order_unique UNIQUE (weekday, shift_order),
+  CHECK (close_time > open_time)
+);
+
+CREATE TABLE IF NOT EXISTS public.station_working_hours (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  station_id UUID NOT NULL REFERENCES public.stations(id) ON DELETE CASCADE,
+  weekday TEXT NOT NULL,
+  shift_order INTEGER NOT NULL DEFAULT 0,
+  open_time TIME NOT NULL,
+  close_time TIME NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE (station_id, weekday, shift_order),
+  CHECK (close_time > open_time)
+);
+
+CREATE TABLE IF NOT EXISTS public.daycare_capacity_limits (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  effective_date DATE NOT NULL,
+  trial_limit INTEGER NOT NULL DEFAULT 0,
+  regular_limit INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE(effective_date)
+);
+
+CREATE TABLE IF NOT EXISTS public.ticket_types (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  price NUMERIC(10,2),
+  description TEXT,
+  total_entries INTEGER,
+  is_unlimited BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  CONSTRAINT ticket_types_name_unique UNIQUE (name)
+);
+
 -- Auth-linked profile ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -132,6 +180,22 @@ CREATE TRIGGER set_updated_at_profiles
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
+CREATE TRIGGER set_updated_at_business_hours
+  BEFORE UPDATE ON public.business_hours
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER set_updated_at_station_working_hours
+  BEFORE UPDATE ON public.station_working_hours
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER set_updated_at_daycare_capacity_limits
+  BEFORE UPDATE ON public.daycare_capacity_limits
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER set_updated_at_ticket_types
+  BEFORE UPDATE ON public.ticket_types
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
 -- Row Level Security ----------------------------------------------------------
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.treatment_types ENABLE ROW LEVEL SECURITY;
@@ -140,6 +204,10 @@ ALTER TABLE public.station_treatment_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.station_unavailability ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.business_hours ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.station_working_hours ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daycare_capacity_limits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ticket_types ENABLE ROW LEVEL SECURITY;
 
 -- Policies (open for now while admin app is built)
 DO $$
@@ -193,6 +261,34 @@ BEGIN
     EXECUTE 'CREATE POLICY "Users manage their own profile" ON public.profiles
       FOR ALL USING (auth.uid() = id) WITH CHECK (auth.uid() = id);';
   END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'business_hours' AND policyname = 'Allow all operations on business_hours'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow all operations on business_hours" ON public.business_hours FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'station_working_hours' AND policyname = 'Allow all operations on station_working_hours'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow all operations on station_working_hours" ON public.station_working_hours FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'daycare_capacity_limits' AND policyname = 'Allow all operations on daycare_capacity_limits'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow all operations on daycare_capacity_limits" ON public.daycare_capacity_limits FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'ticket_types' AND policyname = 'Allow all operations on ticket_types'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow all operations on ticket_types" ON public.ticket_types FOR ALL USING (true);';
+  END IF;
 END;
 $$;
 
@@ -241,4 +337,8 @@ CREATE INDEX IF NOT EXISTS idx_appointments_treatment_type ON public.appointment
 CREATE INDEX IF NOT EXISTS idx_appointments_scheduled_start ON public.appointments (scheduled_start);
 
 CREATE INDEX IF NOT EXISTS idx_station_unavailability_station ON public.station_unavailability (station_id);
+CREATE INDEX IF NOT EXISTS idx_business_hours_weekday_shift ON public.business_hours (weekday, shift_order);
+CREATE INDEX IF NOT EXISTS idx_station_working_hours_station_weekday_shift
+  ON public.station_working_hours (station_id, weekday, shift_order);
+CREATE INDEX IF NOT EXISTS idx_daycare_capacity_limits_effective_date ON public.daycare_capacity_limits (effective_date);
 
