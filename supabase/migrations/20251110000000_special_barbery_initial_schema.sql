@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS public.station_treatment_types (
   UNIQUE(station_id, treatment_type_id)
 );
 
-CREATE TYPE public.appointment_status AS ENUM ('scheduled', 'completed', 'cancelled', 'no_show');
+CREATE TYPE public.appointment_status AS ENUM ('pending', 'scheduled', 'completed', 'cancelled', 'no_show');
 CREATE TYPE public.payment_status AS ENUM ('unpaid', 'paid', 'partial');
 CREATE TYPE public.appointment_kind AS ENUM ('business', 'personal');
 CREATE TYPE public.questionnaire_result AS ENUM ('not_required', 'pending', 'approved', 'rejected');
@@ -296,6 +296,55 @@ CREATE TABLE IF NOT EXISTS public.daycare_appointments (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.combined_appointments (
+  grooming_appointment_id UUID REFERENCES public.grooming_appointments(id) ON DELETE CASCADE,
+  daycare_appointment_id UUID REFERENCES public.daycare_appointments(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  PRIMARY KEY (grooming_appointment_id, daycare_appointment_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.proposed_meetings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
+  service_type TEXT,
+  start_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft',
+  code TEXT,
+  title TEXT,
+  summary TEXT,
+  notes TEXT,
+  reschedule_appointment_id UUID REFERENCES public.grooming_appointments(id) ON DELETE SET NULL,
+  reschedule_customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+  reschedule_treatment_id UUID REFERENCES public.treatments(id) ON DELETE SET NULL,
+  reschedule_original_start_at TIMESTAMP WITH TIME ZONE,
+  reschedule_original_end_at TIMESTAMP WITH TIME ZONE,
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.proposed_meeting_invites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  meeting_id UUID NOT NULL REFERENCES public.proposed_meetings(id) ON DELETE CASCADE,
+  customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+  source TEXT,
+  source_category_id UUID,
+  last_notified_at TIMESTAMP WITH TIME ZONE,
+  notification_count INTEGER NOT NULL DEFAULT 0,
+  last_webhook_status TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.proposed_meeting_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  meeting_id UUID NOT NULL REFERENCES public.proposed_meetings(id) ON DELETE CASCADE,
+  customer_type_id UUID REFERENCES public.customer_types(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -384,6 +433,18 @@ CREATE TRIGGER set_updated_at_services
   BEFORE UPDATE ON public.services
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
+CREATE TRIGGER set_updated_at_proposed_meetings
+  BEFORE UPDATE ON public.proposed_meetings
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER set_updated_at_proposed_meeting_invites
+  BEFORE UPDATE ON public.proposed_meeting_invites
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER set_updated_at_proposed_meeting_categories
+  BEFORE UPDATE ON public.proposed_meeting_categories
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
 -- Row Level Security ----------------------------------------------------------
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.treatment_types ENABLE ROW LEVEL SECURITY;
@@ -406,6 +467,10 @@ ALTER TABLE public.daycare_appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customer_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.station_allowed_customer_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.combined_appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proposed_meetings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proposed_meeting_invites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proposed_meeting_categories ENABLE ROW LEVEL SECURITY;
 
 -- Policies (open for now while admin app is built)
 DO $$
@@ -526,6 +591,42 @@ BEGIN
     EXECUTE '' ||
       'CREATE POLICY "Allow all operations on station_allowed_customer_types" ' ||
       'ON public.station_allowed_customer_types FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'combined_appointments' AND policyname = 'Allow all operations on combined_appointments'
+  ) THEN
+    EXECUTE '' ||
+      'CREATE POLICY "Allow all operations on combined_appointments" ' ||
+      'ON public.combined_appointments FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'proposed_meetings' AND policyname = 'Allow all operations on proposed_meetings'
+  ) THEN
+    EXECUTE '' ||
+      'CREATE POLICY "Allow all operations on proposed_meetings" ' ||
+      'ON public.proposed_meetings FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'proposed_meeting_invites' AND policyname = 'Allow all operations on proposed_meeting_invites'
+  ) THEN
+    EXECUTE '' ||
+      'CREATE POLICY "Allow all operations on proposed_meeting_invites" ' ||
+      'ON public.proposed_meeting_invites FOR ALL USING (true);';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'proposed_meeting_categories' AND policyname = 'Allow all operations on proposed_meeting_categories'
+  ) THEN
+    EXECUTE '' ||
+      'CREATE POLICY "Allow all operations on proposed_meeting_categories" ' ||
+      'ON public.proposed_meeting_categories FOR ALL USING (true);';
   END IF;
 
   IF NOT EXISTS (
