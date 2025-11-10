@@ -175,6 +175,16 @@ CREATE TYPE public.treatment_gender AS ENUM ('male', 'female', 'unknown');
 
 CREATE TYPE public.customer_class AS ENUM ('new', 'vip', 'standard', 'inactive');
 
+CREATE TABLE IF NOT EXISTS public.customer_types (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  priority INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -191,6 +201,12 @@ CREATE TABLE IF NOT EXISTS public.customers (
   UNIQUE(phone)
 );
 
+ALTER TABLE public.customers
+  ADD CONSTRAINT customers_customer_type_id_fkey
+  FOREIGN KEY (customer_type_id)
+  REFERENCES public.customer_types(id)
+  ON DELETE SET NULL;
+
 CREATE TABLE IF NOT EXISTS public.treatments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
@@ -200,16 +216,6 @@ CREATE TABLE IF NOT EXISTS public.treatments (
   birth_date DATE,
   notes TEXT,
   is_small BOOLEAN,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.customer_types (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL UNIQUE,
-  description TEXT,
-  priority INTEGER NOT NULL DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
