@@ -42,7 +42,6 @@ function toJerusalemDateString(date: Date): string {
 
 // Confetti celebration function
 const triggerConfetti = () => {
-    console.log("🎊 triggerConfetti called!");
     const count = 200;
     const defaults = {
         origin: { y: 0.7 }
@@ -51,7 +50,6 @@ const triggerConfetti = () => {
     type ConfettiOptions = Parameters<typeof confetti>[0]
 
     function fire(particleRatio: number, opts: ConfettiOptions = {}) {
-        console.log("🎊 Firing confetti with ratio:", particleRatio);
         confetti({
             ...defaults,
             ...opts,
@@ -143,6 +141,16 @@ interface ClientSubscriptionsResponse {
 interface ServiceSection {
     title: string
     content: React.ReactNode
+}
+
+interface ServiceOption {
+    id: string
+    name: string
+    description: string | null
+}
+
+const SERVICE_DISPLAY_LABELS: Record<string, string> = {
+    grooming: "תספורת",
 }
 
 type AutoTreatmentState = "idle" | "creating" | "success" | "error"
@@ -634,19 +642,7 @@ export default function SetupAppointment() {
 
     // Garden suitability logic based on questionnaire and staff approval
     const gardenSuitabilityStatus = useMemo(() => {
-        console.log("🌱 Garden suitability check:", {
-            isGardenServiceSelected,
-            selectedTreatmentDetails: selectedTreatmentDetails ? {
-                id: selectedTreatmentDetails.id,
-                name: selectedTreatmentDetails.name,
-                questionnaireSuitableForGarden: selectedTreatmentDetails.questionnaireSuitableForGarden,
-                staffApprovedForGarden: selectedTreatmentDetails.staffApprovedForGarden,
-                hasBeenToGarden: selectedTreatmentDetails.hasBeenToGarden
-            } : null
-        })
-
         if (!isGardenServiceSelected || !selectedTreatmentDetails) {
-            console.log("🌱 Garden suitability: No garden service or treatment selected, allowing all")
             return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
         }
 
@@ -654,7 +650,6 @@ export default function SetupAppointment() {
 
         // If staff explicitly rejected for garden (נמצא לא מתאים), show rejection message
         if (staffApprovedForGarden === "נמצא לא מתאים") {
-            console.log("🌱 Garden suitability: Staff explicitly rejected (נמצא לא מתאים), showing rejection message")
             return {
                 canBookFullDay: false,
                 canBookTrial: false,
@@ -665,16 +660,13 @@ export default function SetupAppointment() {
 
         // If staff approved for garden (נמצא מתאים), allow full day regardless of questionnaire or registration history
         if (staffApprovedForGarden === "נמצא מתאים") {
-            console.log("🌱 Garden suitability: Staff approved (נמצא מתאים), allowing full day")
             return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
         }
 
         // If questionnaire shows suitable for garden, allow full day regardless of staff approval
         // But if treatment registered before, only allow full day (no trial)
         if (questionnaireSuitableForGarden === true) {
-            console.log("🌱 Garden suitability: Questionnaire shows suitable, allowing full day")
             if (hasRegisteredToGardenBefore) {
-                console.log("🌱 Garden suitability: Treatment registered before, allowing only full day (no trial)")
                 return { canBookFullDay: true, canBookTrial: false, message: null, isExplicitlyRejected: false }
             }
             return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
@@ -682,7 +674,6 @@ export default function SetupAppointment() {
 
         // If treatment registered to garden before but questionnaire shows not suitable and no staff approval
         if (hasRegisteredToGardenBefore && questionnaireSuitableForGarden === false && staffApprovedForGarden !== "נמצא מתאים") {
-            console.log("🌱 Garden suitability: Treatment registered before but questionnaire shows not suitable and no staff approval, blocking completely")
             return {
                 canBookFullDay: false,
                 canBookTrial: false,
@@ -693,13 +684,11 @@ export default function SetupAppointment() {
 
         // If treatment registered to garden before, only allow full day (no trial)
         if (hasRegisteredToGardenBefore) {
-            console.log("🌱 Garden suitability: Treatment registered before, allowing only full day")
             return { canBookFullDay: true, canBookTrial: false, message: null, isExplicitlyRejected: false }
         }
 
         // If questionnaire shows not suitable but staff hasn't explicitly approved and treatment never registered, only allow trial
         if (questionnaireSuitableForGarden === false && staffApprovedForGarden !== "נמצא מתאים") {
-            console.log("🌱 Garden suitability: Questionnaire shows not suitable and no staff approval, restricting to trial only")
             return {
                 canBookFullDay: false,
                 canBookTrial: true,
@@ -710,12 +699,10 @@ export default function SetupAppointment() {
 
         // If questionnaire field is empty/undefined (no questionnaire filled), allow full day by default
         if (questionnaireSuitableForGarden === undefined || questionnaireSuitableForGarden === null) {
-            console.log("🌱 Garden suitability: No questionnaire filled, allowing full day by default")
             return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
         }
 
         // Default case - allow both
-        console.log("🌱 Garden suitability: Default case, allowing all")
         return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
     }, [isGardenServiceSelected, selectedTreatmentDetails])
 
@@ -735,24 +722,6 @@ export default function SetupAppointment() {
         !hasExistingGardenAppointments
     )
 
-    // Log first garden visit status for debugging
-    useEffect(() => {
-        console.log("🌱 First garden visit check:", {
-            isGardenServiceSelected,
-            selectedTreatmentDetails: selectedTreatmentDetails ? {
-                id: selectedTreatmentDetails.id,
-                name: selectedTreatmentDetails.name,
-                hasBeenToGarden: selectedTreatmentDetails.hasBeenToGarden
-            } : null,
-            existingGardenAppointments: existingGardenAppointments?.appointments?.length || 0,
-            existingGardenAppointmentsData: existingGardenAppointments,
-            hasExistingGardenAppointments,
-            isFirstGardenVisit,
-            isGardenBlocked,
-            isFetchingGardenAppointments
-        })
-    }, [isGardenServiceSelected, selectedTreatmentDetails, isFirstGardenVisit, isGardenBlocked, existingGardenAppointments, hasExistingGardenAppointments, isFetchingGardenAppointments])
-
     useEffect(() => {
         if (!isGardenServiceSelected || !selectedTreatmentDetails) {
             setSelectedGardenVisitType(undefined)
@@ -762,7 +731,6 @@ export default function SetupAppointment() {
         setSelectedGardenVisitType((current) => {
             // For 'both' service type, always set to 'regular' (full day)
             if (selectedServiceType === "both") {
-                console.log("🔄 Service type is 'both', setting visit type to 'regular' (full day)")
                 return "regular"
             }
 
@@ -842,38 +810,6 @@ export default function SetupAppointment() {
         ? "מצטערים, הגן שלנו מיועד לכלבים קטנים שעברו התאמה."
         : gardenQuestionnaireMessage
 
-    useEffect(() => {
-        if (!selectedTreatment) {
-            return
-        }
-
-        console.log("🐾 Garden eligibility", {
-            selectedTreatment,
-            treatmentName: selectedTreatmentDetails?.name,
-            rawSize: selectedTreatmentDetails?.size,
-            isSmallFlag: selectedTreatmentDetails?.isSmall,
-            computedIsSmall: isSelectedTreatmentSmall,
-            questionnaireCompleted: gardenQuestionnaireStatus?.completed,
-            questionnaireRequired: gardenQuestionnaireStatus?.required,
-            isGardenServiceSelected,
-            isSizeBlocking,
-            isQuestionnaireBlocking,
-            isGardenBlocked,
-        })
-    }, [
-        selectedTreatment,
-        selectedTreatmentDetails?.name,
-        selectedTreatmentDetails?.size,
-        selectedTreatmentDetails?.isSmall,
-        isSelectedTreatmentSmall,
-        gardenQuestionnaireStatus?.completed,
-        gardenQuestionnaireStatus?.required,
-        isGardenServiceSelected,
-        isSizeBlocking,
-        isQuestionnaireBlocking,
-        isGardenBlocked,
-    ])
-
     const selectedDateKey = useMemo(() => (
         selectedDate ? toJerusalemDateString(selectedDate) : null
     ), [selectedDate])
@@ -897,23 +833,12 @@ export default function SetupAppointment() {
             return false
         }
         const hasSlotWithoutApproval = allAvailableTimes.some((slot) => slot.requiresStaffApproval !== true && slot.available !== false)
-        console.log("🧭 Approval-free slot scan", {
-            totalSlots: allAvailableTimes.length,
-            hasSlotWithoutApproval,
-            requiresSpecialApproval: selectedTreatmentDetails?.requiresSpecialApproval,
-        })
         return hasSlotWithoutApproval
     }, [allAvailableTimes, selectedTreatmentDetails?.requiresSpecialApproval])
 
     const requiresApprovalForAllSlots = useMemo(() => {
         const requiresTreatmentTypeApproval = selectedTreatmentDetails?.requiresSpecialApproval === true
         const approvalOnly = requiresTreatmentTypeApproval && !hasApprovalFreeSlotAcrossDates
-        console.log("🛡️ Approval mode evaluation", {
-            requiresTreatmentTypeApproval,
-            hasApprovalFreeSlotAcrossDates,
-            approvalOnly,
-            serviceType: selectedServiceType,
-        })
         return approvalOnly
     }, [hasApprovalFreeSlotAcrossDates, selectedTreatmentDetails?.requiresSpecialApproval, selectedServiceType])
 
@@ -932,11 +857,6 @@ export default function SetupAppointment() {
             const hasApprovalOnlyOption = times.some((slot) => slot.requiresStaffApproval === true)
             if (hasFlexibleOption && hasApprovalOnlyOption) {
                 const filtered = times.filter((slot) => slot.requiresStaffApproval !== true)
-                console.log("🟢 Filtering approval-required slots", {
-                    date: selectedDateAvailability.date,
-                    originalSlots: times.length,
-                    filteredSlots: filtered.length,
-                })
                 return filtered
             }
         }
@@ -956,15 +876,9 @@ export default function SetupAppointment() {
 
         const fallbackSlot = availableTimes.find((slot) => slot.available !== false)
         if (fallbackSlot) {
-            console.log("🔄 Switching to approval-free slot", {
-                previousTime: selectedTime,
-                newTime: fallbackSlot.time,
-                stationId: fallbackSlot.stationId,
-            })
             setSelectedTime(fallbackSlot.time)
             setSelectedStationId(fallbackSlot.stationId)
         } else {
-            console.log("⚠️ No suitable slot available after filtering. Clearing selection.")
             setSelectedTime("")
             setSelectedStationId("")
         }
@@ -1006,7 +920,6 @@ export default function SetupAppointment() {
             const baseConditions = !selectedTreatment || !selectedServiceType || !selectedDate || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved
             const timeCondition = requiresTime ? !selectedTime : false
             const enabled = !(baseConditions || timeCondition)
-            console.log("🔘 REQUEST BUTTON:", { enabled, shouldShowRequestButton, selectedServiceType, termsApproved })
             return enabled
         }
 
@@ -1015,16 +928,13 @@ export default function SetupAppointment() {
             // For garden service, require treatment, service, and date selection (but not time)
             if (selectedServiceType === "garden") {
                 const enabled = !(!selectedTreatment || !selectedServiceType || !selectedDate || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved)
-                console.log("🔘 GARDEN BOOK BUTTON:", { enabled, shouldShowBookButton, selectedTreatment: !!selectedTreatment, selectedServiceType, selectedDate: !!selectedDate, termsApproved })
                 return enabled
             }
             // For grooming and both services, require date and time selection
             const enabled = !(!selectedTreatment || !selectedServiceType || !selectedDate || !selectedTime || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved)
-            console.log("🔘 GROOMING/BOTH BOOK BUTTON:", { enabled, shouldShowBookButton, selectedServiceType, termsApproved })
             return enabled
         }
 
-        console.log("🔘 NO BUTTON:", { shouldShowRequestButton, shouldShowBookButton })
         return false
     }, [selectedTreatment, selectedServiceType, selectedDate, selectedTime, isGardenBlocked, isGardenSubscriptionMissing, isLoading, shouldShowRequestButton, shouldShowBookButton, termsApproved])
 
@@ -1122,14 +1032,11 @@ export default function SetupAppointment() {
         const date = searchParams.get('date')
         const treatmentId = searchParams.get('treatmentId')
 
-        console.log('🔍 Processing query params:', { serviceType, date, treatmentId })
-
         selectedTreatmentFromParams.current = false
 
         if (treatmentId) {
             const treatmentExists = treatments.some((treatment) => treatment.id === treatmentId)
             if (treatmentExists) {
-                console.log('✅ Setting treatment from query param:', treatmentId)
                 setSelectedTreatment(treatmentId)
                 selectedTreatmentFromParams.current = true
             } else {
@@ -1139,14 +1046,12 @@ export default function SetupAppointment() {
         }
 
         if (serviceType && ['grooming', 'garden', 'both'].includes(serviceType)) {
-            console.log('✅ Setting service type from query param:', serviceType)
             setSelectedServiceType(serviceType)
         }
 
         if (date) {
             const parsedDate = new Date(date)
             if (!isNaN(parsedDate.getTime())) {
-                console.log('✅ Setting date from query param:', parsedDate)
                 setSelectedDate(parsedDate)
             } else {
                 console.warn('❌ Invalid date in query param:', date)
@@ -1439,14 +1344,6 @@ export default function SetupAppointment() {
             const finalNotes = [subscriptionNote, trimmedNotes].filter((value) => value && value.length > 0).join(" | ")
             const notesPayload = finalNotes.length > 0 ? finalNotes : undefined
             const trimmedLatePickupNotes = latePickupNotes.trim()
-            console.log("Reserving appointment with:", {
-                selectedTreatment,
-                dateString,
-                selectedStationId,
-                selectedTime,
-                notes: notesPayload,
-                subscriptionId: selectedSubscription?.id,
-            })
             const result = await reserveAppointment(
                 selectedTreatment,
                 dateString,
@@ -1461,16 +1358,11 @@ export default function SetupAppointment() {
                 isGardenServiceSelected ? gardenBrush : undefined,
                 isGardenServiceSelected ? gardenBath : undefined
             )
-            console.log("Reserve appointment result:", result)
-
             if (result.success) {
-                console.log("✅ Reservation successful, triggering confetti!")
                 setSuccess("הבקשה נשלחה בהצלחה!")
 
                 // Trigger confetti celebration
-                console.log("🎉 About to trigger confetti...")
                 triggerConfetti()
-                console.log("🎉 Confetti triggered!")
 
                 dispatch(supabaseApi.util.invalidateTags(["Availability", "Appointment", "GardenAppointment", "WaitingList"]))
 
@@ -1494,7 +1386,6 @@ export default function SetupAppointment() {
                 setSearchParams(new URLSearchParams())
                 selectedTreatmentFromParams.current = false
             } else {
-                console.log("❌ Reservation failed:", result.error)
                 setError(result.error || "שגיאה בשליחת הבקשה")
             }
         } catch (err) {
@@ -1555,16 +1446,6 @@ export default function SetupAppointment() {
             const time = selectedServiceType === "garden" ? "09:00" : selectedTime
             const trimmedLatePickupNotes = latePickupNotes.trim()
 
-            console.log("Booking appointment with:", {
-                selectedTreatment,
-                dateString,
-                stationId,
-                time,
-                notes: notesPayload,
-                subscriptionId: selectedSubscription?.id,
-                serviceType: selectedServiceType,
-                appointmentType: selectedServiceType // Logging the appointment type being sent to webhook
-            })
             const result = await reserveAppointment(
                 selectedTreatment,
                 dateString,
@@ -1579,16 +1460,11 @@ export default function SetupAppointment() {
                 isGardenServiceSelected ? gardenBrush : undefined,
                 isGardenServiceSelected ? gardenBath : undefined
             )
-            console.log("Reserve appointment result:", result)
-
             if (result.success) {
-                console.log("✅ Appointment booked successfully, triggering confetti!")
                 setSuccess("התור נקבע בהצלחה!")
 
                 // Trigger confetti celebration
-                console.log("🎉 About to trigger confetti...")
                 triggerConfetti()
-                console.log("🎉 Confetti triggered!")
 
                 dispatch(supabaseApi.util.invalidateTags(["Availability", "Appointment", "GardenAppointment", "WaitingList"]))
 
@@ -1614,7 +1490,6 @@ export default function SetupAppointment() {
                 setSearchParams(new URLSearchParams())
                 selectedTreatmentFromParams.current = false
             } else {
-                console.log("❌ Appointment booking failed:", result.error)
                 setError(result.error || "שגיאה בקביעת התור")
             }
         } catch (err) {

@@ -600,16 +600,6 @@ export default function Appointments() {
                 ? responseData
                 : (responseData as TreatmentAppointmentsResponse | undefined)?.appointments ?? []
 
-            console.log(`🔍 [Appointments] Treatment ${treatment.name} (${treatment.id}):`, {
-                queryStateExists: !!queryState,
-                responseDataType: Array.isArray(responseData) ? 'array' : typeof responseData,
-                responseDataLength: Array.isArray(responseData) ? responseData.length : 'N/A',
-                appointmentsCount: appointments.length,
-                isFetching: queryState?.isFetching,
-                isLoading: queryState?.isLoading,
-                hasError: !!queryState?.error,
-            })
-
             return {
                 treatment,
                 appointments,
@@ -1057,19 +1047,14 @@ export default function Appointments() {
         setIsCancellingAppointment(true)
 
         try {
-            console.log("Cancelling appointment:", appointment.id)
-
             // Handle "both" appointments by cancelling both grooming and garden appointments
             if (appointment.service === 'both' && appointment.groomingAppointmentId && appointment.gardenAppointmentId) {
-                console.log(`Cancelling both grooming (${appointment.groomingAppointmentId}) and garden (${appointment.gardenAppointmentId}) appointments`)
-
                 const result = await cancelCombinedAppointments({
                     groomingAppointmentId: appointment.groomingAppointmentId,
                     gardenAppointmentId: appointment.gardenAppointmentId,
                 })
 
                 if (result.success) {
-                    console.log(`Both appointments cancelled successfully`)
                     // Update the merged appointments cache
                     dispatch(
                         supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
@@ -1136,8 +1121,6 @@ export default function Appointments() {
                         title: "התור בוטל",
                         description: successMessage,
                     })
-
-                    console.log("Appointment cancelled successfully:", result)
                     invalidateAppointmentsCache()
                 } else {
                     const errorMessage = result.error || "שגיאה בביטול התור"
@@ -1167,14 +1150,11 @@ export default function Appointments() {
         setApprovingAppointmentId(appointmentId)
 
         try {
-            console.log(`Approving individual ${service} appointment ${appointmentId}`)
-
             const result = service === 'grooming'
                 ? await approveGroomingAppointment(appointmentId, 'approved')
                 : await approveAppointment(appointmentId, 'approved')
 
             if (result.success) {
-                console.log(`Individual appointment approved successfully`)
                 // Update the merged appointments cache for all treatments
                 treatments.forEach(treatment => {
                     dispatch(
@@ -1238,7 +1218,6 @@ export default function Appointments() {
         setCancellingAppointmentId(appointmentId)
 
         try {
-            console.log(`Cancelling individual appointment ${appointmentId}`)
 
             const appointmentDetails = allAppointments.find((apt) =>
                 apt.id === appointmentId ||
@@ -1259,7 +1238,6 @@ export default function Appointments() {
             })
 
             if (result.success) {
-                console.log(`Individual appointment cancelled successfully`)
                 // Update the merged appointments cache for all treatments
                 treatments.forEach(treatment => {
                     dispatch(
@@ -1312,12 +1290,9 @@ export default function Appointments() {
 
     const handleIndividualNotesUpdate = async (appointmentId: string, service: 'grooming' | 'garden', notes: string) => {
         try {
-            console.log(`Updating notes for individual appointment ${appointmentId}`)
-
             const result = await updateAppointmentNotesRequest(appointmentId, service, notes)
 
             if (result.success) {
-                console.log(`Notes updated successfully for appointment ${appointmentId}`)
                 toast({
                     title: "הערות עודכנו",
                     description: "הערות התור עודכנו בהצלחה",
@@ -1379,19 +1354,14 @@ export default function Appointments() {
         setApprovingAppointmentId(appointment.id)
 
         try {
-            console.log(`Approving appointment ${appointment.id}`)
-
             // Handle "both" appointments by approving both grooming and garden appointments
             if (appointment.service === 'both' && appointment.groomingAppointmentId && appointment.gardenAppointmentId) {
-                console.log(`Approving both grooming (${appointment.groomingAppointmentId}) and garden (${appointment.gardenAppointmentId}) appointments`)
-
                 const result = await approveCombinedAppointments({
                     groomingAppointmentId: appointment.groomingAppointmentId,
                     gardenAppointmentId: appointment.gardenAppointmentId,
                 })
 
                 if (result.success) {
-                    console.log(`Both appointments approved successfully`)
                     // Update the merged appointments cache
                     dispatch(
                         supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
@@ -1429,7 +1399,6 @@ export default function Appointments() {
                     : await approveAppointment(appointment.id, 'approved')
 
                 if (result.success) {
-                    console.log(`Appointment approved successfully`)
                     dispatch(
                         supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
                             'getMergedAppointments',
