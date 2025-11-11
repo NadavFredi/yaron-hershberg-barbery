@@ -721,25 +721,6 @@ export default function Appointments() {
         }
     }, [searchParams])
 
-    useEffect(() => {
-        const tabParam = searchParams.get('tab')
-        const actionParam = searchParams.get('action')
-        if (tabParam === 'waitingList' && actionParam === 'new') {
-            const serviceTypeParam = searchParams.get('serviceType')
-            const validServiceTypes = new Set(['grooming', 'garden', 'both'])
-            const chosenService = serviceTypeParam && validServiceTypes.has(serviceTypeParam) ? serviceTypeParam : 'grooming'
-
-            openWaitingListDialog(undefined, { serviceType: chosenService })
-
-            const params = new URLSearchParams(searchParams)
-            params.set('tab', 'waitingList')
-            params.delete('action')
-            params.delete('serviceType')
-            params.delete('treatmentId')
-            setSearchParams(params, { replace: true })
-        }
-    }, [openWaitingListDialog, searchParams])
-
     const treatmentsErrorMessage = useMemo(
         () => extractErrorMessage(treatmentsQueryError, "שגיאה בטעינת רשימת הכלבים"),
         [treatmentsQueryError]
@@ -1523,6 +1504,25 @@ export default function Appointments() {
 
         setIsWaitingListDialogOpen(true)
     }
+
+    useEffect(() => {
+        const tabParam = searchParams.get('tab')
+        const actionParam = searchParams.get('action')
+        if (tabParam === 'waitingList' && actionParam === 'new') {
+            const serviceTypeParam = searchParams.get('serviceType')
+            const validServiceTypes = new Set(['grooming', 'garden', 'both'])
+            const chosenService = serviceTypeParam && validServiceTypes.has(serviceTypeParam) ? serviceTypeParam : 'grooming'
+
+            openWaitingListDialog(undefined, { serviceType: chosenService })
+
+            const params = new URLSearchParams(searchParams)
+            params.set('tab', 'waitingList')
+            params.delete('action')
+            params.delete('serviceType')
+            params.delete('treatmentId')
+            setSearchParams(params, { replace: true })
+        }
+    }, [openWaitingListDialog, searchParams])
 
     const closeWaitingListDialog = () => {
         setIsWaitingListDialogOpen(false)
