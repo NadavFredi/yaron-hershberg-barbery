@@ -20,7 +20,7 @@ export async function searchCustomers(searchTerm: string): Promise<{
 }> {
   const searchPattern = searchTerm.trim()
 
-  let query = supabase.from("customers").select("id, full_name, phone, email, airtable_id").limit(20)
+  let query = supabase.from("customers").select("id, full_name, phone, email").limit(20)
 
   // If there's a search term, filter by it; otherwise return first 20
   if (searchPattern.length > 0) {
@@ -73,7 +73,6 @@ export async function searchCustomers(searchTerm: string): Promise<{
         phone: customer.phone || undefined,
         email: customer.email || undefined,
         treatmentNames: treatmentsByCustomer[customer.id]?.join(", ") || undefined,
-        recordId: customer.airtable_id || undefined,
       })
     })
   }

@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, X } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { addMinutes } from "date-fns"
-import { useLazyGetTreatmentTypeStationDurationQuery, useCreateManagerAppointmentMutation } from "@/store/services/supabaseApi"
-import { cn } from "@/lib/utils"
+import { useLazyGetTreatmentTypeStationDurationQuery, useCreateManagerAppointmentMutation, useListOwnerTreatmentsQuery } from "@/store/services/supabaseApi"
 import { AppointmentDetailsSection, type AppointmentStation, type AppointmentTimes } from "@/pages/ManagerSchedule/components/AppointmentDetailsSection"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerSearchInput, type Customer } from "@/components/CustomerSearchInput"
-import { TreatmentSelectInput, type Treatment } from "@/components/TreatmentSelectInput"
+import type { Treatment } from "@/components/TreatmentSelectInput"
 
 type ManagerStation = AppointmentStation
 
@@ -58,6 +56,12 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     const [createManagerAppointment, { isLoading: isCreatingAppointment }] = useCreateManagerAppointmentMutation()
     const { toast } = useToast()
 
+    const ownerId = selectedCustomer?.recordId || selectedCustomer?.id || null
+    const {
+        data: customerTreatmentsData,
+        isLoading: isLoadingTreatments,
+        isFetching: isFetchingTreatments
+    } = useListOwnerTreatmentsQuery(ownerId ?? "", { skip: !ownerId })
 
 
     // Reset states when modal closes
@@ -77,10 +81,25 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     }, [open, prefillCustomer])
 
     useEffect(() => {
-        if (open && prefillTreatment) {
-            setSelectedTreatment(prefillTreatment)
+        if (!ownerId) {
+            setSelectedTreatment(null)
+            return
         }
-    }, [open, prefillTreatment])
+
+        const treatments = customerTreatmentsData?.treatments ?? []
+
+        if (prefillTreatment && treatments.some((t) => t.id === prefillTreatment.id)) {
+            setSelectedTreatment(prefillTreatment)
+            return
+        }
+
+        setSelectedTreatment((previous) => {
+            if (previous && treatments.some((t) => t.id === previous.id)) {
+                return previous
+            }
+            return treatments[0] ?? null
+        })
+    }, [ownerId, customerTreatmentsData?.treatments, prefillTreatment])
 
     useEffect(() => {
         if (finalizedDragTimes) {
@@ -129,7 +148,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
             if (minutes == null) {
                 setDurationStatus('error')
                 setDurationMinutes(null)
-                setDurationMessage('לא התקבל משך תספורת תקין עבור הגזע והעמדה שנבחרו.')
+                setDurationMessage('לא התקבל משך שירות תקין עבור ההגדרות שנבחרו.')
                 return
             }
 
@@ -139,7 +158,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         } else {
             setDurationStatus('unsupported')
             setDurationMinutes(null)
-            setDurationMessage(treatmentTypeDurationData.message ?? 'העמדה שנבחרה אינה תומכת בגזע זה.')
+            setDurationMessage(treatmentTypeDurationData.message ?? 'העמדה שנבחרה אינה תומכת בשירות זה.')
         }
     }, [treatmentTypeDurationData, selectedTreatment?.id, appointmentTimes?.stationId])
 
@@ -161,7 +180,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
 
         setDurationStatus('error')
         setDurationMinutes(null)
-        setDurationMessage(message ?? 'לא ניתן לבדוק את משך התספורת בשלב זה.')
+        setDurationMessage(message ?? 'לא ניתן לבדוק את משך השירות בשלב זה.')
     }, [isTreatmentTypeDurationError, treatmentTypeDurationError])
 
     const startTimeKey = appointmentTimes?.startTime ? appointmentTimes.startTime.getTime() : null
@@ -232,16 +251,8 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         setSelectedTreatment(null) // Reset treatment selection when customer changes
     }
 
-    const handleTreatmentSelect = (treatment: Treatment) => {
-        setSelectedTreatment(treatment)
-    }
-
     const handleClearCustomer = () => {
         setSelectedCustomer(null)
-        setSelectedTreatment(null)
-    }
-
-    const handleClearTreatment = () => {
         setSelectedTreatment(null)
     }
 
@@ -319,7 +330,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 <DialogHeader>
                     <DialogTitle className="text-right">יצירת תור עסקי</DialogTitle>
                     <DialogDescription className="text-right">
-                        צור תור עסקי עם לקוח וכלב
+                        צור תור עסקי עם לקוח ושירות מתאים
                     </DialogDescription>
                 </DialogHeader>
 
@@ -340,7 +351,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                         {durationStatus === 'checking' && (
                             <div className="mb-3 flex items-center justify-end gap-2 text-xs text-blue-600">
                                 <Loader2 className="h-3 w-3 animate-spin" />
-                                <span>בודק משך התספורת עבור הגזע והעמדה שנבחרו...</span>
+                                <span>בודק משך השירות עבור ההגדרות שנבחרו...</span>
                             </div>
                         )}
 
@@ -348,8 +359,8 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                             <Alert variant="destructive" className="mb-3 text-right">
                                 <AlertDescription>
                                     {durationMessage ?? (durationStatus === 'unsupported'
-                                        ? "העמדה שנבחרה אינה תומכת בגזע זה."
-                                        : "אירעה שגיאה בבדיקת משך התספורת.")}
+                                        ? "העמדה שנבחרה אינה תומכת בשירות זה."
+                                        : "אירעה שגיאה בבדיקת משך השירות.")}
                                 </AlertDescription>
                             </Alert>
                         )}
@@ -361,13 +372,36 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                                 onCustomerClear={handleClearCustomer}
                             />
 
-                            {/* Treatment Selection */}
-                            <TreatmentSelectInput
-                                selectedCustomer={selectedCustomer}
-                                selectedTreatment={selectedTreatment}
-                                onTreatmentSelect={handleTreatmentSelect}
-                                onTreatmentClear={handleClearTreatment}
-                            />
+                            {selectedCustomer && (
+                                <div className="rounded-md border border-blue-100 bg-blue-50/40 p-4 text-right">
+                                    <div className="text-xs font-medium text-blue-700 mb-2">
+                                        שירות מקושר ללקוח
+                                    </div>
+                                    {(isLoadingTreatments || isFetchingTreatments) && (
+                                        <div className="flex items-center justify-end gap-2 text-xs text-blue-600">
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            <span>טוען שירותים זמינים...</span>
+                                        </div>
+                                    )}
+                                    {!isLoadingTreatments && !isFetchingTreatments && selectedTreatment && (
+                                        <div>
+                                            <div className="text-sm font-medium text-gray-900">
+                                                {selectedTreatment.name}
+                                            </div>
+                                            <div className="text-xs text-gray-600">
+                                                {selectedTreatment.treatmentType} • {selectedTreatment.size}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {!isLoadingTreatments && !isFetchingTreatments && !selectedTreatment && (
+                                        <Alert variant="destructive" className="mt-3 text-right">
+                                            <AlertDescription>
+                                                ללקוח זה אין שירות מקושר. יש ליצור שירות מתאים לפני יצירת תור עסקי.
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
