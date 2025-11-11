@@ -92,7 +92,7 @@ export default function About() {
                             >
                                 <div className={cn(
                                     "flex h-12 w-12 items-center justify-center rounded-full text-2xl transition-transform",
-                                    "bg-gradient-to-br shadow-inner",
+                                    "bg-gradient-to-br  shadow-inner",
                                     option.accent,
                                     isActive ? "scale-105" : "group-hover:scale-105"
                                 )}>
