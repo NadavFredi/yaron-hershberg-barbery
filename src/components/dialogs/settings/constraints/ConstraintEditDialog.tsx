@@ -348,6 +348,12 @@ export function ConstraintEditDialog({
     const allReasons = getAllReasons()
     const exactMatch = searchText.length > 0 ? allReasons.find((r) => r.label.toLowerCase() === searchText.toLowerCase()) : null
     const canAddNewReason = searchText.length > 0 && !exactMatch
+    const isFormComplete =
+        formData.selectedStations.length > 0 &&
+        !!formData.startDate &&
+        !!formData.startTime &&
+        !!formData.endDate &&
+        !!formData.endTime
 
     const handleSave = async () => {
         if (formData.selectedStations.length === 0) {
@@ -995,7 +1001,12 @@ export function ConstraintEditDialog({
                 </div>
 
                 <DialogFooter className="sm:justify-start gap-2">
-                    <Button onClick={handleSave} disabled={isSaving || formData.selectedStations.length === 0 || !formData.startDate || !formData.startTime || !formData.endDate || !formData.endTime}>
+                    <Button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        aria-disabled={!isFormComplete}
+                        title={!isFormComplete && !isSaving ? "יש לבחור עמדות, תאריך ושעות לפני השמירה" : undefined}
+                    >
                         {isSaving && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
                         <Save className="h-4 w-4 ml-2" />
                         שמור

@@ -2,10 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Clock, Sparkles, MapPin, CheckCircle, Scissors, Bone, PlusCircle, ClipboardList, CreditCard, Loader2 } from "lucide-react"
+import { CalendarIcon, Clock, Sparkles, CheckCircle, Scissors, Bone, PlusCircle, ClipboardList, CreditCard, Loader2 } from "lucide-react"
 import { reserveAppointment } from "@/integrations/supabase/supabaseService"
 import confetti from "canvas-confetti"
 import { skipToken } from "@reduxjs/toolkit/query"
@@ -13,16 +12,16 @@ import {
     supabaseApi,
     useGetAvailableDatesQuery,
     useGetClientSubscriptionsQuery,
+    useGetClientProfileQuery,
     useGetTreatmentGardenAppointmentsQuery,
     useListOwnerTreatmentsQuery,
+    useCreateTreatmentMutation,
     type ListOwnerTreatmentsResponse,
 } from "@/store/services/supabaseApi"
-import { useToast } from "@/components/ui/use-toast"
-import { AddTreatmentDialog } from "@/components/AddTreatmentDialog"
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
 import { useAppDispatch } from "@/store/hooks"
 import { FirstTimeGardenBanner } from "@/components/FirstTimeGardenBanner"
-import { groomingPriceCopy, groomingPriceSections } from "@/copy/pricing"
+import { groomingPriceSections } from "@/copy/pricing"
 
 const BUSINESS_TIME_ZONE = "Asia/Jerusalem"
 const jerusalemDateFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -146,6 +145,8 @@ interface ServiceSection {
     content: React.ReactNode
 }
 
+type AutoTreatmentState = "idle" | "creating" | "success" | "error"
+
 const INACTIVE_STATUS_KEYWORDS = ["לאפעילה", "לאפעיל", "inactive", "בוטל", "בוטלה", "הוקפאה", "מושהה", "הסתיים", "לאזמין"]
 const ACTIVE_STATUS_KEYWORDS = ["פעילה", "פעיל", "active", "available", "זמין", "בתוקף", "פתוחה"]
 
@@ -233,8 +234,6 @@ export default function SetupAppointment() {
     const [gardenBrush, setGardenBrush] = useState(false)
     const [gardenBath, setGardenBath] = useState(false)
     const [formStep, setFormStep] = useState<1 | 2>(1)
-    const [isAddTreatmentDialogOpen, setIsAddTreatmentDialogOpen] = useState(false)
-    const { toast } = useToast()
 
     const hasProcessedQueryParams = useRef(false)
     const selectedTreatmentFromParams = useRef(false)
@@ -252,37 +251,24 @@ export default function SetupAppointment() {
     }, [clientId, user])
 
     const {
+        data: clientProfile,
+        isLoading: isProfileLoading,
+        isFetching: isProfileFetching,
+    } = useGetClientProfileQuery(ownerId ?? skipToken, {
+        skip: !ownerId,
+    })
+
+    const [createTreatmentMutation, { isLoading: isCreatingDefaultTreatment }] = useCreateTreatmentMutation()
+    const [autoTreatmentState, setAutoTreatmentState] = useState<AutoTreatmentState>("idle")
+    const [autoTreatmentError, setAutoTreatmentError] = useState<string | null>(null)
+
+    const {
         data: treatmentsQueryData,
         isFetching: isFetchingTreatments,
         refetch: refetchTreatments,
     } = useListOwnerTreatmentsQuery(ownerId ?? skipToken, {
         skip: !ownerId,
     })
-
-    const openAddTreatmentForm = useCallback(() => {
-        if (!ownerId) {
-            console.warn("Cannot open add-treatment form without ownerId")
-            toast({
-                title: "שגיאה",
-                description: "לא ניתן להוסיף כלב ללא זיהוי לקוח",
-                variant: "destructive",
-            })
-            return
-        }
-        setIsAddTreatmentDialogOpen(true)
-    }, [ownerId, toast])
-
-    const handleAddTreatmentSuccess = useCallback(async (treatmentId: string) => {
-        // Refetch treatments and select the newly created treatment
-        const refetchResult = await refetchTreatments()
-        if (refetchResult.data) {
-            const response = refetchResult.data as ListOwnerTreatmentsResponse
-            const newTreatment = response.treatments?.find((d) => d.id === treatmentId)
-            if (newTreatment) {
-                setSelectedTreatment(treatmentId)
-            }
-        }
-    }, [refetchTreatments, setSelectedTreatment])
 
 
     const {
@@ -320,6 +306,122 @@ export default function SetupAppointment() {
         }
         return formatSubscriptionDate(selectedSubscription.purchasedAt)
     }, [selectedSubscription])
+
+    const profileFullName = useMemo(() => {
+        const profileName = clientProfile?.fullName?.trim()
+        if (profileName && profileName.length > 0) {
+            return profileName
+        }
+
+        const metadataName = typeof user?.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : ""
+        return metadataName ?? ""
+    }, [clientProfile?.fullName, user])
+
+    const profilePhone = useMemo(() => {
+        const customerPhone = clientProfile?.phone?.trim()
+        if (customerPhone && customerPhone.length > 0) {
+            return customerPhone
+        }
+
+        const metadataPhone = typeof user?.user_metadata?.phone_number === "string" ? user.user_metadata.phone_number.trim() : ""
+        if (metadataPhone && metadataPhone.length > 0) {
+            return metadataPhone
+        }
+
+        const authPhone = typeof user?.phone === "string" ? user.phone.trim() : ""
+        return authPhone ?? ""
+    }, [clientProfile?.phone, user])
+
+    const isProfileComplete = profileFullName.length > 0 && profilePhone.length > 0
+    const isProfileLoadingState = isProfileLoading || isProfileFetching
+
+    const defaultTreatmentName = useMemo(() => {
+        if (profileFullName.length > 0) {
+            return profileFullName
+        }
+
+        if (typeof user?.email === "string" && user.email.length > 0) {
+            const [localPart] = user.email.split("@")
+            return localPart || user.email
+        }
+
+        return "פרופיל חדש"
+    }, [profileFullName, user])
+
+    const canAutoCreateBookingProfile = Boolean(ownerId && isProfileComplete && !isProfileLoadingState)
+    const shouldShowAutoCreationSpinner = Boolean(
+        canAutoCreateBookingProfile &&
+        !isFetchingTreatments &&
+        treatments.length === 0 &&
+        (autoTreatmentState === "idle" || autoTreatmentState === "creating" || isCreatingDefaultTreatment)
+    )
+    const shouldShowAutoCreationError = Boolean(
+        !isFetchingTreatments &&
+        treatments.length === 0 &&
+        autoTreatmentState === "error"
+    )
+
+    const ensureDefaultTreatment = useCallback(async () => {
+        if (!ownerId || !canAutoCreateBookingProfile || autoTreatmentState === "creating") {
+            return
+        }
+
+        setAutoTreatmentState("creating")
+        setAutoTreatmentError(null)
+
+        try {
+            const result = await createTreatmentMutation({
+                customerId: ownerId,
+                name: defaultTreatmentName,
+                gender: "male",
+            }).unwrap()
+
+            if (!result?.success || !result.treatmentId) {
+                throw new Error(result?.error || "Failed to create booking profile automatically")
+            }
+
+            setSelectedTreatment(result.treatmentId)
+            setAutoTreatmentState("success")
+            await refetchTreatments()
+        } catch (error) {
+            console.error("Failed to create default booking profile:", error)
+            setAutoTreatmentState("error")
+            setAutoTreatmentError(error instanceof Error ? error.message : "שגיאה ביצירת פרופיל ההזמנה")
+        }
+    }, [
+        ownerId,
+        canAutoCreateBookingProfile,
+        autoTreatmentState,
+        createTreatmentMutation,
+        defaultTreatmentName,
+        refetchTreatments,
+    ])
+
+    useEffect(() => {
+        if (treatments.length > 0) {
+            return
+        }
+
+        if (!canAutoCreateBookingProfile) {
+            return
+        }
+
+        if (autoTreatmentState !== "idle") {
+            return
+        }
+
+        ensureDefaultTreatment()
+    }, [ensureDefaultTreatment, autoTreatmentState, canAutoCreateBookingProfile, treatments.length])
+
+    useEffect(() => {
+        if (treatments.length === 0) {
+            return
+        }
+
+        if (!selectedTreatment) {
+            setSelectedTreatment(treatments[0].id)
+        }
+    }, [treatments, selectedTreatment])
 
     const selectedTreatmentDetails = useMemo(() => {
         return treatments.find((treatment) => treatment.id === selectedTreatment) ?? null
@@ -947,8 +1049,8 @@ export default function SetupAppointment() {
 
     const pageTitle = isApprovalRequestMode ? "בקשת תור" : "קבע תור"
     const pageSubtitle = isApprovalRequestMode
-        ? "שלחו בקשה לטיפוח הכלב שלכם. הצוות יאשר את המועד לאחר בדיקה."
-        : "קבע תור לטיפוח הכלב שלך"
+        ? "שלחו בקשה לתור. הצוות יאשר את המועד לאחר בדיקה."
+        : "קבעו תור לטיפול הבא שלכם"
 
     useEffect(() => {
         if (!selectedDate || !selectedDateKey) {
@@ -1108,20 +1210,65 @@ export default function SetupAppointment() {
         )
     }
 
-    // Show loading state while fetching treatments
-    if (isFetchingTreatments) {
+    if (isProfileLoadingState) {
         return (
             <div className="min-h-screen flex items-center justify-center" dir="rtl">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600">טוען רשימת כלבים...</p>
+                    <p className="text-gray-600">טוען פרטי חשבון...</p>
                 </div>
             </div>
         )
     }
 
-    // Guard for users with no treatments - only show after API call completes
-    if (!isFetchingTreatments && treatments.length === 0) {
+    if (!isProfileComplete) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
+                <Card className="w-full max-w-md">
+                    <CardContent className="p-8 text-center space-y-4">
+                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                            <CheckCircle className="h-8 w-8 text-blue-600" />
+                        </div>
+                        <h2 className="text-xl font-semibold text-gray-900">דרושים פרטי קשר מעודכנים</h2>
+                        <p className="text-gray-600">
+                            כדי לקבוע תור, ודאו שהשם המלא ומספר הטלפון שלכם מעודכנים במסך ההגדרות האישיות.
+                        </p>
+                        <Button
+                            onClick={() => navigate("/profile")}
+                            className="w-full"
+                            size="lg"
+                        >
+                            עדכון פרופיל
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
+    if (isFetchingTreatments) {
+        return (
+            <div className="min-h-screen flex items-center justify-center" dir="rtl">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">טוען את פרטי ההזמנה שלך...</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (shouldShowAutoCreationSpinner) {
+        return (
+            <div className="min-h-screen flex items-center justify-center" dir="rtl">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">מכינים עבורך את פרטי ההזמנה...</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (shouldShowAutoCreationError) {
         return (
             <div className="min-h-screen py-8" dir="rtl">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1138,22 +1285,19 @@ export default function SetupAppointment() {
                                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <Sparkles className="h-8 w-8 text-blue-600" />
                                     </div>
-                                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                                        אין לך כלבים רשומים
-                                    </h2>
+                                    <h2 className="text-xl font-semibold text-gray-900 mb-2">לא הצלחנו להכין את פרטי ההזמנה</h2>
                                     <p className="text-gray-600 mb-6">
-                                        כדי לקבוע תור, אנא מלא את הטופס להוספת כלב
+                                        {autoTreatmentError || "התרחשה שגיאה ביצירת פרטי ההזמנה שלך. נסו שוב בעוד רגע, ואם הבעיה נמשכת צרו קשר עם הצוות."}
                                     </p>
                                 </div>
 
                                 <div className="space-y-4">
                                     <Button
-                                        onClick={openAddTreatmentForm}
+                                        onClick={ensureDefaultTreatment}
                                         className="w-full"
                                         size="lg"
                                     >
-                                        <PlusCircle className="h-4 w-4 mr-2" />
-                                        הוסף כלב חדש
+                                        נסו שוב
                                     </Button>
                                 </div>
                             </CardContent>
@@ -1161,24 +1305,11 @@ export default function SetupAppointment() {
                     </div>
                 </div>
 
-                {/* Add Treatment Dialog - rendered here so it's available when no treatments exist */}
-                <AddTreatmentDialog
-                    open={isAddTreatmentDialogOpen}
-                    onOpenChange={setIsAddTreatmentDialogOpen}
-                    customerId={ownerId}
-                    onSuccess={handleAddTreatmentSuccess}
-                />
             </div>
         )
     }
 
     const handleTreatmentChange = (treatmentId: string) => {
-        if (treatmentId === "__add_new__") {
-            openAddTreatmentForm()
-            // Reset select to previous value (don't actually select __add_new__)
-            return
-        }
-
         setSelectedTreatment(treatmentId)
         setSelectedDate(undefined)
         setSelectedTime("")
@@ -1236,11 +1367,6 @@ export default function SetupAppointment() {
     const handleContinueToExtras = () => {
         const requiresTime = selectedServiceType !== "garden"
 
-        if (!selectedTreatment) {
-            setError("אנא בחר כלב לפני המעבר לשלב הבא")
-            return
-        }
-
         if (!selectedServiceType) {
             setError("אנא בחר סוג שירות כדי להמשיך")
             return
@@ -1278,7 +1404,7 @@ export default function SetupAppointment() {
 
     const handleReservation = async () => {
         if (!selectedTreatment || !selectedServiceType || !selectedDate) {
-            setError("אנא בחר כלב, סוג שירות ותאריך")
+            setError("אנא ודאו שכל פרטי ההזמנה נבחרו לפני השליחה")
             return
         }
 
@@ -1383,13 +1509,13 @@ export default function SetupAppointment() {
         // For garden service, only require treatment, service, and date
         if (selectedServiceType === "garden") {
             if (!selectedTreatment || !selectedServiceType || !selectedDate) {
-                setError("אנא בחר כלב, סוג שירות ותאריך")
+                setError("אנא ודאו שכל פרטי ההזמנה נבחרו לפני ההמשך")
                 return
             }
         } else {
             // For grooming and both services, require all fields
             if (!selectedTreatment || !selectedServiceType || !selectedDate || !selectedTime || !selectedStationId) {
-                setError("אנא בחר כלב, סוג שירות, תאריך, שעה ועמדה")
+                setError("אנא ודאו שכל פרטי ההזמנה נבחרו, כולל שעה ועמדה")
                 return
             }
         }
@@ -1529,7 +1655,7 @@ export default function SetupAppointment() {
                                 <span>פרטי התור</span>
                             </CardTitle>
                             <CardDescription>
-                                בחר את הכלב שלך, התאריך והשעה המועדפים
+                                בחרו את הפרטים, התאריך והשעה שנוחים לכם
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
@@ -1585,10 +1711,10 @@ export default function SetupAppointment() {
                             <div className={formStep === 1 ? "space-y-6" : "hidden"}>
                                 {/* Treatment Selection */}
                                 <div className="space-y-2 ">
-                                    <label className="text-sm font-medium text-gray-700 text-right block">בחר כלב</label>
+                                    <label className="text-sm font-medium text-gray-700 text-right block">בחר פרופיל להזמנה</label>
                                     <Select value={selectedTreatment} onValueChange={handleTreatmentChange}>
                                         <SelectTrigger className="text-right [&>span]:text-right" dir="rtl">
-                                            <SelectValue placeholder="בחר את הכלב שלך" />
+                                            <SelectValue placeholder="בחר את הפרופיל שלך" />
                                         </SelectTrigger>
                                         <SelectContent dir="rtl">
                                             {treatments.map((treatment) => (
@@ -1596,16 +1722,9 @@ export default function SetupAppointment() {
                                                     <div className="flex items-center justify-end w-full gap-2">
                                                         <Sparkles className="h-4 w-4" />
                                                         <span>{treatment.name}</span>
-                                                        <Badge variant="outline">{treatment.treatmentType}</Badge>
                                                     </div>
                                                 </SelectItem>
                                             ))}
-                                            <SelectItem value="__add_new__" className="text-right text-blue-600">
-                                                <div className="flex items-center justify-end w-full gap-2">
-                                                    <PlusCircle className="h-4 w-4" />
-                                                    <span>הוסף כלב חדש</span>
-                                                </div>
-                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -2180,6 +2299,7 @@ export default function SetupAppointment() {
                                 )}
 
                                 {/* Action Buttons - Show only one button based on service and treatmentType requirements */}
+                                {/* Request Button - for treatmentTypes requiring special approval */}
                                 <>
                                     {/* Request Button - for treatmentTypes requiring special approval */}
                                     {shouldShowRequestButton && (
@@ -2211,17 +2331,19 @@ export default function SetupAppointment() {
                                                 isGardenSubscriptionMissing ||
                                                 isLoading ||
                                                 !termsApproved
-                                            ) && <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                                                    <div className="flex items-start gap-2">
-                                                        <div className="text-yellow-600 mt-0.5">⚠️</div>
-                                                        <div className="text-sm text-yellow-800">
-                                                            <p className="font-medium">התור לא נקבע עדיין</p>
-                                                            <p className="text-xs mt-1">
-                                                                הגזע של הכלב דורש אישור מיוחד. התור נשלח כבקשה ויאושר על ידי הצוות.
-                                                            </p>
+                                            ) && (
+                                                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                                                        <div className="flex items-start gap-2">
+                                                            <div className="text-yellow-600 mt-0.5">⚠️</div>
+                                                            <div className="text-sm text-yellow-800">
+                                                                <p className="font-medium">התור לא נקבע עדיין</p>
+                                                                <p className="text-xs mt-1">
+                                                                    הגזע של הכלב דורש אישור מיוחד. התור נשלח כבקשה ויאושר על ידי הצוות.
+                                                                </p>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>}
+                                                )}
                                         </>
                                     )}
 
@@ -2237,6 +2359,11 @@ export default function SetupAppointment() {
                                     )}
                                 </>
 
+                                {/* Terms & Conditions Disclaimer */}
+                                <p className="text-xs text-gray-500 text-right">
+                                    שליחת הבקשה אינה מבטיחה אישור תור. הצוות שלנו יוודא שהפרטים תקינים ויאשר את המועד בהקדם.
+                                </p>
+                                {/* End action buttons */}
                             </div>
 
 
@@ -2354,14 +2481,6 @@ export default function SetupAppointment() {
                     </div>
                 </div>
             </div>
-
-            {/* Add Treatment Dialog */}
-            <AddTreatmentDialog
-                open={isAddTreatmentDialogOpen}
-                onOpenChange={setIsAddTreatmentDialogOpen}
-                customerId={ownerId}
-                onSuccess={handleAddTreatmentSuccess}
-            />
         </div>
     )
 }

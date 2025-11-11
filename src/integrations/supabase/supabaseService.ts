@@ -471,7 +471,7 @@ export async function createTreatment(
   customerId: string,
   treatmentData: {
     name: string
-    treatment_type_id: string
+    treatment_type_id?: string | null
     gender?: "male" | "female"
     birth_date?: string | null
     health_notes?: string | null
@@ -501,7 +501,7 @@ export async function createTreatment(
   const insertPayload: Database["public"]["Tables"]["treatments"]["Insert"] = {
     customer_id: customerId,
     name: treatmentData.name.trim(),
-    treatment_type_id: treatmentData.treatment_type_id,
+    treatment_type_id: treatmentData.treatment_type_id ?? null,
     ...(treatmentData.gender && { gender: treatmentData.gender }),
     ...(treatmentData.birth_date && { birth_date: treatmentData.birth_date }),
     ...(treatmentData.health_notes && { health_notes: treatmentData.health_notes.trim() }),
@@ -1053,8 +1053,8 @@ export async function checkUserExists(email: string): Promise<{
 
 // 8. Register for waiting list
 export async function registerWaitingList(
-  treatmentId: string,
-  serviceType: string,
+  customerId: string,
+  serviceType: "grooming" | "daycare" | "both",
   dateRanges: Array<{ startDate: string; endDate: string }>,
   userId?: string
 ): Promise<{
@@ -1065,7 +1065,7 @@ export async function registerWaitingList(
   try {
     // Use direct Supabase insert instead of edge function
     const { registerWaitingList } = await import("@/pages/Appointments/Appointments.module")
-    return await registerWaitingList(treatmentId, serviceType, dateRanges, userId)
+    return await registerWaitingList(customerId, serviceType, dateRanges, userId)
   } catch (error) {
     console.error("Failed to register waiting list:", error)
     return {
@@ -1077,8 +1077,7 @@ export async function registerWaitingList(
 
 export async function updateWaitingListEntry(
   entryId: string,
-  treatmentId: string,
-  serviceType: string,
+  serviceType: "grooming" | "daycare" | "both",
   dateRanges: Array<{ startDate: string; endDate: string }>,
   userId?: string
 ): Promise<{
@@ -1089,7 +1088,7 @@ export async function updateWaitingListEntry(
   try {
     // Use direct Supabase update instead of edge function
     const { updateWaitingListEntry } = await import("@/pages/Appointments/Appointments.module")
-    return await updateWaitingListEntry(entryId, treatmentId, serviceType, dateRanges)
+    return await updateWaitingListEntry(entryId, serviceType, dateRanges)
   } catch (error) {
     console.error("Failed to update waiting list entry:", error)
     return {

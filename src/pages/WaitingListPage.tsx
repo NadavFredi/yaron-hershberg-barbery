@@ -52,7 +52,7 @@ import {
 interface WaitlistEntry {
     id: string
     customer_id: string
-    treatment_id: string
+    treatment_id: string | null
     service_scope: 'grooming' | 'daycare' | 'both'
     status: 'active' | 'fulfilled' | 'cancelled'
     start_date: string
@@ -161,7 +161,8 @@ export default function WaitingListPage() {
             .not("phone", "is", null)
 
         if (trimmedTerm.length >= 2) {
-            query = query.ilike("phone", `%${trimmedTerm}%`).limit(10)
+            const pattern = "%" + trimmedTerm + "%"
+            query = query.ilike("phone", pattern).limit(10)
         } else {
             query = query.order("phone", { ascending: true }).limit(5)
         }
@@ -180,7 +181,8 @@ export default function WaitingListPage() {
             .not("full_name", "is", null)
 
         if (trimmedTerm.length >= 2) {
-            query = query.ilike("full_name", `%${trimmedTerm}%`).limit(10)
+            const pattern = "%" + trimmedTerm + "%"
+            query = query.ilike("full_name", pattern).limit(10)
         } else {
             query = query.order("full_name", { ascending: true }).limit(5)
         }
@@ -199,7 +201,8 @@ export default function WaitingListPage() {
             .not("name", "is", null)
 
         if (trimmedTerm.length >= 2) {
-            query = query.ilike("name", `%${trimmedTerm}%`).limit(10)
+            const pattern = "%" + trimmedTerm + "%"
+            query = query.ilike("name", pattern).limit(10)
         } else {
             query = query.order("name", { ascending: true }).limit(5)
         }
@@ -218,7 +221,8 @@ export default function WaitingListPage() {
             .not("email", "is", null)
 
         if (trimmedTerm.length >= 2) {
-            query = query.ilike("email", `%${trimmedTerm}%`).limit(10)
+            const pattern = "%" + trimmedTerm + "%"
+            query = query.ilike("email", pattern).limit(10)
         } else {
             query = query.order("email", { ascending: true }).limit(5)
         }
@@ -248,7 +252,7 @@ export default function WaitingListPage() {
 
             // Get unique customer and treatment IDs
             const customerIds = [...new Set(waitlistData.map(e => e.customer_id))]
-            const treatmentIds = [...new Set(waitlistData.map(e => e.treatment_id))]
+            const treatmentIds = [...new Set(waitlistData.map(e => e.treatment_id).filter((id): id is string => Boolean(id)))]
 
             // Fetch customers
             const { data: customersData } = await supabase
@@ -257,20 +261,16 @@ export default function WaitingListPage() {
                 .in("id", customerIds)
 
             // Fetch treatments with treatmentTypes
-            const { data: treatmentsData } = await supabase
-                .from("treatments")
-                .select(`
-                    id,
-                    name,
-                    treatment_type_id,
-                    treatmentType:treatment_types (
-                        id,
-                        name,
-                        default_duration_minutes,
-                        default_price
+            let treatmentsData: any[] = []
+            if (treatmentIds.length > 0) {
+                const { data: fetchedTreatments } = await supabase
+                    .from("treatments")
+                    .select(
+                        "id, name, treatment_type_id, treatmentType:treatment_types (id, name, default_duration_minutes, default_price)"
                     )
-                `)
-                .in("id", treatmentIds)
+                    .in("id", treatmentIds)
+                treatmentsData = fetchedTreatments || []
+            }
 
             // Fetch treatmentType types and categories
             const treatmentTypeIds = [...new Set((treatmentsData || []).map(d => d.treatment_type_id).filter(Boolean))]
@@ -279,21 +279,13 @@ export default function WaitingListPage() {
                 treatmentTypeIds.length > 0
                     ? supabase
                         .from("treatmentType_treatment_types")
-                        .select(`
-                            treatment_type_id,
-                            treatment_type_id,
-                            treatment_type:treatment_types (id, name)
-                        `)
+                        .select("treatment_type_id, treatment_type:treatment_types (id, name)")
                         .in("treatment_type_id", treatmentTypeIds)
                     : { data: [], error: null },
                 treatmentTypeIds.length > 0
                     ? supabase
                         .from("treatmentType_treatment_categories")
-                        .select(`
-                            treatment_type_id,
-                            treatment_category_id,
-                            treatment_category:treatment_categories (id, name)
-                        `)
+                        .select("treatment_type_id, treatment_category_id, treatment_category:treatment_categories (id, name)")
                         .in("treatment_type_id", treatmentTypeIds)
                     : { data: [], error: null }
             ])
@@ -491,7 +483,7 @@ export default function WaitingListPage() {
                 startTime: startTime.toISOString(),
                 endTime: endTime.toISOString(),
                 notes: approveNotes || undefined,
-                internalNotes: `נוצר מרשימת המתנה (${selectedEntry.id})`
+                internalNotes: "נוצר מרשימת המתנה (" + selectedEntry.id + ")"
             }).unwrap()
 
             // Update waitlist entry status
@@ -528,11 +520,18 @@ export default function WaitingListPage() {
 
         setIsProcessing(true)
         try {
+            const existingNotes = selectedEntry.notes || ""
+            let updatedNotes = existingNotes
+            if (declineReason) {
+                const prefix = existingNotes ? existingNotes + "\n" : ""
+                updatedNotes = prefix + "סיבה לדחייה: " + declineReason
+            }
+
             await supabase
                 .from("daycare_waitlist")
                 .update({
                     status: 'cancelled',
-                    notes: declineReason ? `${selectedEntry.notes || ''}\nסיבה לדחייה: ${declineReason}`.trim() : selectedEntry.notes
+                    notes: updatedNotes.trim()
                 })
                 .eq("id", selectedEntry.id)
 
@@ -569,12 +568,14 @@ export default function WaitingListPage() {
 
         setIsProcessing(true)
         try {
-            const suggestionText = `הצעה: ${format(suggestion.suggestedDate, 'dd/MM/yyyy', { locale: he })} בשעה ${suggestion.suggestedTime}${suggestion.notes ? `\n${suggestion.notes}` : ''}`
+            const formattedDate = format(suggestion.suggestedDate, "dd/MM/yyyy", { locale: he })
+            const baseSuggestionText = "הצעה: " + formattedDate + " בשעה " + suggestion.suggestedTime
+            const suggestionText = suggestion.notes ? baseSuggestionText + "\n" + suggestion.notes : baseSuggestionText
 
             await supabase
                 .from("daycare_waitlist")
                 .update({
-                    notes: selectedEntry.notes ? `${selectedEntry.notes}\n\n${suggestionText}` : suggestionText
+                    notes: selectedEntry.notes ? selectedEntry.notes + "\n\n" + suggestionText : suggestionText
                 })
                 .eq("id", selectedEntry.id)
 
@@ -602,7 +603,12 @@ export default function WaitingListPage() {
     const handleViewInCalendar = (entry: WaitlistEntry) => {
         // Navigate to ManagerSchedule with waitlist preview context
         const previewDate = entry.start_date ? new Date(entry.start_date) : new Date()
-        navigate(`/manager?previewWaitlist=${entry.id}&date=${format(previewDate, 'yyyy-MM-dd')}`)
+        navigate(
+            "/manager?previewWaitlist=" +
+            entry.id +
+            "&date=" +
+            format(previewDate, "yyyy-MM-dd")
+        )
     }
 
     const getServiceBadge = (service: string) => {
@@ -1166,9 +1172,10 @@ function WaitlistEntryRow({
     const startDateLabel = formatDateValue(entry.start_date)
     const endDateLabel = entry.end_date ? formatDateValue(entry.end_date) : null
     const createdLabel = formatDateValue(entry.created_at, true)
-    const dateSummary = endDateLabel && endDateLabel !== startDateLabel
-        ? `${startDateLabel} - ${endDateLabel}`
-        : startDateLabel
+    let dateSummary = startDateLabel
+    if (endDateLabel && endDateLabel !== startDateLabel) {
+        dateSummary = startDateLabel + " - " + endDateLabel
+    }
 
     return (
         <Fragment>
@@ -1343,7 +1350,11 @@ const InfoSection = ({ icon, title, rows }: InfoSectionProps) => (
         <div className="rounded-2xl border border-blue-100 bg-white px-4 py-4 shadow-sm">
             <dl className="space-y-3 text-sm text-gray-700">
                 {rows.map((row, index) => (
-                    <DetailRow key={`${title}-${row.label}-${index}`} label={row.label} value={row.value} />
+                    <DetailRow
+                        key={title + "-" + row.label + "-" + index}
+                        label={row.label}
+                        value={row.value}
+                    />
                 ))}
             </dl>
         </div>

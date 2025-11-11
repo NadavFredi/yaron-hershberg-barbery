@@ -457,10 +457,10 @@ export const supabaseApi = createApi({
     }),
 
     getWaitingListEntries: builder.query({
-      async queryFn(params: { treatmentIds: string[] }) {
+      async queryFn(params: { customerId: string }) {
         try {
           const { getWaitingListEntries } = await import("@/pages/Appointments/Appointments.module")
-          const entries = await getWaitingListEntries(params.treatmentIds)
+          const entries = await getWaitingListEntries(params.customerId)
           return { data: entries }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
