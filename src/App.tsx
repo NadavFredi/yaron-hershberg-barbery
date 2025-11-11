@@ -19,7 +19,6 @@ import { UserOnboarding } from "./components/auth/UserOnboarding";
 import { Navbar } from "./components/navigation/Navbar";
 import { ManagerSubnav } from "./components/navigation/ManagerSubnav";
 import { AppFooter } from "./components/layout/AppFooter";
-import MyTreatments from "./pages/MyTreatments"
 import SetupAppointment from "./pages/SetupAppointment"
 import Appointments from "./pages/Appointments/Appointments"
 import ProfileSettings from "./pages/ProfileSettings"
@@ -57,7 +56,6 @@ const AppContent = () => {
             <Route path="/admin" element={<Admin />} />
             <Route path="/auth" element={<AuthContainer />} />
             <Route path="/onboarding" element={<UserOnboarding userEmail="" onBackToAuth={() => { }} />} />
-            <Route path="/my-treatments" element={<MyTreatments />} />
             <Route path="/setup-appointment" element={<SetupAppointment />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/subscriptions" element={<Subscriptions />} />

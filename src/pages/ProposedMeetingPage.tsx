@@ -302,7 +302,7 @@ const ProposedMeetingPage = () => {
               <Alert>
                 <AlertTitle>לא מצאנו כלבים בחשבון</AlertTitle>
                 <AlertDescription>
-                  הוסיפו כלב דרך <Link to="/my-treatments" className="text-lime-700 underline">איזור הכלבים</Link> ואז חזרו לכאן.
+                  הוסיפו את פרטי המטופל דרך הצוות או בעזרת המסכים המנהלתיים, ואז חזרו לכאן.
                 </AlertDescription>
               </Alert>
             ) : (

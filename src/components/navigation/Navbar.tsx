@@ -506,7 +506,6 @@ export function Navbar({ isManager }: NavbarProps) {
 
     const navItems = [
         { path: "/about", label: "אודות", icon: "✨", requiresAuth: false, requiresManager: false },
-        { path: "/my-treatments", label: "הטיפולים שלי", icon: "💇‍♂️", requiresAuth: true, requiresManager: false },
         { path: "/setup-appointment", label: "קבע תור", icon: "📅", requiresAuth: true, requiresManager: false },
         { path: "/appointments", label: "התורים שלי", icon: "📋", requiresAuth: true, requiresManager: false },
         { path: "/subscriptions", label: "הכרטיסיות שלי", icon: "🎫", requiresAuth: true, requiresManager: false },
@@ -567,7 +566,7 @@ export function Navbar({ isManager }: NavbarProps) {
                     <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
                         {/* Mobile Header */}
                         <div className="flex items-center justify-between gap-4 py-3 xl:hidden">
-                            <Link to={user ? "/my-treatments" : "/"} className="flex items-center gap-3">
+                            <Link to="/" className="flex items-center gap-3">
                                 <div className="w-10 h-10 shrink-0">
                                     <img src={logoImage} alt="Yaron Hershberg Special Barbery Logo" className="w-full h-full object-contain" />
                                 </div>
@@ -603,7 +602,7 @@ export function Navbar({ isManager }: NavbarProps) {
 
                         {/* Desktop Header */}
                         <div className="hidden xl:grid xl:grid-cols-[auto,1fr,auto] xl:items-center xl:gap-6 py-4">
-                            <Link to={user ? "/my-treatments" : "/"} className="flex items-center gap-3">
+                            <Link to="/" className="flex items-center gap-3">
                                 <div className="w-12 h-12 shrink-0">
                                     <img src={logoImage} alt="Yaron Hershberg Special Barbery Logo" className="w-full h-full object-contain" />
                                 </div>

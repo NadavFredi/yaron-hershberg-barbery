@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Badge } from "../components/ui/badge.tsx"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card.tsx"
-import { cn } from "../lib/utils.ts"
-import { useTreatmentTypes } from "../hooks/useTreatmentTypes.ts"
 import { AutocompleteFilter } from "../components/AutocompleteFilter.tsx"
 import { groomingPriceCopy, groomingPriceSections } from "../copy/pricing.ts"
+import { cn } from "../lib/utils.ts"
+// @ts-ignore - Bundler resolves this default export
+import useTreatmentTypes from "../hooks/useTreatmentTypes.ts"
 
-type ExperienceId = "garden" | "barber" | "pricing"
-type ExperienceType = "fillout" | "pricing"
+type ExperienceId = "barber" | "pricing"
+type ExperienceType = "story" | "pricing"
 
 interface ExperienceOption {
     id: ExperienceId
@@ -17,30 +18,16 @@ interface ExperienceOption {
     description: string
     emoji: string
     accent: string
-    filloutId?: string
 }
 
-const FILL_OUT_SCRIPT_SRC = "https://server.fillout.com/embed/v1/"
-
 const experienceOptions: Record<ExperienceId, ExperienceOption> = {
-    garden: {
-        id: "garden",
-        type: "fillout",
-        title: "הכירו את מתחם הטיפולים הפרטיים",
-        subtitle: "רוגע, נינוחות וטיפול אישי בכל לקוח",
-        description: "גלו כיצד אנחנו בונים שגרה של טיפולי שיער מפנקים המשלבים יחס אישי, טכניקות מתקדמות ומוצרים קוסמטיים יוקרתיים.",
-        emoji: "🌿",
-        filloutId: "o4iG1m9JH9us",
-        accent: "from-emerald-50 to-emerald-100"
-    },
     barber: {
         id: "barber",
-        type: "fillout",
-        title: "הפילוסופיה של המספרה יוצאת הדופן",
-        subtitle: "חוויית טיפוח ממוקדת בלקוח",
-        description: "שמעו על השיטה של ירון הרשברג לטיפולי שיער מתקדמים – מכלי העבודה ועד להתאמות המדויקות לכל מבקר.",
+        type: "story",
+        title: "מי אנחנו",
+        subtitle: "מספרה יוצאת דופן",
+        description: "הכירו את הבוטיק של ירון הרשברג – מעצב שיער, כימאי וטריקולוג מוסמך שמעניק מענה הוליסטי לקרקפת ולשיער.",
         emoji: "✂️",
-        filloutId: "jjExQ3PQZZus",
         accent: "from-sky-50 to-blue-100"
     },
     pricing: {
@@ -64,7 +51,7 @@ type PricingTreatmentType = {
 }
 
 export default function About() {
-    const [selectedId, setSelectedId] = useState<ExperienceId>("garden")
+    const [selectedId, setSelectedId] = useState<ExperienceId>("barber")
 
     const selectedExperience = useMemo(
         () => experienceOptions[selectedId],
@@ -86,7 +73,7 @@ export default function About() {
                     </p>
                 </header>
 
-                <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <section className="grid gap-6 md:grid-cols-2">
                     {Object.values(experienceOptions).map((option) => {
                         const isActive = option.id === selectedId
                         return (
@@ -142,12 +129,8 @@ export default function About() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="bg-white/90 p-6">
-                            {selectedExperience.type === "fillout" && selectedExperience.filloutId ? (
-                                <FilloutEmbed
-                                    key={selectedExperience.id}
-                                    filloutId={selectedExperience.filloutId}
-                                    accent={selectedExperience.accent}
-                                />
+                            {selectedExperience.type === "story" ? (
+                                <StoryExperience />
                             ) : null}
 
                             {selectedExperience.type === "pricing" ? (
@@ -161,49 +144,67 @@ export default function About() {
     )
 }
 
-interface FilloutEmbedProps {
-    filloutId: string
-    accent: string
-}
-
-function FilloutEmbed({ filloutId, accent }: FilloutEmbedProps) {
-    const containerRef = useRef<HTMLDivElement | null>(null)
-
-    useEffect(() => {
-        const container = containerRef.current
-        if (!container) return
-
-        container.innerHTML = ""
-
-        const embedDiv = document.createElement("div")
-        embedDiv.style.width = "100%"
-        embedDiv.style.height = "500px"
-        embedDiv.setAttribute("data-fillout-id", filloutId)
-        embedDiv.setAttribute("data-fillout-embed-type", "standard")
-        embedDiv.setAttribute("data-fillout-inherit-parameters", "")
-        embedDiv.setAttribute("data-fillout-dynamic-resize", "")
-        container.appendChild(embedDiv)
-
-        const script = document.createElement("script")
-        script.src = FILL_OUT_SCRIPT_SRC
-        script.async = true
-        script.setAttribute("data-fillout-script", `about-${filloutId}`)
-        container.appendChild(script)
-
-        return () => {
-            container.innerHTML = ""
-        }
-    }, [filloutId])
-
+function StoryExperience() {
     return (
-        <div
-            ref={containerRef}
-            className={cn(
-                "flex min-h-[500px] items-center justify-center rounded-2xl border shadow-inner transition-colors",
-                "border-blue-100 bg-white",
-                accent ? `bg-gradient-to-br ${accent}` : undefined
-            )}
-        />
+        <div className="space-y-8 text-right">
+            <section className="space-y-4 rounded-2xl bg-gradient-to-br from-blue-50 to-emerald-50 p-6 shadow-inner">
+                <h3 className="text-2xl font-semibold text-gray-900">"מספרה יוצאת דופן" – בוטיק ייחודי לבריאות הקרקפת והשיער</h3>
+                <p className="text-base leading-7 text-gray-700">
+                    ירון הרשברג, מעצב שיער וכימאי מאז 2001 וטריקולוג מוסמך בשנים האחרונות, הקים ברמת גן בית מקצועי שמחבר בין עיצוב שיער מדויק לטיפולי קרקפת טבעיים ולא פולשניים.
+                </p>
+                <p className="text-base leading-7 text-gray-700">
+                    הבוטיק מעניק חוויית טיפוח הוליסטית – טיפול מהשורש ועד הקצוות, עם מעטפת של אבחון, התאמה אישית ומוצרים אורגניים מהשורה הראשונה.
+                </p>
+            </section>
+
+            <section className="space-y-6">
+                <h3 className="text-xl font-bold text-gray-900">למה אנחנו יוצאי דופן</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
+                        <h4 className="text-lg font-semibold text-blue-700">אבחון מקצועי מדויק</h4>
+                        <p className="mt-2 text-sm leading-6 text-gray-600">
+                            מצלמת קרקפת מתקדמת ותשאול יסודי בתחילת כל טיפול – כדי להבין לעומק מה הקרקפת והשיער שלכם צריכים.
+                        </p>
+                    </div>
+                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
+                        <h4 className="text-lg font-semibold text-blue-700">טיפולים מותאמים אישית</h4>
+                        <p className="mt-2 text-sm leading-6 text-gray-600">
+                            לכל לקוחה ולקוח נבנה פרוטוקול טיפולי ייחודי לפי מצב הקרקפת, השיער ואורח החיים.
+                        </p>
+                    </div>
+                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
+                        <h4 className="text-lg font-semibold text-blue-700">מוצרים אורגניים פרימיום</h4>
+                        <p className="mt-2 text-sm leading-6 text-gray-600">
+                            אנו עובדים עם Philip Martin’s האיטלקיים – ללא SLS, מלחים או חומרים משמרים, ולא נוסו על בעלי חיים.
+                        </p>
+                    </div>
+                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
+                        <h4 className="text-lg font-semibold text-blue-700">זמינות וגמישות</h4>
+                        <p className="mt-2 text-sm leading-6 text-gray-600">
+                            פתוחים עד חצות, כי הבריאות והטיפוח שלכם צריכים להתאים לשגרה ולא להפך.
+                        </p>
+                    </div>
+                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
+                        <h4 className="text-lg font-semibold text-blue-700">מומחיות אמיתית</h4>
+                        <p className="mt-2 text-sm leading-6 text-gray-600">
+                            ניסיון של מעל 20 שנה בעיצוב שיער לצד הסמכה בינלאומית בטריקולוגיה – ידע עמוק שמורגש בכל מפגש.
+                        </p>
+                    </div>
+                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
+                        <h4 className="text-lg font-semibold text-blue-700">חוויית שירות גבוהה</h4>
+                        <p className="mt-2 text-sm leading-6 text-gray-600">
+                            יחס אישי, אווירה נעימה וליווי צמוד כבר מהפגישה הראשונה ועד לתוצאות המלאות.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-6 text-center shadow-sm">
+                <p className="text-lg font-medium text-emerald-900">
+                    אנחנו מאמינים שלשיער ולקרקפת שלכם מגיעה חוויה יוצאת דופן – ואם נפגשנו, זה בהחלט לא במקרה 🥰
+                </p>
+            </section>
+        </div>
     )
 }
 
