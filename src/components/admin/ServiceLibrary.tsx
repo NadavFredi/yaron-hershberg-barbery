@@ -1,13 +1,13 @@
 
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Scissors, Loader2 } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { useServicesWithStats, useCreateService } from '@/hooks/useServices';
 import { useToast } from '@/hooks/use-toast';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface ServiceLibraryProps {
   onEditService: (serviceId: string) => void;
@@ -22,6 +22,9 @@ const ServiceLibrary = ({ onEditService }: ServiceLibraryProps) => {
   const { data: serviceStats, isLoading, error } = useServicesWithStats();
   const createServiceMutation = useCreateService();
 
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(value);
+
   const handleCreateService = async () => {
     if (!newServiceName.trim()) return;
 
@@ -30,12 +33,12 @@ const ServiceLibrary = ({ onEditService }: ServiceLibraryProps) => {
         name: newServiceName.trim(),
         base_price: newServiceBasePrice
       });
-      
+
       toast({
         title: "שירות נוצר בהצלחה",
         description: `השירות "${newServiceName}" נוסף לספריית השירותים`,
       });
-      
+
       setNewServiceName('');
       setNewServiceBasePrice(100);
       setIsDialogOpen(false);
@@ -73,120 +76,129 @@ const ServiceLibrary = ({ onEditService }: ServiceLibraryProps) => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6" dir="rtl">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">סטודיו השירותים שלנו</h1>
-          <p className="text-lg text-gray-600">כאן מנהלים את כל סוגי הטיפולים שהמספרה מציעה</p>
-        </div>
-
-        {/* Service Cards Gallery */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
-          {serviceStats?.map((service) => (
-            <Card 
-              key={service.id} 
-              className="group hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer bg-white border-0 shadow-md"
-              onClick={() => onEditService(service.id)}
-            >
-              <CardContent className="p-6">
-                {/* Service Icon and Name */}
-                <div className="text-center mb-4">
-                  <div className="w-16 h-16 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Scissors className="w-8 h-8 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900">{service.name}</h3>
-                  {service.description && (
-                    <p className="text-sm text-gray-600 mt-1">{service.description}</p>
-                  )}
+      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">סטודיו השירותים שלנו</h1>
+            <p className="text-lg text-gray-600">כאן מנהלים את כל סוגי הטיפולים שהמספרה מציעה</p>
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                <Plus className="w-4 h-4" />
+                שירות חדש
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md" dir="rtl">
+              <DialogHeader>
+                <DialogTitle className="text-right">שירות חדש</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="serviceName" className="mb-2 block text-right">
+                    איך נקרא לשירות החדש?
+                  </Label>
+                  <Input
+                    id="serviceName"
+                    value={newServiceName}
+                    onChange={(e) => setNewServiceName(e.target.value)}
+                    placeholder="למשל: תספורת מלאה"
+                    className="text-right"
+                  />
                 </div>
-
-                {/* Service Tags */}
-                <div className="space-y-2 mb-4">
-                  <div className="bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm text-center">
-                    מחיר בסיס: ₪{service.base_price}
-                  </div>
-                  <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm text-center">
-                    זמן ממוצע: {service.averageTime} דקות
-                  </div>
-                  <div className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm text-center">
-                    מוגדר עבור {service.configuredStationsCount} מתוך {service.totalStationsCount} עמדות
-                  </div>
+                <div>
+                  <Label htmlFor="serviceBasePrice" className="mb-2 block text-right">
+                    מחיר בסיס (₪)
+                  </Label>
+                  <Input
+                    id="serviceBasePrice"
+                    type="number"
+                    value={newServiceBasePrice}
+                    onChange={(e) => setNewServiceBasePrice(parseInt(e.target.value) || 0)}
+                    placeholder="100"
+                    className="text-right"
+                    min="0"
+                    step="5"
+                  />
                 </div>
-
-                {/* Hover Action Button */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                    נהל שירות
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    ביטול
+                  </Button>
+                  <Button
+                    onClick={handleCreateService}
+                    disabled={!newServiceName.trim() || createServiceMutation.isPending}
+                  >
+                    {createServiceMutation.isPending ? (
+                      <>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        יוצר...
+                      </>
+                    ) : (
+                      'צור שירות'
+                    )}
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
-        {/* Floating Action Button */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              className="fixed bottom-6 left-6 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
-              size="icon"
-            >
-              <Plus className="w-6 h-6" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md" dir="rtl">
-            <DialogHeader>
-              <DialogTitle className="text-right">שירות חדש</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="serviceName" className="text-right block mb-2">
-                  איך נקרא לשירות החדש?
-                </Label>
-                <Input
-                  id="serviceName"
-                  value={newServiceName}
-                  onChange={(e) => setNewServiceName(e.target.value)}
-                  placeholder="למשל: תספורת מלאה"
-                  className="text-right"
-                />
-              </div>
-              <div>
-                <Label htmlFor="serviceBasePrice" className="text-right block mb-2">
-                  מחיר בסיס (₪)
-                </Label>
-                <Input
-                  id="serviceBasePrice"
-                  type="number"
-                  value={newServiceBasePrice}
-                  onChange={(e) => setNewServiceBasePrice(parseInt(e.target.value) || 0)}
-                  placeholder="100"
-                  className="text-right"
-                  min="0"
-                  step="5"
-                />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  ביטול
-                </Button>
-                <Button 
-                  onClick={handleCreateService} 
-                  disabled={!newServiceName.trim() || createServiceMutation.isPending}
-                >
-                  {createServiceMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                      יוצר...
-                    </>
-                  ) : (
-                    'צור שירות'
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Table containerClassName="overflow-x-auto">
+            <TableHeader className="bg-[hsl(228_36%_95%)]">
+              <TableRow className="bg-transparent [&>th]:text-right">
+                <TableHead className="text-right text-sm font-semibold text-primary">שם השירות</TableHead>
+                <TableHead className="text-right text-sm font-semibold text-primary w-32">מחיר בסיס</TableHead>
+                <TableHead className="text-right text-sm font-semibold text-primary w-32">זמן ממוצע</TableHead>
+                <TableHead className="text-right text-sm font-semibold text-primary w-40">כיסוי עמדות</TableHead>
+                <TableHead className="text-right text-sm font-semibold text-primary w-40">טווח מחירים</TableHead>
+                <TableHead className="text-left text-sm font-semibold text-primary w-32">פעולות</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(!serviceStats || serviceStats.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-10 text-center text-gray-500">
+                    אין עדיין שירותים במערכת. צרו שירות חדש כדי להתחיל.
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {serviceStats?.map((service) => (
+                <TableRow key={service.id} className="bg-white">
+                  <TableCell className="text-right">
+                    <div className="flex flex-col">
+                      <span className="text-base font-semibold text-gray-900">{service.name}</span>
+                      {service.description && (
+                        <span className="mt-1 text-xs text-gray-500">{service.description}</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right text-gray-700">{formatCurrency(service.base_price)}</TableCell>
+                  <TableCell className="text-right text-gray-700">
+                    {service.averageTime > 0 ? `${service.averageTime} דקות` : '—'}
+                  </TableCell>
+                  <TableCell className="text-right text-gray-700">
+                    {service.configuredStationsCount} מתוך {service.totalStationsCount}
+                  </TableCell>
+                  <TableCell className="text-right text-gray-700">
+                    {formatCurrency(service.priceRange.min)} – {formatCurrency(service.priceRange.max)}
+                  </TableCell>
+                  <TableCell className="text-left">
+                    <Button
+                      variant="outline"
+                      onClick={() => onEditService(service.id)}
+                      className="border-blue-200 text-blue-700 hover:border-blue-300 hover:bg-blue-50"
+                    >
+                      נהל שירות
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
