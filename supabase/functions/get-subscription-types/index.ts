@@ -10,14 +10,6 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get("SUPABASE_URL")
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars are not set")
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: { persistSession: false },
-})
-
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
@@ -31,6 +23,14 @@ serve(async (req: Request) => {
   }
 
   try {
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars are not set")
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false },
+    })
+
     const { data, error } = await supabase
       .from("ticket_types")
       .select("id, name, description, price, total_entries, is_unlimited, display_order")
@@ -58,12 +58,24 @@ serve(async (req: Request) => {
     })
   } catch (error) {
     console.error("Failed to fetch subscription types", error)
-    return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Unknown error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+
+    let message = "Unknown error"
+    if (error instanceof Error) {
+      message = error.message
+    } else if (typeof error === "object" && error !== null && "message" in error) {
+      const raw = (error as { message?: unknown }).message
+      message = typeof raw === "string" ? raw : JSON.stringify(raw)
+    } else {
+      try {
+        message = JSON.stringify(error)
+      } catch {
+        message = String(error)
       }
-    )
+    }
+
+    return new Response(JSON.stringify({ success: false, error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    })
   }
 })

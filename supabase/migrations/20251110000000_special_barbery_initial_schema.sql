@@ -149,6 +149,7 @@ CREATE TABLE IF NOT EXISTS public.ticket_types (
   name TEXT NOT NULL,
   price NUMERIC(10,2),
   description TEXT,
+  display_order INTEGER NOT NULL DEFAULT 0,
   total_entries INTEGER,
   is_unlimited BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
