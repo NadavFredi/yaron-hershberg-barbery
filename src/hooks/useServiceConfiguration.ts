@@ -59,7 +59,7 @@ export const useTreatmentTypeModifiers = (serviceId: string) => {
         .from('treatmentType_modifiers')
         .select(`
           *,
-          treatmentTypes!treatmentType_modifiers_treatment_type_id_fkey(
+          treatment_types!treatmentType_modifiers_treatment_type_id_fkey(
             id,
             name
           )
@@ -250,7 +250,7 @@ export const useServiceConfiguration = (serviceId: string) => {
   // Get treatmentType adjustments with proper names from the joined data
   const treatmentTypeAdjustments: TreatmentTypeAdjustment[] = treatmentTypeModifiersWithTreatmentTypes?.map(modifier => ({
     treatment_type_id: modifier.treatment_type_id,
-    treatment_type_name: modifier.treatmentTypes?.name || 'גזע לא ידוע',
+    treatment_type_name: modifier.treatment_types?.name || 'גזע לא ידוע',
     time_modifier_minutes: modifier.time_modifier_minutes
   })) || [];
 

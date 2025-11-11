@@ -7,7 +7,7 @@ import { HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useUpdateService } from '@/hooks/useServices';
 import { useToast } from '@/hooks/use-toast';
-import { useDebounce } from '@/hooks/useDebounce';
+import { useDebouncedCallback } from '@/hooks/useDebounce';
 
 interface ServiceBasePriceEditorProps {
   serviceId: string;
@@ -24,7 +24,7 @@ const ServiceBasePriceEditor = ({
   const { toast } = useToast();
   const updateServiceMutation = useUpdateService();
 
-  const debouncedUpdate = useDebounce(async (newPrice: number) => {
+  const { debouncedCallback: debouncedUpdate } = useDebouncedCallback(async (newPrice: number) => {
     try {
       await updateServiceMutation.mutateAsync({
         serviceId,
@@ -49,13 +49,15 @@ const ServiceBasePriceEditor = ({
   }, 800);
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newPrice = parseFloat(e.target.value) || 0;
+    const rawValue = e.target.value;
+    const parsed = Number.parseFloat(rawValue);
+    const newPrice = Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0;
     
     // Optimistic update
     setOptimisticPrice(newPrice);
     
     // Debounced server update
-    debouncedUpdate.debouncedCallback(newPrice);
+    debouncedUpdate(newPrice);
   };
 
   const displayPrice = optimisticPrice !== null ? optimisticPrice : currentBasePrice;

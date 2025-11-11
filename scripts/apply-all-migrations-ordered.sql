@@ -50,9 +50,10 @@ CREATE TABLE public.service_station_matrix (
 CREATE TABLE public.treatmentType_modifiers (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   service_id UUID NOT NULL REFERENCES public.services(id) ON DELETE CASCADE,
-  treatment_type_id UUID NOT NULL REFERENCES public.treatmentTypes(id) ON DELETE CASCADE,
+  treatment_type_id UUID NOT NULL REFERENCES public.treatment_types(id) ON DELETE CASCADE,
   time_modifier_minutes INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   UNIQUE(service_id, treatment_type_id)
 );
 

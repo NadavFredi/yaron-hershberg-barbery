@@ -62,6 +62,7 @@ export type Database = {
         Row: {
           treatment_type_id: string
           created_at: string
+          updated_at: string
           id: string
           service_id: string
           time_modifier_minutes: number
@@ -69,6 +70,7 @@ export type Database = {
         Insert: {
           treatment_type_id: string
           created_at?: string
+          updated_at?: string
           id?: string
           service_id: string
           time_modifier_minutes?: number
@@ -76,6 +78,7 @@ export type Database = {
         Update: {
           treatment_type_id?: string
           created_at?: string
+          updated_at?: string
           id?: string
           service_id?: string
           time_modifier_minutes?: number
@@ -85,7 +88,7 @@ export type Database = {
             foreignKeyName: "treatmentType_modifiers_treatment_type_id_fkey"
             columns: ["treatment_type_id"]
             isOneToOne: false
-            referencedRelation: "treatmentTypes"
+            referencedRelation: "treatment_types"
             referencedColumns: ["id"]
           },
           {
