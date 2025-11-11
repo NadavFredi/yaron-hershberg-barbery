@@ -181,11 +181,6 @@ export function useSupabaseAuthWithClientId() {
 
     if (!authSubscription) {
       const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log(
-          "🔄 [useSupabaseAuthWithClientId] Auth state changed:",
-          event,
-          session ? "has session" : "no session"
-        )
 
         if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
           // User signed out or token refresh failed
@@ -229,25 +224,8 @@ export function useSupabaseAuthWithClientId() {
   }, [dispatch])
 
   useEffect(() => {
-    console.log("🔎 [useSupabaseAuthWithClientId] Client ID resolution state:", {
-      hasUser: !!authState.user,
-      resolvedClientId,
-      isFetchingClientId,
-      hasAttemptedClientIdResolution,
-      userId: authState.user?.id,
-    })
-
     // Only run if we have a user and haven't resolved yet and haven't attempted
     if (!authState.user || resolvedClientId || isFetchingClientId || hasAttemptedClientIdResolution) {
-      console.log("ℹ️ [useSupabaseAuthWithClientId] Skipping client ID resolution:", {
-        reason: !authState.user
-          ? "no user"
-          : resolvedClientId
-          ? "already resolved"
-          : isFetchingClientId
-          ? "already fetching"
-          : "already attempted",
-      })
       return
     }
 

@@ -1988,7 +1988,6 @@ async function getOrCreateSystemCustomerAndTreatment(
         full_name: SYSTEM_CUSTOMER_NAME,
         email: SYSTEM_CUSTOMER_EMAIL,
         phone: SYSTEM_PHONE,
-        classification: "existing", // Use valid enum value: 'extra_vip', 'vip', 'existing', 'new'
         auth_user_id: user.id, // Required by RLS policy
       })
       .select("id")
@@ -2250,7 +2249,13 @@ export async function managerCancelAppointment(params: {
         .eq("series_id", params.groupId)
 
       if (groupError) {
-        console.warn(`Failed to cancel group appointments: ${groupError.message}`)
+        if (groupError.message?.includes("series_id")) {
+          console.warn(
+            "ℹ️ [managerCancelAppointment] Skipping group cancellation; local schema does not include series_id."
+          )
+        } else {
+          console.warn(`Failed to cancel group appointments: ${groupError.message}`)
+        }
       }
     }
 

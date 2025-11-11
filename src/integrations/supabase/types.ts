@@ -646,7 +646,6 @@ export type Database = {
           id: string
           internal_notes: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
-          personal_reason: string | null
           pickup_reminder_sent_at: string | null
           series_id: string | null
           service_id: string | null
@@ -669,7 +668,6 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
-          personal_reason?: string | null
           pickup_reminder_sent_at?: string | null
           series_id?: string | null
           service_id?: string | null
@@ -692,7 +690,6 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
-          personal_reason?: string | null
           pickup_reminder_sent_at?: string | null
           series_id?: string | null
           service_id?: string | null

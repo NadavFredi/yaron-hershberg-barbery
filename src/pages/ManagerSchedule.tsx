@@ -5121,6 +5121,7 @@ const ManagerSchedule = () => {
     )
     const isResizing = Boolean(previewEndDate)
     const isExpanded = expandedCards.has(appointment.id)
+    const treatments = appointment.treatments ?? []
 
     const originalHeight = Math.max(1, displayedDurationMinutes * pixelsPerMinute)
 

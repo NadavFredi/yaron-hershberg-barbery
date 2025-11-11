@@ -194,7 +194,6 @@ serve(async (req) => {
           .insert({
             full_name: systemName,
             phone: systemPhone,
-            classification: "existing" as const,
           })
           .select("id")
           .single()
@@ -334,10 +333,9 @@ serve(async (req) => {
         station_id: stationIdToUse,
         start_at: startTime,
         end_at: endTime,
-        status: "approved" as const,
+        status: "pending" as const,
         service_type: serviceType,
         questionnaire_result: questionnaireResult as "not_required" | "pending" | "approved" | "rejected",
-        series_id: finalGroupId || null,
         customer_notes: notes || null,
         internal_notes: internalNotes || null,
         late_pickup_requested: latePickupRequested || null,
@@ -388,12 +386,10 @@ serve(async (req) => {
           station_id: stationIdToUse,
           start_at: startTime,
           end_at: endTime,
-          status: "approved" as const,
+          status: "pending" as const,
           appointment_kind: normalizedAppointmentType === "private" ? ("personal" as const) : ("business" as const),
-          series_id: finalGroupId || null,
           customer_notes: notes || null,
           internal_notes: internalNotes || null,
-          ...(normalizedAppointmentType === "private" && { personal_reason: name }),
         }
 
         console.log(

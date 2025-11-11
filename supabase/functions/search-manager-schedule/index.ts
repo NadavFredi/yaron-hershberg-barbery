@@ -102,7 +102,6 @@ const GROOMING_SELECT = `
   internal_notes,
   payment_status,
   appointment_kind,
-  personal_reason,
   amount_due,
   treatment_id,
   customer_id,
@@ -328,7 +327,6 @@ async function fetchGroomingAppointments({ likeValue, treatmentIds, customerIds,
     treatmentIds,
     customerIds,
     likeValue,
-    extraColumns: ["personal_reason"],
   })
 
   if (!filters.length) {
@@ -685,8 +683,6 @@ function mapGroomingRow(row: Record<string, unknown>): ManagerAppointment | null
     durationMinutes,
     appointmentType: isPersonal ? "private" : "business",
     isPersonalAppointment: isPersonal,
-    personalAppointmentDescription:
-      typeof row.personal_reason === "string" && row.personal_reason.trim() ? row.personal_reason.trim() : undefined,
     price: row.amount_due != null ? Number(row.amount_due) : undefined,
   }
 }

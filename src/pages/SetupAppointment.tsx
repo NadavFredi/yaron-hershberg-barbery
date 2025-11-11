@@ -149,7 +149,7 @@ interface ServiceOption {
     description: string | null
 }
 
-const SERVICE_DISPLAY_LABELS: Record<string, string> = {
+const _SERVICE_DISPLAY_LABELS: Record<string, string> = {
     grooming: "תספורת",
 }
 
