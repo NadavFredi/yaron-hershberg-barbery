@@ -11,10 +11,12 @@ import ServiceBasePriceEditor from './ServiceBasePriceEditor';
 import PriceStepper from './PriceStepper';
 import SmartTreatmentTypeSelectorMultiple from './SmartTreatmentTypeSelectorMultiple';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface ServiceEditorProps {
   serviceId: string;
-  onBack: () => void;
+  onBack?: () => void;
+  variant?: 'standalone' | 'embedded';
 }
 
 // Memoized station card to prevent unnecessary re-renders
@@ -111,7 +113,7 @@ const StationCard = React.memo(({
   );
 });
 
-const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
+const ServiceEditor = ({ serviceId, onBack, variant = 'standalone' }: ServiceEditorProps) => {
   // All hooks must be called at the top level, unconditionally
   const [isTreatmentTypeSelectorOpen, setIsTreatmentTypeSelectorOpen] = useState(false);
   const [treatmentTypeSearchTerm, setTreatmentTypeSearchTerm] = useState('');
@@ -234,24 +236,35 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
   const sortedStations = stations?.slice().sort((a, b) => a.id.localeCompare(b.id)) || [];
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className={cn("space-y-6", variant === 'embedded' ? '' : '')} dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <Button
-            variant="ghost"
-            onClick={onBack}
-            className="mb-4 text-blue-600 hover:text-blue-700"
-          >
-            <ArrowRight className="w-4 h-4 ml-2" />
-            חזרה לרשימת השירותים
-          </Button>
-          <h1 className="text-3xl font-bold text-gray-900">עריכת שירות: {service.name}</h1>
-          {service.description && (
-            <p className="text-gray-600 mt-1">{service.description}</p>
-          )}
+      {variant === 'standalone' ? (
+        <div className="flex items-center justify-between">
+          <div>
+            {onBack && (
+              <Button 
+                variant="ghost" 
+                onClick={onBack}
+                className="mb-4 text-blue-600 hover:text-blue-700"
+              >
+                <ArrowRight className="w-4 h-4 ml-2" />
+                חזרה לרשימת השירותים
+              </Button>
+            )}
+            <h1 className="text-3xl font-bold text-gray-900">עריכת שירות: {service.name}</h1>
+            {service.description && (
+              <p className="mt-1 text-gray-600">{service.description}</p>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-gray-900">ניהול הגדרות השירות</h2>
+          <p className="text-sm text-gray-600">
+            עדכון מחיר בסיס, זמני עבודה והתאמות לגזעים – הכל במקום אחד.
+          </p>
+        </div>
+      )}
 
       {/* Base Price Editor */}
       <ServiceBasePriceEditor
