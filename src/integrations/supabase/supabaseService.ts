@@ -509,7 +509,6 @@ export async function createTreatment(
     ...(treatmentData.vet_phone && { vet_phone: treatmentData.vet_phone.trim() }),
     ...(treatmentData.aggression_risk !== undefined && { aggression_risk: treatmentData.aggression_risk }),
     ...(treatmentData.people_anxious !== undefined && { people_anxious: treatmentData.people_anxious }),
-    questionnaire_result: "pending",
   }
 
   // verbose log removed
