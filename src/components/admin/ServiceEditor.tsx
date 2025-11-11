@@ -18,11 +18,11 @@ interface ServiceEditorProps {
 }
 
 // Memoized station card to prevent unnecessary re-renders
-const StationCard = React.memo(({ 
-  station, 
-  serviceBasePrice, 
-  onTimeChange, 
-  onPriceChange 
+const StationCard = React.memo(({
+  station,
+  serviceBasePrice,
+  onTimeChange,
+  onPriceChange
 }: {
   station: any;
   serviceBasePrice: number;
@@ -66,7 +66,7 @@ const StationCard = React.memo(({
           {station.is_active ? 'פעילה' : 'לא פעילה'}
         </div>
       </div>
-      
+
       <div className="space-y-3">
         <div>
           <label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -85,7 +85,7 @@ const StationCard = React.memo(({
             <span>3 שעות</span>
           </div>
         </div>
-        
+
         <div className="border-t pt-3">
           <label className="text-sm font-medium text-gray-700 mb-2 block">
             התאמת מחיר לעמדה זו
@@ -118,7 +118,7 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
   const [isApplyAllDialogOpen, setIsApplyAllDialogOpen] = useState(false);
   const [applyAllTime, setApplyAllTime] = useState(60);
   const { toast } = useToast();
-  
+
   const {
     service,
     stations,
@@ -134,15 +134,15 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
   // Filter treatmentType adjustments based on search term and sort alphabetically
   const filteredTreatmentTypeAdjustments = useMemo(() => {
     if (!treatmentTypeAdjustments) return [];
-    
+
     let filtered = treatmentTypeAdjustments;
-    
+
     if (treatmentTypeSearchTerm.trim()) {
-      filtered = treatmentTypeAdjustments.filter(adj => 
+      filtered = treatmentTypeAdjustments.filter(adj =>
         adj.treatment_type_name.toLowerCase().includes(treatmentTypeSearchTerm.toLowerCase())
       );
     }
-    
+
     return filtered.sort((a, b) => a.treatment_type_name.localeCompare(b.treatment_type_name, 'he'));
   }, [treatmentTypeAdjustments, treatmentTypeSearchTerm]);
 
@@ -238,8 +238,8 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={onBack}
             className="mb-4 text-blue-600 hover:text-blue-700"
           >
@@ -291,92 +291,7 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
       </Card>
 
       {/* TreatmentType Adjustments */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xl">התאמות מיוחדות לגזעים</CardTitle>
-              <p className="text-sm text-gray-600 mt-1">
-                הוסף זמן נוסף לגזעים מסוימים (למשל: פודל טויי +15 דקות)
-              </p>
-            </div>
-            <Button
-              onClick={() => setIsTreatmentTypeSelectorOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="w-4 h-4 ml-2" />
-              הוסף גזעים
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* Search Box - Always Visible */}
-          {treatmentTypeAdjustments && treatmentTypeAdjustments.length > 0 && (
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="חפש/י גזע ברשימה..."
-                  value={treatmentTypeSearchTerm}
-                  onChange={(e) => setTreatmentTypeSearchTerm(e.target.value)}
-                  className="pr-10"
-                />
-              </div>
-            </div>
-          )}
 
-          {/* TreatmentType Adjustments List */}
-          {filteredTreatmentTypeAdjustments.length > 0 ? (
-            <div className="space-y-3">
-              {filteredTreatmentTypeAdjustments.map((adjustment) => (
-                <div
-                  key={adjustment.treatment_type_id}
-                  className="flex items-center justify-between p-4 border rounded-lg bg-gray-50"
-                >
-                  <div className="flex items-center space-x-4 space-x-reverse flex-1">
-                    <div className="font-medium text-lg">{adjustment.treatment_type_name}</div>
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <span className="text-sm text-gray-600">זמן נוסף:</span>
-                      <PriceStepper
-                        value={adjustment.time_modifier_minutes}
-                        onChange={(newTime) => handleTreatmentTypeTimeChange(adjustment.treatment_type_id, newTime)}
-                        step={5}
-                        min={-30}
-                        max={120}
-                      />
-                      <span className="text-sm text-gray-600">דקות</span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => handleRemoveTreatmentType(adjustment.treatment_type_id)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : treatmentTypeAdjustments && treatmentTypeAdjustments.length > 0 && treatmentTypeSearchTerm ? (
-            // Show "no results" but keep search visible
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">לא נמצאו גזעים התואמים לחיפוש "{treatmentTypeSearchTerm}"</p>
-              <Button
-                variant="outline"
-                onClick={() => setTreatmentTypeSearchTerm('')}
-              >
-                נקה חיפוש
-              </Button>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <p>אין עדיין התאמות מיוחדות לגזעים.</p>
-              <p className="text-sm mt-2">לחץ על "הוסף גזעים" כדי להתחיל.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Apply Time to All Dialog */}
       <Dialog open={isApplyAllDialogOpen} onOpenChange={setIsApplyAllDialogOpen}>

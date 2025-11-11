@@ -88,7 +88,7 @@ export default function Settings() {
     return (
         <AdminLayout>
             <SettingsSubnav />
-            <div className="min-h-screen bg-background py-6" dir="rtl">
+            <div className="min-h-screen bg-background py-6 bg-gray-50" dir="rtl">
                 <div className="mx-auto w-full px-1 sm:px-2 lg:px-3">
                     {/* Active Section Content - Only render the active section to avoid unnecessary API calls */}
                     {activeSection === "treatmentTypes" && (
