@@ -11,8 +11,9 @@ import { SettingsConstraintsSection } from "@/components/settings/SettingsConstr
 import { SettingsTreatmentTypeStationMatrixSection } from "@/components/settings/SettingsTreatmentTypeStationMatrixSection/SettingsTreatmentTypeStationMatrixSection"
 import { SettingsGardenSection } from "@/components/settings/SettingsGardenSection/SettingsGardenSection"
 import { SettingsSubnav } from "@/components/navigation/SettingsSubnav"
+import { SettingsServicesSection } from "@/components/settings/SettingsServicesSection/SettingsServicesSection"
 
-const VALID_SECTIONS = ["treatmentTypes", "working-hours", "stations", "constraints", "matrix", "garden"] as const
+const VALID_SECTIONS = ["treatmentTypes", "working-hours", "stations", "services", "constraints", "matrix", "garden"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function Settings() {
@@ -98,6 +99,7 @@ export default function Settings() {
                     )}
                     {activeSection === "working-hours" && <SettingsWorkingHoursSection />}
                     {activeSection === "stations" && <SettingsStationsSection />}
+                    {activeSection === "services" && <SettingsServicesSection />}
                     {activeSection === "constraints" && <SettingsConstraintsSection />}
                     {activeSection === "matrix" && <SettingsTreatmentTypeStationMatrixSection />}
                     {activeSection === "garden" && <SettingsGardenSection />}

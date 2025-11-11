@@ -7,6 +7,10 @@ CREATE TABLE public.services (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
+  category TEXT,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  base_price INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -36,8 +40,9 @@ CREATE TABLE public.service_station_matrix (
   service_id UUID NOT NULL REFERENCES public.services(id) ON DELETE CASCADE,
   station_id UUID NOT NULL REFERENCES public.stations(id) ON DELETE CASCADE,
   base_time_minutes INTEGER NOT NULL DEFAULT 60,
-  price DECIMAL(10,2) NOT NULL DEFAULT 0,
+  price_adjustment INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   UNIQUE(service_id, station_id)
 );
 
@@ -86,12 +91,12 @@ CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE
 CREATE EXTENSION IF NOT EXISTS "http";
 
 -- Insert some sample data
-INSERT INTO public.services (name, description) VALUES
-  ('תספורת מלאה', 'תספורת מלאה כולל רחצה וייבוש'),
-  ('רחצה זייבוש', 'רחצה וייבוש בלבד'),
-  ('גיזת ציפורניים', 'גיזת ציפורניים וטיפוח כפות'),
-  ('טיפוח מלא', 'שירות מלא כולל תספורת, רחצה וטיפוח'),
-  ('תספורת חלקית', 'תספורת חלקית או עיצוב מסוים');
+INSERT INTO public.services (name, description, base_price, category, display_order, is_active) VALUES
+  ('תספורת מלאה', 'תספורת מלאה כולל רחצה וייבוש', 150, 'barbery', 1, true),
+  ('רחצה זייבוש', 'רחצה וייבוש בלבד', 80, 'barbery', 2, true),
+  ('גיזת ציפורניים', 'גיזת ציפורניים וטיפוח כפות', 30, 'barbery', 3, true),
+  ('טיפוח מלא', 'שירות מלא כולל תספורת, רחצה וטיפוח', 200, 'barbery', 4, true),
+  ('תספורת חלקית', 'תספורת חלקית או עיצוב מסוים', 100, 'barbery', 5, true);
 
 INSERT INTO public.stations (name, is_active, break_between_appointments, slot_interval_minutes) VALUES
   ('עמדה 1', true, 15, 60),
@@ -112,7 +117,7 @@ INSERT INTO public.treatmentTypes (name) VALUES
   ('צ׳יוואווה');
 
 -- Insert some sample service-station configurations
-INSERT INTO public.service_station_matrix (service_id, station_id, base_time_minutes, price) 
+INSERT INTO public.service_station_matrix (service_id, station_id, base_time_minutes, price_adjustment) 
 SELECT 
   s.id,
   st.id,
@@ -125,13 +130,13 @@ SELECT
     ELSE 60
   END as base_time,
   CASE 
-    WHEN s.name = 'תספורת מלאה' THEN 150.00
-    WHEN s.name = 'רחצה זייבוש' THEN 80.00
-    WHEN s.name = 'גיזת ציפורניים' THEN 30.00
-    WHEN s.name = 'טיפוח מלא' THEN 200.00
-    WHEN s.name = 'תספורת חלקית' THEN 100.00
-    ELSE 100.00
-  END as price
+    WHEN s.name = 'תספורת מלאה' THEN 0
+    WHEN s.name = 'רחצה זייבוש' THEN -20
+    WHEN s.name = 'גיזת ציפורניים' THEN -10
+    WHEN s.name = 'טיפוח מלא' THEN 50
+    WHEN s.name = 'תספורת חלקית' THEN -10
+    ELSE 0
+  END as price_adjustment
 FROM public.services s
 CROSS JOIN public.stations st
 WHERE st.is_active = true;

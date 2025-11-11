@@ -1,13 +1,14 @@
 import React, { useEffect, useRef } from "react"
 import { useLocation, useSearchParams } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { AlertCircle, Building2, Clock } from "lucide-react"
+import { AlertCircle, Building2, Clock, Scissors } from "lucide-react"
 
 interface SettingsSubnavProps { }
 
 export const SETTINGS_SECTIONS = [
   { id: "working-hours", label: "שעות עבודה גלובליות", icon: <Clock className="h-4 w-4" /> },
   { id: "stations", label: "ניהול עמדות", icon: <Building2 className="h-4 w-4" /> },
+  { id: "services", label: "ניהול שירותים", icon: <Scissors className="h-4 w-4" /> },
   { id: "constraints", label: "אילוצים", icon: <AlertCircle className="h-4 w-4" /> },
 ] as const
 
