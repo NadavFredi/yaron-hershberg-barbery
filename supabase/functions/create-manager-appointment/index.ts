@@ -17,7 +17,7 @@ interface CreateManagerAppointmentRequest {
   appointmentType?: ManagerAppointmentType
   groupId?: string
   customerId?: string
-  treatmentId?: string
+  serviceId?: string
   isManualOverride?: boolean
   gardenAppointmentType?: "full-day" | "hourly" | "trial"
   services?: {
@@ -110,7 +110,6 @@ serve(async (req) => {
       appointmentType,
       groupId,
       customerId,
-      treatmentId,
       isManualOverride: _isManualOverride, // Reserved for future use
       gardenAppointmentType,
       services,
@@ -118,6 +117,7 @@ serve(async (req) => {
       latePickupNotes,
       notes,
       internalNotes,
+      serviceId,
     }: CreateManagerAppointmentRequest = await req.json()
 
     const normalizedAppointmentType: ManagerAppointmentType =
@@ -133,7 +133,7 @@ serve(async (req) => {
       gardenAppointmentType,
       groupId,
       customerId,
-      treatmentId,
+      serviceId,
     })
 
     // Validate required fields
@@ -162,11 +162,11 @@ serve(async (req) => {
 
     const appointmentIds: string[] = []
     let resolvedCustomerId: string | undefined = customerId
-    let resolvedTreatmentId: string | undefined = treatmentId
+    let resolvedServiceId: string | undefined = serviceId
 
-    // Handle private appointments: create/find system customer and treatment
+    // Handle private appointments: create/find system customer
     if (normalizedAppointmentType === "private") {
-      console.log("🔒 [create-manager-appointment] Creating private appointment, setting up system customer/treatment")
+      console.log("🔒 [create-manager-appointment] Creating private appointment, setting up system customer")
 
       // Find or create system customer ("צוות פנימי" with phone "0000000000")
       const systemPhone = "0000000000"
@@ -194,7 +194,6 @@ serve(async (req) => {
           .insert({
             full_name: systemName,
             phone: systemPhone,
-            classification: "existing" as const,
           })
           .select("id")
           .single()
@@ -207,52 +206,26 @@ serve(async (req) => {
         resolvedCustomerId = newCustomer.id
         console.log("✅ [create-manager-appointment] Created system customer:", resolvedCustomerId)
       }
-
-      // Find or create system treatment with the appointment name
-      const { data: existingTreatment, error: treatmentSearchError } = await supabaseClient
-        .from("treatments")
-        .select("id")
-        .eq("customer_id", resolvedCustomerId)
-        .eq("name", name)
-        .single()
-
-      if (treatmentSearchError && treatmentSearchError.code !== "PGRST116") {
-        console.error("❌ [create-manager-appointment] Error searching for system treatment:", treatmentSearchError)
-        throw new Error(`Failed to search for system treatment: ${treatmentSearchError.message}`)
-      }
-
-      if (existingTreatment) {
-        resolvedTreatmentId = existingTreatment.id
-        console.log("✅ [create-manager-appointment] Found existing system treatment:", resolvedTreatmentId)
-      } else {
-        // Create system treatment
-        const { data: newTreatment, error: treatmentCreateError } = await supabaseClient
-          .from("treatments")
-          .insert({
-            customer_id: resolvedCustomerId,
-            name: name,
-            gender: "male" as const,
-            is_small: true,
-          })
-          .select("id")
-          .single()
-
-        if (treatmentCreateError) {
-          console.error("❌ [create-manager-appointment] Error creating system treatment:", treatmentCreateError)
-          throw new Error(`Failed to create system treatment: ${treatmentCreateError.message}`)
-        }
-
-        resolvedTreatmentId = newTreatment.id
-        console.log("✅ [create-manager-appointment] Created system treatment:", resolvedTreatmentId)
-      }
     }
 
-    // Validate customer and treatment IDs for business/garden appointments
-    if (normalizedAppointmentType !== "private") {
-      if (!resolvedCustomerId || !resolvedTreatmentId) {
+    // Validate customer and service IDs for business/garden appointments
+    if (normalizedAppointmentType === "garden") {
+      if (!resolvedCustomerId) {
         return new Response(
           JSON.stringify({
-            error: "Missing required fields: customerId and treatmentId are required for business/garden appointments",
+            error: "Missing required fields: customerId is required for garden appointments",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        )
+      }
+    } else if (normalizedAppointmentType === "business") {
+      if (!resolvedCustomerId || !resolvedServiceId) {
+        return new Response(
+          JSON.stringify({
+            error: "Missing required fields: business appointments require a customer and service",
           }),
           {
             status: 400,
@@ -322,22 +295,14 @@ serve(async (req) => {
           ? actualStationIds[0]
           : null
 
-      // Set questionnaire_result based on service_type:
-      // - If service_type is "trial", questionnaire_result should be "pending" (trial needs approval)
-      // - Otherwise, set to "approved" (since manager is creating it, it's approved)
-      // Note: questionnaire_result enum values are: 'not_required', 'pending', 'approved', 'rejected'
-      const questionnaireResult = serviceType === "trial" ? "pending" : "approved"
-
+      // Note: service_type and questionnaire_result columns no longer exist
+      // Note: treatment_id column no longer exists (redundant with services)
       const insertPayload = {
         customer_id: resolvedCustomerId!,
-        treatment_id: resolvedTreatmentId!,
         station_id: stationIdToUse,
         start_at: startTime,
         end_at: endTime,
-        status: "approved" as const,
-        service_type: serviceType,
-        questionnaire_result: questionnaireResult as "not_required" | "pending" | "approved" | "rejected",
-        series_id: finalGroupId || null,
+        status: "pending" as const,
         customer_notes: notes || null,
         internal_notes: internalNotes || null,
         late_pickup_requested: latePickupRequested || null,
@@ -348,27 +313,21 @@ serve(async (req) => {
       }
 
       console.log(
-        `🔵 [create-manager-appointment] Inserting daycare appointment${
+        `🔵 [create-manager-appointment] Inserting appointment${
           stationIdToUse ? ` for station ${stationIdToUse}` : " (no station)"
         }:`,
         JSON.stringify(insertPayload, null, 2)
       )
-      console.log(
-        `🔍 [create-manager-appointment] service_type value in insertPayload:`,
-        insertPayload.service_type,
-        "type:",
-        typeof insertPayload.service_type
-      )
 
       const { data, error } = await supabaseClient
-        .from("daycare_appointments")
+        .from("appointments")
         .insert(insertPayload)
         .select("id")
         .single()
 
       if (error) {
-        console.error(`❌ [create-manager-appointment] Error inserting daycare appointment:`, error)
-        throw new Error(`Failed to create daycare appointment: ${error.message}`)
+        console.error(`❌ [create-manager-appointment] Error inserting appointment:`, error)
+        throw new Error(`Failed to create appointment: ${error.message}`)
       }
 
       console.log(
@@ -384,16 +343,14 @@ serve(async (req) => {
       for (const stationIdToUse of stationsToUse) {
         const insertPayload = {
           customer_id: resolvedCustomerId!,
-          treatment_id: resolvedTreatmentId!,
+          service_id: resolvedServiceId ?? null,
           station_id: stationIdToUse,
           start_at: startTime,
           end_at: endTime,
-          status: "approved" as const,
+          status: "pending" as const,
           appointment_kind: normalizedAppointmentType === "private" ? ("personal" as const) : ("business" as const),
-          series_id: finalGroupId || null,
           customer_notes: notes || null,
           internal_notes: internalNotes || null,
-          ...(normalizedAppointmentType === "private" && { personal_reason: name }),
         }
 
         console.log(
@@ -402,14 +359,14 @@ serve(async (req) => {
         )
 
         const { data, error } = await supabaseClient
-          .from("grooming_appointments")
+          .from("appointments")
           .insert(insertPayload)
           .select("id")
           .single()
 
         if (error) {
-          console.error(`❌ [create-manager-appointment] Error inserting grooming appointment:`, error)
-          throw new Error(`Failed to create grooming appointment: ${error.message}`)
+          console.error(`❌ [create-manager-appointment] Error inserting appointment:`, error)
+          throw new Error(`Failed to create appointment: ${error.message}`)
         }
 
         console.log(

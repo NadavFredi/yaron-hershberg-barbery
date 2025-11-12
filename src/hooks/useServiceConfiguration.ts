@@ -11,6 +11,10 @@ export interface ServiceStationConfig {
   base_time_minutes: number;
   price_adjustment: number;
   created_at: string;
+  updated_at: string;
+  is_active: boolean;
+  remote_booking_allowed: boolean;
+  requires_staff_approval: boolean;
 }
 
 export interface TreatmentTypeModifier {
@@ -30,9 +34,12 @@ export interface TreatmentTypeAdjustment {
 export interface StationWithConfig {
   id: string;
   name: string;
+  station_is_active: boolean;
   is_active: boolean;
   base_time_minutes: number;
   price_adjustment: number;
+  remote_booking_allowed: boolean;
+  requires_staff_approval: boolean;
 }
 
 export const useServiceStationConfigs = (serviceId: string) => {
@@ -59,7 +66,7 @@ export const useTreatmentTypeModifiers = (serviceId: string) => {
         .from('treatmentType_modifiers')
         .select(`
           *,
-          treatmentTypes!treatmentType_modifiers_treatment_type_id_fkey(
+          treatment_types!treatmentType_modifiers_treatment_type_id_fkey(
             id,
             name
           )
@@ -80,12 +87,18 @@ export const useUpdateServiceStationConfig = () => {
       serviceId, 
       stationId, 
       baseTimeMinutes, 
-      priceAdjustment 
+      priceAdjustment,
+      isActive,
+      remoteBookingAllowed,
+      requiresStaffApproval
     }: { 
       serviceId: string; 
       stationId: string; 
-      baseTimeMinutes: number; 
-      priceAdjustment?: number 
+      baseTimeMinutes?: number; 
+      priceAdjustment?: number;
+      isActive?: boolean;
+      remoteBookingAllowed?: boolean;
+      requiresStaffApproval?: boolean;
     }) => {
       // First check if record exists
       const { data: existing } = await supabase
@@ -95,19 +108,36 @@ export const useUpdateServiceStationConfig = () => {
         .eq('station_id', stationId)
         .single();
 
+      const updatePayload: Record<string, unknown> = {};
+      if (baseTimeMinutes !== undefined) {
+        updatePayload.base_time_minutes = baseTimeMinutes;
+      }
+      if (priceAdjustment !== undefined) {
+        updatePayload.price_adjustment = priceAdjustment;
+      }
+      if (isActive !== undefined) {
+        updatePayload.is_active = isActive;
+      }
+      if (remoteBookingAllowed !== undefined) {
+        updatePayload.remote_booking_allowed = remoteBookingAllowed;
+      }
+      if (requiresStaffApproval !== undefined) {
+        updatePayload.requires_staff_approval = requiresStaffApproval;
+      }
+
       if (existing) {
-        // Update existing record
+        if (Object.keys(updatePayload).length === 0) {
+          return existing;
+        }
+
         const { data, error } = await supabase
           .from('service_station_matrix')
-          .update({
-            base_time_minutes: baseTimeMinutes,
-            price_adjustment: priceAdjustment || 0
-          })
+          .update(updatePayload)
           .eq('service_id', serviceId)
           .eq('station_id', stationId)
           .select()
           .single();
-        
+
         if (error) throw error;
         return data;
       } else {
@@ -117,8 +147,11 @@ export const useUpdateServiceStationConfig = () => {
           .insert({
             service_id: serviceId,
             station_id: stationId,
-            base_time_minutes: baseTimeMinutes,
-            price_adjustment: priceAdjustment || 0
+            base_time_minutes: baseTimeMinutes ?? 60,
+            price_adjustment: priceAdjustment ?? 0,
+            is_active: isActive ?? true,
+            remote_booking_allowed: remoteBookingAllowed ?? false,
+            requires_staff_approval: requiresStaffApproval ?? false
           })
           .select()
           .single();
@@ -241,24 +274,30 @@ export const useServiceConfiguration = (serviceId: string) => {
     return {
       id: station.id,
       name: station.name,
-      is_active: station.is_active,
-      base_time_minutes: config?.base_time_minutes || 60,
-      price_adjustment: config?.price_adjustment || 0
+      station_is_active: station.is_active,
+      is_active: config?.is_active ?? false,
+      base_time_minutes: config?.base_time_minutes ?? 60,
+      price_adjustment: config?.price_adjustment ?? 0,
+      remote_booking_allowed: config?.remote_booking_allowed ?? false,
+      requires_staff_approval: config?.requires_staff_approval ?? false,
     };
   }) || [];
 
   // Get treatmentType adjustments with proper names from the joined data
   const treatmentTypeAdjustments: TreatmentTypeAdjustment[] = treatmentTypeModifiersWithTreatmentTypes?.map(modifier => ({
     treatment_type_id: modifier.treatment_type_id,
-    treatment_type_name: modifier.treatmentTypes?.name || 'גזע לא ידוע',
+    treatment_type_name: modifier.treatment_types?.name || 'גזע לא ידוע',
     time_modifier_minutes: modifier.time_modifier_minutes
   })) || [];
 
   const updateStationConfig = async (params: {
     serviceId: string;
     stationId: string;
-    baseTimeMinutes: number;
+    baseTimeMinutes?: number;
     priceAdjustment?: number;
+    isActive?: boolean;
+    remoteBookingAllowed?: boolean;
+    requiresStaffApproval?: boolean;
   }) => {
     return updateStationConfigMutation.mutateAsync(params);
   };

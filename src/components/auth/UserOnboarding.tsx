@@ -34,8 +34,8 @@ export function UserOnboarding({ userEmail, onBackToAuth }: UserOnboardingProps)
     }
 
     const handleSkipForm = () => {
-        // Allow users to skip the form and go to my-treatments page
-        navigate("/my-treatments")
+        // Allow users to skip the form and go straight to their appointments
+        navigate("/appointments")
     }
 
     return (

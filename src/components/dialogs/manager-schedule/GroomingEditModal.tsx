@@ -15,7 +15,7 @@ interface ManagerAppointment {
     stationId?: string
     clientName?: string
     treatments: Array<{ name: string }>
-    serviceType: 'grooming' | 'garden'
+    serviceType: 'grooming'
 }
 
 interface ManagerStation {
@@ -137,7 +137,7 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                                 dir="rtl"
                             >
                                 <div className="flex gap-2">
-                                    <span className="font-semibold text-gray-800 text-right">כלב:</span>
+                                    <span className="font-semibold text-gray-800 text-right">לקוח:</span>
                                     <span className="text-gray-700">
                                         {editingGroomingAppointment.treatments[0]?.name || 'לא זמין'}
                                     </span>

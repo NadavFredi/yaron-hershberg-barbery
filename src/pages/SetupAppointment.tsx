@@ -2,27 +2,26 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Clock, Sparkles, MapPin, CheckCircle, Scissors, Bone, PlusCircle, ClipboardList, CreditCard, Loader2 } from "lucide-react"
+import { CalendarIcon, Clock, Sparkles, CheckCircle, Scissors, Bone, PlusCircle, ClipboardList, CreditCard, Loader2 } from "lucide-react"
 import { reserveAppointment } from "@/integrations/supabase/supabaseService"
+import { AutocompleteFilter } from "@/components/AutocompleteFilter"
 import confetti from "canvas-confetti"
 import { skipToken } from "@reduxjs/toolkit/query"
 import {
     supabaseApi,
     useGetAvailableDatesQuery,
     useGetClientSubscriptionsQuery,
-    useGetTreatmentGardenAppointmentsQuery,
+    useGetClientProfileQuery,
     useListOwnerTreatmentsQuery,
+    useCreateTreatmentMutation,
     type ListOwnerTreatmentsResponse,
 } from "@/store/services/supabaseApi"
-import { useToast } from "@/components/ui/use-toast"
-import { AddTreatmentDialog } from "@/components/AddTreatmentDialog"
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
 import { useAppDispatch } from "@/store/hooks"
-import { FirstTimeGardenBanner } from "@/components/FirstTimeGardenBanner"
-import { groomingPriceCopy, groomingPriceSections } from "@/copy/pricing"
+import { groomingPriceSections } from "@/copy/pricing"
+import { supabase } from "@/integrations/supabase/client"
 
 const BUSINESS_TIME_ZONE = "Asia/Jerusalem"
 const jerusalemDateFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -43,7 +42,6 @@ function toJerusalemDateString(date: Date): string {
 
 // Confetti celebration function
 const triggerConfetti = () => {
-    console.log("🎊 triggerConfetti called!");
     const count = 200;
     const defaults = {
         origin: { y: 0.7 }
@@ -52,7 +50,6 @@ const triggerConfetti = () => {
     type ConfettiOptions = Parameters<typeof confetti>[0]
 
     function fire(particleRatio: number, opts: ConfettiOptions = {}) {
-        console.log("🎊 Firing confetti with ratio:", particleRatio);
         confetti({
             ...defaults,
             ...opts,
@@ -102,7 +99,7 @@ interface Treatment {
     // Garden suitability fields
     questionnaireSuitableForGarden?: boolean // האם נמצא מתאים לגן מהשאלון
     staffApprovedForGarden?: string // האם מתאים לגן מילוי צוות (נמצא מתאים/נמצא לא מתאים/empty)
-    hasRegisteredToGardenBefore?: boolean // האם הכלב נרשם בעבר לגן
+    hasRegisteredToGardenBefore?: boolean // האם הלקוח נרשם בעבר למסלול
 }
 
 interface AvailableDate {
@@ -145,6 +142,42 @@ interface ServiceSection {
     title: string
     content: React.ReactNode
 }
+
+interface ServiceOption {
+    id: string
+    name: string
+    description: string | null
+}
+
+const ALLOWED_SERVICE_TYPES = ["grooming", "garden", "both"] as const
+type AllowedServiceType = (typeof ALLOWED_SERVICE_TYPES)[number]
+
+const ALLOWED_SERVICE_TYPE_SET = new Set<string>(ALLOWED_SERVICE_TYPES)
+
+const SERVICE_TYPE_LABELS: Record<AllowedServiceType, string> = {
+    grooming: "תספורת",
+    garden: "גן",
+    both: "תספורת וגן",
+}
+
+type ServiceSearchResult = {
+    id: string
+    name: string
+    category: string | null
+}
+
+function normalizeServiceCategory(value: string | null | undefined): AllowedServiceType {
+    if (value && ALLOWED_SERVICE_TYPE_SET.has(value)) {
+        return value as AllowedServiceType
+    }
+    return "grooming"
+}
+
+const _SERVICE_DISPLAY_LABELS: Record<string, string> = {
+    grooming: "תספורת",
+}
+
+type AutoTreatmentState = "idle" | "creating" | "success" | "error"
 
 const INACTIVE_STATUS_KEYWORDS = ["לאפעילה", "לאפעיל", "inactive", "בוטל", "בוטלה", "הוקפאה", "מושהה", "הסתיים", "לאזמין"]
 const ACTIVE_STATUS_KEYWORDS = ["פעילה", "פעיל", "active", "available", "זמין", "בתוקף", "פתוחה"]
@@ -216,7 +249,9 @@ export default function SetupAppointment() {
     } = useSupabaseAuthWithClientId()
     const dispatch = useAppDispatch()
     const [selectedTreatment, setSelectedTreatment] = useState<string>("")
-    const [selectedServiceType, setSelectedServiceType] = useState<string>("grooming") // Default to barber
+    const [selectedServiceType, setSelectedServiceType] = useState<AllowedServiceType | "">("")
+    const [selectedServiceId, setSelectedServiceId] = useState<string>("")
+    const [selectedServiceName, setSelectedServiceName] = useState<string>("")
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
     const [selectedTime, setSelectedTime] = useState<string>("")
     const [selectedStationId, setSelectedStationId] = useState<string>("")
@@ -233,11 +268,38 @@ export default function SetupAppointment() {
     const [gardenBrush, setGardenBrush] = useState(false)
     const [gardenBath, setGardenBath] = useState(false)
     const [formStep, setFormStep] = useState<1 | 2>(1)
-    const [isAddTreatmentDialogOpen, setIsAddTreatmentDialogOpen] = useState(false)
-    const { toast } = useToast()
+    const [serviceSearchResults, setServiceSearchResults] = useState<ServiceSearchResult[]>([])
 
     const hasProcessedQueryParams = useRef(false)
     const selectedTreatmentFromParams = useRef(false)
+
+    const searchServices = useCallback(async (searchTerm: string): Promise<string[]> => {
+        try {
+            let query = supabase
+                .from("services")
+                .select("id, name, category")
+                .order("name")
+                .limit(20)
+
+            if (searchTerm && searchTerm.trim().length > 0) {
+                query = query.ilike("name", `%${searchTerm.trim()}%`)
+            }
+
+            const { data, error } = await query
+
+            if (error) {
+                throw error
+            }
+
+            const services = (data ?? []) as ServiceSearchResult[]
+            setServiceSearchResults(services)
+            return services.map((service) => service.name)
+        } catch (error) {
+            console.error("Error searching services:", error)
+            setServiceSearchResults([])
+            return []
+        }
+    }, [])
 
     const ownerId = useMemo(() => {
         if (clientId) {
@@ -252,37 +314,24 @@ export default function SetupAppointment() {
     }, [clientId, user])
 
     const {
+        data: clientProfile,
+        isLoading: isProfileLoading,
+        isFetching: isProfileFetching,
+    } = useGetClientProfileQuery(ownerId ?? skipToken, {
+        skip: !ownerId,
+    })
+
+    const [createTreatmentMutation, { isLoading: isCreatingDefaultTreatment }] = useCreateTreatmentMutation()
+    const [autoTreatmentState, setAutoTreatmentState] = useState<AutoTreatmentState>("idle")
+    const [autoTreatmentError, setAutoTreatmentError] = useState<string | null>(null)
+
+    const {
         data: treatmentsQueryData,
         isFetching: isFetchingTreatments,
         refetch: refetchTreatments,
     } = useListOwnerTreatmentsQuery(ownerId ?? skipToken, {
         skip: !ownerId,
     })
-
-    const openAddTreatmentForm = useCallback(() => {
-        if (!ownerId) {
-            console.warn("Cannot open add-treatment form without ownerId")
-            toast({
-                title: "שגיאה",
-                description: "לא ניתן להוסיף כלב ללא זיהוי לקוח",
-                variant: "destructive",
-            })
-            return
-        }
-        setIsAddTreatmentDialogOpen(true)
-    }, [ownerId, toast])
-
-    const handleAddTreatmentSuccess = useCallback(async (treatmentId: string) => {
-        // Refetch treatments and select the newly created treatment
-        const refetchResult = await refetchTreatments()
-        if (refetchResult.data) {
-            const response = refetchResult.data as ListOwnerTreatmentsResponse
-            const newTreatment = response.treatments?.find((d) => d.id === treatmentId)
-            if (newTreatment) {
-                setSelectedTreatment(treatmentId)
-            }
-        }
-    }, [refetchTreatments, setSelectedTreatment])
 
 
     const {
@@ -320,6 +369,132 @@ export default function SetupAppointment() {
         }
         return formatSubscriptionDate(selectedSubscription.purchasedAt)
     }, [selectedSubscription])
+
+    const serviceDisplayName = useMemo(() => {
+        if (selectedServiceName && selectedServiceName.trim().length > 0) {
+            return selectedServiceName
+        }
+        if (selectedServiceType) {
+            return SERVICE_TYPE_LABELS[selectedServiceType] ?? selectedServiceType
+        }
+        return ""
+    }, [selectedServiceName, selectedServiceType])
+
+    const profileFullName = useMemo(() => {
+        const profileName = clientProfile?.fullName?.trim()
+        if (profileName && profileName.length > 0) {
+            return profileName
+        }
+
+        const metadataName = typeof user?.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : ""
+        return metadataName ?? ""
+    }, [clientProfile?.fullName, user])
+
+    const profilePhone = useMemo(() => {
+        const customerPhone = clientProfile?.phone?.trim()
+        if (customerPhone && customerPhone.length > 0) {
+            return customerPhone
+        }
+
+        const metadataPhone = typeof user?.user_metadata?.phone_number === "string" ? user.user_metadata.phone_number.trim() : ""
+        if (metadataPhone && metadataPhone.length > 0) {
+            return metadataPhone
+        }
+
+        const authPhone = typeof user?.phone === "string" ? user.phone.trim() : ""
+        return authPhone ?? ""
+    }, [clientProfile?.phone, user])
+
+    const isProfileComplete = profileFullName.length > 0 && profilePhone.length > 0
+    const isProfileLoadingState = isProfileLoading || isProfileFetching
+
+    const defaultTreatmentName = useMemo(() => {
+        if (profileFullName.length > 0) {
+            return profileFullName
+        }
+
+        if (typeof user?.email === "string" && user.email.length > 0) {
+            const [localPart] = user.email.split("@")
+            return localPart || user.email
+        }
+
+        return "פרופיל חדש"
+    }, [profileFullName, user])
+
+    const canAutoCreateBookingProfile = Boolean(ownerId && isProfileComplete && !isProfileLoadingState)
+    const shouldShowAutoCreationSpinner = Boolean(
+        canAutoCreateBookingProfile &&
+        !isFetchingTreatments &&
+        treatments.length === 0 &&
+        (autoTreatmentState === "idle" || autoTreatmentState === "creating" || isCreatingDefaultTreatment)
+    )
+    const shouldShowAutoCreationError = Boolean(
+        !isFetchingTreatments &&
+        treatments.length === 0 &&
+        autoTreatmentState === "error"
+    )
+
+    const ensureDefaultTreatment = useCallback(async () => {
+        if (!ownerId || !canAutoCreateBookingProfile || autoTreatmentState === "creating") {
+            return
+        }
+
+        setAutoTreatmentState("creating")
+        setAutoTreatmentError(null)
+
+        try {
+            const result = await createTreatmentMutation({
+                customerId: ownerId,
+                name: defaultTreatmentName,
+                gender: "male",
+            }).unwrap()
+
+            if (!result?.success || !result.treatmentId) {
+                throw new Error(result?.error || "Failed to create booking profile automatically")
+            }
+
+            setSelectedTreatment(result.treatmentId)
+            setAutoTreatmentState("success")
+            await refetchTreatments()
+        } catch (error) {
+            console.error("Failed to create default booking profile:", error)
+            setAutoTreatmentState("error")
+            setAutoTreatmentError(error instanceof Error ? error.message : "שגיאה ביצירת פרופיל ההזמנה")
+        }
+    }, [
+        ownerId,
+        canAutoCreateBookingProfile,
+        autoTreatmentState,
+        createTreatmentMutation,
+        defaultTreatmentName,
+        refetchTreatments,
+    ])
+
+    useEffect(() => {
+        if (treatments.length > 0) {
+            return
+        }
+
+        if (!canAutoCreateBookingProfile) {
+            return
+        }
+
+        if (autoTreatmentState !== "idle") {
+            return
+        }
+
+        ensureDefaultTreatment()
+    }, [ensureDefaultTreatment, autoTreatmentState, canAutoCreateBookingProfile, treatments.length])
+
+    useEffect(() => {
+        if (treatments.length === 0) {
+            return
+        }
+
+        if (!selectedTreatment) {
+            setSelectedTreatment(treatments[0].id)
+        }
+    }, [treatments, selectedTreatment])
 
     const selectedTreatmentDetails = useMemo(() => {
         return treatments.find((treatment) => treatment.id === selectedTreatment) ?? null
@@ -368,24 +543,24 @@ export default function SetupAppointment() {
 
         const gardenSections: ServiceSection[] = [
             {
-                title: "מה קורה בגן?",
+                title: "מה קורה במספרה?",
                 content: (
                     <div className="space-y-2">
-                        <p>הגן שלנו הוא מקום קטן, אישי ומשפחתי – לכלבים קטנים בלבד 🐾</p>
+                        <p>המספרה שלנו היא מקום קטן, אישי ומשפחתי – חוויית טיפוח מותאמת אישית ✂️</p>
                         <p>
-                            בגן, הכלבלב שלכם יפרוק אנרגיה פיזית ומנטלית בקבוצה אינטימית של עד 10 כלבים. במהלך היום נשחק, נקשקש, נכיר חברים חדשים, נצא לטיול בפארק הסמוך, ננשנש – וגם נלקק 😉🐶
+                            במהלך הביקור תיהנו מטיפול מקצועי ומפנק: שיחת התאמה קצרה, עיצוב שיער וזקן לפי הצורך, פינוקים קטנים ומוזיקה נעימה שמלווה את כל החוויה.
                         </p>
-                        <p>הכל תמיד תחת השגחה צמודה, בסביבה נקייה ומטופחת, עם המון יחס אישי ואהבה 💛</p>
+                        <p>הכול מתבצע תחת תשומת לב אישית של הצוות, בסביבה נקייה ומזמינה, עם המון יחס חם.</p>
                     </div>
                 ),
             },
             {
-                title: "⏰ מתי מגיעים ומתי אוספים?",
+                title: "⏰ מתי מגיעים ומתי מסיימים?",
                 content: (
                     <div className="space-y-2">
-                        <p>ניתן להביא את הכלב לגן החל מהשעה 08:30 בבוקר.</p>
-                        <p>האיסוף הרגיל מתבצע עד 15:30.</p>
-                        <p>ישנה אפשרות לאיסוף מאוחר עד 17:30.</p>
+                        <p>ניתן להגיע לתור החל מהשעה 08:30 בבוקר.</p>
+                        <p>משך הטיפול הרגיל נע בין 45 ל-60 דקות.</p>
+                        <p>אפשר להאריך את הביקור לשירותים משלימים עד 17:30 בתיאום מראש.</p>
                     </div>
                 ),
             },
@@ -401,24 +576,17 @@ export default function SetupAppointment() {
                     { title: "תספורת – מה כולל הטיפול?", content: groomingSections[0].content },
                     { title: "תספורת – כמה זה עולה?", content: groomingSections[1].content },
                     { title: "תספורת – כמה זמן זה לוקח?", content: groomingSections[2].content },
-                    { title: "גן – מה מצפה לכלבלב?", content: gardenSections[0].content },
-                    { title: "גן – מתי מגיעים ומתי אוספים?", content: gardenSections[1].content },
+                    { title: "מספרה – מה מצפה לכם?", content: gardenSections[0].content },
+                    { title: "מספרה – מתי מגיעים ומתי מסיימים?", content: gardenSections[1].content },
                 ]
             default:
                 return []
         }
     }, [selectedServiceType])
 
-    // Fetch garden appointments for the selected treatment to check if they already have scheduled appointments
-    const {
-        data: existingGardenAppointments = [],
-        isFetching: isFetchingGardenAppointments,
-    } = useGetTreatmentGardenAppointmentsQuery(
-        selectedTreatmentDetails?.id ?? skipToken,
-        {
-            skip: !selectedTreatmentDetails?.id,
-        }
-    )
+    // No garden flow – keep placeholders for compatibility
+    const existingGardenAppointments: { appointments?: unknown[] } | null = null
+    const isFetchingGardenAppointments = false
 
     const datesQueryArg = selectedTreatment && selectedServiceType
         ? {
@@ -532,19 +700,7 @@ export default function SetupAppointment() {
 
     // Garden suitability logic based on questionnaire and staff approval
     const gardenSuitabilityStatus = useMemo(() => {
-        console.log("🌱 Garden suitability check:", {
-            isGardenServiceSelected,
-            selectedTreatmentDetails: selectedTreatmentDetails ? {
-                id: selectedTreatmentDetails.id,
-                name: selectedTreatmentDetails.name,
-                questionnaireSuitableForGarden: selectedTreatmentDetails.questionnaireSuitableForGarden,
-                staffApprovedForGarden: selectedTreatmentDetails.staffApprovedForGarden,
-                hasBeenToGarden: selectedTreatmentDetails.hasBeenToGarden
-            } : null
-        })
-
         if (!isGardenServiceSelected || !selectedTreatmentDetails) {
-            console.log("🌱 Garden suitability: No garden service or treatment selected, allowing all")
             return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
         }
 
@@ -552,27 +708,23 @@ export default function SetupAppointment() {
 
         // If staff explicitly rejected for garden (נמצא לא מתאים), show rejection message
         if (staffApprovedForGarden === "נמצא לא מתאים") {
-            console.log("🌱 Garden suitability: Staff explicitly rejected (נמצא לא מתאים), showing rejection message")
             return {
                 canBookFullDay: false,
                 canBookTrial: false,
-                message: "מצטערים, נראה שהכלב שלכם לא מתאים לגן שלנו. אם אתם חושבים שזו טעות, אנא צרו איתנו קשר באופן פרטי",
+                message: "מצטערים, נראה שהבקשה שבחרתם עדיין לא תואמת את השירות שלנו. אם אתם חושבים שזו טעות, אנא צרו איתנו קשר באופן פרטי",
                 isExplicitlyRejected: true
             }
         }
 
         // If staff approved for garden (נמצא מתאים), allow full day regardless of questionnaire or registration history
         if (staffApprovedForGarden === "נמצא מתאים") {
-            console.log("🌱 Garden suitability: Staff approved (נמצא מתאים), allowing full day")
             return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
         }
 
         // If questionnaire shows suitable for garden, allow full day regardless of staff approval
         // But if treatment registered before, only allow full day (no trial)
         if (questionnaireSuitableForGarden === true) {
-            console.log("🌱 Garden suitability: Questionnaire shows suitable, allowing full day")
             if (hasRegisteredToGardenBefore) {
-                console.log("🌱 Garden suitability: Treatment registered before, allowing only full day (no trial)")
                 return { canBookFullDay: true, canBookTrial: false, message: null, isExplicitlyRejected: false }
             }
             return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
@@ -580,40 +732,35 @@ export default function SetupAppointment() {
 
         // If treatment registered to garden before but questionnaire shows not suitable and no staff approval
         if (hasRegisteredToGardenBefore && questionnaireSuitableForGarden === false && staffApprovedForGarden !== "נמצא מתאים") {
-            console.log("🌱 Garden suitability: Treatment registered before but questionnaire shows not suitable and no staff approval, blocking completely")
             return {
                 canBookFullDay: false,
                 canBookTrial: false,
-                message: "הכלב שלכם נרשם בעבר לגן אבל עדיין לא אושר על ידי הצוות. אנא המתינו לאישור הצוות לפני קביעת תור נוסף",
+                message: "הבקשה שלכם נרשמה בעבר אבל עדיין לא אושרה על ידי הצוות. אנא המתינו לאישור הצוות לפני קביעת תור נוסף",
                 isExplicitlyRejected: false
             }
         }
 
         // If treatment registered to garden before, only allow full day (no trial)
         if (hasRegisteredToGardenBefore) {
-            console.log("🌱 Garden suitability: Treatment registered before, allowing only full day")
             return { canBookFullDay: true, canBookTrial: false, message: null, isExplicitlyRejected: false }
         }
 
         // If questionnaire shows not suitable but staff hasn't explicitly approved and treatment never registered, only allow trial
         if (questionnaireSuitableForGarden === false && staffApprovedForGarden !== "נמצא מתאים") {
-            console.log("🌱 Garden suitability: Questionnaire shows not suitable and no staff approval, restricting to trial only")
             return {
                 canBookFullDay: false,
                 canBookTrial: true,
-                message: "מצאנו שהכלב שלכם עלול לא להתאים לגן שלנו. אתם יכולים להכניס אותו רק לניסיון עכשיו, אם נראה שהכלב יתאים טוב - נאפשר לכם לקבוע ימים מלאים",
+                message: "נראה שהבקשה שלכם דורשת בדיקה נוספת. תוכלו לקבוע ניסיון בלבד כרגע, ואם הכול יתאים נאפשר לכם לתאם ביקורים מלאים",
                 isExplicitlyRejected: false
             }
         }
 
         // If questionnaire field is empty/undefined (no questionnaire filled), allow full day by default
         if (questionnaireSuitableForGarden === undefined || questionnaireSuitableForGarden === null) {
-            console.log("🌱 Garden suitability: No questionnaire filled, allowing full day by default")
             return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
         }
 
         // Default case - allow both
-        console.log("🌱 Garden suitability: Default case, allowing all")
         return { canBookFullDay: true, canBookTrial: true, message: null, isExplicitlyRejected: false }
     }, [isGardenServiceSelected, selectedTreatmentDetails])
 
@@ -633,24 +780,6 @@ export default function SetupAppointment() {
         !hasExistingGardenAppointments
     )
 
-    // Log first garden visit status for debugging
-    useEffect(() => {
-        console.log("🌱 First garden visit check:", {
-            isGardenServiceSelected,
-            selectedTreatmentDetails: selectedTreatmentDetails ? {
-                id: selectedTreatmentDetails.id,
-                name: selectedTreatmentDetails.name,
-                hasBeenToGarden: selectedTreatmentDetails.hasBeenToGarden
-            } : null,
-            existingGardenAppointments: existingGardenAppointments?.appointments?.length || 0,
-            existingGardenAppointmentsData: existingGardenAppointments,
-            hasExistingGardenAppointments,
-            isFirstGardenVisit,
-            isGardenBlocked,
-            isFetchingGardenAppointments
-        })
-    }, [isGardenServiceSelected, selectedTreatmentDetails, isFirstGardenVisit, isGardenBlocked, existingGardenAppointments, hasExistingGardenAppointments, isFetchingGardenAppointments])
-
     useEffect(() => {
         if (!isGardenServiceSelected || !selectedTreatmentDetails) {
             setSelectedGardenVisitType(undefined)
@@ -660,7 +789,6 @@ export default function SetupAppointment() {
         setSelectedGardenVisitType((current) => {
             // For 'both' service type, always set to 'regular' (full day)
             if (selectedServiceType === "both") {
-                console.log("🔄 Service type is 'both', setting visit type to 'regular' (full day)")
                 return "regular"
             }
 
@@ -732,45 +860,13 @@ export default function SetupAppointment() {
     const gardenQuestionnaireMessage = useMemo(
         () =>
             gardenQuestionnaireStatus?.message ||
-            "היי! לפני שנציע תורים לגן, נשמח שתמלאו את שאלון ההתאמה לגן עבור הכלב הזה.",
+            "היי! לפני שנציע תורים במספרה, נשמח שתמלאו את שאלון ההתאמה לשירות עבור הלקוח הזה.",
         [gardenQuestionnaireStatus?.message]
     )
 
     const gardenBlockingMessage = isSizeBlocking
-        ? "מצטערים, הגן שלנו מיועד לכלבים קטנים שעברו התאמה."
+        ? "מצטערים, השירות שלנו מיועד ללקוחות שעברו התאמה מוקדמת."
         : gardenQuestionnaireMessage
-
-    useEffect(() => {
-        if (!selectedTreatment) {
-            return
-        }
-
-        console.log("🐾 Garden eligibility", {
-            selectedTreatment,
-            treatmentName: selectedTreatmentDetails?.name,
-            rawSize: selectedTreatmentDetails?.size,
-            isSmallFlag: selectedTreatmentDetails?.isSmall,
-            computedIsSmall: isSelectedTreatmentSmall,
-            questionnaireCompleted: gardenQuestionnaireStatus?.completed,
-            questionnaireRequired: gardenQuestionnaireStatus?.required,
-            isGardenServiceSelected,
-            isSizeBlocking,
-            isQuestionnaireBlocking,
-            isGardenBlocked,
-        })
-    }, [
-        selectedTreatment,
-        selectedTreatmentDetails?.name,
-        selectedTreatmentDetails?.size,
-        selectedTreatmentDetails?.isSmall,
-        isSelectedTreatmentSmall,
-        gardenQuestionnaireStatus?.completed,
-        gardenQuestionnaireStatus?.required,
-        isGardenServiceSelected,
-        isSizeBlocking,
-        isQuestionnaireBlocking,
-        isGardenBlocked,
-    ])
 
     const selectedDateKey = useMemo(() => (
         selectedDate ? toJerusalemDateString(selectedDate) : null
@@ -795,23 +891,12 @@ export default function SetupAppointment() {
             return false
         }
         const hasSlotWithoutApproval = allAvailableTimes.some((slot) => slot.requiresStaffApproval !== true && slot.available !== false)
-        console.log("🧭 Approval-free slot scan", {
-            totalSlots: allAvailableTimes.length,
-            hasSlotWithoutApproval,
-            requiresSpecialApproval: selectedTreatmentDetails?.requiresSpecialApproval,
-        })
         return hasSlotWithoutApproval
     }, [allAvailableTimes, selectedTreatmentDetails?.requiresSpecialApproval])
 
     const requiresApprovalForAllSlots = useMemo(() => {
         const requiresTreatmentTypeApproval = selectedTreatmentDetails?.requiresSpecialApproval === true
         const approvalOnly = requiresTreatmentTypeApproval && !hasApprovalFreeSlotAcrossDates
-        console.log("🛡️ Approval mode evaluation", {
-            requiresTreatmentTypeApproval,
-            hasApprovalFreeSlotAcrossDates,
-            approvalOnly,
-            serviceType: selectedServiceType,
-        })
         return approvalOnly
     }, [hasApprovalFreeSlotAcrossDates, selectedTreatmentDetails?.requiresSpecialApproval, selectedServiceType])
 
@@ -830,11 +915,6 @@ export default function SetupAppointment() {
             const hasApprovalOnlyOption = times.some((slot) => slot.requiresStaffApproval === true)
             if (hasFlexibleOption && hasApprovalOnlyOption) {
                 const filtered = times.filter((slot) => slot.requiresStaffApproval !== true)
-                console.log("🟢 Filtering approval-required slots", {
-                    date: selectedDateAvailability.date,
-                    originalSlots: times.length,
-                    filteredSlots: filtered.length,
-                })
                 return filtered
             }
         }
@@ -854,15 +934,9 @@ export default function SetupAppointment() {
 
         const fallbackSlot = availableTimes.find((slot) => slot.available !== false)
         if (fallbackSlot) {
-            console.log("🔄 Switching to approval-free slot", {
-                previousTime: selectedTime,
-                newTime: fallbackSlot.time,
-                stationId: fallbackSlot.stationId,
-            })
             setSelectedTime(fallbackSlot.time)
             setSelectedStationId(fallbackSlot.stationId)
         } else {
-            console.log("⚠️ No suitable slot available after filtering. Clearing selection.")
             setSelectedTime("")
             setSelectedStationId("")
         }
@@ -904,7 +978,6 @@ export default function SetupAppointment() {
             const baseConditions = !selectedTreatment || !selectedServiceType || !selectedDate || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved
             const timeCondition = requiresTime ? !selectedTime : false
             const enabled = !(baseConditions || timeCondition)
-            console.log("🔘 REQUEST BUTTON:", { enabled, shouldShowRequestButton, selectedServiceType, termsApproved })
             return enabled
         }
 
@@ -913,16 +986,13 @@ export default function SetupAppointment() {
             // For garden service, require treatment, service, and date selection (but not time)
             if (selectedServiceType === "garden") {
                 const enabled = !(!selectedTreatment || !selectedServiceType || !selectedDate || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved)
-                console.log("🔘 GARDEN BOOK BUTTON:", { enabled, shouldShowBookButton, selectedTreatment: !!selectedTreatment, selectedServiceType, selectedDate: !!selectedDate, termsApproved })
                 return enabled
             }
             // For grooming and both services, require date and time selection
             const enabled = !(!selectedTreatment || !selectedServiceType || !selectedDate || !selectedTime || isGardenBlocked || isGardenSubscriptionMissing || isLoading || !termsApproved)
-            console.log("🔘 GROOMING/BOTH BOOK BUTTON:", { enabled, shouldShowBookButton, selectedServiceType, termsApproved })
             return enabled
         }
 
-        console.log("🔘 NO BUTTON:", { shouldShowRequestButton, shouldShowBookButton })
         return false
     }, [selectedTreatment, selectedServiceType, selectedDate, selectedTime, isGardenBlocked, isGardenSubscriptionMissing, isLoading, shouldShowRequestButton, shouldShowBookButton, termsApproved])
 
@@ -947,8 +1017,8 @@ export default function SetupAppointment() {
 
     const pageTitle = isApprovalRequestMode ? "בקשת תור" : "קבע תור"
     const pageSubtitle = isApprovalRequestMode
-        ? "שלחו בקשה לטיפוח הכלב שלכם. הצוות יאשר את המועד לאחר בדיקה."
-        : "קבע תור לטיפוח הכלב שלך"
+        ? "שלחו בקשה לתור. הצוות יאשר את המועד לאחר בדיקה."
+        : "קבעו תור לטיפול הבא שלכם"
 
     useEffect(() => {
         if (!selectedDate || !selectedDateKey) {
@@ -995,62 +1065,190 @@ export default function SetupAppointment() {
     }, [isExtrasStep, canProceedToExtras])
 
     // Function to update URL with current selections
-    const updateURL = useCallback((newServiceType?: string, newDate?: Date, newTreatmentId?: string) => {
+    const updateURL = useCallback((
+        {
+            serviceType,
+            serviceId,
+            date,
+            treatmentId,
+        }: {
+            serviceType?: string | null
+            serviceId?: string | null
+            date?: Date | null
+            treatmentId?: string | null
+        } = {}
+    ) => {
         const params = new URLSearchParams(searchParams)
 
-        if (newServiceType) {
-            params.set('serviceType', newServiceType)
+        if (serviceType !== undefined) {
+            if (serviceType) {
+                params.set("serviceType", serviceType)
+            } else {
+                params.delete("serviceType")
+            }
         }
 
-        if (newDate) {
-            params.set('date', newDate.toISOString().split('T')[0])
+        if (serviceId !== undefined) {
+            if (serviceId) {
+                params.set("serviceId", serviceId)
+            } else {
+                params.delete("serviceId")
+            }
         }
 
-        const treatmentIdToUse = newTreatmentId || selectedTreatment
-        if (treatmentIdToUse) {
-            params.set('treatmentId', treatmentIdToUse)
+        if (date !== undefined) {
+            if (date) {
+                params.set("date", date.toISOString().split("T")[0])
+            } else {
+                params.delete("date")
+            }
+        }
+
+        if (treatmentId !== undefined) {
+            if (treatmentId) {
+                params.set("treatmentId", treatmentId)
+            } else {
+                params.delete("treatmentId")
+            }
         }
 
         setSearchParams(params)
-    }, [searchParams, selectedTreatment, setSearchParams])
+    }, [searchParams, setSearchParams])
+
+    const handleServiceTypeChange = useCallback((
+        serviceType: string,
+        options?: {
+            serviceId?: string
+            serviceName?: string
+            skipUrlUpdate?: boolean
+        }
+    ) => {
+        const normalizedType = serviceType
+            ? normalizeServiceCategory(serviceType)
+            : ""
+        const nextServiceId = options?.serviceId ?? ""
+        const nextServiceName = options?.serviceName ??
+            (normalizedType ? SERVICE_TYPE_LABELS[normalizedType as AllowedServiceType] ?? normalizedType : "")
+        const skipUrlUpdate = options?.skipUrlUpdate ?? false
+
+        const isSameSelection =
+            selectedServiceType === normalizedType &&
+            selectedServiceId === nextServiceId &&
+            selectedServiceName === nextServiceName
+
+        setSelectedServiceType(normalizedType)
+        setSelectedServiceId(nextServiceId)
+        setSelectedServiceName(nextServiceName)
+
+        if (!isSameSelection) {
+            setSelectedDate(undefined)
+            setSelectedTime("")
+            setSelectedStationId("")
+            setComment("")
+            setTermsApproved(false)
+            setLatePickupRequested(false)
+            setLatePickupNotes("")
+            setFormStep(1)
+        }
+
+        if (!skipUrlUpdate) {
+            updateURL({
+                serviceType: normalizedType || null,
+                serviceId: nextServiceId || null,
+            })
+        }
+    }, [
+        selectedServiceId,
+        selectedServiceName,
+        selectedServiceType,
+        updateURL,
+    ])
+
+    const handleServiceInputChange = useCallback((value: string) => {
+        if (value.trim().length === 0) {
+            handleServiceTypeChange("", { serviceId: "", serviceName: "" })
+            return
+        }
+
+        setSelectedServiceName(value)
+    }, [handleServiceTypeChange])
+
+    const handleServiceSelect = useCallback((serviceName: string) => {
+        const matchedService = serviceSearchResults.find((service) => service.name === serviceName)
+
+        if (!matchedService) {
+            setSelectedServiceName(serviceName)
+            return
+        }
+
+        const normalizedCategory = normalizeServiceCategory(matchedService.category)
+        handleServiceTypeChange(normalizedCategory, {
+            serviceId: matchedService.id,
+            serviceName: matchedService.name,
+        })
+    }, [serviceSearchResults, handleServiceTypeChange])
 
     // Function to handle query parameters
-    const processQueryParams = useCallback(() => {
-        const serviceType = searchParams.get('serviceType')
-        const date = searchParams.get('date')
-        const treatmentId = searchParams.get('treatmentId')
-
-        console.log('🔍 Processing query params:', { serviceType, date, treatmentId })
+    const processQueryParams = useCallback(async () => {
+        const serviceTypeParam = searchParams.get("serviceType")
+        const serviceIdParam = searchParams.get("serviceId")
+        const dateParam = searchParams.get("date")
+        const treatmentIdParam = searchParams.get("treatmentId")
 
         selectedTreatmentFromParams.current = false
 
-        if (treatmentId) {
-            const treatmentExists = treatments.some((treatment) => treatment.id === treatmentId)
+        if (treatmentIdParam) {
+            const treatmentExists = treatments.some((treatment) => treatment.id === treatmentIdParam)
             if (treatmentExists) {
-                console.log('✅ Setting treatment from query param:', treatmentId)
-                setSelectedTreatment(treatmentId)
+                setSelectedTreatment(treatmentIdParam)
                 selectedTreatmentFromParams.current = true
             } else {
-                console.warn('❌ Treatment ID from query param not found:', treatmentId)
+                console.warn("❌ Treatment ID from query param not found:", treatmentIdParam)
                 selectedTreatmentFromParams.current = false
             }
         }
 
-        if (serviceType && ['grooming', 'garden', 'both'].includes(serviceType)) {
-            console.log('✅ Setting service type from query param:', serviceType)
-            setSelectedServiceType(serviceType)
+        if (serviceIdParam) {
+            try {
+                const { data, error } = await supabase
+                    .from("services")
+                    .select("id, name, category")
+                    .eq("id", serviceIdParam)
+                    .maybeSingle()
+
+                if (error) {
+                    throw error
+                }
+
+                if (data) {
+                    const normalizedCategory = normalizeServiceCategory(data.category)
+                    handleServiceTypeChange(normalizedCategory, {
+                        serviceId: data.id,
+                        serviceName: data.name,
+                        skipUrlUpdate: true,
+                    })
+                } else if (serviceTypeParam && ALLOWED_SERVICE_TYPE_SET.has(serviceTypeParam)) {
+                    handleServiceTypeChange(serviceTypeParam, { skipUrlUpdate: true })
+                }
+            } catch (error) {
+                console.error("❌ Failed to hydrate service from query params:", error)
+                if (serviceTypeParam && ALLOWED_SERVICE_TYPE_SET.has(serviceTypeParam)) {
+                    handleServiceTypeChange(serviceTypeParam, { skipUrlUpdate: true })
+                }
+            }
+        } else if (serviceTypeParam && ALLOWED_SERVICE_TYPE_SET.has(serviceTypeParam)) {
+            handleServiceTypeChange(serviceTypeParam, { skipUrlUpdate: true })
         }
 
-        if (date) {
-            const parsedDate = new Date(date)
+        if (dateParam) {
+            const parsedDate = new Date(dateParam)
             if (!isNaN(parsedDate.getTime())) {
-                console.log('✅ Setting date from query param:', parsedDate)
                 setSelectedDate(parsedDate)
             } else {
-                console.warn('❌ Invalid date in query param:', date)
+                console.warn("❌ Invalid date in query param:", dateParam)
             }
         }
-    }, [treatments, searchParams])
+    }, [treatments, searchParams, handleServiceTypeChange])
 
     const handleSubscriptionChange = useCallback((value: string) => {
         if (value === "__add_subscription__") {
@@ -1063,8 +1261,13 @@ export default function SetupAppointment() {
 
     useEffect(() => {
         if (!hasProcessedQueryParams.current && treatments.length > 0) {
-            processQueryParams()
-            hasProcessedQueryParams.current = true
+            (async () => {
+                try {
+                    await processQueryParams()
+                } finally {
+                    hasProcessedQueryParams.current = true
+                }
+            })()
         }
     }, [treatments.length, processQueryParams])
 
@@ -1108,20 +1311,65 @@ export default function SetupAppointment() {
         )
     }
 
-    // Show loading state while fetching treatments
-    if (isFetchingTreatments) {
+    if (isProfileLoadingState) {
         return (
             <div className="min-h-screen flex items-center justify-center" dir="rtl">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600">טוען רשימת כלבים...</p>
+                    <p className="text-gray-600">טוען פרטי חשבון...</p>
                 </div>
             </div>
         )
     }
 
-    // Guard for users with no treatments - only show after API call completes
-    if (!isFetchingTreatments && treatments.length === 0) {
+    if (!isProfileComplete) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
+                <Card className="w-full max-w-md">
+                    <CardContent className="p-8 text-center space-y-4">
+                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                            <CheckCircle className="h-8 w-8 text-blue-600" />
+                        </div>
+                        <h2 className="text-xl font-semibold text-gray-900">דרושים פרטי קשר מעודכנים</h2>
+                        <p className="text-gray-600">
+                            כדי לקבוע תור, ודאו שהשם המלא ומספר הטלפון שלכם מעודכנים במסך ההגדרות האישיות.
+                        </p>
+                        <Button
+                            onClick={() => navigate("/profile")}
+                            className="w-full"
+                            size="lg"
+                        >
+                            עדכון פרופיל
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
+    if (isFetchingTreatments) {
+        return (
+            <div className="min-h-screen flex items-center justify-center" dir="rtl">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">טוען את פרטי ההזמנה שלך...</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (shouldShowAutoCreationSpinner) {
+        return (
+            <div className="min-h-screen flex items-center justify-center" dir="rtl">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">מכינים עבורך את פרטי ההזמנה...</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (shouldShowAutoCreationError) {
         return (
             <div className="min-h-screen py-8" dir="rtl">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1138,22 +1386,19 @@ export default function SetupAppointment() {
                                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <Sparkles className="h-8 w-8 text-blue-600" />
                                     </div>
-                                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                                        אין לך כלבים רשומים
-                                    </h2>
+                                    <h2 className="text-xl font-semibold text-gray-900 mb-2">לא הצלחנו להכין את פרטי ההזמנה</h2>
                                     <p className="text-gray-600 mb-6">
-                                        כדי לקבוע תור, אנא מלא את הטופס להוספת כלב
+                                        {autoTreatmentError || "התרחשה שגיאה ביצירת פרטי ההזמנה שלך. נסו שוב בעוד רגע, ואם הבעיה נמשכת צרו קשר עם הצוות."}
                                     </p>
                                 </div>
 
                                 <div className="space-y-4">
                                     <Button
-                                        onClick={openAddTreatmentForm}
+                                        onClick={ensureDefaultTreatment}
                                         className="w-full"
                                         size="lg"
                                     >
-                                        <PlusCircle className="h-4 w-4 mr-2" />
-                                        הוסף כלב חדש
+                                        נסו שוב
                                     </Button>
                                 </div>
                             </CardContent>
@@ -1161,24 +1406,11 @@ export default function SetupAppointment() {
                     </div>
                 </div>
 
-                {/* Add Treatment Dialog - rendered here so it's available when no treatments exist */}
-                <AddTreatmentDialog
-                    open={isAddTreatmentDialogOpen}
-                    onOpenChange={setIsAddTreatmentDialogOpen}
-                    customerId={ownerId}
-                    onSuccess={handleAddTreatmentSuccess}
-                />
             </div>
         )
     }
 
     const handleTreatmentChange = (treatmentId: string) => {
-        if (treatmentId === "__add_new__") {
-            openAddTreatmentForm()
-            // Reset select to previous value (don't actually select __add_new__)
-            return
-        }
-
         setSelectedTreatment(treatmentId)
         setSelectedDate(undefined)
         setSelectedTime("")
@@ -1190,22 +1422,7 @@ export default function SetupAppointment() {
         setFormStep(1)
 
         selectedTreatmentFromParams.current = false
-        updateURL(undefined, undefined, treatmentId)
-    }
-
-    const handleServiceTypeChange = (serviceType: string) => {
-        setSelectedServiceType(serviceType)
-        setSelectedDate(undefined)
-        setSelectedTime("")
-        setSelectedStationId("")
-        setComment("")
-        setTermsApproved(false)
-        setLatePickupRequested(false)
-        setLatePickupNotes("")
-        setFormStep(1)
-
-        // Update URL with new service type
-        updateURL(serviceType)
+        updateURL({ treatmentId })
     }
 
     const handleDateSelect = (date: Date | undefined) => {
@@ -1229,17 +1446,16 @@ export default function SetupAppointment() {
         setFormStep(1)
 
         if (date) {
-            updateURL(selectedServiceType, date)
+            updateURL({
+                serviceType: selectedServiceType || null,
+                serviceId: selectedServiceId || null,
+                date,
+            })
         }
     }
 
     const handleContinueToExtras = () => {
         const requiresTime = selectedServiceType !== "garden"
-
-        if (!selectedTreatment) {
-            setError("אנא בחר כלב לפני המעבר לשלב הבא")
-            return
-        }
 
         if (!selectedServiceType) {
             setError("אנא בחר סוג שירות כדי להמשיך")
@@ -1278,7 +1494,7 @@ export default function SetupAppointment() {
 
     const handleReservation = async () => {
         if (!selectedTreatment || !selectedServiceType || !selectedDate) {
-            setError("אנא בחר כלב, סוג שירות ותאריך")
+            setError("אנא ודאו שכל פרטי ההזמנה נבחרו לפני השליחה")
             return
         }
 
@@ -1313,14 +1529,6 @@ export default function SetupAppointment() {
             const finalNotes = [subscriptionNote, trimmedNotes].filter((value) => value && value.length > 0).join(" | ")
             const notesPayload = finalNotes.length > 0 ? finalNotes : undefined
             const trimmedLatePickupNotes = latePickupNotes.trim()
-            console.log("Reserving appointment with:", {
-                selectedTreatment,
-                dateString,
-                selectedStationId,
-                selectedTime,
-                notes: notesPayload,
-                subscriptionId: selectedSubscription?.id,
-            })
             const result = await reserveAppointment(
                 selectedTreatment,
                 dateString,
@@ -1335,16 +1543,11 @@ export default function SetupAppointment() {
                 isGardenServiceSelected ? gardenBrush : undefined,
                 isGardenServiceSelected ? gardenBath : undefined
             )
-            console.log("Reserve appointment result:", result)
-
             if (result.success) {
-                console.log("✅ Reservation successful, triggering confetti!")
                 setSuccess("הבקשה נשלחה בהצלחה!")
 
                 // Trigger confetti celebration
-                console.log("🎉 About to trigger confetti...")
                 triggerConfetti()
-                console.log("🎉 Confetti triggered!")
 
                 dispatch(supabaseApi.util.invalidateTags(["Availability", "Appointment", "GardenAppointment", "WaitingList"]))
 
@@ -1368,7 +1571,6 @@ export default function SetupAppointment() {
                 setSearchParams(new URLSearchParams())
                 selectedTreatmentFromParams.current = false
             } else {
-                console.log("❌ Reservation failed:", result.error)
                 setError(result.error || "שגיאה בשליחת הבקשה")
             }
         } catch (err) {
@@ -1383,13 +1585,13 @@ export default function SetupAppointment() {
         // For garden service, only require treatment, service, and date
         if (selectedServiceType === "garden") {
             if (!selectedTreatment || !selectedServiceType || !selectedDate) {
-                setError("אנא בחר כלב, סוג שירות ותאריך")
+                setError("אנא ודאו שכל פרטי ההזמנה נבחרו לפני ההמשך")
                 return
             }
         } else {
             // For grooming and both services, require all fields
             if (!selectedTreatment || !selectedServiceType || !selectedDate || !selectedTime || !selectedStationId) {
-                setError("אנא בחר כלב, סוג שירות, תאריך, שעה ועמדה")
+                setError("אנא ודאו שכל פרטי ההזמנה נבחרו, כולל שעה ועמדה")
                 return
             }
         }
@@ -1429,16 +1631,6 @@ export default function SetupAppointment() {
             const time = selectedServiceType === "garden" ? "09:00" : selectedTime
             const trimmedLatePickupNotes = latePickupNotes.trim()
 
-            console.log("Booking appointment with:", {
-                selectedTreatment,
-                dateString,
-                stationId,
-                time,
-                notes: notesPayload,
-                subscriptionId: selectedSubscription?.id,
-                serviceType: selectedServiceType,
-                appointmentType: selectedServiceType // Logging the appointment type being sent to webhook
-            })
             const result = await reserveAppointment(
                 selectedTreatment,
                 dateString,
@@ -1453,16 +1645,11 @@ export default function SetupAppointment() {
                 isGardenServiceSelected ? gardenBrush : undefined,
                 isGardenServiceSelected ? gardenBath : undefined
             )
-            console.log("Reserve appointment result:", result)
-
             if (result.success) {
-                console.log("✅ Appointment booked successfully, triggering confetti!")
                 setSuccess("התור נקבע בהצלחה!")
 
                 // Trigger confetti celebration
-                console.log("🎉 About to trigger confetti...")
                 triggerConfetti()
-                console.log("🎉 Confetti triggered!")
 
                 dispatch(supabaseApi.util.invalidateTags(["Availability", "Appointment", "GardenAppointment", "WaitingList"]))
 
@@ -1488,7 +1675,6 @@ export default function SetupAppointment() {
                 setSearchParams(new URLSearchParams())
                 selectedTreatmentFromParams.current = false
             } else {
-                console.log("❌ Appointment booking failed:", result.error)
                 setError(result.error || "שגיאה בקביעת התור")
             }
         } catch (err) {
@@ -1529,7 +1715,7 @@ export default function SetupAppointment() {
                                 <span>פרטי התור</span>
                             </CardTitle>
                             <CardDescription>
-                                בחר את הכלב שלך, התאריך והשעה המועדפים
+                                בחרו את הפרטים, התאריך והשעה שנוחים לכם
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
@@ -1585,10 +1771,10 @@ export default function SetupAppointment() {
                             <div className={formStep === 1 ? "space-y-6" : "hidden"}>
                                 {/* Treatment Selection */}
                                 <div className="space-y-2 ">
-                                    <label className="text-sm font-medium text-gray-700 text-right block">בחר כלב</label>
+                                    <label className="text-sm font-medium text-gray-700 text-right block">בחר פרופיל להזמנה</label>
                                     <Select value={selectedTreatment} onValueChange={handleTreatmentChange}>
                                         <SelectTrigger className="text-right [&>span]:text-right" dir="rtl">
-                                            <SelectValue placeholder="בחר את הכלב שלך" />
+                                            <SelectValue placeholder="בחר את הפרופיל שלך" />
                                         </SelectTrigger>
                                         <SelectContent dir="rtl">
                                             {treatments.map((treatment) => (
@@ -1596,16 +1782,9 @@ export default function SetupAppointment() {
                                                     <div className="flex items-center justify-end w-full gap-2">
                                                         <Sparkles className="h-4 w-4" />
                                                         <span>{treatment.name}</span>
-                                                        <Badge variant="outline">{treatment.treatmentType}</Badge>
                                                     </div>
                                                 </SelectItem>
                                             ))}
-                                            <SelectItem value="__add_new__" className="text-right text-blue-600">
-                                                <div className="flex items-center justify-end w-full gap-2">
-                                                    <PlusCircle className="h-4 w-4" />
-                                                    <span>הוסף כלב חדש</span>
-                                                </div>
-                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -1613,34 +1792,17 @@ export default function SetupAppointment() {
                                 {/* Service Type Selection */}
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700 text-right block">בחר סוג שירות</label>
-                                    <Select value={selectedServiceType} onValueChange={handleServiceTypeChange}>
-                                        <SelectTrigger className="text-right [&>span]:text-right" dir="rtl">
-                                            <SelectValue placeholder="בחר את סוג השירות" />
-                                        </SelectTrigger>
-                                        <SelectContent dir="rtl">
-                                            <SelectItem value="grooming" className="text-right">
-                                                <div className="flex items-center justify-end w-full gap-2">
-                                                    <Scissors className="h-4 w-4 text-blue-600" />
-                                                    <span>תספורת</span>
-                                                </div>
-                                            </SelectItem>
-                                            <SelectItem value="garden" className="text-right">
-                                                <div className="flex items-center justify-end w-full gap-2">
-                                                    <Bone className="h-4 w-4 text-amber-600" />
-                                                    <span>גן</span>
-                                                </div>
-                                            </SelectItem>
-                                            <SelectItem value="both" className="text-right">
-                                                <div className="flex items-center justify-end w-full gap-2">
-                                                    <div className="flex items-center gap-1">
-                                                        <Scissors className="h-3 w-3 text-blue-600" />
-                                                        <Bone className="h-3 w-3 text-amber-600" />
-                                                    </div>
-                                                    <span>תספורת וגן</span>
-                                                </div>
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <AutocompleteFilter
+                                        value={selectedServiceName}
+                                        onChange={handleServiceInputChange}
+                                        onSelect={handleServiceSelect}
+                                        placeholder="בחר את סוג השירות"
+                                        searchFn={searchServices}
+                                        minSearchLength={0}
+                                        autoSearchOnFocus
+                                        initialLoadOnMount
+                                        className="text-right"
+                                    />
 
                                     {includesGroomingService && groomingPriceRange && (
                                         <p className="text-sm text-gray-600 text-right">
@@ -1856,7 +2018,7 @@ export default function SetupAppointment() {
                                                 מחפשים עבורך את התור הקרוב ביותר...
                                             </h3>
                                             <p className="text-sm text-gray-600">
-                                                אנחנו בודקים את כל התאריכים הזמינים עבור {selectedServiceType === 'grooming' ? 'תספורת' : selectedServiceType === 'garden' ? 'גן' : 'תספורת וגן'}
+                                                אנחנו בודקים את כל התאריכים הזמינים עבור {serviceDisplayName || "השירות שנבחר"}
                                             </p>
 
                                         </div>
@@ -1898,7 +2060,7 @@ export default function SetupAppointment() {
                                         />
                                         {availableDates.length === 0 && !isLoadingDates && (
                                             <p className="text-sm text-yellow-600 text-center">
-                                                אין תאריכים זמינים עבור כלב זה החודש
+                                                אין תאריכים זמינים עבור הלקוח הזה החודש
                                             </p>
                                         )}
                                     </div>
@@ -1977,7 +2139,12 @@ export default function SetupAppointment() {
                                                     params.set('tab', 'waitingList')
                                                     params.set('action', 'new')
                                                     params.set('treatmentId', selectedTreatment)
-                                                    params.set('serviceType', selectedServiceType)
+                                                    if (selectedServiceType) {
+                                                        params.set('serviceType', selectedServiceType)
+                                                    }
+                                                    if (selectedServiceId) {
+                                                        params.set('serviceId', selectedServiceId)
+                                                    }
                                                     navigate(`/appointments?${params.toString()}`)
                                                 }}
                                             >
@@ -2028,10 +2195,10 @@ export default function SetupAppointment() {
                                         <h3 className="text-sm font-semibold text-slate-800">סיכום הבחירה</h3>
                                         <div className="space-y-2 text-xs text-slate-600">
                                             <div>
-                                                <span className="font-medium">כלב:</span> {selectedTreatmentDetails?.name ?? "לא נבחר"}
+                                                <span className="font-medium">לקוח:</span> {selectedTreatmentDetails?.name ?? "לא נבחר"}
                                             </div>
                                             <div>
-                                                <span className="font-medium">שירות:</span> {selectedServiceType === "grooming" ? "תספורת" : selectedServiceType === "garden" ? "גן" : "תספורת וגן"}
+                                                <span className="font-medium">שירות:</span> {serviceDisplayName || "לא נבחר"}
                                             </div>
                                             <div>
                                                 <span className="font-medium">תאריך:</span> {selectedDate ? selectedDate.toLocaleDateString("he-IL", { day: "2-digit", month: "short", year: "numeric" }) : "לא נבחר"}
@@ -2125,7 +2292,7 @@ export default function SetupAppointment() {
                                                 />
                                                 <div className="text-right">
                                                     <label htmlFor="late-pickup" className="text-sm font-medium text-blue-900 cursor-pointer">
-                                                        אני רוצה לאסוף את הכלב מאוחר יותר
+                                                        אני רוצה להשלים את השירות מאוחר יותר
                                                     </label>
                                                     <p className="text-xs text-blue-700 mt-1">
                                                         איסוף מאוחר זמין עד 17:30. נשמח לדעת אם יש פרטים מיוחדים שכדאי שנדע.
@@ -2180,6 +2347,7 @@ export default function SetupAppointment() {
                                 )}
 
                                 {/* Action Buttons - Show only one button based on service and treatmentType requirements */}
+                                {/* Request Button - for treatmentTypes requiring special approval */}
                                 <>
                                     {/* Request Button - for treatmentTypes requiring special approval */}
                                     {shouldShowRequestButton && (
@@ -2211,17 +2379,19 @@ export default function SetupAppointment() {
                                                 isGardenSubscriptionMissing ||
                                                 isLoading ||
                                                 !termsApproved
-                                            ) && <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                                                    <div className="flex items-start gap-2">
-                                                        <div className="text-yellow-600 mt-0.5">⚠️</div>
-                                                        <div className="text-sm text-yellow-800">
-                                                            <p className="font-medium">התור לא נקבע עדיין</p>
-                                                            <p className="text-xs mt-1">
-                                                                הגזע של הכלב דורש אישור מיוחד. התור נשלח כבקשה ויאושר על ידי הצוות.
-                                                            </p>
+                                            ) && (
+                                                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                                                        <div className="flex items-start gap-2">
+                                                            <div className="text-yellow-600 mt-0.5">⚠️</div>
+                                                            <div className="text-sm text-yellow-800">
+                                                                <p className="font-medium">התור לא נקבע עדיין</p>
+                                                                <p className="text-xs mt-1">
+                                                                    העדפות השירות שנבחרו דורשות אישור מיוחד. התור נשלח כבקשה ויאושר על ידי הצוות.
+                                                                </p>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>}
+                                                )}
                                         </>
                                     )}
 
@@ -2237,6 +2407,11 @@ export default function SetupAppointment() {
                                     )}
                                 </>
 
+                                {/* Terms & Conditions Disclaimer */}
+                                <p className="text-xs text-gray-500 text-right">
+                                    שליחת הבקשה אינה מבטיחה אישור תור. הצוות שלנו יוודא שהפרטים תקינים ויאשר את המועד בהקדם.
+                                </p>
+                                {/* End action buttons */}
                             </div>
 
 
@@ -2266,7 +2441,7 @@ export default function SetupAppointment() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
                                         <Sparkles className="h-5 w-5" />
-                                        <span>הכלב שנבחר</span>
+                                        <span>הלקוח שנבחר</span>
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
@@ -2318,9 +2493,7 @@ export default function SetupAppointment() {
                                             </div>
                                             <div className="space-y-1">
                                                 <h3 className="font-semibold text-lg">
-                                                    {selectedServiceType === 'grooming' && 'תספורת'}
-                                                    {selectedServiceType === 'garden' && 'גן'}
-                                                    {selectedServiceType === 'both' && 'תספורת וגן'}
+                                                    {serviceDisplayName || (selectedServiceType ? SERVICE_TYPE_LABELS[selectedServiceType] : "שירות")}
                                                 </h3>
                                                 {serviceIntro && (
                                                     <p className="text-sm text-gray-600">{serviceIntro}</p>
@@ -2354,14 +2527,6 @@ export default function SetupAppointment() {
                     </div>
                 </div>
             </div>
-
-            {/* Add Treatment Dialog */}
-            <AddTreatmentDialog
-                open={isAddTreatmentDialogOpen}
-                onOpenChange={setIsAddTreatmentDialogOpen}
-                customerId={ownerId}
-                onSuccess={handleAddTreatmentSuccess}
-            />
         </div>
     )
 }

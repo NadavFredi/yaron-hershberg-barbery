@@ -81,7 +81,7 @@ export const appointments: Appointment[] = [
     treatmentName: 'בובי',
     serviceName: 'תספורת מלאה',
     stationName: 'עמדה 1 - יוסי',
-    internalNotes: 'הכלב עצבני, צריך להיות זהיר'
+    internalNotes: 'הלקוח עצבני, צריך להיות זהיר'
   }
 ];
 

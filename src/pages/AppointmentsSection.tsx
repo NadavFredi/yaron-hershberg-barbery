@@ -614,7 +614,7 @@ export default function AppointmentsSection() {
                     sourceTable: "daycare_appointments",
                     serviceType: "garden",
                     stationId: apt.station_id || station?.id || "garden",
-                    stationName: station?.name || "גן הכלבים",
+                    stationName: station?.name || "חלל המספרה",
                     startDateTime: apt.start_at,
                     endDateTime: apt.end_at,
                     status: apt.status || "pending",
@@ -811,7 +811,7 @@ export default function AppointmentsSection() {
         const ownerName = appointment?.clientName || typedTreatment.clientName || ""
         return {
             id: typedTreatment.id,
-            name: typedTreatment.name || "כלב ללא שם",
+            name: typedTreatment.name || "לקוח ללא שם",
             treatmentType: typedTreatment.treatmentType,
             clientClassification: typedTreatment.clientClassification || appointment?.clientClassification,
             owner: ownerName
@@ -884,7 +884,7 @@ export default function AppointmentsSection() {
         setIsTreatmentSheetOpen(false)
         setSearchTerm(treatmentName)
         toast({
-            title: "סינון לפי כלב",
+            title: "סינון לפי לקוח",
             description: `מציג נתונים עבור ${treatmentName}`,
         })
     }
@@ -1094,7 +1094,7 @@ export default function AppointmentsSection() {
                                         id="search"
                                         value={searchTerm}
                                         onChange={(event) => setSearchTerm(event.target.value)}
-                                        placeholder="חיפוש לפי שם כלב, לקוח, תחנה או הערות"
+                                        placeholder="חיפוש לפי שם לקוח, שירות, תחנה או הערות"
                                         className="pl-10"
                                     />
                                 </div>
@@ -1136,7 +1136,7 @@ export default function AppointmentsSection() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="treatment-cat1">קטגוריית כלב 1</Label>
+                                <Label htmlFor="treatment-cat1">קטגוריית לקוח 1</Label>
                                 <Select value={treatmentCategory1Filter} onValueChange={setTreatmentCategory1Filter}>
                                     <SelectTrigger id="treatment-cat1">
                                         <SelectValue placeholder="כל הקטגוריות" />
@@ -1152,7 +1152,7 @@ export default function AppointmentsSection() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="treatment-cat2">קטגוריית כלב 2</Label>
+                                <Label htmlFor="treatment-cat2">קטגוריית לקוח 2</Label>
                                 <Select value={treatmentCategory2Filter} onValueChange={setTreatmentCategory2Filter}>
                                     <SelectTrigger id="treatment-cat2">
                                         <SelectValue placeholder="כל הקטגוריות" />
@@ -1236,7 +1236,7 @@ export default function AppointmentsSection() {
                                         <TableHead className="text-right text-slate-600 font-semibold">תאריך ושעה</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold">סוג שירות</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold">לקוח</TableHead>
-                                        <TableHead className="text-right text-slate-600 font-semibold">כלב</TableHead>
+                                        <TableHead className="text-right text-slate-600 font-semibold">לקוח</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold">סטטוס</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold hidden lg:table-cell">תחנה / הערות</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold w-[60px]">פעולות</TableHead>

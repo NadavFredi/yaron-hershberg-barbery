@@ -72,7 +72,7 @@ const generateGoogleCalendarLink = (appointment: CombinedAppointment) => {
         parseDateTime(appointment.endDateTime) ??
         new Date(appointmentStart.getTime() + 60 * 60 * 1000)
 
-    const title = `${getServiceName(appointment.service)} - ${appointment.treatmentName || "כלב"}`
+    const title = `${getServiceName(appointment.service)} - ${appointment.treatmentName || "לקוח"}`
     const details = appointment.notes ? `הערות: ${appointment.notes}` : ""
 
     const formattedStart = formatForGoogleCalendar(appointmentStart)
@@ -83,7 +83,7 @@ const generateGoogleCalendarLink = (appointment: CombinedAppointment) => {
         text: title,
         dates: `${formattedStart}/${formattedEnd}`,
         details,
-        location: 'WagTime - מרכז טיפוח כלבים',
+        location: 'WagTime - מספרת בוטיק',
         trp: 'false',
     })
 

@@ -117,3 +117,17 @@ export interface BookingStep {
   customerPhone?: string;
   treatmentName?: string;
 }
+
+export interface WaitingListEntry {
+  id: string;
+  treatmentId: string | null;
+  treatmentName: string | null;
+  serviceType: string | null;
+  status: string | null;
+  notes?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  dateRanges: Array<{ startDate: string; endDate: string }>;
+  createdAt: string;
+  updatedAt?: string;
+}

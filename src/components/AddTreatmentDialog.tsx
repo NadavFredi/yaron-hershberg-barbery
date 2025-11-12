@@ -90,7 +90,7 @@ export function AddTreatmentDialog({ open, onOpenChange, customerId, onSuccess }
         if (!customerId) {
             toast({
                 title: "שגיאה",
-                description: "לא ניתן להוסיף כלב ללא זיהוי לקוח",
+                description: "לא ניתן להוסיף לקוח ללא שיוך לחשבון",
                 variant: "destructive",
             })
             return
@@ -99,7 +99,7 @@ export function AddTreatmentDialog({ open, onOpenChange, customerId, onSuccess }
         if (!treatmentData.name.trim()) {
             toast({
                 title: "שדה חובה",
-                description: "שם הכלב נדרש",
+                description: "שם הלקוח נדרש",
                 variant: "destructive",
             })
             return
@@ -108,7 +108,7 @@ export function AddTreatmentDialog({ open, onOpenChange, customerId, onSuccess }
         if (treatmentData.gender !== "male" && treatmentData.gender !== "female") {
             toast({
                 title: "שדה חובה",
-                description: "יש לבחור מין לכלב",
+                description: "יש לבחור מגדר ללקוח",
                 variant: "destructive",
             })
             return
@@ -119,7 +119,7 @@ export function AddTreatmentDialog({ open, onOpenChange, customerId, onSuccess }
         if (!selectedTreatmentType) {
             toast({
                 title: "שדה חובה",
-                description: "יש לבחור גזע לכלב",
+                description: "יש לבחור סגנון שירות ללקוח",
                 variant: "destructive",
             })
             return
@@ -142,19 +142,19 @@ export function AddTreatmentDialog({ open, onOpenChange, customerId, onSuccess }
 
             if (result.success && result.treatmentId) {
                 toast({
-                    title: "הכלב נוסף בהצלחה",
-                    description: `${treatmentData.name} נוסף לרשימת הכלבים שלך.`,
+                    title: "הלקוח נוסף בהצלחה",
+                    description: `${treatmentData.name} נוסף לרשימת הלקוחות שלך.`,
                 })
                 handleClose()
                 onSuccess?.(result.treatmentId)
             } else {
-                throw new Error(result.error || "שגיאה ביצירת הכלב")
+                throw new Error(result.error || "שגיאה ביצירת הלקוח")
             }
         } catch (error) {
             console.error("Failed to create treatment:", error)
             toast({
-                title: "שגיאה ביצירת הכלב",
-                description: error instanceof Error ? error.message : "לא ניתן ליצור את הכלב כעת",
+                title: "שגיאה ביצירת הלקוח",
+                description: error instanceof Error ? error.message : "לא ניתן ליצור את הלקוח כעת",
                 variant: "destructive",
             })
         }
@@ -164,17 +164,17 @@ export function AddTreatmentDialog({ open, onOpenChange, customerId, onSuccess }
         <Dialog open={open} onOpenChange={(open) => (open ? null : handleClose())}>
             <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto text-right">
                 <DialogHeader className="items-start text-right">
-                    <DialogTitle>הוסף כלב חדש</DialogTitle>
-                    <DialogDescription>מלא את הפרטים כדי להוסיף כלב חדש לרשימה שלך</DialogDescription>
+                    <DialogTitle>הוסף לקוח חדש</DialogTitle>
+                    <DialogDescription>מלא את הפרטים כדי להוסיף לקוח חדש לרשימה שלך</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="add-treatment-name" className="text-right">
-                            שם הכלב <span className="text-red-500">*</span>
+                            שם הלקוח <span className="text-red-500">*</span>
                         </Label>
                         <Input
                             id="add-treatment-name"
-                            placeholder="הכנס שם הכלב"
+                            placeholder="הכנס שם הלקוח"
                             value={treatmentData.name}
                             onChange={(e) => setTreatmentData({ ...treatmentData, name: e.target.value })}
                             className="text-right"
@@ -268,7 +268,7 @@ export function AddTreatmentDialog({ open, onOpenChange, customerId, onSuccess }
                                 onCheckedChange={(checked) => setTreatmentData({ ...treatmentData, aggression_risk: checked === true })}
                             />
                             <Label htmlFor="add-treatment-aggression-risk" className="text-right cursor-pointer">
-                                סיכון תוקפנות כלפי כלבים אחרים
+                                סיכון התנהגותי מול אחרים
                             </Label>
                         </div>
                         <div className="flex items-center space-x-2 space-x-reverse">
@@ -320,7 +320,7 @@ export function AddTreatmentDialog({ open, onOpenChange, customerId, onSuccess }
                         className="inline-flex items-center gap-2"
                     >
                         {isCreatingTreatment && <Loader2 className="h-4 w-4 animate-spin" />}
-                        הוסף כלב
+                        הוסף לקוח
                     </Button>
                     <Button variant="outline" onClick={handleClose} disabled={isCreatingTreatment}>
                         בטל

@@ -86,7 +86,7 @@ export const AppointmentTypeSelectionModal: React.FC<AppointmentTypeSelectionMod
                                     </div>
                                     <div className="text-right flex-1">
                                         <div className="font-semibold">תור עסקי</div>
-                                        <div className="text-sm text-gray-500">תור עם לקוח וכלב</div>
+                                        <div className="text-sm text-gray-500">תור עם לקוח ופרופיל שירות</div>
                                     </div>
                                 </div>
                             </Button>

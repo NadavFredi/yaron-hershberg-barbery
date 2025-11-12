@@ -15,7 +15,6 @@ interface StationFilterItemProps {
 }
 
 function StationFilterItem({ station, isSelected, onToggle }: StationFilterItemProps) {
-  const isGardenStation = station.serviceType === "garden"
   const {
     attributes,
     listeners,
@@ -25,7 +24,6 @@ function StationFilterItem({ station, isSelected, onToggle }: StationFilterItemP
     isDragging,
   } = useSortable({
     id: station.id,
-    disabled: isGardenStation,
   })
 
   const style = {
@@ -33,7 +31,9 @@ function StationFilterItem({ station, isSelected, onToggle }: StationFilterItemP
     transition,
   }
 
-  const draggableProps = isGardenStation ? {} : { ...attributes, ...listeners }
+  const isGardenStation = station.serviceType === "garden"
+
+  const draggableProps = { ...attributes, ...listeners }
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -41,10 +41,7 @@ function StationFilterItem({ station, isSelected, onToggle }: StationFilterItemP
         <button
           type="button"
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-md  text-gray-400 transition-colors",
-            isGardenStation
-              ? "cursor-default "
-              : " border border-transparent hover:border-blue-200 hover:text-blue-700"
+            "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-gray-400 transition-colors hover:border-blue-200 hover:text-blue-700"
           )}
           aria-label="שנה סדר עמדה"
           {...draggableProps}
@@ -66,13 +63,11 @@ function StationFilterItem({ station, isSelected, onToggle }: StationFilterItemP
           )}
         >
           <div className="flex items-center gap-2">
-            <span className={cn("font-medium", isGardenStation ? "text-emerald-900" : "text-gray-900")}>
-              {station.name}
-            </span>
+            <span className="font-medium text-gray-900">{station.name}</span>
             <span
               className={cn(
                 "rounded border px-2 py-0.5 text-[11px]",
-                isGardenStation ? "border-emerald-200 text-emerald-700 bg-emerald-50" : "border-slate-200 text-gray-600"
+                "border-slate-200 text-gray-600"
               )}
             >
               {station.serviceType === "garden" ? "גן" : "מספרה"}
@@ -82,12 +77,11 @@ function StationFilterItem({ station, isSelected, onToggle }: StationFilterItemP
             ) : null}
           </div>
           {isSelected ? (
-            <CheckCircle2 className={cn("h-4 w-4", isGardenStation ? "text-emerald-600" : "text-blue-600")} />
+            <CheckCircle2 className="h-4 w-4 text-blue-600" />
           ) : (
             <span
               className={cn(
-                "h-4 w-4 rounded-full border bg-white",
-                isGardenStation ? "border-emerald-300" : "border-slate-300"
+                "h-4 w-4 rounded-full border border-slate-300 bg-white"
               )}
             />
           )}
@@ -166,21 +160,27 @@ export function StationFilterPopover({
   align = "end",
   side = "bottom",
 }: StationFilterPopoverProps) {
-  if (!stations.length) return null
+  const displayStations = stations.filter((station) => station.serviceType !== "garden")
+  if (!displayStations.length) return null
 
-  const selectedCount = visibleStationIds.length === 0 ? stations.length : visibleStationIds.length
-  const gardenStations = stations.filter((station) => station.serviceType === "garden")
-  const otherStations = stations.filter((station) => station.serviceType !== "garden")
+  const displayStationIds = displayStations.map((station) => station.id)
+  const selectedDisplayCount =
+    visibleStationIds.length === 0
+      ? displayStations.length
+      : visibleStationIds.filter((id) => displayStationIds.includes(id)).length
 
   const defaultTrigger = (
     <Button type="button" variant="outline" size="sm" className="flex items-center gap-2 text-sm font-medium">
       <SlidersHorizontal className="h-4 w-4" />
       <span>עמדות</span>
       <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-        {selectedCount}/{stations.length}
+        {selectedDisplayCount}/{displayStations.length}
       </span>
     </Button>
   )
+
+  const areAllDisplaySelected =
+    visibleStationIds.length === 0 || displayStationIds.every((id) => visibleStationIds.includes(id))
 
   return (
     <Popover>
@@ -195,7 +195,7 @@ export function StationFilterPopover({
                 variant="ghost"
                 size="sm"
                 onClick={onSelectAll}
-                disabled={visibleStationIds.length === stations.length}
+                disabled={areAllDisplaySelected}
                 className="h-7 px-2 text-xs"
               >
                 בחר הכל
@@ -224,17 +224,9 @@ export function StationFilterPopover({
                 count={waitingListCount}
                 onToggle={onToggleWaitingList}
               />
-              {gardenStations.map((station) => (
-                <StationFilterItem
-                  key={`garden-station-filter-item-${station.id}`}
-                  station={station}
-                  isSelected={visibleStationIds.includes(station.id)}
-                  onToggle={onToggle}
-                />
-              ))}
-              <SortableContext items={otherStations.map((station) => station.id)} strategy={verticalListSortingStrategy}>
+              <SortableContext items={displayStationIds} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
-                  {otherStations.map((station) => (
+                  {displayStations.map((station) => (
                     <StationFilterItem
                       key={`station-filter-item-${station.id}`}
                       station={station}

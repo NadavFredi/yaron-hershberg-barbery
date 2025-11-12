@@ -42,20 +42,20 @@ serve(async (req) => {
 
   try {
     const body = await req.json()
-    const dogId = typeof body?.dogId === "string" ? body.dogId.trim() : ""
+    const profileId = typeof body?.profileId === "string" ? body.profileId.trim() : ""
 
-    if (!dogId) {
-      throw new Error("dogId parameter is required")
+    if (!profileId) {
+      throw new Error("profileId parameter is required")
     }
 
-    const data = await getDogAppointments(dogId)
+    const data = await getProfileAppointments(profileId)
 
     return new Response(JSON.stringify({ success: true, data }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     })
   } catch (error) {
-    console.error("❌ [get-dog-appointments] Error:", error)
+    console.error("❌ [get-profile-appointments] Error:", error)
     return new Response(
       JSON.stringify({
         success: false,
@@ -69,14 +69,18 @@ serve(async (req) => {
   }
 })
 
-async function getDogAppointments(dogId: string) {
-  const { data: dog, error: dogError } = await supabase.from("dogs").select("name").eq("id", dogId).single()
+async function getProfileAppointments(profileId: string) {
+  const { data: profile, error: profileError } = await supabase
+    .from("treatments")
+    .select("name")
+    .eq("id", profileId)
+    .single()
 
-  if (dogError || !dog) {
-    throw new Error(dogError?.message || `Dog with ID ${dogId} not found`)
+  if (profileError || !profile) {
+    throw new Error(profileError?.message || `Profile with ID ${profileId} not found`)
   }
 
-  const dogName = dog.name ?? "כלב ללא שם"
+  const profileName = profile.name ?? "לקוח ללא שם"
 
   const { data: appointments, error: appointmentsError } = await supabase
     .from("grooming_appointments")
@@ -91,7 +95,7 @@ async function getDogAppointments(dogId: string) {
         stations ( id, name )
       `
     )
-    .eq("dog_id", dogId)
+    .eq("treatment_id", profileId)
     .order("start_at", { ascending: false })
 
   if (appointmentsError) {
@@ -105,8 +109,8 @@ async function getDogAppointments(dogId: string) {
 
     return {
       id: appointment.id,
-      dogId,
-      dogName,
+      profileId,
+      profileName,
       date: startDate ? startDate.toISOString().split("T")[0] : "",
       time: startDate ? startDate.toISOString().split("T")[1]?.slice(0, 5) ?? "" : "",
       service: "grooming" as const,
@@ -121,3 +125,4 @@ async function getDogAppointments(dogId: string) {
 
   return { appointments: mapped }
 }
+

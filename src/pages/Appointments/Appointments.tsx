@@ -55,7 +55,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { BothAppointmentCard } from "@/components/BothAppointmentCard"
 import { AddWaitlistEntryModal } from "@/components/dialogs/AddWaitlistEntryModal"
 import type { Customer as WaitlistCustomer } from "@/components/CustomerSearchInput"
-import type { Treatment as WaitlistModalTreatment } from "@/components/TreatmentSelectInput"
+import type { WaitingListEntry } from "@/types"
 
 // Utility function to get service name in Hebrew
 const getServiceName = (service: string) => {
@@ -112,7 +112,7 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
         parseDateTime(appointment.endDateTime) ??
         new Date(appointmentStart.getTime() + 60 * 60 * 1000)
 
-    const title = `${getServiceName(appointment.service)} - ${appointment.treatmentName || "כלב"}`
+    const title = `${getServiceName(appointment.service)} - ${appointment.treatmentName || "לקוח"}`
     const details = appointment.notes ? `הערות: ${appointment.notes}` : ""
 
     const formattedStart = formatForGoogleCalendar(appointmentStart)
@@ -123,7 +123,7 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
         text: title,
         dates: `${formattedStart}/${formattedEnd}`,
         details,
-        location: 'WagTime - מרכז טיפוח כלבים',
+        location: 'WagTime - מספרת בוטיק',
         trp: 'false',
     })
 
@@ -166,24 +166,10 @@ interface Appointment {
     gardenBath?: boolean
 }
 
-interface WaitingListEntry {
-    id: string
-    treatmentId: string
-    treatmentName: string | null
-    serviceType: string | null
-    status: string | null
-    notes?: string | null
-    startDate: string | null
-    endDate: string | null
-    dateRanges: Array<{ startDate: string; endDate: string }>
-    createdAt: string
-}
-
 type WaitlistServiceScopeValue = 'grooming' | 'garden' | 'both' | 'daycare'
 
 interface WaitlistModalSubmission {
     customer: WaitlistCustomer
-    treatment: WaitlistModalTreatment
     entries: Array<{ startDate: string; endDate: string | null }>
     serviceScope: WaitlistServiceScopeValue
     notes: string
@@ -229,7 +215,6 @@ export default function Appointments() {
     const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null)
     const [isWaitingListDialogOpen, setIsWaitingListDialogOpen] = useState(false)
     const [editingWaitingListEntry, setEditingWaitingListEntry] = useState<WaitingListEntry | null>(null)
-    const [waitlistModalTreatmentId, setWaitlistModalTreatmentId] = useState<string | null>(null)
     const [waitlistModalServiceScope, setWaitlistModalServiceScope] = useState<WaitlistServiceScopeValue>('grooming')
     const [waitlistModalDateRanges, setWaitlistModalDateRanges] = useState<Array<{ startDate: string; endDate?: string | null }> | undefined>(undefined)
     const [waitlistModalNotes, setWaitlistModalNotes] = useState<string | null>(null)
@@ -564,33 +549,10 @@ export default function Appointments() {
         }
     }, [ownerId, user])
 
-    const waitlistModalTreatment = useMemo<WaitlistModalTreatment | null>(() => {
-        if (!waitlistModalTreatmentId) {
-            return null
-        }
-        const treatment = treatments.find((d) => d.id === waitlistModalTreatmentId)
-        if (!treatment) {
-            return null
-        }
-
-        return {
-            id: treatment.id,
-            name: treatment.name,
-            treatmentType: treatment.treatmentType,
-            size: treatment.size,
-            isSmall: treatment.isSmall,
-            ownerId: treatment.ownerId,
-        }
-    }, [treatments, waitlistModalTreatmentId])
-
-    const treatmentIds = useMemo(() => treatments.map((treatment) => treatment.id), [treatments])
-
-    const waitingListQueryArg = treatmentIds.length > 0 ? { treatmentIds } : skipToken
-
     const { data: waitingListData, isFetching: isFetchingWaitingList } = useGetWaitingListEntriesQuery(
-        waitingListQueryArg,
+        ownerId ? { customerId: ownerId } : skipToken,
         {
-            skip: treatmentIds.length === 0,
+            skip: !ownerId,
         }
     )
 
@@ -638,16 +600,6 @@ export default function Appointments() {
                 ? responseData
                 : (responseData as TreatmentAppointmentsResponse | undefined)?.appointments ?? []
 
-            console.log(`🔍 [Appointments] Treatment ${treatment.name} (${treatment.id}):`, {
-                queryStateExists: !!queryState,
-                responseDataType: Array.isArray(responseData) ? 'array' : typeof responseData,
-                responseDataLength: Array.isArray(responseData) ? responseData.length : 'N/A',
-                appointmentsCount: appointments.length,
-                isFetching: queryState?.isFetching,
-                isLoading: queryState?.isLoading,
-                hasError: !!queryState?.error,
-            })
-
             return {
                 treatment,
                 appointments,
@@ -669,30 +621,70 @@ export default function Appointments() {
         )
     }, [mergedAppointmentsByTreatment])
 
-    const waitingListEntries = useWaitingListEntries(waitingListData, treatmentIds)
+    const waitingListEntries = useWaitingListEntries(waitingListData)
 
-    const waitingListEntriesByTreatment = useMemo(() => {
-        const grouped = new Map<string, { treatment: Treatment; entries: WaitingListEntry[] }>()
+    const waitingListEntryGroups = useMemo(() => {
+        const grouped = new Map<
+            string,
+            { id: string; label: string; treatment?: Treatment; entries: WaitingListEntry[] }
+        >()
 
-        waitingListEntries.forEach((entry) => {
-            const treatment = treatments.find((d) => d.id === entry.treatmentId)
-            if (!treatment) return
-
-            if (!grouped.has(treatment.id)) {
-                grouped.set(treatment.id, { treatment, entries: [] })
-            }
-
-            grouped.get(treatment.id)!.entries.push(entry)
+        treatments.forEach((treatment) => {
+            grouped.set(treatment.id, {
+                id: treatment.id,
+                label: treatment.name,
+                treatment,
+                entries: [],
+            })
         })
 
-        return Array.from(grouped.values()).map(({ treatment, entries }) => ({
-            treatment,
-            entries: entries.sort((a, b) => {
-                const aDate = safeParseDate(a.startDate) ?? new Date(a.createdAt)
-                const bDate = safeParseDate(b.startDate) ?? new Date(b.createdAt)
-                return aDate.getTime() - bDate.getTime()
-            }),
-        }))
+        const GENERAL_GROUP_KEY = "general"
+
+        waitingListEntries.forEach((entry) => {
+            if (entry.treatmentId) {
+                const treatment = treatments.find((d) => d.id === entry.treatmentId)
+                const key = entry.treatmentId
+
+                if (!grouped.has(key)) {
+                    grouped.set(key, {
+                        id: key,
+                        label: entry.treatmentName ?? "בקשות ללקוח",
+                        entries: [],
+                    })
+                }
+
+                const group = grouped.get(key)!
+                if (!group.treatment && treatment) {
+                    group.treatment = treatment
+                    group.label = treatment.name
+                } else if (!group.label) {
+                    group.label = entry.treatmentName ?? "בקשות ללקוח"
+                }
+
+                group.entries.push(entry)
+            } else {
+                if (!grouped.has(GENERAL_GROUP_KEY)) {
+                    grouped.set(GENERAL_GROUP_KEY, {
+                        id: GENERAL_GROUP_KEY,
+                        label: "בקשות ללא שיוך ללקוח",
+                        entries: [],
+                    })
+                }
+
+                grouped.get(GENERAL_GROUP_KEY)!.entries.push(entry)
+            }
+        })
+
+        return Array.from(grouped.values())
+            .filter((group) => group.entries.length > 0)
+            .map((group) => ({
+                ...group,
+                entries: group.entries.sort((a, b) => {
+                    const aDate = safeParseDate(a.startDate) ?? new Date(a.createdAt)
+                    const bDate = safeParseDate(b.startDate) ?? new Date(b.createdAt)
+                    return aDate.getTime() - bDate.getTime()
+                }),
+            }))
     }, [waitingListEntries, treatments])
 
     const isFetchingAppointments = useMemo(() => {
@@ -719,33 +711,8 @@ export default function Appointments() {
         }
     }, [searchParams])
 
-    useEffect(() => {
-        if (!treatments.length) {
-            return
-        }
-
-        const tabParam = searchParams.get('tab')
-        const actionParam = searchParams.get('action')
-        if (tabParam === 'waitingList' && actionParam === 'new') {
-            const treatmentParam = searchParams.get('treatmentId')
-            const serviceTypeParam = searchParams.get('serviceType')
-            const validServiceTypes = new Set(['grooming', 'garden', 'both'])
-            const chosenService = serviceTypeParam && validServiceTypes.has(serviceTypeParam) ? serviceTypeParam : 'grooming'
-            const chosenTreatmentId = treatmentParam && treatments.some((treatment) => treatment.id === treatmentParam) ? treatmentParam : treatments[0].id
-
-            openWaitingListDialog(undefined, { treatmentId: chosenTreatmentId, serviceType: chosenService })
-
-            const params = new URLSearchParams(searchParams)
-            params.set('tab', 'waitingList')
-            params.delete('action')
-            params.delete('treatmentId')
-            params.delete('serviceType')
-            setSearchParams(params, { replace: true })
-        }
-    }, [treatments, searchParams])
-
     const treatmentsErrorMessage = useMemo(
-        () => extractErrorMessage(treatmentsQueryError, "שגיאה בטעינת רשימת הכלבים"),
+        () => extractErrorMessage(treatmentsQueryError, "שגיאה בטעינת רשימת הלקוחות"),
         [treatmentsQueryError]
     )
 
@@ -1080,19 +1047,14 @@ export default function Appointments() {
         setIsCancellingAppointment(true)
 
         try {
-            console.log("Cancelling appointment:", appointment.id)
-
             // Handle "both" appointments by cancelling both grooming and garden appointments
             if (appointment.service === 'both' && appointment.groomingAppointmentId && appointment.gardenAppointmentId) {
-                console.log(`Cancelling both grooming (${appointment.groomingAppointmentId}) and garden (${appointment.gardenAppointmentId}) appointments`)
-
                 const result = await cancelCombinedAppointments({
                     groomingAppointmentId: appointment.groomingAppointmentId,
                     gardenAppointmentId: appointment.gardenAppointmentId,
                 })
 
                 if (result.success) {
-                    console.log(`Both appointments cancelled successfully`)
                     // Update the merged appointments cache
                     dispatch(
                         supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
@@ -1159,8 +1121,6 @@ export default function Appointments() {
                         title: "התור בוטל",
                         description: successMessage,
                     })
-
-                    console.log("Appointment cancelled successfully:", result)
                     invalidateAppointmentsCache()
                 } else {
                     const errorMessage = result.error || "שגיאה בביטול התור"
@@ -1190,14 +1150,11 @@ export default function Appointments() {
         setApprovingAppointmentId(appointmentId)
 
         try {
-            console.log(`Approving individual ${service} appointment ${appointmentId}`)
-
             const result = service === 'grooming'
                 ? await approveGroomingAppointment(appointmentId, 'approved')
                 : await approveAppointment(appointmentId, 'approved')
 
             if (result.success) {
-                console.log(`Individual appointment approved successfully`)
                 // Update the merged appointments cache for all treatments
                 treatments.forEach(treatment => {
                     dispatch(
@@ -1261,7 +1218,6 @@ export default function Appointments() {
         setCancellingAppointmentId(appointmentId)
 
         try {
-            console.log(`Cancelling individual appointment ${appointmentId}`)
 
             const appointmentDetails = allAppointments.find((apt) =>
                 apt.id === appointmentId ||
@@ -1282,7 +1238,6 @@ export default function Appointments() {
             })
 
             if (result.success) {
-                console.log(`Individual appointment cancelled successfully`)
                 // Update the merged appointments cache for all treatments
                 treatments.forEach(treatment => {
                     dispatch(
@@ -1335,12 +1290,9 @@ export default function Appointments() {
 
     const handleIndividualNotesUpdate = async (appointmentId: string, service: 'grooming' | 'garden', notes: string) => {
         try {
-            console.log(`Updating notes for individual appointment ${appointmentId}`)
-
             const result = await updateAppointmentNotesRequest(appointmentId, service, notes)
 
             if (result.success) {
-                console.log(`Notes updated successfully for appointment ${appointmentId}`)
                 toast({
                     title: "הערות עודכנו",
                     description: "הערות התור עודכנו בהצלחה",
@@ -1402,19 +1354,14 @@ export default function Appointments() {
         setApprovingAppointmentId(appointment.id)
 
         try {
-            console.log(`Approving appointment ${appointment.id}`)
-
             // Handle "both" appointments by approving both grooming and garden appointments
             if (appointment.service === 'both' && appointment.groomingAppointmentId && appointment.gardenAppointmentId) {
-                console.log(`Approving both grooming (${appointment.groomingAppointmentId}) and garden (${appointment.gardenAppointmentId}) appointments`)
-
                 const result = await approveCombinedAppointments({
                     groomingAppointmentId: appointment.groomingAppointmentId,
                     gardenAppointmentId: appointment.gardenAppointmentId,
                 })
 
                 if (result.success) {
-                    console.log(`Both appointments approved successfully`)
                     // Update the merged appointments cache
                     dispatch(
                         supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
@@ -1452,7 +1399,6 @@ export default function Appointments() {
                     : await approveAppointment(appointment.id, 'approved')
 
                 if (result.success) {
-                    console.log(`Appointment approved successfully`)
                     dispatch(
                         supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
                             'getMergedAppointments',
@@ -1510,16 +1456,14 @@ export default function Appointments() {
         setSearchParams(params, { replace: true })
     }
 
-    const openWaitingListDialog = (entry?: WaitingListEntry, options?: { treatmentId?: string; serviceType?: string }) => {
+    const openWaitingListDialog = (entry?: WaitingListEntry, options?: { serviceType?: string }) => {
         if (entry) {
             setEditingWaitingListEntry(entry)
-            setWaitlistModalTreatmentId(entry.treatmentId)
             setWaitlistModalServiceScope(normalizeServiceScopeFromEntry(entry.serviceType))
             setWaitlistModalDateRanges(getEntryDateRanges(entry))
             setWaitlistModalNotes(entry.notes ?? "")
         } else {
             setEditingWaitingListEntry(null)
-            setWaitlistModalTreatmentId(options?.treatmentId ?? treatments[0]?.id ?? null)
             setWaitlistModalServiceScope(
                 options?.serviceType ? normalizeServiceScopeFromEntry(options.serviceType) : 'grooming'
             )
@@ -1529,6 +1473,25 @@ export default function Appointments() {
 
         setIsWaitingListDialogOpen(true)
     }
+
+    useEffect(() => {
+        const tabParam = searchParams.get('tab')
+        const actionParam = searchParams.get('action')
+        if (tabParam === 'waitingList' && actionParam === 'new') {
+            const serviceTypeParam = searchParams.get('serviceType')
+            const validServiceTypes = new Set(['grooming', 'garden', 'both'])
+            const chosenService = serviceTypeParam && validServiceTypes.has(serviceTypeParam) ? serviceTypeParam : 'grooming'
+
+            openWaitingListDialog(undefined, { serviceType: chosenService })
+
+            const params = new URLSearchParams(searchParams)
+            params.set('tab', 'waitingList')
+            params.delete('action')
+            params.delete('serviceType')
+            params.delete('treatmentId')
+            setSearchParams(params, { replace: true })
+        }
+    }, [openWaitingListDialog, searchParams])
 
     const closeWaitingListDialog = () => {
         setIsWaitingListDialogOpen(false)
@@ -1559,9 +1522,9 @@ export default function Appointments() {
 
     const handleWaitlistSubmit = useCallback(
         async (submission: WaitlistModalSubmission) => {
-            const treatmentId = submission.treatment.id
-            if (!treatmentId) {
-                throw new Error("יש לבחור כלב עבור בקשת ההמתנה")
+            const customerId = submission.customer.id
+            if (!customerId) {
+                throw new Error("יש לבחור לקוח עבור בקשת ההמתנה")
             }
 
             const dateRanges = submission.entries.map(({ startDate, endDate }) => ({
@@ -1573,8 +1536,8 @@ export default function Appointments() {
 
             const apiResult =
                 submission.mode === 'edit' && submission.entryId
-                    ? await updateWaitingListEntry(submission.entryId, treatmentId, serviceScope, dateRanges)
-                    : await registerWaitingList(treatmentId, serviceScope, dateRanges, user?.id)
+                    ? await updateWaitingListEntry(submission.entryId, serviceScope, dateRanges)
+                    : await registerWaitingList(customerId, serviceScope, dateRanges, user?.id)
 
             if (!apiResult?.success) {
                 throw new Error(apiResult?.error || "שגיאה בשמירת בקשת ההמתנה")
@@ -1592,8 +1555,8 @@ export default function Appointments() {
                     <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
                     <p className="mt-4 text-gray-600">טוען תורים...</p>
                     <div className="mt-4 space-y-2">
-                        <p className="text-sm text-gray-500">טוען רשימת הכלבים</p>
-                        <p className="text-sm text-gray-500">טוען תורים עבור כל כלב</p>
+                        <p className="text-sm text-gray-500">טוען רשימת הלקוחות</p>
+                        <p className="text-sm text-gray-500">טוען תורים עבור כל לקוח</p>
                     </div>
                 </div>
             </div>
@@ -1681,7 +1644,7 @@ export default function Appointments() {
 
                             <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-right space-y-3">
                                 <div className="text-base font-semibold text-red-800">
-                                    {appointmentPendingCancellation.treatmentName || "כלב לא ידוע"}
+                                    {appointmentPendingCancellation.treatmentName || "לקוח לא ידוע"}
                                 </div>
                                 <div className="flex items-center  gap-2 text-sm text-red-700">
                                     <CalendarIcon className="h-4 w-4" />
@@ -1799,14 +1762,14 @@ export default function Appointments() {
                             <DialogTitle className="text-xl font-semibold text-gray-900">עדכון איסוף מאוחר</DialogTitle>
                         </div>
                         <DialogDescription className="text-xs text-gray-600 leading-relaxed text-right">
-                            ספרו לנו אם תרצו לאסוף את הכלב מאוחר יותר מהגן ביום הזה. איסוף מאוחר זמין עד 17:30.
+                            ספרו לנו אם תרצו להאריך את השהות במספרה ביום הזה. זמינות מאוחרת פתוחה עד 17:30.
                         </DialogDescription>
                     </DialogHeader>
 
                     {latePickupDialogAppointment && (
                         <div className="space-y-4">
                             <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 space-y-1">
-                                <div className="font-semibold">{latePickupDialogAppointment.treatmentName || "כלב"}</div>
+                                <div className="font-semibold">{latePickupDialogAppointment.treatmentName || "לקוח"}</div>
                                 <div className="flex flex-wrap items-center gap-3  text-xs text-gray-500">
                                     {latePickupDialogDateLabel && (
                                         <div className="flex items-center gap-1">
@@ -1899,10 +1862,9 @@ export default function Appointments() {
                 }}
                 onSubmit={handleWaitlistSubmit}
                 defaultCustomer={waitlistModalCustomer}
-                defaultTreatment={waitlistModalTreatment}
                 disableCustomerSelection={Boolean(waitlistModalCustomer)}
                 title={editingWaitingListEntry ? "עריכת בקשת המתנה" : "בקשת המתנה חדשה"}
-                description="בחר את הכלב וסוג השירות כדי לקבל התראה כאשר יפתח תור פנוי."
+                description="בחר את פרטי הלקוח וסוג השירות כדי לקבל התראה כאשר יפתח תור פנוי."
                 submitLabel={editingWaitingListEntry ? "עדכן בקשה" : "הוסף לרשימת המתנה"}
                 serviceScopeOptions={[
                     { value: 'grooming', label: 'תספורת' },
@@ -1931,7 +1893,7 @@ export default function Appointments() {
                         <CardContent className="p-12 text-center">
                             <CalendarIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                             <h3 className="text-xl font-semibold text-gray-800 mb-2">אין תורים</h3>
-                            <p className="text-gray-600 mb-4">עדיין לא קבעת תורים עבור הכלבים שלך.</p>
+                            <p className="text-gray-600 mb-4">עדיין לא קבעת תורים עבור הלקוחות שלך.</p>
                             <Button
                                 onClick={() => navigate('/setup-appointment')}
                                 className="bg-blue-600 hover:bg-blue-700"
@@ -2051,7 +2013,7 @@ export default function Appointments() {
                                                             <div className="flex items-center gap-2 justify-end">
                                                                 {getStatusBadge(appointment)}
 
-                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "כלב לא ידוע"}</h3>
+                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "לקוח לא ידוע"}</h3>
                                                                 {getApprovalBadge(appointment)}
                                                             </div>
                                                             {/* Details row */}
@@ -2180,20 +2142,18 @@ export default function Appointments() {
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" dir="rtl">
                                 <div className="space-y-1 text-right">
                                     <h3 className="text-lg font-semibold text-gray-800">בקשות רשימת המתנה</h3>
-                                    <p className="text-sm text-gray-500">נהל כאן את הבקשות להודעה על תורים פנויים עבור הכלבים שלך.</p>
+                                    <p className="text-sm text-gray-500">נהל כאן את הבקשות להודעה על תורים פנויים עבור הלקוחות שלך.</p>
                                 </div>
-                                {treatments.length > 0 && (
-                                    <Button
-                                        onClick={() => {
-                                            handleTabChange('waitingList')
-                                            openWaitingListDialog(undefined, { treatmentId: treatments[0].id, serviceType: 'grooming' })
-                                        }}
-                                        className="bg-emerald-600 hover:bg-emerald-700 flex items-center gap-2 self-start sm:self-auto"
-                                    >
-                                        <PlusCircle className="h-4 w-4" />
-                                        בקשה חדשה
-                                    </Button>
-                                )}
+                                <Button
+                                    onClick={() => {
+                                        handleTabChange('waitingList')
+                                        openWaitingListDialog(undefined, { serviceType: 'grooming' })
+                                    }}
+                                    className="bg-emerald-600 hover:bg-emerald-700 flex items-center gap-2 self-start sm:self-auto"
+                                >
+                                    <PlusCircle className="h-4 w-4" />
+                                    בקשה חדשה
+                                </Button>
                             </div>
 
                             {isFetchingWaitingList ? (
@@ -2203,7 +2163,7 @@ export default function Appointments() {
                                         <span>טוען את רשימת ההמתנה...</span>
                                     </CardContent>
                                 </Card>
-                            ) : waitingListEntriesByTreatment.length === 0 ? (
+                            ) : waitingListEntryGroups.length === 0 ? (
                                 <Card className="bg-gray-50 border-gray-200">
                                     <CardContent className="p-12 text-center space-y-3">
                                         <CalendarIcon className="h-16 w-16 text-gray-300 mx-auto" />
@@ -2212,15 +2172,15 @@ export default function Appointments() {
                                     </CardContent>
                                 </Card>
                             ) : (
-                                waitingListEntriesByTreatment.map(({ treatment, entries }) => (
-                                    <Card key={treatment.id} className="border border-emerald-200 shadow-sm" dir="rtl">
+                                waitingListEntryGroups.map(({ id, label, treatment, entries }) => (
+                                    <Card key={id} className="border border-emerald-200 shadow-sm" dir="rtl">
                                         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-right">
                                             <div className="flex items-center gap-2 justify-end">
                                                 <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center ml-2">
                                                     <Sparkles className="h-6 w-6 text-emerald-700" />
                                                 </div>
                                                 <div className="text-right">
-                                                    <CardTitle className="text-right">{treatment.name}</CardTitle>
+                                                    <CardTitle className="text-right">{label}</CardTitle>
                                                     <CardDescription className="text-right text-gray-500">סה"כ בקשות: {entries.length}</CardDescription>
                                                 </div>
                                             </div>
@@ -2366,7 +2326,7 @@ export default function Appointments() {
                                                             <div className="flex items-center gap-2 justify-end">
                                                                 {getStatusBadge(appointment)}
                                                                 {appointmentIncludesGarden(appointment) ? renderLatePickupBadge(appointment.latePickupRequested) : null}
-                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "כלב לא ידוע"}</h3>
+                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "לקוח לא ידוע"}</h3>
                                                                 {getApprovalBadge(appointment)}
                                                             </div>
                                                             {/* Details row */}

@@ -195,7 +195,7 @@ serve(async (req) => {
 
     if (meeting.reschedule_treatment_id && meeting.reschedule_treatment_id !== treatmentId) {
       return new Response(
-        JSON.stringify({ success: false, error: "אפשר לאשר רק עם הכלב ששויך להצעה" }),
+        JSON.stringify({ success: false, error: "אפשר לאשר רק עם הלקוח ששויך להצעה" }),
         {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -273,7 +273,7 @@ serve(async (req) => {
 
         if (meeting.reschedule_treatment_id && originalAppointment.treatment_id !== meeting.reschedule_treatment_id) {
           return new Response(
-            JSON.stringify({ success: false, error: "התור המקורי שייך לכלב אחר" }),
+            JSON.stringify({ success: false, error: "התור המקורי שייך ללקוח אחר" }),
             {
               status: 409,
               headers: { ...corsHeaders, "Content-Type": "application/json" },

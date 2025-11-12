@@ -5,7 +5,7 @@ import type { WaitingListEntry } from "@/types"
 export interface SupabaseWaitingListEntry {
   id: string
   customer_id: string
-  treatment_id: string
+  treatment_id: string | null
   service_scope: "grooming" | "daycare" | "both"
   status: "active" | "fulfilled" | "cancelled"
   start_date: string
@@ -38,17 +38,17 @@ export interface WaitingListDateRange {
 }
 
 /**
- * Get all waiting list entries for given treatment IDs
+ * Get all waiting list entries for a given customer
  */
-export async function getWaitingListEntries(treatmentIds: string[]): Promise<SupabaseWaitingListEntry[]> {
-  if (treatmentIds.length === 0) {
+export async function getWaitingListEntries(customerId: string): Promise<SupabaseWaitingListEntry[]> {
+  if (!customerId) {
     return []
   }
 
   const { data, error } = await supabase
-    .from("daycare_waitlist")
+    .from("waitlist")
     .select("*")
-    .in("treatment_id", treatmentIds)
+    .eq("customer_id", customerId)
     .eq("status", "active")
     .order("created_at", { ascending: false })
 
@@ -64,27 +64,20 @@ export async function getWaitingListEntries(treatmentIds: string[]): Promise<Sup
  * Register a new waiting list entry
  */
 export async function registerWaitingList(
-  treatmentId: string,
+  customerId: string,
   serviceType: "grooming" | "daycare" | "both",
   dateRanges: WaitingListDateRange[],
   _userId?: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    // Get treatment and customer info
-    const { data: treatment, error: treatmentError } = await supabase
-      .from("treatments")
-      .select("id, customer_id")
-      .eq("id", treatmentId)
-      .single()
-
-    if (treatmentError || !treatment) {
-      throw new Error(`Treatment not found: ${treatmentError?.message || "Unknown error"}`)
+    if (!customerId) {
+      throw new Error("Customer ID is required")
     }
 
     // Create entries for each date range
     const entries = dateRanges.map((range) => ({
-      treatment_id: treatmentId,
-      customer_id: treatment.customer_id,
+      treatment_id: null,
+      customer_id: customerId,
       service_scope: serviceType,
       status: "active" as const,
       start_date: range.startDate,
@@ -92,7 +85,7 @@ export async function registerWaitingList(
     }))
 
     const { error: insertError } = await supabase
-      .from("daycare_waitlist")
+      .from("waitlist")
       .insert(entries)
 
     if (insertError) {
@@ -117,7 +110,6 @@ export async function registerWaitingList(
  */
 export async function updateWaitingListEntry(
   entryId: string,
-  treatmentId: string,
   serviceType: "grooming" | "daycare" | "both",
   dateRanges: WaitingListDateRange[]
 ): Promise<{ success: boolean; message?: string; error?: string }> {
@@ -128,7 +120,7 @@ export async function updateWaitingListEntry(
 
     // Update the first date range to the existing entry
     const { error: updateError } = await supabase
-      .from("daycare_waitlist")
+      .from("waitlist")
       .update({
         service_scope: serviceType,
         start_date: dateRanges[0].startDate,
@@ -143,7 +135,7 @@ export async function updateWaitingListEntry(
     // If there are additional date ranges, create new entries for them
     if (dateRanges.length > 1) {
       const { data: existingEntry } = await supabase
-        .from("daycare_waitlist")
+        .from("waitlist")
         .select("customer_id")
         .eq("id", entryId)
         .single()
@@ -159,7 +151,7 @@ export async function updateWaitingListEntry(
         }))
 
         const { error: insertError } = await supabase
-          .from("daycare_waitlist")
+          .from("waitlist")
           .insert(newEntries)
 
         if (insertError) {
@@ -190,7 +182,7 @@ export async function deleteWaitingListEntry(
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
     const { error } = await supabase
-      .from("daycare_waitlist")
+      .from("waitlist")
       .update({ status: "cancelled" })
       .eq("id", entryId)
 
@@ -502,7 +494,7 @@ export async function approveGroomingAppointment(
  */
 export function transformWaitingListEntries(
   waitingListData: SupabaseWaitingListEntry[] | LegacyWaitingListEntry[] | { entries?: LegacyWaitingListEntry[] } | undefined,
-  treatmentIds: string[]
+  treatmentIds?: string[]
 ): WaitingListEntry[] {
   // Handle both old format ({ entries: [...] }) and new format (array directly)
   let entries: LegacyWaitingListEntry[] = []
@@ -515,11 +507,14 @@ export function transformWaitingListEntries(
   // Transform from Supabase format to component format
   return entries
     .filter((entry) => {
+      if (!treatmentIds || treatmentIds.length === 0) {
+        return true
+      }
       const treatmentId = entry.treatment_id || entry.treatmentId
-      return treatmentId && treatmentIds.includes(treatmentId)
+      return !treatmentId || treatmentIds.includes(treatmentId)
     })
     .map((entry) => {
-      const treatmentId = entry.treatment_id || entry.treatmentId
+      const treatmentId = entry.treatment_id || entry.treatmentId || null
       const serviceType = entry.service_scope || entry.serviceType || "grooming"
       const status = entry.status || "pending"
 
@@ -536,7 +531,8 @@ export function transformWaitingListEntries(
 
       return {
         id: entry.id,
-        treatmentId: treatmentId!,
+        treatmentId,
+        treatmentName: (entry as any)?.treatment_name || (entry as any)?.treatmentName || null,
         serviceType: serviceType === "daycare" ? "garden" : serviceType, // Map daycare to garden for compatibility
         status: status,
         dateRanges,
@@ -552,7 +548,7 @@ export function transformWaitingListEntries(
  */
 export function useWaitingListEntries(
   waitingListData: SupabaseWaitingListEntry[] | LegacyWaitingListEntry[] | { entries?: LegacyWaitingListEntry[] } | undefined,
-  treatmentIds: string[]
+  treatmentIds?: string[]
 ): WaitingListEntry[] {
   return useMemo(() => transformWaitingListEntries(waitingListData, treatmentIds), [waitingListData, treatmentIds])
 }

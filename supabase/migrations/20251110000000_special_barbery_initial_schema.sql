@@ -42,39 +42,11 @@ CREATE TABLE IF NOT EXISTS public.stations (
   UNIQUE(name)
 );
 
-CREATE TABLE IF NOT EXISTS public.station_treatment_types (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  station_id UUID NOT NULL REFERENCES public.stations(id) ON DELETE CASCADE,
-  treatment_type_id UUID NOT NULL REFERENCES public.treatment_types(id) ON DELETE CASCADE,
-  custom_duration_minutes INTEGER,
-  custom_price DECIMAL(10,2),
-  is_available BOOLEAN NOT NULL DEFAULT true,
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  UNIQUE(station_id, treatment_type_id)
-);
 
 CREATE TYPE public.appointment_status AS ENUM ('pending', 'scheduled', 'completed', 'cancelled', 'no_show');
 CREATE TYPE public.payment_status AS ENUM ('unpaid', 'paid', 'partial');
 CREATE TYPE public.appointment_kind AS ENUM ('business', 'personal');
 CREATE TYPE public.questionnaire_result AS ENUM ('not_required', 'pending', 'approved', 'rejected');
-
-CREATE TABLE IF NOT EXISTS public.appointments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
-  station_id UUID NOT NULL REFERENCES public.stations(id) ON DELETE CASCADE,
-  treatment_type_id UUID NOT NULL REFERENCES public.treatment_types(id) ON DELETE SET NULL,
-  status public.appointment_status NOT NULL DEFAULT 'scheduled',
-  scheduled_start TIMESTAMP WITH TIME ZONE NOT NULL,
-  scheduled_end TIMESTAMP WITH TIME ZONE,
-  actual_start TIMESTAMP WITH TIME ZONE,
-  actual_end TIMESTAMP WITH TIME ZONE,
-  notes TEXT,
-  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
 
 CREATE TABLE IF NOT EXISTS public.station_unavailability (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -132,16 +104,6 @@ CREATE TABLE IF NOT EXISTS public.station_working_hours (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   UNIQUE (station_id, weekday, shift_order),
   CHECK (close_time > open_time)
-);
-
-CREATE TABLE IF NOT EXISTS public.daycare_capacity_limits (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  effective_date DATE NOT NULL,
-  trial_limit INTEGER NOT NULL DEFAULT 0,
-  regular_limit INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  UNIQUE(effective_date)
 );
 
 CREATE TABLE IF NOT EXISTS public.ticket_types (
@@ -227,20 +189,18 @@ CREATE TABLE IF NOT EXISTS public.services (
   description TEXT,
   category TEXT,
   display_order INTEGER NOT NULL DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-INSERT INTO public.services (name, description, category, display_order, is_active)
+INSERT INTO public.services (name, description, category, display_order)
 VALUES
-  ('grooming', 'טיפולי שיער במספרה', 'barbery', 1, true),
-  ('special-care', 'טיפולי פרימיום מותאמים אישית', 'barbery', 2, true)
+  ('grooming', 'טיפולי שיער במספרה', 'barbery', 1),
+  ('special-care', 'טיפולי פרימיום מותאמים אישית', 'barbery', 2)
 ON CONFLICT (name) DO UPDATE
 SET description = EXCLUDED.description,
     category = EXCLUDED.category,
     display_order = EXCLUDED.display_order,
-    is_active = EXCLUDED.is_active,
     updated_at = now();
 
 
@@ -269,7 +229,7 @@ CREATE TABLE IF NOT EXISTS public.treatmentType_treatment_categories (
   UNIQUE (treatment_type_id, treatment_category_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.daycare_waitlist (
+CREATE TABLE IF NOT EXISTS public.waitlist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
   treatment_id UUID REFERENCES public.treatments(id) ON DELETE SET NULL,
@@ -282,52 +242,29 @@ CREATE TABLE IF NOT EXISTS public.daycare_waitlist (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.grooming_appointments (
+CREATE TABLE IF NOT EXISTS public.appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id UUID REFERENCES public.customers(id) ON DELETE CASCADE,
-  treatment_id UUID REFERENCES public.treatments(id) ON DELETE CASCADE,
-  station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
+  airtable_id TEXT UNIQUE,
+  customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  treatment_id UUID NOT NULL REFERENCES public.treatments(id) ON DELETE CASCADE,
   service_id UUID REFERENCES public.services(id) ON DELETE SET NULL,
+  station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
   status public.appointment_status NOT NULL DEFAULT 'scheduled',
   payment_status public.payment_status NOT NULL DEFAULT 'unpaid',
   appointment_kind public.appointment_kind NOT NULL DEFAULT 'business',
   start_at TIMESTAMP WITH TIME ZONE NOT NULL,
   end_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  series_id TEXT,
+  personal_reason TEXT,
   customer_notes TEXT,
   internal_notes TEXT,
   amount_due NUMERIC(10,2),
+  billing_url TEXT,
+  billing_triggered_at TIMESTAMP WITH TIME ZONE,
+  pickup_reminder_sent_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.daycare_appointments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id UUID REFERENCES public.customers(id) ON DELETE CASCADE,
-  treatment_id UUID REFERENCES public.treatments(id) ON DELETE CASCADE,
-  station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
-  status public.appointment_status NOT NULL DEFAULT 'scheduled',
-  payment_status public.payment_status NOT NULL DEFAULT 'unpaid',
-  amount_due NUMERIC(10,2),
-  service_type TEXT,
-  start_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  end_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  customer_notes TEXT,
-  internal_notes TEXT,
-  questionnaire_result public.questionnaire_result NOT NULL DEFAULT 'pending',
-  late_pickup_requested BOOLEAN,
-  late_pickup_notes TEXT,
-  garden_trim_nails BOOLEAN,
-  garden_brush BOOLEAN,
-  garden_bath BOOLEAN,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.combined_appointments (
-  grooming_appointment_id UUID REFERENCES public.grooming_appointments(id) ON DELETE CASCADE,
-  daycare_appointment_id UUID REFERENCES public.daycare_appointments(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  PRIMARY KEY (grooming_appointment_id, daycare_appointment_id)
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  CHECK (end_at > start_at)
 );
 
 CREATE TABLE IF NOT EXISTS public.proposed_meetings (
@@ -341,7 +278,7 @@ CREATE TABLE IF NOT EXISTS public.proposed_meetings (
   title TEXT,
   summary TEXT,
   notes TEXT,
-  reschedule_appointment_id UUID REFERENCES public.grooming_appointments(id) ON DELETE SET NULL,
+  reschedule_appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
   reschedule_customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
   reschedule_treatment_id UUID REFERENCES public.treatments(id) ON DELETE SET NULL,
   reschedule_original_start_at TIMESTAMP WITH TIME ZONE,
@@ -400,10 +337,6 @@ CREATE TRIGGER set_updated_at_stations
   BEFORE UPDATE ON public.stations
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
-CREATE TRIGGER set_updated_at_station_treatment_types
-  BEFORE UPDATE ON public.station_treatment_types
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 CREATE TRIGGER set_updated_at_appointments
   BEFORE UPDATE ON public.appointments
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -428,10 +361,6 @@ CREATE TRIGGER set_updated_at_station_working_hours
   BEFORE UPDATE ON public.station_working_hours
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
-CREATE TRIGGER set_updated_at_daycare_capacity_limits
-  BEFORE UPDATE ON public.daycare_capacity_limits
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 CREATE TRIGGER set_updated_at_ticket_types
   BEFORE UPDATE ON public.ticket_types
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -440,16 +369,8 @@ CREATE TRIGGER set_updated_at_custom_absence_reasons
   BEFORE UPDATE ON public.custom_absence_reasons
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
-CREATE TRIGGER set_updated_at_daycare_waitlist
-  BEFORE UPDATE ON public.daycare_waitlist
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-CREATE TRIGGER set_updated_at_grooming_appointments
-  BEFORE UPDATE ON public.grooming_appointments
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-CREATE TRIGGER set_updated_at_daycare_appointments
-  BEFORE UPDATE ON public.daycare_appointments
+CREATE TRIGGER set_updated_at_waitlist
+  BEFORE UPDATE ON public.waitlist
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 CREATE TRIGGER set_updated_at_customer_types
@@ -480,7 +401,6 @@ CREATE TRIGGER set_updated_at_treatment_categories
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.treatment_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.station_treatment_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.station_unavailability ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -489,16 +409,12 @@ ALTER TABLE public.treatments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendar_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.business_hours ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.station_working_hours ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.daycare_capacity_limits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ticket_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.custom_absence_reasons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.daycare_waitlist ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.grooming_appointments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.daycare_appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customer_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.station_allowed_customer_types ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.combined_appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.proposed_meetings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.proposed_meeting_invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.proposed_meeting_categories ENABLE ROW LEVEL SECURITY;
@@ -527,13 +443,6 @@ BEGIN
     WHERE schemaname = 'public' AND tablename = 'stations' AND policyname = 'Allow all operations on stations'
   ) THEN
     EXECUTE 'CREATE POLICY "Allow all operations on stations" ON public.stations FOR ALL USING (true);';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'station_treatment_types' AND policyname = 'Allow all operations on station_treatment_types'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Allow all operations on station_treatment_types" ON public.station_treatment_types FOR ALL USING (true);';
   END IF;
 
   IF NOT EXISTS (
@@ -580,23 +489,9 @@ BEGIN
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'daycare_waitlist' AND policyname = 'Allow all operations on daycare_waitlist'
+    WHERE schemaname = 'public' AND tablename = 'waitlist' AND policyname = 'Allow all operations on waitlist'
   ) THEN
-    EXECUTE 'CREATE POLICY "Allow all operations on daycare_waitlist" ON public.daycare_waitlist FOR ALL USING (true);';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'grooming_appointments' AND policyname = 'Allow all operations on grooming_appointments'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Allow all operations on grooming_appointments" ON public.grooming_appointments FOR ALL USING (true);';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'daycare_appointments' AND policyname = 'Allow all operations on daycare_appointments'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Allow all operations on daycare_appointments" ON public.daycare_appointments FOR ALL USING (true);';
+    EXECUTE 'CREATE POLICY "Allow all operations on waitlist" ON public.waitlist FOR ALL USING (true);';
   END IF;
 
   IF NOT EXISTS (
@@ -624,15 +519,6 @@ BEGIN
     EXECUTE '' ||
       'CREATE POLICY "Allow all operations on station_allowed_customer_types" ' ||
       'ON public.station_allowed_customer_types FOR ALL USING (true);';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'combined_appointments' AND policyname = 'Allow all operations on combined_appointments'
-  ) THEN
-    EXECUTE '' ||
-      'CREATE POLICY "Allow all operations on combined_appointments" ' ||
-      'ON public.combined_appointments FOR ALL USING (true);';
   END IF;
 
   IF NOT EXISTS (
@@ -704,13 +590,6 @@ BEGIN
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'daycare_capacity_limits' AND policyname = 'Allow all operations on daycare_capacity_limits'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Allow all operations on daycare_capacity_limits" ON public.daycare_capacity_limits FOR ALL USING (true);';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
     WHERE schemaname = 'public' AND tablename = 'ticket_types' AND policyname = 'Allow all operations on ticket_types'
   ) THEN
     EXECUTE 'CREATE POLICY "Allow all operations on ticket_types" ON public.ticket_types FOR ALL USING (true);';
@@ -745,26 +624,13 @@ SET description = EXCLUDED.description,
     display_order = EXCLUDED.display_order,
     is_active = true;
 
-INSERT INTO public.station_treatment_types (station_id, treatment_type_id, custom_duration_minutes, custom_price, is_available)
-SELECT
-  s.id,
-  t.id,
-  NULL,
-  NULL,
-  true
-FROM public.stations s
-CROSS JOIN public.treatment_types t
-ON CONFLICT (station_id, treatment_type_id) DO NOTHING;
-
 -- Indexes ---------------------------------------------------------------------
-CREATE INDEX IF NOT EXISTS idx_appointments_client ON public.appointments (client_id);
-CREATE INDEX IF NOT EXISTS idx_appointments_station ON public.appointments (station_id);
-CREATE INDEX IF NOT EXISTS idx_appointments_treatment_type ON public.appointments (treatment_type_id);
-CREATE INDEX IF NOT EXISTS idx_appointments_scheduled_start ON public.appointments (scheduled_start);
+CREATE INDEX IF NOT EXISTS idx_appointments_customer ON public.appointments (customer_id, start_at);
+CREATE INDEX IF NOT EXISTS idx_appointments_treatment ON public.appointments (treatment_id, start_at);
+CREATE INDEX IF NOT EXISTS idx_appointments_station ON public.appointments (station_id, start_at) WHERE status <> 'cancelled';
 
 CREATE INDEX IF NOT EXISTS idx_station_unavailability_station ON public.station_unavailability (station_id);
 CREATE INDEX IF NOT EXISTS idx_business_hours_weekday_shift ON public.business_hours (weekday, shift_order);
 CREATE INDEX IF NOT EXISTS idx_station_working_hours_station_weekday_shift
   ON public.station_working_hours (station_id, weekday, shift_order);
-CREATE INDEX IF NOT EXISTS idx_daycare_capacity_limits_effective_date ON public.daycare_capacity_limits (effective_date);
 

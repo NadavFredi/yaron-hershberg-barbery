@@ -25,7 +25,7 @@ interface SupabaseTreatmentType {
     color_hex: string | null
 }
 
-export const useTreatmentTypes = () => {
+function useTreatmentTypes() {
     return useQuery({
         queryKey: ["serviceTypes"],
         queryFn: async () => {
@@ -63,3 +63,6 @@ export const useTreatmentTypes = () => {
         }
     })
 }
+
+export { useTreatmentTypes }
+export default useTreatmentTypes

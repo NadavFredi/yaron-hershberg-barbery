@@ -20,7 +20,7 @@ interface AirtableRecord<T> {
 interface GroomingAppointmentFields {
   "מועד התור": string
   "מועד סיום התור"?: string
-  כלב?: string[]
+  לקוח?: string[]
   עמדה?: string[]
   "עמדת עבודה"?: string[]
   "שם עמדה"?: string
@@ -183,7 +183,7 @@ const fetchTreatmentsByIds = async (
   const ownerMap = new Map<string, OwnerInfo>()
 
   // Fetch treatments
-  const treatmentRecords = await fetchFromAirtable(config, "כלבים")
+  const treatmentRecords = await fetchFromAirtable(config, "לקוחות")
 
   for (const record of treatmentRecords) {
     const fields = record.fields as Record<string, unknown>
@@ -206,18 +206,18 @@ const fetchTreatmentsByIds = async (
       vetName: coalesceStringField(fields, ["שם הוטרינר", "Vet Name", "vetName"]),
       vetPhone: coalesceStringField(fields, ["טלפון הוטרינר", "Vet Phone", "vetPhone"]),
       healthIssues: coalesceStringField(fields, ["בעיות בריאות/אלרגיות", "Health Issues", "healthIssues"]),
-      birthDate: coalesceStringField(fields, ["תאריך לידה כלב", "Birth Date", "birthDate"]),
+      birthDate: coalesceStringField(fields, ["תאריך לידה לקוח", "Birth Date", "birthDate"]),
       tendsToBite: coalesceStringField(fields, [
-        "האם הכלב נוטה לנשוך אנשים או להיבהל ממגע במסגרת חדשה",
+        "האם הלקוח נוטה להילחץ או להירתע ממגע במסגרת חדשה",
         "Tends To Bite",
         "tendsToBite",
       ]),
       aggressiveWithOtherTreatments: coalesceStringField(fields, [
-        "האם הכלב עלול להפגין תוקפנות כלפי כלבים אחרים",
+        "האם הלקוח עלול להפגין התנהגות מאתגרת בסביבה חברתית",
         "Aggressive With Other Treatments",
         "aggressiveWithOtherTreatments",
       ]),
-      hasBeenToGarden: fields["האם הכלב היה בגן"] === true,
+      hasBeenToGarden: fields["האם הלקוח היה במספרה"] === true,
       suitableForGardenFromQuestionnaire: fields["האם נמצא מתאים לגן מהשאלון"] === true,
       notSuitableForGardenFromQuestionnaire: fields["האם נמצא לא מתאים לגן מהשאלון"] === true,
       recordId: coalesceStringField(fields, ["מזהה רשומה", "Record ID", "recordId"]),
@@ -263,7 +263,7 @@ const buildManagerAppointment = (
   const endRaw = record.fields["מועד סיום התור"]
   const endDate = endRaw ? new Date(endRaw) : new Date(startDate.getTime() + 60 * 60 * 1000)
 
-  const treatmentIds = Array.isArray(record.fields.כלב) ? record.fields.כלב : []
+  const treatmentIds = Array.isArray(record.fields.לקוח) ? record.fields.לקוח : []
   const treatments = treatmentIds.map((id) => treatmentLookup.get(id) ?? { id, name: "ללא שם" })
   const primaryTreatment = treatments[0]
 
@@ -398,8 +398,8 @@ serve(async (req) => {
     // Get all treatment IDs from the appointments
     const treatmentIdCollector: string[] = []
     for (const record of groomingRecords) {
-      if (Array.isArray(record.fields.כלב)) {
-        treatmentIdCollector.push(...record.fields.כלב)
+      if (Array.isArray(record.fields.לקוח)) {
+        treatmentIdCollector.push(...record.fields.לקוח)
       }
     }
 

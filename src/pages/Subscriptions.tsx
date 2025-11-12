@@ -50,9 +50,9 @@ interface SubscriptionUsageResponse {
 
 // Hardcoded checkout URLs - these should eventually be moved to Airtable as well
 const checkoutUrls: Record<string, string> = {
-    "bundle-6": "https://pay.tranzila.com/bloved29/ZVFmb29tNGF2VVBrcno4enB4amFQUT09",
-    "bundle-12": "https://pay.tranzila.com/bloved29/a24xT094Y3B6aHU0TDV1b1RBT2NRUT09",
-    "monthly-pass": "https://pay.tranzila.com/bloved29/ZC91L2tHQkNOTnN2N2wyV1FGS0oxUT09",
+    "bundle-6": "https://pay.tranzila.com",
+    "bundle-12": "https://pay.tranzila.com",
+    "monthly-pass": "https://pay.tranzila.com",
 }
 
 function formatDate(value?: string | null): string {
@@ -163,7 +163,7 @@ export default function Subscriptions() {
                     <h1 className="text-3xl font-bold text-gray-900">ניהול מנויים וכרטיסיות</h1>
                     <p className="text-gray-600 max-w-3xl">
                         כאן תמצאו את כל הכרטיסיות והחבילות שרכשתם, את היתרה שנותרה ואת האפשרות לרכוש בקלות חבילות חדשות.
-                        ניהול פשוט ונוח של טיפוח שגרתי לכלבי הבית.
+                        ניהול פשוט ונוח של טיפולי שיער וקרקפת לכל אחד ואחת מכם.
                     </p>
                 </header>
 
@@ -174,7 +174,7 @@ export default function Subscriptions() {
                                 <ShoppingCart className="h-5 w-5 text-orange-500" />
                                 <div>
                                     <CardTitle className="text-xl">רכישת כרטיסיות חדשות</CardTitle>
-                                    <CardDescription>בחרו את החבילה שמתאימה לכם ולכלב שלכם</CardDescription>
+                                    <CardDescription>בחרו את החבילה שמתאימה לשיער ולקרקפת שלכם</CardDescription>
                                 </div>
                             </div>
                         </CardHeader>
@@ -343,7 +343,7 @@ export default function Subscriptions() {
                                                                 <TableHeader>
                                                                     <TableRow>
                                                                         <TableHead className="text-right">תאריך שימוש</TableHead>
-                                                                        <TableHead className="text-right">שם הכלב</TableHead>
+                                                                        <TableHead className="text-right">שם הטיפול</TableHead>
                                                                     </TableRow>
                                                                 </TableHeader>
                                                                 <TableBody>

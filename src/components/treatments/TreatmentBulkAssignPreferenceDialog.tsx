@@ -39,9 +39,9 @@ export function TreatmentBulkAssignGenderDialog({
         }}>
             <DialogContent dir="rtl" className="max-w-sm text-right">
                 <DialogHeader className="text-right">
-                    <DialogTitle className="text-right">עדכון מין לכלבים שנבחרו</DialogTitle>
+                    <DialogTitle className="text-right">עדכון מגדר לפרופילים שנבחרו</DialogTitle>
                     <DialogDescription className="text-right">
-                        בחר את המין החדש שיוגדר לכל הכלבים שנבחרו.
+                        בחר את המגדר החדש שיוגדר לכל הפרופילים שנבחרו.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3">

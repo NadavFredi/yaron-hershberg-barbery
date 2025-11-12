@@ -67,24 +67,11 @@ export function ConstraintManagerPanel({
     const [constraints, setConstraints] = useState<Constraint[]>([])
     const [stations, setStations] = useState<Station[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [filterType, setFilterType] = useState<FilterType>(defaultFilterType ?? "all")
     const [customStartDate, setCustomStartDate] = useState<Date | null>(defaultCustomRange?.start ?? null)
     const [customEndDate, setCustomEndDate] = useState<Date | null>(defaultCustomRange?.end ?? null)
-    const [isSaving, setIsSaving] = useState(false)
-    const [customReasons, setCustomReasons] = useState<string[]>([])
-    const [reasonInputOpen, setReasonInputOpen] = useState(false)
-    const [reasonSearchValue, setReasonSearchValue] = useState<string | undefined>(undefined)
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<string | null>(null)
-    const [isAddingReason, setIsAddingReason] = useState(false)
-    const [highlightedIndex, setHighlightedIndex] = useState<number>(-1)
-    const [editingReason, setEditingReason] = useState<{ oldText: string; newText: string } | null>(null)
-    const [isSavingEdit, setIsSavingEdit] = useState(false)
-    const popoverContentRef = useRef<HTMLDivElement>(null)
-    const reasonAnchorRef = useRef<HTMLDivElement | null>(null)
     const [reasonFilter, setReasonFilter] = useState<string>("all")
     const [availableReasons, setAvailableReasons] = useState<string[]>([])
-    const [editingConstraintGroup, setEditingConstraintGroup] = useState<ConstraintGroup | null>(null)
     const [reasonFilterInputOpen, setReasonFilterInputOpen] = useState(false)
     const [reasonFilterSearchValue, setReasonFilterSearchValue] = useState<string>("")
     const reasonFilterAnchorRef = useRef<HTMLDivElement | null>(null)
@@ -115,23 +102,9 @@ export function ConstraintManagerPanel({
     const defaultCustomRangeEndMs = defaultCustomRange?.end ? defaultCustomRange.end.getTime() : null
     const defaultStationIdsKey = defaultStationIds ? defaultStationIds.join("|") : ""
 
-    // Constraint form data
-    const [formData, setFormData] = useState({
-        selectedStations: [] as string[],
-        startDate: null as Date | null,
-        startTime: "",
-        endDate: null as Date | null,
-        endTime: "",
-        reason: "",
-        customReason: "",
-        notes: "",
-        is_active: false,
-    })
-
     useEffect(() => {
         fetchStations()
         fetchConstraints()
-        fetchCustomReasons()
     }, [])
 
     useEffect(() => {
@@ -142,20 +115,6 @@ export function ConstraintManagerPanel({
         setCustomEndDate(defaultCustomRange?.end ?? null)
         setStationFilter(defaultStationIds ?? [])
     }, [autoSyncFilters, defaultFilterType, defaultCustomRangeStartMs, defaultCustomRangeEndMs, defaultStationIdsKey])
-
-    const fetchCustomReasons = async () => {
-        try {
-            const { data, error } = await supabase
-                .from("custom_absence_reasons")
-                .select("reason_text")
-                .order("reason_text")
-
-            if (error) throw error
-            setCustomReasons(data?.map((r) => r.reason_text) || [])
-        } catch (error) {
-            console.error("Error fetching custom reasons:", error)
-        }
-    }
 
     useEffect(() => {
         fetchConstraints()
@@ -191,13 +150,13 @@ export function ConstraintManagerPanel({
 
     // Scroll highlighted item into view when index changes
     useEffect(() => {
-        if (highlightedIndex >= 0 && popoverContentRef.current) {
-            const item = popoverContentRef.current.querySelector(`[data-item-index="${highlightedIndex}"]`)
+        if (reasonFilterHighlightedIndex >= 0 && reasonFilterContentRef.current) {
+            const item = reasonFilterContentRef.current.querySelector(`[data-item-index="${reasonFilterHighlightedIndex}"]`)
             if (item) {
                 item.scrollIntoView({ block: "nearest", behavior: "smooth" })
             }
         }
-    }, [highlightedIndex])
+    }, [reasonFilterHighlightedIndex])
 
     const extractCustomReason = (notes: { text?: string } | null): string | null => {
         if (!notes?.text) return null
@@ -452,19 +411,9 @@ export function ConstraintManagerPanel({
     }
 
     const handleAdd = () => {
-        setEditingConstraintGroup(null)
-        setFormData({
-            selectedStations: [],
-            startDate: null,
-            startTime: "",
-            endDate: null,
-            endTime: "",
-            reason: "",
-            customReason: "",
-            notes: "",
-            is_active: false,
-        })
-        setReasonSearchValue(undefined)
+        setEditingConstraint(null)
+        setEditingConstraintStationIds([])
+        setDuplicateDefaultTimes(null)
         setIsConstraintDialogOpen(true)
     }
 
@@ -493,308 +442,6 @@ export function ConstraintManagerPanel({
         setEditingConstraintStationIds(group.stations.map(s => s.id))
         setDuplicateDefaultTimes(null)
         setIsConstraintDialogOpen(true)
-    }
-
-    const getAllReasons = () => {
-        // All reasons come from the database
-        return customReasons.map((r) => ({ type: "custom" as const, value: r, label: r }))
-    }
-
-    const getReasonLabel = (reasonValue: string): string => {
-        if (!reasonValue) return ""
-        // All reasons are stored as-is from the database
-        return reasonValue
-    }
-
-    const handleAddCustomReason = async (reasonText: string) => {
-        if (!reasonText.trim()) return
-        setIsAddingReason(true)
-        try {
-            const { error } = await supabase.from("custom_absence_reasons").insert({ reason_text: reasonText.trim() })
-            if (error && error.code !== "23505") {
-                // 23505 is unique violation - ignore if already exists
-                throw error
-            }
-            await fetchCustomReasons()
-            setFormData({ ...formData, reason: reasonText.trim() })
-            setReasonSearchValue(undefined)
-            setReasonInputOpen(false)
-            toast({
-                title: "הצלחה",
-                description: `הסיבה "${reasonText.trim()}" נוספה בהצלחה`,
-            })
-        } catch (error) {
-            console.error("Error adding custom reason:", error)
-            toast({
-                title: "שגיאה",
-                description: "לא ניתן להוסיף סיבה מותאמת אישית",
-                variant: "destructive",
-            })
-        } finally {
-            setIsAddingReason(false)
-        }
-    }
-
-    const handleDeleteCustomReason = async (reasonText: string) => {
-        try {
-            const { error } = await supabase
-                .from("custom_absence_reasons")
-                .delete()
-                .eq("reason_text", reasonText)
-            if (error) throw error
-            await fetchCustomReasons()
-            if (formData.reason === reasonText) {
-                setFormData({ ...formData, reason: "" })
-            }
-            setDeleteConfirmOpen(null)
-            toast({
-                title: "הצלחה",
-                description: `הסיבה "${reasonText}" נמחקה בהצלחה`,
-            })
-        } catch (error) {
-            console.error("Error deleting custom reason:", error)
-            toast({
-                title: "שגיאה",
-                description: "לא ניתן למחוק סיבה מותאמת אישית",
-                variant: "destructive",
-            })
-        }
-    }
-
-    const handleEditCustomReason = async (oldText: string, newText: string) => {
-        if (!newText.trim() || newText.trim() === oldText) {
-            setEditingReason(null)
-            return
-        }
-
-        setIsSavingEdit(true)
-        try {
-            // Check if new name already exists
-            const { data: existing, error: checkError } = await supabase
-                .from("custom_absence_reasons")
-                .select("id")
-                .eq("reason_text", newText.trim())
-                .single()
-
-            if (checkError && checkError.code !== "PGRST116") {
-                // PGRST116 means no rows found, which is what we want
-                throw checkError
-            }
-
-            if (existing) {
-                toast({
-                    title: "שגיאה",
-                    description: "סיבה עם שם זה כבר קיימת",
-                    variant: "destructive",
-                })
-                setIsSavingEdit(false)
-                return
-            }
-
-            // Update the reason in custom_absence_reasons table
-            const { error: updateError } = await supabase
-                .from("custom_absence_reasons")
-                .update({ reason_text: newText.trim() })
-                .eq("reason_text", oldText)
-
-            if (updateError) throw updateError
-
-            // Update all constraints that use this reason (in notes field)
-            const { data: constraints, error: fetchError } = await supabase
-                .from("station_unavailability")
-                .select("id, notes")
-                .not("notes", "is", null)
-
-            if (!fetchError && constraints) {
-                const updates = constraints
-                    .filter((c) => {
-                        const notesText = typeof c.notes === "string"
-                            ? c.notes
-                            : (typeof c.notes === "object" && c.notes !== null && "text" in c.notes)
-                                ? String((c.notes as { text?: string }).text || "")
-                                : ""
-                        return notesText.includes(`[CUSTOM_REASON:${oldText}]`)
-                    })
-                    .map((c) => {
-                        const notesText = typeof c.notes === "string"
-                            ? c.notes
-                            : (typeof c.notes === "object" && c.notes !== null && "text" in c.notes)
-                                ? String((c.notes as { text?: string }).text || "")
-                                : ""
-                        const updatedNotes = notesText.replace(
-                            new RegExp(`\\[CUSTOM_REASON:${oldText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\]`, "g"),
-                            `[CUSTOM_REASON:${newText.trim()}]`
-                        )
-                        return {
-                            id: c.id,
-                            notes: { text: updatedNotes },
-                        }
-                    })
-
-                if (updates.length > 0) {
-                    for (const update of updates) {
-                        const { error } = await supabase
-                            .from("station_unavailability")
-                            .update({ notes: update.notes })
-                            .eq("id", update.id)
-                        if (error) {
-                            console.error("Error updating constraint:", error)
-                        }
-                    }
-                }
-            }
-
-            await fetchCustomReasons()
-
-            // Update form if current reason matches
-            if (formData.reason === oldText) {
-                setFormData({ ...formData, reason: newText.trim() })
-            }
-
-            setEditingReason(null)
-            toast({
-                title: "הצלחה",
-                description: `הסיבה "${oldText}" עודכנה ל-"${newText.trim()}" בהצלחה`,
-            })
-        } catch (error) {
-            console.error("Error editing custom reason:", error)
-            toast({
-                title: "שגיאה",
-                description: "לא ניתן לערוך סיבה מותאמת אישית",
-                variant: "destructive",
-            })
-        } finally {
-            setIsSavingEdit(false)
-        }
-    }
-
-    const searchTextForFilter = reasonSearchValue !== undefined ? reasonSearchValue : ""
-    const filteredReasons = getAllReasons().filter((reason) =>
-        reason.label.toLowerCase().includes(searchTextForFilter.toLowerCase())
-    )
-
-    // Show "add new" option if user has typed something that doesn't exactly match any existing reason
-    const searchText = (reasonSearchValue !== undefined && reasonSearchValue !== null) ? reasonSearchValue.trim() : ""
-    const allReasons = getAllReasons()
-    const exactMatch = searchText.length > 0 ? allReasons.find((r) => r.label.toLowerCase() === searchText.toLowerCase()) : null
-    const canAddNewReason = searchText.length > 0 && !exactMatch
-
-    const handleSave = async () => {
-        if (formData.selectedStations.length === 0) {
-            toast({
-                title: "שגיאה",
-                description: "יש לבחור לפחות עמדה אחת",
-                variant: "destructive",
-            })
-            return
-        }
-
-        if (!formData.startDate || !formData.startTime || !formData.endDate || !formData.endTime) {
-            toast({
-                title: "שגיאה",
-                description: "יש להגדיר תאריך ושעה להתחלה וסיום",
-                variant: "destructive",
-            })
-            return
-        }
-
-
-        // Combine date and time
-        const [startHours, startMinutes] = formData.startTime.split(":").map(Number)
-        const [endHours, endMinutes] = formData.endTime.split(":").map(Number)
-
-        const start = new Date(formData.startDate)
-        start.setHours(startHours, startMinutes, 0, 0)
-
-        const end = new Date(formData.endDate)
-        end.setHours(endHours, endMinutes, 0, 0)
-
-        if (end <= start) {
-            toast({
-                title: "שגיאה",
-                description: "תאריך ושעת הסיום חייבים להיות מאוחרים מתאריך ושעת ההתחלה",
-                variant: "destructive",
-            })
-            return
-        }
-
-        setIsSaving(true)
-        try {
-            // All reasons are custom, store them in notes with a marker
-            const notesText = formData.notes ? formData.notes : ""
-            const customReasonNote = formData.reason
-                ? `[CUSTOM_REASON:${formData.reason}]`
-                : ""
-            const finalNotes = customReasonNote
-                ? (notesText ? `${customReasonNote} ${notesText}` : customReasonNote)
-                : notesText
-
-            // reason field in DB is enum, so set to null for custom reasons
-            const reasonValue = null
-
-            if (editingConstraintGroup) {
-                // Update existing constraints
-                // First, delete the old constraints
-                const { error: deleteError } = await supabase
-                    .from("station_unavailability")
-                    .delete()
-                    .in("id", editingConstraintGroup.constraintIds)
-
-                if (deleteError) throw deleteError
-
-                // Then, insert new constraints with updated data
-                const constraintsToInsert = formData.selectedStations.map((stationId) => ({
-                    station_id: stationId,
-                    reason: reasonValue,
-                    notes: finalNotes ? { text: finalNotes } : null,
-                    start_time: start.toISOString(),
-                    end_time: end.toISOString(),
-                    is_active: formData.is_active,
-                }))
-
-                const { error: insertError } = await supabase.from("station_unavailability").insert(constraintsToInsert)
-
-                if (insertError) throw insertError
-
-                toast({
-                    title: "הצלחה",
-                    description: "האילוצים עודכנו בהצלחה",
-                })
-            } else {
-                // Insert new constraints
-                const constraintsToInsert = formData.selectedStations.map((stationId) => ({
-                    station_id: stationId,
-                    reason: reasonValue,
-                    notes: finalNotes ? { text: finalNotes } : null,
-                    start_time: start.toISOString(),
-                    end_time: end.toISOString(),
-                    is_active: formData.is_active,
-                }))
-
-                const { error } = await supabase.from("station_unavailability").insert(constraintsToInsert)
-
-                if (error) throw error
-
-                toast({
-                    title: "הצלחה",
-                    description: "האילוצים נוצרו בהצלחה",
-                })
-            }
-
-            setIsConstraintDialogOpen(false)
-            setEditingConstraintGroup(null)
-            fetchConstraints()
-        } catch (error: unknown) {
-            console.error("Error saving constraints:", error)
-            const errorMessage = error instanceof Error ? error.message : "לא ניתן לשמור את האילוצים"
-            toast({
-                title: "שגיאה",
-                description: errorMessage,
-                variant: "destructive",
-            })
-        } finally {
-            setIsSaving(false)
-        }
     }
 
     const handleDeleteClick = (group: ConstraintGroup) => {

@@ -107,7 +107,7 @@ const ClientsManagement = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">מרכז הלקוחות שלנו</h1>
-          <p className="text-gray-600">כל הלקוחות, הכלבים וההיסטוריה שלהם במקום אחד</p>
+          <p className="text-gray-600">כל הלקוחות וההיסטוריה שלהם במקום אחד</p>
         </div>
 
         {/* Search and Add Client */}
@@ -116,7 +116,7 @@ const ClientsManagement = () => {
             <div className="relative">
               <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <Input
-                placeholder="חפש/י לקוח, כלב או מספר טלפון..."
+                placeholder="חפש/י לקוח, שירות או מספר טלפון..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pr-10 text-lg py-3"
@@ -165,7 +165,7 @@ const ClientsManagement = () => {
                       <div className="flex items-center gap-2">
                         <PawPrint className="w-4 h-4 text-blue-600" />
                         <span className="text-gray-700">
-                          שמות הכלבים: {client.treatments.map(treatment => `[${treatment.name}]`).join(', ')}
+                          פרופילים משויכים: {client.treatments.map(treatment => `[${treatment.name}]`).join(', ')}
                         </span>
                       </div>
 

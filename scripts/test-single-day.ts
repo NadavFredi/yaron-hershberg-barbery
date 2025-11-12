@@ -21,7 +21,7 @@ async function testSingleDay() {
 
     // Step 1: Get treatment and treatmentType information
     console.log("\n📅 Step 1: Getting treatment data...")
-    const treatmentResponse = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/כלבים/${treatmentId}`, {
+    const treatmentResponse = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/לקוחות/${treatmentId}`, {
       headers: {
         Authorization: `Bearer ${AIRTABLE_PAT}`,
         "Content-Type": "application/json",

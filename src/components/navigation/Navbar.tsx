@@ -28,7 +28,6 @@ import logoImage from "@/assets/logo.jpeg"
 import { MANAGER_NAV_SECTIONS } from "./ManagerSubnav"
 import { SETTINGS_SECTIONS } from "./SettingsSubnav"
 import { CUSTOMERS_SECTIONS } from "./CustomersSubnav"
-import { TREATMENTS_SECTIONS } from "./TreatmentsSubnav"
 import {
     useGetPendingAppointmentRequestsQuery,
     type PendingAppointmentRequest,
@@ -52,7 +51,7 @@ const SERVICE_BADGE_STYLES: Record<PendingAppointmentRequest["serviceType"], str
 
 const SERVICE_TYPE_LABELS: Record<PendingAppointmentRequest["serviceType"], string> = {
     grooming: "מספרה",
-    garden: "גן"
+    garden: "ספא"
 }
 
 const formatDateTime = (value: string | null, options: Intl.DateTimeFormatOptions = {}) => {
@@ -243,7 +242,6 @@ export function Navbar({ isManager }: NavbarProps) {
     const currentManagerSection = searchParams.get("section")
     const modeParam = searchParams.get("mode")
     const currentCustomersMode = currentManagerSection === "customers" ? (modeParam || "list") : null
-    const currentTreatmentsMode = currentManagerSection === "treatments" ? (modeParam || "list") : null
     const currentSettingsMode = currentManagerSection === "settings" ? (modeParam || "working-hours") : null
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ manager: false })
     const [expandedNestedSections, setExpandedNestedSections] = useState<Record<string, boolean>>({})
@@ -506,7 +504,6 @@ export function Navbar({ isManager }: NavbarProps) {
 
     const navItems = [
         { path: "/about", label: "אודות", icon: "✨", requiresAuth: false, requiresManager: false },
-        { path: "/my-treatments", label: "הטיפולים שלי", icon: "💇‍♂️", requiresAuth: true, requiresManager: false },
         { path: "/setup-appointment", label: "קבע תור", icon: "📅", requiresAuth: true, requiresManager: false },
         { path: "/appointments", label: "התורים שלי", icon: "📋", requiresAuth: true, requiresManager: false },
         { path: "/subscriptions", label: "הכרטיסיות שלי", icon: "🎫", requiresAuth: true, requiresManager: false },
@@ -528,12 +525,6 @@ export function Navbar({ isManager }: NavbarProps) {
             label: section.label,
             icon: section.icon,
             isActive: currentManagerSection === "customers" && currentCustomersMode === section.id
-        })),
-        treatments: TREATMENTS_SECTIONS.map((section) => ({
-            to: `/manager-screens?section=treatments&mode=${section.id}`,
-            label: section.label,
-            icon: section.icon,
-            isActive: currentManagerSection === "treatments" && currentTreatmentsMode === section.id
         })),
         settings: SETTINGS_SECTIONS.map((section) => ({
             to: `/manager-screens?section=settings&mode=${section.id}`,
@@ -567,7 +558,7 @@ export function Navbar({ isManager }: NavbarProps) {
                     <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
                         {/* Mobile Header */}
                         <div className="flex items-center justify-between gap-4 py-3 xl:hidden">
-                            <Link to={user ? "/my-treatments" : "/"} className="flex items-center gap-3">
+                            <Link to="/" className="flex items-center gap-3">
                                 <div className="w-10 h-10 shrink-0">
                                     <img src={logoImage} alt="Yaron Hershberg Special Barbery Logo" className="w-full h-full object-contain" />
                                 </div>
@@ -603,7 +594,7 @@ export function Navbar({ isManager }: NavbarProps) {
 
                         {/* Desktop Header */}
                         <div className="hidden xl:grid xl:grid-cols-[auto,1fr,auto] xl:items-center xl:gap-6 py-4">
-                            <Link to={user ? "/my-treatments" : "/"} className="flex items-center gap-3">
+                            <Link to="/" className="flex items-center gap-3">
                                 <div className="w-12 h-12 shrink-0">
                                     <img src={logoImage} alt="Yaron Hershberg Special Barbery Logo" className="w-full h-full object-contain" />
                                 </div>

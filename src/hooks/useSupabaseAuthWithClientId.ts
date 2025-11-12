@@ -39,15 +39,6 @@ async function ensureCustomerRecord(user: SupabaseUser) {
       ? normalizedPhoneForSearch
       : `user-${user.id}`
 
-  console.log("📞 [ensureCustomerRecord] Phone derivation:", {
-    metadataPhoneDigits,
-    metadataPhone,
-    authPhone,
-    digitsOnly,
-    normalizedPhoneForSearch,
-    phoneForStorage,
-  })
-
   const payload = {
     auth_user_id: user.id,
     full_name:
@@ -79,7 +70,6 @@ async function ensureCustomerRecord(user: SupabaseUser) {
 }
 
 async function resolveClientIdForUser(user: SupabaseUser) {
-  console.log("🔍 [resolveClientIdForUser] Starting resolution for user:", user.id)
 
   const metadataClientId =
     typeof user.user_metadata?.client_id === "string" && user.user_metadata.client_id.trim().length > 0
@@ -87,11 +77,9 @@ async function resolveClientIdForUser(user: SupabaseUser) {
       : null
 
   if (metadataClientId) {
-    console.log("✅ [resolveClientIdForUser] Found clientId in user_metadata:", metadataClientId)
     return metadataClientId
   }
 
-  console.log("🔍 [resolveClientIdForUser] Checking customers table for auth_user_id:", user.id)
   const { data: customerRow, error: customerError } = await supabase
     .from("customers")
     .select("id")
@@ -104,11 +92,9 @@ async function resolveClientIdForUser(user: SupabaseUser) {
   }
 
   if (customerRow?.id) {
-    console.log("✅ [resolveClientIdForUser] Found customer record:", customerRow.id)
     return customerRow.id
   }
 
-  console.log("🔍 [resolveClientIdForUser] Checking profiles table for client_id")
   const { data: profileRow, error: profileError } = await supabase
     .from("profiles")
     .select("client_id")
@@ -118,13 +104,10 @@ async function resolveClientIdForUser(user: SupabaseUser) {
   if (profileError) {
     console.warn("⚠️ [resolveClientIdForUser] Failed to read profiles.client_id:", profileError)
   } else if (profileRow?.client_id) {
-    console.log("✅ [resolveClientIdForUser] Found clientId in profiles:", profileRow.client_id)
     return profileRow.client_id
   }
 
-  console.log("🔍 [resolveClientIdForUser] No existing customer found, creating new one")
   const newClientId = await ensureCustomerRecord(user)
-  console.log("✅ [resolveClientIdForUser] Created new customer record:", newClientId)
   return newClientId
 }
 
@@ -172,7 +155,6 @@ export function useSupabaseAuthWithClientId() {
             (error as Record<string, unknown>)?.status === 401 ||
             (error as Record<string, unknown>)?.status === 403
           ) {
-            console.log("🔒 [useSupabaseAuthWithClientId] Auth error on getUser, logging out...", error)
             handleInvalidToken()
             return
           }
@@ -199,11 +181,6 @@ export function useSupabaseAuthWithClientId() {
 
     if (!authSubscription) {
       const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log(
-          "🔄 [useSupabaseAuthWithClientId] Auth state changed:",
-          event,
-          session ? "has session" : "no session"
-        )
 
         if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
           // User signed out or token refresh failed
@@ -247,32 +224,14 @@ export function useSupabaseAuthWithClientId() {
   }, [dispatch])
 
   useEffect(() => {
-    console.log("🔍 [useSupabaseAuthWithClientId] Effect triggered:", {
-      hasUser: !!authState.user,
-      resolvedClientId,
-      isFetchingClientId,
-      hasAttemptedClientIdResolution,
-      userId: authState.user?.id,
-    })
-
     // Only run if we have a user and haven't resolved yet and haven't attempted
     if (!authState.user || resolvedClientId || isFetchingClientId || hasAttemptedClientIdResolution) {
-      console.log("⏭️ [useSupabaseAuthWithClientId] Skipping resolution:", {
-        reason: !authState.user
-          ? "no user"
-          : resolvedClientId
-          ? "already resolved"
-          : isFetchingClientId
-          ? "already fetching"
-          : "already attempted",
-      })
       return
     }
 
     let cancelled = false
 
     const ensureClientId = async () => {
-      console.log("🚀 [useSupabaseAuthWithClientId] Starting clientId resolution")
       setIsFetchingClientId(true)
       setClientIdError(null)
       setHasAttemptedClientIdResolution(true) // Set immediately to prevent re-runs
@@ -281,7 +240,6 @@ export function useSupabaseAuthWithClientId() {
         const customerId = await resolveClientIdForUser(authState.user)
 
         if (cancelled) {
-          console.log("⚠️ [useSupabaseAuthWithClientId] Resolution cancelled")
           return
         }
 
@@ -290,11 +248,9 @@ export function useSupabaseAuthWithClientId() {
           throw new Error("Failed to resolve customer ID")
         }
 
-        console.log("✅ [useSupabaseAuthWithClientId] Resolved customerId:", customerId)
         setResolvedClientId(customerId)
 
         if (authState.user.user_metadata?.client_id !== customerId) {
-          console.log("🔍 [useSupabaseAuthWithClientId] Updating user metadata with client_id")
           const { error: updateError } = await supabase.auth.updateUser({
             data: { client_id: customerId },
           })
@@ -302,13 +258,11 @@ export function useSupabaseAuthWithClientId() {
           if (updateError) {
             console.warn("⚠️ [useSupabaseAuthWithClientId] Failed to persist client_id to auth metadata:", updateError)
           } else {
-            console.log("✅ [useSupabaseAuthWithClientId] Refreshing user")
             const {
               data: { user: refreshedUser },
             } = await supabase.auth.getUser()
 
             if (!cancelled && refreshedUser) {
-              console.log("✅ [useSupabaseAuthWithClientId] User refreshed with new metadata")
               dispatch(setUser(refreshedUser))
             }
           }
@@ -321,7 +275,6 @@ export function useSupabaseAuthWithClientId() {
         }
       } finally {
         if (!cancelled) {
-          console.log("✅ [useSupabaseAuthWithClientId] Resolution completed")
           setIsFetchingClientId(false)
         }
       }

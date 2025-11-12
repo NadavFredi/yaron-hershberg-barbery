@@ -17,6 +17,7 @@ export interface ServiceWithStats {
   name: string;
   description?: string;
   averageTime: number;
+  baseTime: number;
   configuredStationsCount: number;
   totalStationsCount: number;
 }

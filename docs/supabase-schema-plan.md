@@ -12,63 +12,65 @@ It focuses on the core scheduling/customer workflows and keeps a one-to-one mapp
 
 ## Shared Enums
 
-| Enum | Values | Notes |
-|------|--------|-------|
-| `customer_class` | `extra_vip`, `vip`, `existing`, `new` | Mirrors `סיווג לקוח`. |
-| `treatment_gender` | `male`, `female` | From `מין`. |
-| `appointment_status` | `pending`, `approved`, `cancelled`, `matched` | From `סטטוס התור`. |
-| `payment_status` | `unpaid`, `paid`, `partial` | From `סטטוס תשלום`. |
-| `ticket_type` | seeded from `סוגי כרטיסיות`. | Keeps reference integrity. |
-| `service_type` | `grooming`, `daycare`, `both` | For combined operations. |
-| `appointment_kind` | `business`, `personal` | From `סוג תור`. |
+| Enum                   | Values                                            | Notes                                              |
+| ---------------------- | ------------------------------------------------- | -------------------------------------------------- |
+| `customer_class`       | `extra_vip`, `vip`, `existing`, `new`             | Mirrors `סיווג לקוח`.                              |
+| `treatment_gender`     | `male`, `female`                                  | From `מין`.                                        |
+| `appointment_status`   | `pending`, `approved`, `cancelled`, `matched`     | From `סטטוס התור`.                                 |
+| `payment_status`       | `unpaid`, `paid`, `partial`                       | From `סטטוס תשלום`.                                |
+| `ticket_type`          | seeded from `סוגי כרטיסיות`.                      | Keeps reference integrity.                         |
+| `service_type`         | `grooming`, `daycare`, `both`                     | For combined operations.                           |
+| `appointment_kind`     | `business`, `personal`                            | From `סוג תור`.                                    |
 | `questionnaire_result` | `not_required`, `pending`, `approved`, `rejected` | Derived from questionnaire answers & staff review. |
-| `absence_reason` | `sick`, `vacation`, `ad_hoc` | For station constraints (`סיבת ההיעדרות`). |
+| `absence_reason`       | `sick`, `vacation`, `ad_hoc`                      | For station constraints (`סיבת ההיעדרות`).         |
 
 ## Core Tables
 
 ### Customers (`public.customers`)
 
-| Airtable Field | Supabase Column | Type | Notes |
-|----------------|-----------------|------|-------|
-| `מזהה רשומה` | `id` | `uuid` | Preserve Airtable record id during migration; use UUID for new rows. |
-| `שם מלא` | `full_name` | `text` | Required. |
-| `טלפון` | `phone` | `text` | Unique index with normalization. |
-| `אימייל` | `email` | `text` | Nullable. |
-| `תעודת זהות` | `gov_id` | `text` | Nullable; needs encryption/column masking later. |
-| `כתובת` | `address` | `text` | Nullable. |
-| `סיווג לקוח` | `classification` | `customer_class` | Default `new`. |
-| `לשלוח חשבונית?` | `send_invoice` | `boolean` | Defaults false. |
-| `לינק הודעת ווצאפ` | `whatsapp_link` | `text` | Generated from phone; can be a computed column. |
-| `מספר טלפון לחיפוש` | `phone_search` | `text` | Computed/GIN index for search. |
-| `created_time` | `created_at` | `timestamptz` | From Airtable `נוצר בתאריך`. |
-| `updated_time` | `updated_at` | `timestamptz` | Trigger to update on change. |
+| Airtable Field      | Supabase Column  | Type             | Notes                                                                |
+| ------------------- | ---------------- | ---------------- | -------------------------------------------------------------------- |
+| `מזהה רשומה`        | `id`             | `uuid`           | Preserve Airtable record id during migration; use UUID for new rows. |
+| `שם מלא`            | `full_name`      | `text`           | Required.                                                            |
+| `טלפון`             | `phone`          | `text`           | Unique index with normalization.                                     |
+| `אימייל`            | `email`          | `text`           | Nullable.                                                            |
+| `תעודת זהות`        | `gov_id`         | `text`           | Nullable; needs encryption/column masking later.                     |
+| `כתובת`             | `address`        | `text`           | Nullable.                                                            |
+| `סיווג לקוח`        | `classification` | `customer_class` | Default `new`.                                                       |
+| `לשלוח חשבונית?`    | `send_invoice`   | `boolean`        | Defaults false.                                                      |
+| `לינק הודעת ווצאפ`  | `whatsapp_link`  | `text`           | Generated from phone; can be a computed column.                      |
+| `מספר טלפון לחיפוש` | `phone_search`   | `text`           | Computed/GIN index for search.                                       |
+| `created_time`      | `created_at`     | `timestamptz`    | From Airtable `נוצר בתאריך`.                                         |
+| `updated_time`      | `updated_at`     | `timestamptz`    | Trigger to update on change.                                         |
 
 Relations:
+
 - links to `auth.users` via optional `auth_user_id`.
 - 1-to-many with `treatments`, `tickets`, `payments`, `credit_tokens`.
 
 ### Treatments (`public.treatments`)
 
-| Airtable Field | Supabase Column | Type | Notes |
-|----------------|-----------------|------|-------|
-| `מזהה רשומה` | `id` | `uuid` | Preserve if possible. |
-| `לקוח` | `customer_id` | `uuid` | FK `customers(id)` cascades on delete. |
-| `שם` | `name` | `text` | Required. |
-| `מין` | `gender` | `treatment_gender` | Default `male`. |
-| `גזע` | `treatment_type_id` | `uuid` | FK `treatmentTypes(id)`; optional. |
-| `תאריך לידה כלב` | `birth_date` | `date` | Nullable. |
-| `בעיות בריאות/אלרגיות` | `health_notes` | `text` | Nullable. |
-| `שם הוטרינר` | `vet_name` | `text` | Nullable. |
-| `טלפון של הוטרינר` | `vet_phone` | `text` | Nullable. |
-| `משהו נוסף שחשוב שנדע` | `staff_notes` | `text` | Nullable; convert mention tokens to markdown/plain text. |
-| `האם הכלב קטן?` | `is_small` | `boolean` | Derived from treatmentType size or manual override. |
-| `האם הכלב עלול להפגין תוקפנות...` | `aggression_risk` | `boolean` | Derived from questionnaire. |
-| `האם הכלב נוטה לנשוך...` | `people_anxious` | `boolean` | Derived from questionnaire. |
-| `האם נמצא מתאים לגן מהשאלון` | `questionnaire_result` | `questionnaire_result` | Denormalized for fast checks. |
-| `שאלון התאמה לגן` | handled via join table `garden_questionnaires`. |
-| `created_time/updated_time` | `created_at` / `updated_at` | `timestamptz`. |
+| Airtable Field                            | Supabase Column                                 | Type                   | Notes                                                    |
+| ----------------------------------------- | ----------------------------------------------- | ---------------------- | -------------------------------------------------------- |
+| `מזהה רשומה`                              | `id`                                            | `uuid`                 | Preserve if possible.                                    |
+| `לקוח`                                    | `customer_id`                                   | `uuid`                 | FK `customers(id)` cascades on delete.                   |
+| `שם`                                      | `name`                                          | `text`                 | Required.                                                |
+| `מין`                                     | `gender`                                        | `treatment_gender`     | Default `male`.                                          |
+| `גזע`                                     | `treatment_type_id`                             | `uuid`                 | FK `treatmentTypes(id)`; optional.                       |
+| `תאריך לידה לקוח`                         | `birth_date`                                    | `date`                 | Nullable.                                                |
+| `בעיות בריאות/אלרגיות`                    | `health_notes`                                  | `text`                 | Nullable.                                                |
+| `שם הוטרינר`                              | `vet_name`                                      | `text`                 | Nullable.                                                |
+| `טלפון של הוטרינר`                        | `vet_phone`                                     | `text`                 | Nullable.                                                |
+| `משהו נוסף שחשוב שנדע`                    | `staff_notes`                                   | `text`                 | Nullable; convert mention tokens to markdown/plain text. |
+| `האם הלקוח מעדיף שירות קצר?`              | `is_small`                                      | `boolean`              | Derived from treatmentType size or manual override.      |
+| `האם הלקוח עלול להפגין התנהגות מאתגרת...` | `aggression_risk`                               | `boolean`              | Derived from questionnaire.                              |
+| `האם הלקוח נוטה להילחץ...`                | `people_anxious`                                | `boolean`              | Derived from questionnaire.                              |
+| `האם נמצא מתאים לגן מהשאלון`              | `questionnaire_result`                          | `questionnaire_result` | Denormalized for fast checks.                            |
+| `שאלון התאמה לגן`                         | handled via join table `garden_questionnaires`. |
+| `created_time/updated_time`               | `created_at` / `updated_at`                     | `timestamptz`.         |
 
 Derived FKs:
+
 - Join tables `treatment_garden_registrations` (history of daycare attendance).
 - Many-to-many to `tickets` via `ticket_usages`.
 
@@ -77,7 +79,7 @@ Derived FKs:
 | Airtable Field | Supabase Column | Type | Notes |
 | `מזהה רשומה` | `id` | `uuid` | Keep parity. |
 | `גזע` | `name` | `text` | Unique. |
-| `גודל כלב` | `size_class` | `text` | Values: `small`, `medium`, `large`, `medium_large`. |
+| `סגנון שירות` | `size_class` | `text` | Values: `small`, `medium`, `large`, `medium_large`. |
 | `דורש אישור מיוחד` | `requires_staff_approval` | `boolean`. |
 | `מחיר מינימום טיפול מספרה` | `min_groom_price` | `numeric(10,2)`. |
 | `מחיר מקסימום טיפול במספרה` | `max_groom_price` | `numeric(10,2)`. |
@@ -86,12 +88,14 @@ Derived FKs:
 ### Services (`public.services`) – already exists
 
 Augment columns:
+
 - `category` enum (`grooming`, `daycare`, `retail`).
 - `active` boolean.
 
 ### Stations (`public.stations`)
 
 Add columns:
+
 - `calendar_id` -> rename existing `google_calendar_id`.
 - `work_start` / `work_end` (time).
 - `working_days` -> array of weekdays.
@@ -110,7 +114,7 @@ Add columns:
 
 | Airtable Field | Supabase Column | Type | Notes |
 | `מזהה רשומה` | `id` | `uuid` |
-| `כלב` | `treatment_id` | `uuid` |
+| `לקוח` | `treatment_id` | `uuid` |
 | `לקוח` | `customer_id` | `uuid` | Redundant but keeps query simple. |
 | `מועד התור` | `start_at` | `timestamptz` |
 | `מועד סיום התור` | `end_at` | `timestamptz` |
@@ -127,17 +131,19 @@ Add columns:
 | `הערות צוות פנימי` | `internal_notes` | `text`. |
 | `סכום לתשלום` | `amount_due` | `numeric(10,2)` |
 | `שלח לחיוב נוסחא / חיוב באמצעות המערכת` | convert to `billing_url` + `billing_triggered_at`. |
-| `שלח הודעה הכלב שלך מוכן...` | track as `pickup_reminder_sent_at`. |
+| `שלח הודעה הלקוח שלך מוכן...` | track as `pickup_reminder_sent_at`. |
 | `תור לגן` | `daycare_appointment_id` | `uuid` nullable – for combined flows. |
 | `created/updated` timestamps. |
 
 Indexes:
+
 - `(customer_id, start_at)`, `(treatment_id, start_at)`, `(station_id, start_at)`.
 - Unique constraint on `(station_id, start_at)` with tolerance for cancellations via partial index.
 
 ### Appointments – Daycare (`public.daycare_appointments`)
 
 Similar columns plus daycare-specific fields:
+
 - `service_type` (daycare type `full_day`, `trial`, `hourly`).
 - `late_pickup_requested` / `notes`.
 - Grooming combos reference `grooming_appointment_id`.
@@ -146,7 +152,7 @@ Similar columns plus daycare-specific fields:
 ### Waiting List (`public.daycare_waitlist`)
 
 | Field | Column | Notes |
-| `כלב` | `treatment_id` |
+| `לקוח` | `treatment_id` |
 | `לקוח` | `customer_id` |
 | `שירות` | `service_type` enum (values `grooming`, `daycare`). |
 | `מועד תחילת המתנה`/`סיום` | `start_date`, `end_date` (`daterange` as well). |
@@ -159,11 +165,11 @@ A history table `daycare_waitlist_history` keeps transitions.
 
 | Airtable Field | Column | Type |
 | `מזהה רשומה` | `id` | `uuid` |
-| `כלב` | `treatment_id` | `uuid` |
-| `האם הכלב עלול להפגין תוקפנות...` | `aggressive_towards_treatments` | `boolean` |
-| `האם הכלב נוטה לנשוך אנשים...` | `bites_people` | `boolean` |
+| `לקוח` | `treatment_id` | `uuid` |
+| `האם הלקוח עלול להפגין התנהגות מאתגרת...` | `aggressive_towards_treatments` | `boolean` |
+| `האם הלקוח נוטה להילחץ בקרבת אנשים...` | `bites_people` | `boolean` |
 | `אישר תקנון גן` | `terms_accepted` | `boolean` |
-| `תמונת הכלב` | store in Supabase Storage, keep URL + metadata. |
+| `תמונת הלקוח` | store in Supabase Storage, keep URL + metadata. |
 | `staff_reviewed_by` | `uuid` -> `profiles`. |
 | `staff_comment` | `text`. |
 | `result` | `questionnaire_result`. |
@@ -192,7 +198,7 @@ Represents `ניצול כרטיסיות`.
 | Field | Column |
 | `מזהה רשומה` | `id` |
 | `כרטיסיות` | `ticket_id` |
-| `כלב` | `treatment_id` |
+| `לקוח` | `treatment_id` |
 | `ניצול כרטיסיה` | `units_used` (`numeric(4,1)` for partial hours). |
 | `תור לגן/תור למספרה` | `daycare_appointment_id` / `grooming_appointment_id` |
 | `timestamp` | `used_at` |
@@ -239,14 +245,14 @@ Combines `תשלומים`, `טוקן אשראי`, and billing hooks.
 
 ## Relationships Overview
 
-- **customers ⇄ treatments (1:n)**  
-- **treatments ⇄ grooming_appointments/daycare_appointments (1:n)**  
-- **customers ⇄ tickets (1:n)**, **tickets ⇄ ticket_usages (1:n)**, **ticket_usages ⇄ appointments (n:1)**  
-- **treatments ⇄ garden_questionnaires (1:1 latest)**  
-- **stations ⇄ station_unavailability (1:n)**  
-- **stations ⇄ station_treatmentType_rules (1:n)**, **services ⇄ station_treatmentType_rules (1:n)**  
-- **appointments ⇄ payments (n:m)** via `appointment_payments` join for split payments.  
-- **orders ⇄ order_items ⇄ products**.  
+- **customers ⇄ treatments (1:n)**
+- **treatments ⇄ grooming_appointments/daycare_appointments (1:n)**
+- **customers ⇄ tickets (1:n)**, **tickets ⇄ ticket_usages (1:n)**, **ticket_usages ⇄ appointments (n:1)**
+- **treatments ⇄ garden_questionnaires (1:1 latest)**
+- **stations ⇄ station_unavailability (1:n)**
+- **stations ⇄ station_treatmentType_rules (1:n)**, **services ⇄ station_treatmentType_rules (1:n)**
+- **appointments ⇄ payments (n:m)** via `appointment_payments` join for split payments.
+- **orders ⇄ order_items ⇄ products**.
 - **daycare_waitlist ⇄ treatments/customers** maintains history.
 
 ## Migration Notes
@@ -268,11 +274,10 @@ Combines `תשלומים`, `טוקן אשראי`, and billing hooks.
 
 ## Next Steps
 
-1. Generate Supabase migrations reflecting the tables above (`supabase db gen migration`).  
-2. Define enums & helper functions in SQL (`CREATE TYPE`, `CREATE FUNCTION`).  
-3. Seed reference data: ticket types, services, treatmentTypes, station capacities.  
-4. Implement row-level security policies (customers vs staff) and attach to JWT claims.  
-5. Begin porting edge functions to Supabase RPC after schema exists.  
-6. Write migration scripts to load Airtable data (Node script or Supabase `db seed`).  
+1. Generate Supabase migrations reflecting the tables above (`supabase db gen migration`).
+2. Define enums & helper functions in SQL (`CREATE TYPE`, `CREATE FUNCTION`).
+3. Seed reference data: ticket types, services, treatmentTypes, station capacities.
+4. Implement row-level security policies (customers vs staff) and attach to JWT claims.
+5. Begin porting edge functions to Supabase RPC after schema exists.
+6. Write migration scripts to load Airtable data (Node script or Supabase `db seed`).
 7. Update the frontend API layer to use the new tables and remove Airtable references.
-

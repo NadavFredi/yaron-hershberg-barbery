@@ -30,7 +30,7 @@ interface AirtableRecord<T> {
 interface GroomingAppointmentFields {
   "מועד התור": string
   "מועד סיום התור"?: string
-  כלב?: string[]
+  לקוח?: string[]
   עמדה?: string[]
   "עמדת עבודה"?: string[]
   סטטוס?: string
@@ -56,7 +56,7 @@ interface GroomingAppointmentFields {
 interface GardenAppointmentFields {
   "מועד התור": string
   "מועד סיום התור"?: string
-  כלב?: string[]
+  לקוח?: string[]
   עמדה?: string[]
   "עמדת עבודה"?: string[]
   סטטוס?: string
@@ -165,7 +165,7 @@ function convertGroomingRecordToAppointmentData(record: AirtableRecord<GroomingA
     startDateTime: record.fields["מועד התור"],
     endDateTime: record.fields["מועד סיום התור"] || record.fields["מועד התור"],
     serviceType: "grooming",
-    treatments: record.fields.כלב?.map((treatmentId) => ({ name: treatmentId })) || [],
+    treatments: record.fields.לקוח?.map((treatmentId) => ({ name: treatmentId })) || [],
     clientName: record.fields["שם לקוח"],
     appointmentGroupId: record.fields["מזהה קבוצת תורים"],
     stationId: record.fields["עמדת עבודה"]?.[0],
@@ -182,7 +182,7 @@ function convertGardenRecordToAppointmentData(record: AirtableRecord<GardenAppoi
     startDateTime: record.fields["מועד התור"],
     endDateTime: record.fields["מועד סיום התור"] || record.fields["מועד התור"],
     serviceType: "garden",
-    treatments: record.fields.כלב?.map((treatmentId) => ({ name: treatmentId })) || [],
+    treatments: record.fields.לקוח?.map((treatmentId) => ({ name: treatmentId })) || [],
     clientName: record.fields["שם לקוח"],
     appointmentGroupId: record.fields["מזהה קבוצת תורים"],
     stationId: record.fields["עמדת עבודה"]?.[0],

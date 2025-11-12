@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, X } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { addMinutes } from "date-fns"
-import { useLazyGetTreatmentTypeStationDurationQuery, useCreateManagerAppointmentMutation } from "@/store/services/supabaseApi"
-import { cn } from "@/lib/utils"
+import { useCreateManagerAppointmentMutation } from "@/store/services/supabaseApi"
 import { AppointmentDetailsSection, type AppointmentStation, type AppointmentTimes } from "@/pages/ManagerSchedule/components/AppointmentDetailsSection"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerSearchInput, type Customer } from "@/components/CustomerSearchInput"
-import { TreatmentSelectInput, type Treatment } from "@/components/TreatmentSelectInput"
+import { ServiceSelectInput } from "@/components/ServiceSelectInput"
+import type { Treatment } from "@/components/TreatmentSelectInput"
+import type { Service } from "@/hooks/useServices"
+import { supabase } from "@/integrations/supabase/client"
 
 type ManagerStation = AppointmentStation
 
@@ -38,10 +39,10 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     onCancel,
     onSuccess,
     prefillCustomer = null,
-    prefillTreatment = null
+    prefillTreatment: _prefillTreatment = null
 }) => {
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-    const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null)
+    const [selectedService, setSelectedService] = useState<Service | null>(null)
     const [appointmentTimes, setAppointmentTimes] = useState<FinalizedDragTimes | null>(() => finalizedDragTimes ? {
         startTime: finalizedDragTimes.startTime ? new Date(finalizedDragTimes.startTime) : null,
         endTime: finalizedDragTimes.endTime ? new Date(finalizedDragTimes.endTime) : null,
@@ -53,18 +54,14 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     const [isManualOverride, setIsManualOverride] = useState(false)
     const [originalEndTime, setOriginalEndTime] = useState<Date | null>(null)
 
-    const [triggerTreatmentTypeDuration, treatmentTypeDurationResult] = useLazyGetTreatmentTypeStationDurationQuery()
-    const { data: treatmentTypeDurationData, isError: isTreatmentTypeDurationError, error: treatmentTypeDurationError } = treatmentTypeDurationResult
     const [createManagerAppointment, { isLoading: isCreatingAppointment }] = useCreateManagerAppointmentMutation()
     const { toast } = useToast()
-
-
 
     // Reset states when modal closes
     useEffect(() => {
         if (!open) {
             setSelectedCustomer(null)
-            setSelectedTreatment(null)
+            setSelectedService(null)
             setIsManualOverride(false)
             setOriginalEndTime(null)
         }
@@ -75,12 +72,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
             setSelectedCustomer(prefillCustomer)
         }
     }, [open, prefillCustomer])
-
-    useEffect(() => {
-        if (open && prefillTreatment) {
-            setSelectedTreatment(prefillTreatment)
-        }
-    }, [open, prefillTreatment])
 
     useEffect(() => {
         if (finalizedDragTimes) {
@@ -98,71 +89,82 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         }
     }, [finalizedDragTimes])
 
+    const activeStation = useMemo(() => {
+        if (!appointmentTimes?.stationId) {
+            return null
+        }
+        return stations.find((station) => station.id === appointmentTimes.stationId) ?? null
+    }, [stations, appointmentTimes?.stationId])
+
     useEffect(() => {
-        if (selectedTreatment?.id && appointmentTimes?.stationId) {
-            setDurationStatus('checking')
-            setDurationMinutes(null)
-            setDurationMessage(null)
-            triggerTreatmentTypeDuration({ treatmentId: selectedTreatment.id, stationId: appointmentTimes.stationId, serviceType: 'grooming' })
-        } else {
+        if (!selectedService || !appointmentTimes?.stationId) {
             setDurationStatus('idle')
             setDurationMinutes(null)
             setDurationMessage(null)
-        }
-    }, [selectedTreatment?.id, selectedTreatment?.treatmentType, appointmentTimes?.stationId, triggerTreatmentTypeDuration])
-
-    useEffect(() => {
-        if (!treatmentTypeDurationData) {
             return
         }
 
-        if (selectedTreatment?.id && treatmentTypeDurationData.treatmentId && treatmentTypeDurationData.treatmentId !== selectedTreatment.id) {
-            return
-        }
+        let isCancelled = false
 
-        if (appointmentTimes?.stationId && treatmentTypeDurationData.stationId && treatmentTypeDurationData.stationId !== appointmentTimes.stationId) {
-            return
-        }
+        const fetchServiceConfiguration = async () => {
+            setDurationStatus('checking')
+            setDurationMinutes(null)
+            setDurationMessage(null)
 
-        if (treatmentTypeDurationData.supported) {
-            const minutes = typeof treatmentTypeDurationData.durationMinutes === 'number' ? treatmentTypeDurationData.durationMinutes : null
+            const { data, error } = await supabase
+                .from('service_station_matrix')
+                .select('base_time_minutes, is_active')
+                .eq('service_id', selectedService.id)
+                .eq('station_id', appointmentTimes.stationId)
+                .maybeSingle()
+
+            if (isCancelled) {
+                return
+            }
+
+            if (error) {
+                console.error('[BusinessAppointmentModal] Failed to load service configuration:', error)
+                setDurationStatus('error')
+                setDurationMinutes(null)
+                setDurationMessage('לא ניתן לבדוק את משך השירות בעמדה זו.')
+                return
+            }
+
+            if (!data) {
+                const stationLabel = activeStation?.name ?? 'העמדה שנבחרה'
+                setDurationStatus('unsupported')
+                setDurationMinutes(null)
+                setDurationMessage(`השירות "${selectedService.name}" לא מוגדר לעמדה "${stationLabel}".`)
+                return
+            }
+
+            if (!data.is_active) {
+                const stationLabel = activeStation?.name ?? 'העמדה שנבחרה'
+                setDurationStatus('unsupported')
+                setDurationMinutes(null)
+                setDurationMessage(`השירות "${selectedService.name}" אינו פעיל לעמדה "${stationLabel}".`)
+                return
+            }
+
+            const minutes = typeof data.base_time_minutes === 'number' ? data.base_time_minutes : null
             if (minutes == null) {
                 setDurationStatus('error')
                 setDurationMinutes(null)
-                setDurationMessage('לא התקבל משך תספורת תקין עבור הגזע והעמדה שנבחרו.')
+                setDurationMessage('הוגדר משך לא תקין לשירות בעמדה זו.')
                 return
             }
 
             setDurationStatus('supported')
             setDurationMinutes(minutes)
             setDurationMessage(null)
-        } else {
-            setDurationStatus('unsupported')
-            setDurationMinutes(null)
-            setDurationMessage(treatmentTypeDurationData.message ?? 'העמדה שנבחרה אינה תומכת בגזע זה.')
-        }
-    }, [treatmentTypeDurationData, selectedTreatment?.id, appointmentTimes?.stationId])
-
-    useEffect(() => {
-        if (!isTreatmentTypeDurationError) {
-            return
         }
 
-        const rawMessage = typeof treatmentTypeDurationError === 'object' && treatmentTypeDurationError !== null
-            ? (treatmentTypeDurationError as { data?: unknown }).data
-            : null
+        fetchServiceConfiguration()
 
-        let message: string | null = null
-        if (typeof rawMessage === 'string') {
-            message = rawMessage
-        } else if (rawMessage && typeof rawMessage === 'object' && 'error' in rawMessage && typeof (rawMessage as { error?: unknown }).error === 'string') {
-            message = (rawMessage as { error?: string }).error ?? null
+        return () => {
+            isCancelled = true
         }
-
-        setDurationStatus('error')
-        setDurationMinutes(null)
-        setDurationMessage(message ?? 'לא ניתן לבדוק את משך התספורת בשלב זה.')
-    }, [isTreatmentTypeDurationError, treatmentTypeDurationError])
+    }, [selectedService?.id, selectedService?.name, appointmentTimes?.stationId, activeStation?.name])
 
     const startTimeKey = appointmentTimes?.startTime ? appointmentTimes.startTime.getTime() : null
 
@@ -216,7 +218,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 }
             })
         } else if (!isManualOverride && (durationStatus === 'unsupported' || durationStatus === 'error')) {
-            // Clear the end time when manual override is disabled and treatmentType is not supported
+            // Clear the end time when manual override is disabled and the service is not supported
             setAppointmentTimes((prev) => {
                 if (!prev) return prev
                 return {
@@ -229,20 +231,12 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
 
     const handleCustomerSelect = (customer: Customer) => {
         setSelectedCustomer(customer)
-        setSelectedTreatment(null) // Reset treatment selection when customer changes
-    }
-
-    const handleTreatmentSelect = (treatment: Treatment) => {
-        setSelectedTreatment(treatment)
+        setSelectedService(null)
     }
 
     const handleClearCustomer = () => {
         setSelectedCustomer(null)
-        setSelectedTreatment(null)
-    }
-
-    const handleClearTreatment = () => {
-        setSelectedTreatment(null)
+        setSelectedService(null)
     }
 
     const handleTimesUpdate = (times: FinalizedDragTimes) => {
@@ -264,7 +258,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
 
     const canCreateAppointment = Boolean(
         selectedCustomer &&
-        selectedTreatment &&
+        selectedService &&
         (durationStatus === 'supported' || isManualOverride) &&
         (durationMinutes != null || isManualOverride) &&
         appointmentTimes?.startTime &&
@@ -272,7 +266,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     )
 
     const handleCreateBusinessAppointment = async () => {
-        if (!canCreateAppointment || !appointmentTimes?.startTime || !appointmentTimes?.endTime || !selectedCustomer || !selectedTreatment) {
+        if (!canCreateAppointment || !appointmentTimes?.startTime || !appointmentTimes?.endTime || !selectedCustomer || !selectedService) {
             return
         }
 
@@ -285,14 +279,14 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 endTime: appointmentTimes.endTime.toISOString(),
                 appointmentType: "business",
                 customerId: selectedCustomer.id,
-                treatmentId: selectedTreatment.id,
+                serviceId: selectedService.id,
                 isManualOverride
             }).unwrap()
 
             // Close the modal and reset form
             onOpenChange(false)
             setSelectedCustomer(null)
-            setSelectedTreatment(null)
+            setSelectedService(null)
             setIsManualOverride(false)
             setOriginalEndTime(null)
             setAppointmentTimes(null)
@@ -319,7 +313,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 <DialogHeader>
                     <DialogTitle className="text-right">יצירת תור עסקי</DialogTitle>
                     <DialogDescription className="text-right">
-                        צור תור עסקי עם לקוח וכלב
+                        צור תור עסקי עם לקוח ושירות מתאים
                     </DialogDescription>
                 </DialogHeader>
 
@@ -340,7 +334,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                         {durationStatus === 'checking' && (
                             <div className="mb-3 flex items-center justify-end gap-2 text-xs text-blue-600">
                                 <Loader2 className="h-3 w-3 animate-spin" />
-                                <span>בודק משך התספורת עבור הגזע והעמדה שנבחרו...</span>
+                                <span>בודק משך השירות עבור ההגדרות שנבחרו...</span>
                             </div>
                         )}
 
@@ -348,8 +342,8 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                             <Alert variant="destructive" className="mb-3 text-right">
                                 <AlertDescription>
                                     {durationMessage ?? (durationStatus === 'unsupported'
-                                        ? "העמדה שנבחרה אינה תומכת בגזע זה."
-                                        : "אירעה שגיאה בבדיקת משך התספורת.")}
+                                        ? "העמדה שנבחרה אינה תומכת בשירות זה."
+                                        : "אירעה שגיאה בבדיקת משך השירות.")}
                                 </AlertDescription>
                             </Alert>
                         )}
@@ -361,13 +355,32 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                                 onCustomerClear={handleClearCustomer}
                             />
 
-                            {/* Treatment Selection */}
-                            <TreatmentSelectInput
-                                selectedCustomer={selectedCustomer}
-                                selectedTreatment={selectedTreatment}
-                                onTreatmentSelect={handleTreatmentSelect}
-                                onTreatmentClear={handleClearTreatment}
-                            />
+                            {selectedCustomer && (
+                                <div className="rounded-md border border-blue-100 bg-blue-50/40 p-4 text-right space-y-3">
+                                    <div className="text-xs font-medium text-blue-700">
+                                        שירות מקושר ללקוח
+                                    </div>
+
+                                    <ServiceSelectInput
+                                        selectedServiceId={selectedService?.id ?? null}
+                                        onServiceSelect={setSelectedService}
+                                        onServiceClear={() => setSelectedService(null)}
+                                    />
+
+                                    {selectedService && (
+                                        <div className="rounded-md border border-blue-200 bg-white/80 p-3 text-right space-y-1">
+                                            <div className="text-sm font-medium text-gray-900">
+                                                {selectedService.name}
+                                            </div>
+                                            {selectedService.description && (
+                                                <div className="text-xs text-gray-600">
+                                                    {selectedService.description}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

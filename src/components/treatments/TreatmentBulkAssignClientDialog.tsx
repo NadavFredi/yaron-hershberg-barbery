@@ -70,9 +70,9 @@ export function TreatmentBulkAssignCustomerDialog({
         }}>
             <DialogContent dir="rtl" className="max-w-md text-right">
                 <DialogHeader className="text-right">
-                    <DialogTitle className="text-right">שיוך לקוח לכלבים שנבחרו</DialogTitle>
+                    <DialogTitle className="text-right">שיוך לקוח לפרופילים שנבחרו</DialogTitle>
                     <DialogDescription className="text-right">
-                        בחר לקוח חדש שיקושר לכל הכלבים שסומנו. פעולה זו תעדכן את בעל הכלב.
+                        בחר לקוח חדש שיקושר לכל הפרופילים שסומנו. פעולה זו תעדכן את הבעלות על הפרופיל.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3">

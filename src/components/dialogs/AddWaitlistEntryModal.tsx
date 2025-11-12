@@ -7,7 +7,6 @@ import { Loader2, Plus, X, Trash2, Calendar as CalendarIcon } from "lucide-react
 import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerSearchInput, type Customer } from "@/components/CustomerSearchInput"
-import { TreatmentSelectInput, type Treatment } from "@/components/TreatmentSelectInput"
 import { supabase } from "@/integrations/supabase/client"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -39,7 +38,6 @@ interface WaitlistSubmissionEntry {
 
 interface WaitlistSubmissionData {
     customer: Customer
-    treatment: Treatment
     entries: WaitlistSubmissionEntry[]
     serviceScope: ServiceScopeValue
     notes: string
@@ -57,9 +55,7 @@ interface AddWaitlistEntryModalProps {
     onOpenChange: (open: boolean) => void
     onSuccess?: () => void
     defaultCustomer?: Customer | null
-    defaultTreatment?: Treatment | null
     disableCustomerSelection?: boolean
-    disableTreatmentSelection?: boolean
     title?: string
     description?: string
     submitLabel?: string
@@ -76,12 +72,10 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
     onOpenChange,
     onSuccess,
     defaultCustomer = null,
-    defaultTreatment = null,
     disableCustomerSelection = false,
-    disableTreatmentSelection = false,
-    title = "הוסף כלב לרשימת ההמתנה",
-    description = "בחר לקוח, כלב, ותאריכים להמתנה",
-    submitLabel = "הוסף לרשימת המתנה",
+    title = "הוסף לקוח לרשימת ההמתנה",
+    description = "בחר לקוח ותאריכים להמתנה",
+    submitLabel = "הוסף לרשימת ההמתנה",
     serviceScopeOptions,
     initialServiceScope,
     initialDateRanges,
@@ -99,7 +93,6 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
     const [dateSelectionMode, setDateSelectionMode] = useState<DateEntryMode>('single')
     const [dateEntries, setDateEntries] = useState<DateEntry[]>([createDateEntry('single')])
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(defaultCustomer)
-    const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(defaultTreatment)
     const [notes, setNotes] = useState(initialNotes || "")
     const [serviceScope, setServiceScope] = useState<ServiceScopeValue>(
         initialServiceScope ??
@@ -154,21 +147,19 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
         setDateEntries([createDateEntry('single')])
         setDateSelectionMode('single')
         setSelectedCustomer(defaultCustomer ?? null)
-        setSelectedTreatment(defaultTreatment ?? null)
         setNotes(initialNotes || "")
         setServiceScope(
             initialServiceScope ??
             serviceScopeOptions?.[0]?.value ??
             'grooming'
         )
-    }, [defaultCustomer, defaultTreatment, initialNotes, initialServiceScope, serviceScopeOptions])
+    }, [defaultCustomer, initialNotes, initialServiceScope, serviceScopeOptions])
 
     const initializeFormState = useCallback(() => {
         const entries = buildEntriesFromRanges(initialDateRanges)
         setDateEntries(entries)
         setDateSelectionMode(determineInitialMode(entries))
         setSelectedCustomer(defaultCustomer ?? null)
-        setSelectedTreatment(defaultTreatment ?? null)
         setNotes(initialNotes || "")
         setServiceScope(
             initialServiceScope ??
@@ -179,7 +170,6 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
         buildEntriesFromRanges,
         determineInitialMode,
         defaultCustomer,
-        defaultTreatment,
         initialDateRanges,
         initialNotes,
         initialServiceScope,
@@ -197,11 +187,6 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
     const handleCustomerSelect = (customer: Customer) => {
         setSelectedCustomer(customer)
-        setSelectedTreatment(null) // Reset treatment when customer changes
-    }
-
-    const handleTreatmentSelect = (treatment: Treatment) => {
-        setSelectedTreatment(treatment)
     }
 
     const addDateEntry = () => {
@@ -239,15 +224,6 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
             return
         }
 
-        if (!selectedTreatment) {
-            toast({
-                title: "שגיאה",
-                description: "יש לבחור כלב",
-                variant: "destructive"
-            })
-            return
-        }
-
         if (dateEntries.length === 0) {
             toast({
                 title: "שגיאה",
@@ -259,7 +235,6 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
         const supabaseEntries: {
             customer_id: string
-            treatment_id: string
             service_scope: NormalizedServiceScope
             status: 'active'
             start_date: string
@@ -283,7 +258,6 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
                 entry.singleDates.forEach(date => {
                     supabaseEntries.push({
                         customer_id: selectedCustomer.id,
-                        treatment_id: selectedTreatment.id,
                         service_scope: normalizeServiceScope(serviceScope),
                         status: 'active',
                         start_date: format(date, 'yyyy-MM-dd'),
@@ -314,7 +288,6 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
                 supabaseEntries.push({
                     customer_id: selectedCustomer.id,
-                    treatment_id: selectedTreatment.id,
                     service_scope: normalizeServiceScope(serviceScope),
                     status: 'active',
                     start_date: format(startDate, 'yyyy-MM-dd'),
@@ -335,7 +308,6 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
                 await onSubmit({
                     customer: selectedCustomer,
-                    treatment: selectedTreatment,
                     entries: submissionEntries,
                     serviceScope: serviceScope,
                     notes: notes.trim(),
@@ -344,7 +316,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
                 })
             } else {
                 const { error } = await supabase
-                    .from('daycare_waitlist')
+                    .from('waitlist')
                     .insert(supabaseEntries)
 
                 if (error) throw error
@@ -396,27 +368,11 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
                                 onCustomerClear={() => {
                                     if (disableCustomerSelection) return
                                     setSelectedCustomer(null)
-                                    setSelectedTreatment(null)
                                 }}
                                 placeholder="חיפוש לקוח..."
                                 disabled={disableCustomerSelection}
                             />
                         </div>
-
-                        {/* Treatment Selection - only shown when customer is selected */}
-                        {selectedCustomer && (
-                            <div className="space-y-2">
-                                <Label>כלב <span className="text-red-500">*</span></Label>
-                                <TreatmentSelectInput
-                                    selectedCustomer={selectedCustomer}
-                                    selectedTreatment={selectedTreatment}
-                                    onTreatmentSelect={handleTreatmentSelect}
-                                    onTreatmentClear={() => setSelectedTreatment(null)}
-                                    placeholder="בחר כלב..."
-                                    disabled={disableTreatmentSelection}
-                                />
-                            </div>
-                        )}
 
                         {serviceScopeOptions && serviceScopeOptions.length > 0 && (
                             <div className="space-y-2">

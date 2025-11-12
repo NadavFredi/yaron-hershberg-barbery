@@ -52,7 +52,7 @@ import {
 interface WaitlistEntry {
     id: string
     customer_id: string
-    treatment_id: string
+    treatment_id: string | null
     service_scope: 'grooming' | 'daycare' | 'both'
     status: 'active' | 'fulfilled' | 'cancelled'
     start_date: string
@@ -161,7 +161,8 @@ export default function WaitingListPage() {
             .not("phone", "is", null)
 
         if (trimmedTerm.length >= 2) {
-            query = query.ilike("phone", `%${trimmedTerm}%`).limit(10)
+            const pattern = "%" + trimmedTerm + "%"
+            query = query.ilike("phone", pattern).limit(10)
         } else {
             query = query.order("phone", { ascending: true }).limit(5)
         }
@@ -180,7 +181,8 @@ export default function WaitingListPage() {
             .not("full_name", "is", null)
 
         if (trimmedTerm.length >= 2) {
-            query = query.ilike("full_name", `%${trimmedTerm}%`).limit(10)
+            const pattern = "%" + trimmedTerm + "%"
+            query = query.ilike("full_name", pattern).limit(10)
         } else {
             query = query.order("full_name", { ascending: true }).limit(5)
         }
@@ -194,12 +196,13 @@ export default function WaitingListPage() {
     const searchTreatmentNames = async (searchTerm: string): Promise<string[]> => {
         const trimmedTerm = searchTerm.trim()
         let query = supabase
-            .from("treatments")
+            .from("services")
             .select("name")
             .not("name", "is", null)
 
         if (trimmedTerm.length >= 2) {
-            query = query.ilike("name", `%${trimmedTerm}%`).limit(10)
+            const pattern = "%" + trimmedTerm + "%"
+            query = query.ilike("name", pattern).limit(10)
         } else {
             query = query.order("name", { ascending: true }).limit(5)
         }
@@ -218,7 +221,8 @@ export default function WaitingListPage() {
             .not("email", "is", null)
 
         if (trimmedTerm.length >= 2) {
-            query = query.ilike("email", `%${trimmedTerm}%`).limit(10)
+            const pattern = "%" + trimmedTerm + "%"
+            query = query.ilike("email", pattern).limit(10)
         } else {
             query = query.order("email", { ascending: true }).limit(5)
         }
@@ -234,7 +238,7 @@ export default function WaitingListPage() {
         try {
             // First, get all waitlist entries
             const { data: waitlistData, error: waitlistError } = await supabase
-                .from("daycare_waitlist")
+                .from("waitlist")
                 .select("*")
                 .order("created_at", { ascending: false })
 
@@ -246,9 +250,9 @@ export default function WaitingListPage() {
                 return
             }
 
-            // Get unique customer and treatment IDs
+            // Get unique customer and service IDs
             const customerIds = [...new Set(waitlistData.map(e => e.customer_id))]
-            const treatmentIds = [...new Set(waitlistData.map(e => e.treatment_id))]
+            const serviceIds = [...new Set(waitlistData.map(e => e.service_id).filter((id): id is string => Boolean(id)))]
 
             // Fetch customers
             const { data: customersData } = await supabase
@@ -256,76 +260,36 @@ export default function WaitingListPage() {
                 .select("id, full_name, phone, email")
                 .in("id", customerIds)
 
-            // Fetch treatments with treatmentTypes
-            const { data: treatmentsData } = await supabase
-                .from("treatments")
-                .select(`
-                    id,
-                    name,
-                    treatment_type_id,
-                    treatmentType:treatment_types (
-                        id,
-                        name,
-                        default_duration_minutes,
-                        default_price
+            // Fetch services (treatments table no longer exists)
+            let servicesData: any[] = []
+            if (serviceIds.length > 0) {
+                const { data: fetchedServices } = await supabase
+                    .from("services")
+                    .select(
+                        "id, name, description, category"
                     )
-                `)
-                .in("id", treatmentIds)
-
-            // Fetch treatmentType types and categories
-            const treatmentTypeIds = [...new Set((treatmentsData || []).map(d => d.treatment_type_id).filter(Boolean))]
-
-            const [typesData, categoriesData] = await Promise.all([
-                treatmentTypeIds.length > 0
-                    ? supabase
-                        .from("treatmentType_treatment_types")
-                        .select(`
-                            treatment_type_id,
-                            treatment_type_id,
-                            treatment_type:treatment_types (id, name)
-                        `)
-                        .in("treatment_type_id", treatmentTypeIds)
-                    : { data: [], error: null },
-                treatmentTypeIds.length > 0
-                    ? supabase
-                        .from("treatmentType_treatment_categories")
-                        .select(`
-                            treatment_type_id,
-                            treatment_category_id,
-                            treatment_category:treatment_categories (id, name)
-                        `)
-                        .in("treatment_type_id", treatmentTypeIds)
-                    : { data: [], error: null }
-            ])
+                    .in("id", serviceIds)
+                servicesData = fetchedServices || []
+            }
 
             // Build lookup maps
             const customersMap = new Map((customersData || []).map(c => [c.id, c]))
-            const treatmentsMap = new Map((treatmentsData || []).map(d => [d.id, d]))
-            const typesByTreatmentType = new Map<string, any[]>()
-            const categoriesByTreatmentType = new Map<string, any[]>()
-
-                ; (typesData.data || []).forEach((row: any) => {
-                    if (!typesByTreatmentType.has(row.treatment_type_id)) typesByTreatmentType.set(row.treatment_type_id, [])
-                    if (row.treatment_type) typesByTreatmentType.get(row.treatment_type_id)!.push(row.treatment_type)
-                })
-
-                ; (categoriesData.data || []).forEach((row: any) => {
-                    if (!categoriesByTreatmentType.has(row.treatment_type_id)) categoriesByTreatmentType.set(row.treatment_type_id, [])
-                    if (row.treatment_category) categoriesByTreatmentType.get(row.treatment_type_id)!.push(row.treatment_category)
-                })
+            const servicesMap = new Map((servicesData || []).map(d => [d.id, d]))
 
             // Transform the data
             const transformedData: WaitlistEntry[] = waitlistData.map((entry: any) => {
-                const treatment = treatmentsMap.get(entry.treatment_id)
-                const treatmentTypeId = treatment?.treatment_type_id
+                const service = servicesMap.get(entry.service_id)
 
                 return {
                     ...entry,
                     customer: customersMap.get(entry.customer_id) || undefined,
-                    treatment: treatment ? {
-                        ...treatment,
-                        treatment_types: treatmentTypeId ? (typesByTreatmentType.get(treatmentTypeId) || []) : [],
-                        treatment_categories: treatmentTypeId ? (categoriesByTreatmentType.get(treatmentTypeId) || []) : []
+                    treatment: service ? {
+                        id: service.id,
+                        name: service.name,
+                        treatment_type_id: null, // Services don't have treatment_type_id
+                        treatmentType: service.category ? { id: "", name: service.category } : null,
+                        treatment_types: [],
+                        treatment_categories: []
                     } : undefined
                 }
             })
@@ -491,12 +455,12 @@ export default function WaitingListPage() {
                 startTime: startTime.toISOString(),
                 endTime: endTime.toISOString(),
                 notes: approveNotes || undefined,
-                internalNotes: `נוצר מרשימת המתנה (${selectedEntry.id})`
+                internalNotes: "נוצר מרשימת המתנה (" + selectedEntry.id + ")"
             }).unwrap()
 
             // Update waitlist entry status
             await supabase
-                .from("daycare_waitlist")
+                .from("waitlist")
                 .update({ status: 'fulfilled' })
                 .eq("id", selectedEntry.id)
 
@@ -528,11 +492,18 @@ export default function WaitingListPage() {
 
         setIsProcessing(true)
         try {
+            const existingNotes = selectedEntry.notes || ""
+            let updatedNotes = existingNotes
+            if (declineReason) {
+                const prefix = existingNotes ? existingNotes + "\n" : ""
+                updatedNotes = prefix + "סיבה לדחייה: " + declineReason
+            }
+
             await supabase
-                .from("daycare_waitlist")
+                .from("waitlist")
                 .update({
                     status: 'cancelled',
-                    notes: declineReason ? `${selectedEntry.notes || ''}\nסיבה לדחייה: ${declineReason}`.trim() : selectedEntry.notes
+                    notes: updatedNotes.trim()
                 })
                 .eq("id", selectedEntry.id)
 
@@ -569,12 +540,14 @@ export default function WaitingListPage() {
 
         setIsProcessing(true)
         try {
-            const suggestionText = `הצעה: ${format(suggestion.suggestedDate, 'dd/MM/yyyy', { locale: he })} בשעה ${suggestion.suggestedTime}${suggestion.notes ? `\n${suggestion.notes}` : ''}`
+            const formattedDate = format(suggestion.suggestedDate, "dd/MM/yyyy", { locale: he })
+            const baseSuggestionText = "הצעה: " + formattedDate + " בשעה " + suggestion.suggestedTime
+            const suggestionText = suggestion.notes ? baseSuggestionText + "\n" + suggestion.notes : baseSuggestionText
 
             await supabase
-                .from("daycare_waitlist")
+                .from("waitlist")
                 .update({
-                    notes: selectedEntry.notes ? `${selectedEntry.notes}\n\n${suggestionText}` : suggestionText
+                    notes: selectedEntry.notes ? selectedEntry.notes + "\n\n" + suggestionText : suggestionText
                 })
                 .eq("id", selectedEntry.id)
 
@@ -602,7 +575,12 @@ export default function WaitingListPage() {
     const handleViewInCalendar = (entry: WaitlistEntry) => {
         // Navigate to ManagerSchedule with waitlist preview context
         const previewDate = entry.start_date ? new Date(entry.start_date) : new Date()
-        navigate(`/manager?previewWaitlist=${entry.id}&date=${format(previewDate, 'yyyy-MM-dd')}`)
+        navigate(
+            "/manager?previewWaitlist=" +
+            entry.id +
+            "&date=" +
+            format(previewDate, "yyyy-MM-dd")
+        )
     }
 
     const getServiceBadge = (service: string) => {
@@ -703,11 +681,11 @@ export default function WaitingListPage() {
                             />
                         </div>
                         <div>
-                            <Label className="text-sm mb-2 block">שם כלב</Label>
+                            <Label className="text-sm mb-2 block">שם לקוח</Label>
                             <AutocompleteFilter
                                 value={treatmentNameFilter}
                                 onChange={setTreatmentNameFilter}
-                                placeholder="שם כלב..."
+                                placeholder="שם לקוח..."
                                 searchFn={searchTreatmentNames}
                                 minSearchLength={0}
                                 autoSearchOnFocus
@@ -810,7 +788,7 @@ export default function WaitingListPage() {
                             />
                         </div>
                         <div>
-                            <Label className="text-sm mb-2 block">הצג כלבים ממתינים בתאריך זה</Label>
+                            <Label className="text-sm mb-2 block">הצג לקוחות ממתינים בתאריך זה</Label>
                             <DatePickerInput
                                 value={singleDateFilter}
                                 onChange={setSingleDateFilter}
@@ -917,7 +895,7 @@ export default function WaitingListPage() {
                                 <thead>
                                     <tr className="border-b bg-[hsl(228_36%_95%)] text-right text-primary [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-[hsl(228_36%_95%)]">
                                         <th className="h-12 w-12 text-center align-middle font-semibold"></th>
-                                        <th className="h-12 px-3 align-middle font-semibold">שם הכלב</th>
+                                        <th className="h-12 px-3 align-middle font-semibold">שם הלקוח</th>
                                         <th className="h-12 px-3 align-middle font-semibold">גזע</th>
                                         <th className="h-12 px-3 align-middle font-semibold">קטגוריות</th>
                                         <th className="h-12 px-3 align-middle font-semibold">גודל</th>
@@ -1166,9 +1144,10 @@ function WaitlistEntryRow({
     const startDateLabel = formatDateValue(entry.start_date)
     const endDateLabel = entry.end_date ? formatDateValue(entry.end_date) : null
     const createdLabel = formatDateValue(entry.created_at, true)
-    const dateSummary = endDateLabel && endDateLabel !== startDateLabel
-        ? `${startDateLabel} - ${endDateLabel}`
-        : startDateLabel
+    let dateSummary = startDateLabel
+    if (endDateLabel && endDateLabel !== startDateLabel) {
+        dateSummary = startDateLabel + " - " + endDateLabel
+    }
 
     return (
         <Fragment>
@@ -1264,7 +1243,7 @@ function WaitlistEntryRow({
                             <div className="grid gap-8 lg:grid-cols-3">
                                 <InfoSection
                                     icon={<Sparkles className="h-4 w-4" />}
-                                    title="פרטי הכלב"
+                                    title="פרטי הלקוח"
                                     rows={[
                                         { label: "שם", value: entry.treatment?.name || "-" },
                                         { label: "גזע", value: entry.treatment?.treatmentType?.name || "-" },
@@ -1343,7 +1322,11 @@ const InfoSection = ({ icon, title, rows }: InfoSectionProps) => (
         <div className="rounded-2xl border border-blue-100 bg-white px-4 py-4 shadow-sm">
             <dl className="space-y-3 text-sm text-gray-700">
                 {rows.map((row, index) => (
-                    <DetailRow key={`${title}-${row.label}-${index}`} label={row.label} value={row.value} />
+                    <DetailRow
+                        key={title + "-" + row.label + "-" + index}
+                        label={row.label}
+                        value={row.value}
+                    />
                 ))}
             </dl>
         </div>

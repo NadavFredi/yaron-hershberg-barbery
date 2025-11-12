@@ -35,8 +35,8 @@ export function TreatmentSelectInput({
     onTreatmentSelect,
     onTreatmentClear,
     disabled = false,
-    label = "בחירת כלב",
-    placeholder = "בחר כלב",
+    label = "בחירת טיפול",
+    placeholder = "בחר טיפול",
     onTreatmentCreated,
     className,
 }: TreatmentSelectInputProps) {
@@ -95,7 +95,7 @@ export function TreatmentSelectInput({
                 <Label className="text-sm font-medium text-gray-700 mb-2 text-right block">{label}</Label>
                 <div className="flex items-center justify-center p-4">
                     <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                    <span className="mr-2 text-sm text-gray-500">טוען כלבים...</span>
+                    <span className="mr-2 text-sm text-gray-500">טוען טיפולים...</span>
                 </div>
             </div>
         )
@@ -108,7 +108,7 @@ export function TreatmentSelectInput({
             {treatments.length === 0 ? (
                 <div className="space-y-2">
                     <div className="text-sm text-gray-500 text-right">
-                        ללקוח זה אין כלבים רשומים
+                        ללקוח זה אין טיפולים רשומים
                     </div>
                     <Button
                         type="button"
@@ -119,7 +119,7 @@ export function TreatmentSelectInput({
                         disabled={disabled}
                     >
                         <Plus className="h-4 w-4 mr-2" />
-                        הוסף כלב חדש
+                        הוסף טיפול חדש
                     </Button>
                 </div>
             ) : (
@@ -178,7 +178,7 @@ export function TreatmentSelectInput({
                             <SelectItem value="__add_new__" className="text-right">
                                 <div className="flex items-center gap-2 justify-end w-full text-blue-600">
                                     <Plus className="h-4 w-4" />
-                                    <span className="font-medium">הוסף כלב חדש</span>
+                                    <span className="font-medium">הוסף טיפול חדש</span>
                                 </div>
                             </SelectItem>
                         </SelectContent>
@@ -194,7 +194,7 @@ export function TreatmentSelectInput({
                                 }}
                                 className="p-1 hover:bg-green-100 rounded transition-colors"
                                 disabled={disabled}
-                                title="ערוך כלב"
+                                title="ערוך טיפול"
                             >
                                 <Pencil className="h-4 w-4 text-green-600" />
                             </button>

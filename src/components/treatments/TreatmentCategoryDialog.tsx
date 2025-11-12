@@ -51,7 +51,7 @@ export function TreatmentCategoryDialog({
                     </DialogTitle>
                     <DialogDescription className="text-right">
                         {mode === "create"
-                            ? `הוסף ${entityLabel} חדש לניהול טוב יותר של הכלבים.`
+                            ? `הוסף ${entityLabel} חדש לניהול טוב יותר של הלקוחות.`
                             : `עדכן את שם ${entityLabel} לבחירתך.`}
                     </DialogDescription>
                 </DialogHeader>

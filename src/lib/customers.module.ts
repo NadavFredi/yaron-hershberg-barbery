@@ -20,7 +20,7 @@ export async function searchCustomers(searchTerm: string): Promise<{
 }> {
   const searchPattern = searchTerm.trim()
 
-  let query = supabase.from("customers").select("id, full_name, phone, email, airtable_id").limit(20)
+  let query = supabase.from("customers").select("id, full_name, phone, email").limit(20)
 
   // If there's a search term, filter by it; otherwise return first 20
   if (searchPattern.length > 0) {
@@ -46,24 +46,9 @@ export async function searchCustomers(searchTerm: string): Promise<{
     // Get all customer IDs
     const customerIds = customersData.map((c) => c.id)
 
-    // Fetch treatments for all customers at once
-    const { data: treatmentsData, error: treatmentsError } = await supabase
-      .from("treatments")
-      .select("id, name, customer_id")
-      .in("customer_id", customerIds)
-
-    if (treatmentsError) {
-      console.warn("Error fetching treatments for customers:", treatmentsError)
-    }
-
-    // Group treatments by customer_id
+    // Treatments table no longer exists - services are global, not per-customer
+    // So we just use empty treatments for all customers
     const treatmentsByCustomer: Record<string, string[]> = {}
-    treatmentsData?.forEach((treatment) => {
-      if (!treatmentsByCustomer[treatment.customer_id]) {
-        treatmentsByCustomer[treatment.customer_id] = []
-      }
-      treatmentsByCustomer[treatment.customer_id].push(treatment.name)
-    })
 
     // Build result array
     customersData.forEach((customer) => {
@@ -73,7 +58,6 @@ export async function searchCustomers(searchTerm: string): Promise<{
         phone: customer.phone || undefined,
         email: customer.email || undefined,
         treatmentNames: treatmentsByCustomer[customer.id]?.join(", ") || undefined,
-        recordId: customer.airtable_id || undefined,
       })
     })
   }

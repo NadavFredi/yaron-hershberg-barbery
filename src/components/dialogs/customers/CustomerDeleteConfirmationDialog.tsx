@@ -22,7 +22,7 @@ export function CustomerDeleteConfirmationDialog({
                 <AlertDialogHeader className="text-right">
                     <AlertDialogTitle className="text-right">מחיקת לקוח</AlertDialogTitle>
                     <AlertDialogDescription className="text-right">
-                        האם אתה בטוח שברצונך למחוק את הלקוח "{customerName ?? ""}"? פעולה זו אינה ברת ביטול ותמחק גם את כל הכלבים והתורים המשויכים ללקוח זה.
+                        האם אתה בטוח שברצונך למחוק את הלקוח "{customerName ?? ""}"? פעולה זו אינה ברת ביטול ותמחק גם את כל הפרופילים והתורים המשויכים ללקוח זה.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="mt-2 flex-col gap-2 sm:flex-row sm:justify-start sm:space-x-2 sm:space-x-reverse">

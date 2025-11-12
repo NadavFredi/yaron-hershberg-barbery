@@ -165,7 +165,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
         <Tabs defaultValue="appointments" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="appointments">היסטוריית תורים</TabsTrigger>
-            <TabsTrigger value="treatments">הכלבים שלי</TabsTrigger>
+            <TabsTrigger value="treatments">הפרופילים שלי</TabsTrigger>
             <TabsTrigger value="notes">הערות ופרטים</TabsTrigger>
           </TabsList>
 
@@ -187,7 +187,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                     <TableRow>
                       <TableHead>תאריך ושעה</TableHead>
                       <TableHead>שירות</TableHead>
-                      <TableHead>שם הכלב</TableHead>
+                      <TableHead>שם הלקוח</TableHead>
                       <TableHead>עמדה מטפלת</TableHead>
                       <TableHead>סטטוס</TableHead>
                     </TableRow>
@@ -220,7 +220,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <PawPrint className="w-5 h-5 text-blue-600" />
-                      שם הכלב: {treatment.name}
+                      שם הלקוח: {treatment.name}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -236,7 +236,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                       <Textarea
                         value={treatment.notes || ''}
                         onChange={(e) => updateTreatmentNotes(treatment.id, e.target.value)}
-                        placeholder="למשל: רגיש במיוחד באוזניים, לא אוהב את המייבש, נובח כשרואה כלבים אחרים..."
+                        placeholder="למשל: רגיש במיוחד באוזניים, לא אוהב את המייבש, מעדיף שקט בזמן הטיפול..."
                         className="min-h-[100px]"
                       />
                       <Button size="sm" className="mt-2">
@@ -251,7 +251,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                 <CardContent className="p-6 text-center">
                   <Button variant="outline" className="flex items-center gap-2">
                     <Plus className="w-4 h-4" />
-                    הוסף כלב חדש ללקוח
+                    הוסף פרופיל חדש ללקוח
                   </Button>
                 </CardContent>
               </Card>

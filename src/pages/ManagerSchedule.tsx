@@ -5,7 +5,7 @@ import { useDispatch } from "react-redux"
 import { createPortal } from "react-dom"
 import { addDays, addHours, addMinutes, differenceInMinutes, format, max, min, startOfDay, startOfMonth, setSeconds, setMilliseconds, parseISO } from "date-fns"
 import { he } from "date-fns/locale"
-import { CalendarIcon, CalendarCog, ChevronsLeft, ChevronsRight, Loader2, RefreshCcw, AlertCircle, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, DollarSign, MessageSquare, Scissors, Bone, Wand2, Droplets, Clock, Pencil, Trash2, MoreHorizontal, Copy, Plus, X, SlidersHorizontal, GripVertical, Search, FileText, UserRound } from "lucide-react"
+import { CalendarIcon, CalendarCog, ChevronsLeft, ChevronsRight, Loader2, RefreshCcw, AlertCircle, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, DollarSign, MessageSquare, Scissors, Bone, Clock, Pencil, Trash2, MoreHorizontal, Copy, Plus, X, SlidersHorizontal, GripVertical, Search, FileText, UserRound } from "lucide-react"
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, PointerSensor, useSensor, useSensors, useDraggable } from "@dnd-kit/core"
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -48,16 +48,13 @@ import {
   MoveConfirmationDialog,
   DeleteConfirmationDialog,
   CancelConfirmationDialog,
-  GardenEditModal,
   GroomingEditModal,
   AppointmentTypeSelectionModal,
-  ServiceTypeSelectionModal,
   PrivateAppointmentModal,
   BusinessAppointmentModal,
   ProposedMeetingModal,
   DuplicateSeriesModal,
   DuplicateSuccessModal,
-  NewGardenAppointmentModal,
   TreatmentAppointmentsModal,
   PaymentModal,
   StationConstraintsModal
@@ -81,20 +78,16 @@ import type { AppointmentTimes } from "./ManagerSchedule/components/AppointmentD
 import type { ProposedMeetingInvite } from "@/types/managerSchedule"
 import { ProposeRescheduleModal } from "@/components/dialogs/manager-schedule/ProposeRescheduleModal"
 
-const SERVICE_LABELS: Record<Exclude<ManagerServiceFilter, "both">, string> = {
-  grooming: "מספרה",
-  garden: "גן",
-}
-
-const SERVICE_STYLES: Record<Exclude<ManagerServiceFilter, "both">, { card: string; badge: string }> = {
+const SERVICE_STYLES: Record<string, { card: string; badge: string }> = {
   grooming: {
     card: "bg-blue-50 border-blue-200",
     badge: "border-blue-200 bg-blue-100 text-blue-800",
   },
-  garden: {
-    card: "bg-emerald-50 border-emerald-200",
-    badge: "border-emerald-200 bg-emerald-100 text-emerald-800",
-  },
+}
+
+const DEFAULT_SERVICE_STYLE = {
+  card: "bg-slate-50 border-slate-200",
+  badge: "border-slate-200 bg-slate-100 text-slate-700",
 }
 
 // Utility function to snap time to the nearest interval
@@ -267,10 +260,6 @@ const getStatusStyle = (status: string, appointment?: ManagerAppointment): strin
     normalized.includes("הושלם") ||
     normalized.includes("מאשר")
   ) {
-    // For trial garden appointments, use amber colors instead of emerald
-    if (appointment?.serviceType === "garden" && appointment?.gardenIsTrial) {
-      return "border-amber-200 bg-amber-50 text-amber-700"
-    }
     return STATUS_STYLE_MAP.success
   }
 
@@ -631,11 +620,8 @@ const ManagerSchedule = () => {
   }
 
   const getServiceFilterFromParams = () => {
-    const filterParam = searchParams.get('filter')
-    if (filterParam && ['grooming', 'garden', 'both'].includes(filterParam)) {
-      return filterParam as ManagerServiceFilter
-    }
-    return "both"
+    const filterParam = searchParams.get("filter")
+    return filterParam === "grooming" ? "grooming" : "grooming"
   }
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => getDateFromParams())
@@ -741,13 +727,6 @@ const ManagerSchedule = () => {
   const [duplicateSuccessOpen, setDuplicateSuccessOpen] = useState(false)
   const [isLoadingAppointment, setIsLoadingAppointment] = useState(false)
 
-  // New garden appointment modal state
-  const [newGardenAppointmentModalOpen, setNewGardenAppointmentModalOpen] = useState(false)
-  const [newGardenAppointmentType, setNewGardenAppointmentType] = useState<'full-day' | 'hourly' | 'trial' | null>(null)
-
-  // Service type selection modal state
-  const [showServiceTypeSelectionModal, setShowServiceTypeSelectionModal] = useState(false)
-
   // Treatment appointments modal state
   const [showTreatmentAppointmentsModal, setShowTreatmentAppointmentsModal] = useState(false)
   const [selectedTreatmentForAppointments, setSelectedTreatmentForAppointments] = useState<{ id: string; name: string } | null>(null)
@@ -787,8 +766,6 @@ const ManagerSchedule = () => {
     oldEndTime: Date
     newStartTime: Date
     newEndTime: Date
-    newGardenAppointmentType?: 'full-day' | 'hourly' | 'trial'
-    newGardenIsTrial?: boolean
     selectedHours?: { start: string; end: string }
   } | null>(null)
   const [hourlyTimeSelection, setHourlyTimeSelection] = useState<{ start: string; end: string } | null>(null)
@@ -893,13 +870,6 @@ const ManagerSchedule = () => {
       }
     }
   }, [debouncedScheduleSearchTerm, triggerScheduleSearch])
-
-  // Garden edit modal state
-  const [gardenEditOpen, setGardenEditOpen] = useState(false)
-  const [gardenEditLoading, setGardenEditLoading] = useState(false)
-  const [editingAppointment, setEditingAppointment] = useState<ManagerAppointment | null>(null)
-  const [updateCustomerGarden, setUpdateCustomerGarden] = useState(false)
-
   // Grooming edit modal state
   const [groomingEditOpen, setGroomingEditOpen] = useState(false)
   const [groomingEditLoading, setGroomingEditLoading] = useState(false)
@@ -967,19 +937,6 @@ const ManagerSchedule = () => {
     selectedStations: [] as string[]
   })
   const [optimisticAppointments, setOptimisticAppointments] = useState<ManagerAppointment[]>([])
-  const [gardenEditForm, setGardenEditForm] = useState({
-    date: new Date(),
-    startTime: '09:00',
-    endTime: '10:00',
-    appointmentType: 'hourly' as 'full-day' | 'hourly' | 'trial',
-    notes: '',
-    internalNotes: '',
-    latePickupRequested: false,
-    latePickupNotes: '',
-    gardenTrimNails: false,
-    gardenBrush: false,
-    gardenBath: false,
-  })
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null)
   const [lastHighlightUpdate, setLastHighlightUpdate] = useState<number>(0)
 
@@ -1285,7 +1242,7 @@ const ManagerSchedule = () => {
       const appointmentEndDate = parseISODate(appointment.endDateTime)
       const treatment = appointment.treatments?.[0]
       const ownerName = appointment.clientName || treatment?.clientName
-      const serviceLabel = appointment.serviceType === "garden" ? "גן" : "מספרה"
+      const serviceLabel = "מספרה"
       const isPersonal = appointment.isPersonalAppointment || (!treatment && appointment.appointmentType === "private")
       let entityType: ScheduleSearchResultType = "appointment"
       if (isPersonal) {
@@ -1367,9 +1324,9 @@ const ManagerSchedule = () => {
         treatment,
         ownerName: clientDetails?.name,
         serviceType: "grooming",
-        serviceLabel: "כלב",
+        serviceLabel: "לקוח",
         appointmentDate: null,
-        dateLabel: clientDetails?.phone ? `טלפון: ${clientDetails.phone}` : "כלב ללא תור ביומן",
+        dateLabel: clientDetails?.phone ? `טלפון: ${clientDetails.phone}` : "לקוח ללא תור ביומן",
         timeLabel: clientDetails?.email ? `דוא"ל: ${clientDetails.email}` : "",
         entityType: "treatment",
         clientName: clientDetails?.name,
@@ -1541,21 +1498,19 @@ const ManagerSchedule = () => {
                   }
                   return "border-slate-200 bg-slate-100 text-slate-700"
                 }
-                return result.serviceType === "garden"
-                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
-                  : "border-blue-100 bg-blue-50 text-blue-700"
+                return "border-blue-100 bg-blue-50 text-blue-700"
               })()
               const titleText =
                 result.entityType === "personal"
                   ? result.appointment?.personalAppointmentDescription || "תור אישי"
-                  : result.treatment?.name || result.ownerName || "תור ללא כלב"
+                  : result.treatment?.name || result.ownerName || "תור ללא לקוח"
               const secondaryText = (() => {
                 if (result.entityType === "personal") {
                   return "תור אישי ביומן ההנהלה"
                 }
                 if (!result.appointment) {
                   if (result.entityType === "treatment") {
-                    return result.ownerName ? `בעלים: ${result.ownerName}` : "כלב במערכת"
+                    return result.ownerName ? `בעלים: ${result.ownerName}` : "לקוח במערכת"
                   }
                   if (result.entityType === "client") {
                     return result.clientDetails?.classification
@@ -1652,7 +1607,7 @@ const ManagerSchedule = () => {
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 text-gray-500 hover:text-gray-900"
-                        title="פתח כרטיס כלב"
+                        title="פתח כרטיס לקוח"
                         onClick={(event) => {
                           event.preventDefault()
                           event.stopPropagation()
@@ -1763,8 +1718,8 @@ const ManagerSchedule = () => {
       const dayEnd = addDays(dayStart, 1)
 
       const { data: waitlistData, error: waitlistError } = await supabase
-        .from("daycare_waitlist")
-        .select("id, customer_id, treatment_id, service_scope, status, start_date, end_date, notes, created_at, updated_at")
+        .from("waitlist")
+        .select("id, customer_id, service_id, service_scope, status, start_date, end_date, notes, created_at, updated_at")
         .eq("status", "active")
         .order("created_at", { ascending: false })
 
@@ -1788,7 +1743,7 @@ const ManagerSchedule = () => {
       }
 
       const customerIds = [...new Set(relevantEntries.map((entry) => entry.customer_id).filter(Boolean))]
-      const treatmentIds = [...new Set(relevantEntries.map((entry) => entry.treatment_id).filter(Boolean))]
+      const serviceIds = [...new Set(relevantEntries.map((entry) => entry.service_id).filter(Boolean))]
 
       const customerQuery = customerIds.length
         ? supabase
@@ -1807,117 +1762,52 @@ const ManagerSchedule = () => {
           .in("id", customerIds)
         : Promise.resolve({ data: [], error: null })
 
-      const treatmentQuery = treatmentIds.length
+      const serviceQuery = serviceIds.length
         ? supabase
-          .from("treatments")
+          .from("services")
           .select(`
                 id,
                 name,
-                treatment_type_id,
-                customer_id,
-                treatmentType:treatment_types (
-                    id,
-                    name
-                )
+                description,
+                category
             `)
-          .in("id", treatmentIds)
+          .in("id", serviceIds)
         : Promise.resolve({ data: [], error: null })
 
-      const [{ data: customersData, error: customersError }, { data: treatmentsData, error: treatmentsError }] = await Promise.all([
+      const [{ data: customersData, error: customersError }, { data: servicesData, error: servicesError }] = await Promise.all([
         customerQuery,
-        treatmentQuery,
+        serviceQuery,
       ])
 
       if (customersError) {
         throw customersError
       }
-      if (treatmentsError) {
-        throw treatmentsError
-      }
-
-      const treatmentTypeIds = [...new Set((treatmentsData || []).map((treatment: any) => treatment?.treatment_type_id).filter(Boolean))]
-
-      const typesQuery = treatmentTypeIds.length
-        ? supabase
-          .from("treatmentType_treatment_types")
-          .select(`
-              treatment_type_id,
-              treatment_type_id,
-              treatment_type:treatment_types (
-                id,
-                name
-              )
-            `)
-          .in("treatment_type_id", treatmentTypeIds)
-        : Promise.resolve({ data: [], error: null })
-
-      const categoriesQuery = treatmentTypeIds.length
-        ? supabase
-          .from("treatmentType_treatment_categories")
-          .select(`
-              treatment_type_id,
-              treatment_category_id,
-              treatment_category:treatment_categories (
-                id,
-                name
-              )
-            `)
-          .in("treatment_type_id", treatmentTypeIds)
-        : Promise.resolve({ data: [], error: null })
-
-      const [{ data: typesData, error: typesError }, { data: categoriesData, error: categoriesError }] = await Promise.all([
-        typesQuery,
-        categoriesQuery,
-      ])
-
-      if (typesError) {
-        throw typesError
-      }
-      if (categoriesError) {
-        throw categoriesError
+      if (servicesError) {
+        throw servicesError
       }
 
       const customersMap = new Map<string, any>((customersData || []).map((customer: any) => [customer.id, customer]))
-      const treatmentsMap = new Map<string, any>((treatmentsData || []).map((treatment: any) => [treatment.id, treatment]))
-      const typesByTreatmentType = new Map<string, Array<{ id: string; name: string }>>()
-      const categoriesByTreatmentType = new Map<string, Array<{ id: string; name: string }>>()
-
-        ; (typesData || []).forEach((row: any) => {
-          if (!row?.treatment_type_id || !row?.treatment_type) return
-          if (!typesByTreatmentType.has(row.treatment_type_id)) {
-            typesByTreatmentType.set(row.treatment_type_id, [])
-          }
-          typesByTreatmentType.get(row.treatment_type_id)!.push({ id: row.treatment_type.id, name: row.treatment_type.name })
-        })
-
-        ; (categoriesData || []).forEach((row: any) => {
-          if (!row?.treatment_type_id || !row?.treatment_category) return
-          if (!categoriesByTreatmentType.has(row.treatment_type_id)) {
-            categoriesByTreatmentType.set(row.treatment_type_id, [])
-          }
-          categoriesByTreatmentType.get(row.treatment_type_id)!.push({ id: row.treatment_category.id, name: row.treatment_category.name })
-        })
+      const servicesMap = new Map<string, any>((servicesData || []).map((service: any) => [service.id, service]))
 
       const transformed: ManagerWaitlistEntry[] = relevantEntries.map((entry) => {
         const customer = customersMap.get(entry.customer_id)
-        const treatment = treatmentsMap.get(entry.treatment_id)
-        const treatmentTypeId = treatment?.treatment_type_id
+        const service = servicesMap.get(entry.service_id)
 
         return {
           id: entry.id,
-          treatmentId: entry.treatment_id,
-          treatmentName: treatment?.name || "ללא שם",
-          treatmentRecordId: treatment?.record_id ?? null,
-          treatmentRecordNumber: treatment?.record_number ?? null,
-          treatmentTypeName: treatment?.treatmentType?.name ?? null,
+          treatmentId: entry.service_id || "", // Using service_id as treatmentId for compatibility
+          treatmentName: service?.name || "ללא שם",
+          treatmentRecordId: null,
+          treatmentRecordNumber: null,
+          treatmentTypeName: service?.category ?? null,
           customerId: entry.customer_id,
           customerName: customer?.full_name ?? null,
           customerPhone: customer?.phone ?? null,
           customerEmail: customer?.email ?? null,
           customerTypeId: customer?.customer_type_id ?? null,
           customerTypeName: customer?.customer_type?.name ?? null,
-          treatmentTypes: treatmentTypeId ? [...(typesByTreatmentType.get(treatmentTypeId) ?? [])] : [],
-          treatmentCategories: treatmentTypeId ? [...(categoriesByTreatmentType.get(treatmentTypeId) ?? [])] : [],
+          treatmentTypes: [],
+          treatmentCategories: [],
           serviceScope: entry.service_scope as WaitlistServiceScope,
           startDate: entry.start_date,
           endDate: entry.end_date,
@@ -2436,146 +2326,15 @@ const ManagerSchedule = () => {
       return []
     }
 
-    // If no stations are selected, show all stations. If stations are selected, show only those.
-    let stationsToShow = visibleStationIds.length > 0
-      ? stations.filter((station) => visibleStationIds.includes(station.id))
-      : stations
+    const stationsToShow =
+      visibleStationIds.length > 0
+        ? stations.filter((station) => visibleStationIds.includes(station.id))
+        : stations
 
-    if (serviceFilter === "grooming") {
-      // Show only grooming stations
-      stationsToShow = stationsToShow.filter(station => station.serviceType === "grooming")
-    } else if (serviceFilter === "garden") {
-      // Show only garden stations (but they'll be handled by garden columns)
-      stationsToShow = stationsToShow.filter(station => station.serviceType === "garden")
-    }
-    // For "both", show all stations
+    return stationsToShow.filter((station) => station.serviceType === "grooming")
+  }, [stations, visibleStationIds])
 
-    // Always filter out garden stations from regular station columns - they'll be handled by separate garden columns
-    return stationsToShow.filter(station => station.serviceType !== "garden")
-  }, [stations, visibleStationIds, serviceFilter])
-
-  // Separate garden appointments into accordion sections
-  const gardenAppointments = useMemo(() => {
-    if (!data?.appointments) {
-      return { fullDay: [] as ManagerAppointment[], hourly: [] as ManagerAppointment[], trial: [] as ManagerAppointment[] }
-    }
-
-    const fullDayAppointments: ManagerAppointment[] = []
-    const hourlyAppointments: ManagerAppointment[] = []
-    const trialAppointments: ManagerAppointment[] = []
-
-    // If no stations are selected, show all garden stations. If stations are selected, show only those.
-    const isGardenStationVisible = visibleStationIds.length === 0 || visibleStationIds.includes('garden-station')
-
-    for (const appointment of data.appointments) {
-      const isGardenAppointment = appointment.serviceType === "garden"
-      const isVisibleGardenStation = visibleStationIds.length === 0 ||
-        visibleStationIds.includes(appointment.stationId) ||
-        (appointment.stationId.startsWith('garden-') && isGardenStationVisible)
-
-      if (isGardenAppointment && isVisibleGardenStation) {
-        if (serviceFilter === "grooming") {
-          continue
-        }
-
-        // Validate appointment dates - ensure appointments are within the current calendar day
-        const appointmentStartDate = parseISODate(appointment.startDateTime)
-        const appointmentEndDate = parseISODate(appointment.endDateTime)
-
-        if (!appointmentStartDate || !appointmentEndDate) {
-          console.warn('Invalid garden appointment dates:', appointment.id, appointment.startDateTime, appointment.endDateTime)
-          continue
-        }
-
-        // Check if appointment is within the current calendar day
-        const currentDayStart = startOfDay(selectedDate)
-        const currentDayEnd = addHours(currentDayStart, 24)
-
-        // Only show appointments that start or end within the current calendar day
-        const isWithinCurrentDay = (
-          (appointmentStartDate >= currentDayStart && appointmentStartDate < currentDayEnd) ||
-          (appointmentEndDate >= currentDayStart && appointmentEndDate < currentDayEnd) ||
-          (appointmentStartDate < currentDayStart && appointmentEndDate >= currentDayEnd)
-        )
-
-        if (!isWithinCurrentDay) {
-          continue
-        }
-
-        if (appointment.gardenIsTrial) {
-          trialAppointments.push(appointment)
-          continue
-        }
-
-        if (appointment.gardenAppointmentType === "full-day") {
-          fullDayAppointments.push(appointment)
-        } else {
-          hourlyAppointments.push(appointment)
-        }
-      }
-    }
-
-    const sortByStart = (a: ManagerAppointment, b: ManagerAppointment) =>
-      a.startDateTime.localeCompare(b.startDateTime)
-
-    fullDayAppointments.sort(sortByStart)
-    hourlyAppointments.sort(sortByStart)
-    trialAppointments.sort(sortByStart)
-
-    return { fullDay: fullDayAppointments, hourly: hourlyAppointments, trial: trialAppointments }
-  }, [data?.appointments, visibleStationIds, serviceFilter])
-
-  const gardenSections = useMemo(() => ([
-    {
-      id: 'garden-full-day',
-      title: 'גן - יום מלא',
-      badgeLabel: 'יום מלא',
-      badgeClassName: 'border-green-200 bg-green-100 text-green-700',
-      indicatorClassName: 'bg-emerald-500',
-      titleBackgroundClassName: 'bg-green-50',
-      dropZoneClassName: 'border-green-200 bg-green-50',
-      dropZoneHoverClassName: 'border-emerald-400 bg-green-100',
-      appointments: gardenAppointments.fullDay,
-    },
-    {
-      id: 'garden-hourly',
-      title: 'גן - שעתי',
-      badgeLabel: 'שעתי',
-      badgeClassName: 'border-blue-200 bg-blue-100 text-blue-700',
-      indicatorClassName: 'bg-blue-500',
-      titleBackgroundClassName: 'bg-blue-50',
-      dropZoneClassName: 'border-blue-200 bg-blue-50',
-      dropZoneHoverClassName: 'border-blue-400 bg-blue-100',
-      appointments: gardenAppointments.hourly,
-    },
-    {
-      id: 'garden-trial',
-      title: 'גן - ניסיון',
-      badgeLabel: 'ניסיון',
-      badgeClassName: 'border-amber-200 bg-amber-100 text-amber-700',
-      indicatorClassName: 'bg-amber-500',
-      titleBackgroundClassName: 'bg-amber-50',
-      dropZoneClassName: 'border-amber-200 bg-amber-50',
-      dropZoneHoverClassName: 'border-amber-400 bg-amber-100',
-      appointments: gardenAppointments.trial,
-    },
-  ]), [gardenAppointments])
-
-  // Check if we should show garden columns
-  const shouldShowGardenColumns = useMemo(() => {
-    if (!stations.length) return false
-
-    // Don't show garden columns when grooming only is selected
-    if (serviceFilter === "grooming") return false
-
-    return stations.some(station =>
-      station.serviceType === "garden" && (visibleStationIds.length === 0 || visibleStationIds.includes(station.id))
-    )
-  }, [stations, visibleStationIds, serviceFilter])
-
-  // Calculate garden columns first - now a single column with accordion sections
-  const gardenColumnCount = shouldShowGardenColumns ? 1 : 0
-  const specialColumnCount = gardenColumnCount + (showWaitingListColumn ? 1 : 0)
+  const specialColumnCount = showWaitingListColumn ? 1 : 0
   const stationColumnSlots = Math.max(0, MAX_VISIBLE_STATIONS - specialColumnCount)
 
   const maxStationWindowStart = stationColumnSlots > 0
@@ -2704,7 +2463,7 @@ const ManagerSchedule = () => {
   }, [filteredStations, stationWindowStart, stationColumnSlots])
 
   const timeAxisWidth = 70
-  const scheduledColumnCount = gardenColumnCount + visibleStationsWindow.length
+  const scheduledColumnCount = visibleStationsWindow.length
   const gridColumnParts: string[] = [`${timeAxisWidth}px`]
   if (showWaitingListColumn) {
     gridColumnParts.push(`minmax(${WAITLIST_COLUMN_WIDTH}px, ${WAITLIST_COLUMN_WIDTH + 80}px)`)
@@ -2831,9 +2590,7 @@ const ManagerSchedule = () => {
     setDeleteConfirmationOpen(true)
 
     // Close any open edit modals
-    setGardenEditOpen(false)
     setGroomingEditOpen(false)
-    setEditingAppointment(null)
     setEditingGroomingAppointment(null)
   }
 
@@ -2852,21 +2609,6 @@ const ManagerSchedule = () => {
     }
     setAppointmentToDuplicate(appointment)
     setDuplicateSeriesOpen(true)
-  }
-  const handleCreateGardenAppointment = (sectionId: string) => {
-    // Determine the appointment type based on the section ID
-    let appointmentType: 'full-day' | 'hourly' | 'trial' = 'hourly'
-
-    if (sectionId === 'garden-full-day') {
-      appointmentType = 'full-day'
-    } else if (sectionId === 'garden-trial') {
-      appointmentType = 'trial'
-    } else {
-      appointmentType = 'hourly'
-    }
-
-    setNewGardenAppointmentType(appointmentType)
-    setNewGardenAppointmentModalOpen(true)
   }
   const handleConfirmDuplicate = async (data: {
     weeksInterval: number
@@ -2932,11 +2674,11 @@ const ManagerSchedule = () => {
 
     try {
       // Invalidate cache to refresh the schedule after creating appointment
-      dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment", "GardenAppointment"]))
+      dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"]))
 
       // If we have appointmentId, fetch directly from Supabase. Otherwise use recordID as fallback
       const appointmentId = createdAppointment.appointmentId || createdAppointment.recordID
-      const serviceType = (createdAppointment.serviceType || "grooming") as "grooming" | "garden"
+      const serviceType = "grooming"
 
       if (!appointmentId) {
         throw new Error("Appointment ID not found")
@@ -2972,9 +2714,7 @@ const ManagerSchedule = () => {
     setCancelConfirmationOpen(true)
 
     // Close any open edit modals
-    setGardenEditOpen(false)
     setGroomingEditOpen(false)
-    setEditingAppointment(null)
     setEditingGroomingAppointment(null)
   }
   const handleConfirmDelete = async (deleteGroup?: boolean, selectedAppointmentIds?: string[]) => {
@@ -3033,12 +2773,12 @@ const ManagerSchedule = () => {
         title: "התור נמחק בהצלחה",
         description: isGroupOperation
           ? `${selectedAppointmentIds.length} תורים נמחקו בהצלחה`
-          : `התור של ${appointmentToDelete.treatments[0]?.name || 'הכלב'} נמחק בהצלחה`,
+          : `התור של ${appointmentToDelete.treatments[0]?.name || 'הלקוח'} נמחק בהצלחה`,
         variant: "default",
       })
 
       // Invalidate cache to refresh the schedule
-      dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment", "GardenAppointment"]))
+      dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"]))
 
       // Refresh the data by invalidating the cache and refetching
       await dispatch(supabaseApi.util.invalidateTags(['ManagerSchedule']))
@@ -3118,12 +2858,12 @@ const ManagerSchedule = () => {
         title: "התור בוטל בהצלחה",
         description: isGroupOperation
           ? `${selectedAppointmentIds.length} תורים בוטלו בהצלחה`
-          : `התור של ${appointmentToCancel.treatments[0]?.name || 'הכלב'} בוטל בהצלחה`,
+          : `התור של ${appointmentToCancel.treatments[0]?.name || 'הלקוח'} בוטל בהצלחה`,
         variant: "default",
       })
 
       // Invalidate cache to refresh the schedule
-      dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment", "GardenAppointment"]))
+      dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"]))
 
       // Refresh the data by invalidating the cache and refetching
       await dispatch(supabaseApi.util.invalidateTags(['ManagerSchedule']))
@@ -3339,68 +3079,6 @@ const ManagerSchedule = () => {
     ]
   )
 
-  // Garden edit modal functions
-  const openGardenEditModal = (appointment: ManagerAppointment, targetColumnId?: string) => {
-    const dates = getAppointmentDates(appointment)
-    if (!dates) {
-      toast({
-        title: "שגיאה בעריכת התור",
-        description: "לא ניתן לפתוח את עריכת התור בגלל נתוני זמן חסרים או לא תקינים.",
-        variant: "destructive",
-      })
-      return
-    }
-    const { start: startDate, end: endDate } = dates
-    const treatments = Array.isArray(appointment.treatments) ? appointment.treatments : []
-
-    setEditingAppointment(appointment)
-
-    // Determine the appointment type based on gardenAppointmentType and gardenIsTrial
-    let appointmentType: 'full-day' | 'hourly' | 'trial' = 'hourly'
-    const baseType = appointment.gardenAppointmentType || 'hourly'
-    const isTrial = !!appointment.gardenIsTrial
-
-    // If this is a drag operation, use the target column to pre-select the type
-    if (targetColumnId) {
-      switch (targetColumnId) {
-        case 'garden-full-day':
-          appointmentType = 'full-day'
-          break
-        case 'garden-trial':
-          appointmentType = 'trial'
-          break
-        case 'garden-hourly':
-        default:
-          appointmentType = 'hourly'
-          break
-      }
-    } else {
-      // For edit operations, determine from current appointment
-      if (isTrial) {
-        appointmentType = 'trial'
-      } else if (baseType === 'full-day') {
-        appointmentType = 'full-day'
-      } else {
-        appointmentType = 'hourly'
-      }
-    }
-
-    setGardenEditForm({
-      date: startDate,
-      startTime: format(startDate, 'HH:mm'),
-      endTime: format(endDate, 'HH:mm'),
-      appointmentType,
-      notes: appointment.notes || '',
-      internalNotes: appointment.internalNotes || '',
-      latePickupRequested: appointment.latePickupRequested || false,
-      latePickupNotes: appointment.latePickupNotes || '',
-      gardenTrimNails: appointment.gardenTrimNails || false,
-      gardenBrush: appointment.gardenBrush || false,
-      gardenBath: appointment.gardenBath || false,
-    })
-    setGardenEditOpen(true)
-  }
-
   const openGroomingEditModal = (appointment: ManagerAppointment) => {
     const startDate = parseISODate(appointment.startDateTime)
     if (!startDate) {
@@ -3421,146 +3099,6 @@ const ManagerSchedule = () => {
       internalNotes: appointment.internalNotes || ''
     })
     setGroomingEditOpen(true)
-  }
-  const handleGardenEditConfirm = async () => {
-    if (!editingAppointment) return
-
-    setGardenEditLoading(true)
-
-    try {
-      // Calculate new start and end times
-      const [startHour, startMinute] = gardenEditForm.startTime.split(':').map(Number)
-      const [endHour, endMinute] = gardenEditForm.endTime.split(':').map(Number)
-
-      const newStartTime = new Date(
-        gardenEditForm.date.getFullYear(),
-        gardenEditForm.date.getMonth(),
-        gardenEditForm.date.getDate(),
-        startHour,
-        startMinute
-      )
-      const newEndTime = new Date(
-        gardenEditForm.date.getFullYear(),
-        gardenEditForm.date.getMonth(),
-        gardenEditForm.date.getDate(),
-        endHour,
-        endMinute
-      )
-
-      // Determine the target station and appointment type based on the selected type
-      let targetStationId = 'garden-station'
-      let targetStationName = 'גן הכלבים'
-      let finalGardenAppointmentType: 'full-day' | 'hourly' = 'hourly'
-      let finalGardenIsTrial = false
-
-      switch (gardenEditForm.appointmentType) {
-        case 'full-day':
-          targetStationId = 'garden-full-day'
-          targetStationName = 'גן - יום מלא'
-          finalGardenAppointmentType = 'full-day'
-          finalGardenIsTrial = false
-          break
-        case 'trial':
-          targetStationId = 'garden-trial'
-          targetStationName = 'גן - ניסיון'
-          finalGardenAppointmentType = 'hourly' // Trial appointments are always hourly type in the backend
-          finalGardenIsTrial = true
-          break
-        case 'hourly':
-        default:
-          targetStationId = 'garden-hourly'
-          targetStationName = 'גן - שעתי'
-          finalGardenAppointmentType = 'hourly'
-          finalGardenIsTrial = false
-          break
-      }
-
-      // Update the cache immediately
-      if (data) {
-        dispatch(
-          supabaseApi.util.updateQueryData(
-            'getManagerSchedule',
-            {
-              date: format(selectedDate, 'yyyy-MM-dd'),
-              serviceType: serviceFilter
-            },
-            (draft) => {
-              if (draft) {
-                const appointmentIndex = draft.appointments.findIndex(
-                  apt => apt.id === editingAppointment.id
-                )
-
-                if (appointmentIndex !== -1) {
-                  draft.appointments[appointmentIndex] = {
-                    ...draft.appointments[appointmentIndex],
-                    startDateTime: newStartTime.toISOString(),
-                    endDateTime: newEndTime.toISOString(),
-                    stationId: targetStationId,
-                    stationName: targetStationName,
-                    gardenAppointmentType: finalGardenAppointmentType,
-                    gardenIsTrial: finalGardenIsTrial,
-                    notes: gardenEditForm.notes,
-                    internalNotes: gardenEditForm.internalNotes,
-                    latePickupRequested: gardenEditForm.latePickupRequested,
-                    latePickupNotes: gardenEditForm.latePickupNotes,
-                    gardenTrimNails: gardenEditForm.gardenTrimNails,
-                    gardenBrush: gardenEditForm.gardenBrush,
-                    gardenBath: gardenEditForm.gardenBath,
-                  }
-                }
-              }
-            }
-          )
-        )
-      }
-
-      await moveAppointment({
-        appointmentId: editingAppointment.id,
-        newStationId: targetStationId,
-        newStartTime: newStartTime.toISOString(),
-        newEndTime: newEndTime.toISOString(),
-        oldStationId: editingAppointment.stationId,
-        oldStartTime: editingAppointment.startDateTime,
-        oldEndTime: editingAppointment.endDateTime,
-        appointmentType: 'garden',
-        newGardenAppointmentType: finalGardenAppointmentType,
-        newGardenIsTrial: finalGardenIsTrial,
-        selectedHours: {
-          start: gardenEditForm.startTime,
-          end: gardenEditForm.endTime
-        },
-        // Add garden services to the payload
-        gardenTrimNails: gardenEditForm.gardenTrimNails,
-        gardenBrush: gardenEditForm.gardenBrush,
-        gardenBath: gardenEditForm.gardenBath,
-        latePickupRequested: gardenEditForm.latePickupRequested,
-        latePickupNotes: gardenEditForm.latePickupNotes,
-        internalNotes: gardenEditForm.internalNotes
-      }).unwrap()
-
-      // Close the modal after successful update
-      setGardenEditOpen(false)
-      setEditingAppointment(null)
-
-    } catch (error) {
-      console.error('❌ Error updating garden appointment:', error)
-
-      // Show user-friendly error message
-      if (error && typeof error === 'object' && 'data' in error) {
-        const apiError = error as { data?: { error?: string } }
-        console.error('API Error details:', apiError.data)
-        alert(`שגיאה בעדכון התור: ${apiError.data?.error || 'שגיאה לא ידועה'}`)
-      } else {
-        console.error('Unexpected error:', error)
-        alert('שגיאה בעדכון התור. אנא נסה שוב.')
-      }
-
-      // Don't close the modal on error so user can try again
-      // setGardenEditOpen(false)
-      // setEditingAppointment(null)
-    } finally {
-      setGardenEditLoading(false)
-    }
   }
   const handleGroomingEditConfirm = async () => {
     if (!editingGroomingAppointment) return
@@ -3608,7 +3146,7 @@ const ManagerSchedule = () => {
       // Show success toast
       toast({
         title: "התור עודכן בהצלחה",
-        description: `התור של ${editingGroomingAppointment.treatments[0]?.name || 'הכלב'} עודכן בהצלחה`,
+        description: `התור של ${editingGroomingAppointment.treatments[0]?.name || 'הלקוח'} עודכן בהצלחה`,
         variant: "default",
       })
 
@@ -3733,14 +3271,8 @@ const ManagerSchedule = () => {
       if (visibleStationIds.length > 0 && !visibleStationIds.includes(appointment.stationId)) {
         continue
       }
-      // Exclude garden appointments from regular station grouping - they'll be handled separately
-      if (appointment.serviceType === "garden") {
+      if (appointment.serviceType !== "grooming") {
         continue
-      }
-
-      // Apply service filter for grooming appointments
-      if (serviceFilter === "garden") {
-        continue // Skip grooming appointments when garden only is selected
       }
 
       // Validate appointment dates - ensure appointments are within the current calendar day
@@ -3778,7 +3310,7 @@ const ManagerSchedule = () => {
     }
 
     return map
-  }, [data?.appointments, optimisticAppointments, visibleStationIds, serviceFilter])
+  }, [data?.appointments, optimisticAppointments, visibleStationIds])
 
   const handleStationToggle = (stationId: string, next: boolean) => {
     setVisibleStationIds((prev) => {
@@ -3800,9 +3332,7 @@ const ManagerSchedule = () => {
   }
 
   const persistStationOrder = useCallback(async (orderedIds: string[]) => {
-    const payload = orderedIds
-      .filter((id) => !id.startsWith("garden-"))
-      .map((id, index) => ({ id, display_order: index }))
+    const payload = orderedIds.map((id, index) => ({ id, display_order: index }))
 
     if (payload.length === 0) {
       return
@@ -4448,17 +3978,6 @@ const ManagerSchedule = () => {
         return
       }
 
-      if (over?.data?.current?.type === 'garden-column') {
-        setDraggedWaitlistEntry({ entry: null, cancelled: false })
-        setHighlightedSlots(null)
-        toast({
-          title: "יעד לא נתמך",
-          description: "ניתן כרגע לגרור לרוחב עמדות המספרה בלבד.",
-          variant: "destructive",
-        })
-        return
-      }
-
       const targetStationId = highlightedSlots?.stationId || (over?.id as string)
       const targetTimeSlot = highlightedSlots?.startTimeSlot
 
@@ -4503,45 +4022,6 @@ const ManagerSchedule = () => {
 
     // If the drag was cancelled (e.g., by pressing Escape), don't proceed with the move
     if (draggedAppointment.cancelled) {
-      setDraggedAppointment({ appointment: null, cancelled: false })
-      return
-    }
-
-    // Check if dropping on a garden column
-    if (over?.data?.current?.type === 'garden-column') {
-      const targetColumnId = over.data.current.columnId as string
-
-      // Only allow garden appointments to be dropped on garden columns
-      if (draggedAppointment.appointment.serviceType !== 'garden') {
-        setDraggedAppointment({ appointment: null, cancelled: false })
-        return
-      }
-
-      const isTrialTarget = targetColumnId === 'garden-trial'
-      const newGardenIsTrial = isTrialTarget
-      const fallbackType = draggedAppointment.appointment.gardenAppointmentType ?? 'hourly'
-      const newGardenAppointmentType = isTrialTarget
-        ? fallbackType
-        : targetColumnId === 'garden-full-day'
-          ? 'full-day'
-          : 'hourly'
-
-      const currentType = draggedAppointment.appointment.gardenAppointmentType ?? fallbackType
-      const currentTrial = !!draggedAppointment.appointment.gardenIsTrial
-
-      if (currentType === newGardenAppointmentType && currentTrial === newGardenIsTrial) {
-        setDraggedAppointment({ appointment: null, cancelled: false })
-        return
-      }
-
-      const _newStationName = isTrialTarget
-        ? 'גן - ניסיון'
-        : targetColumnId === 'garden-full-day'
-          ? 'גן - יום מלא'
-          : 'גן - שעתי'
-
-      // For garden appointments, open the unified garden edit modal instead of the simple move confirmation
-      openGardenEditModal(draggedAppointment.appointment, targetColumnId)
       setDraggedAppointment({ appointment: null, cancelled: false })
       return
     }
@@ -5240,35 +4720,6 @@ const ManagerSchedule = () => {
       let finalStartTime = moveDetails.newStartTime
       let finalEndTime = moveDetails.newEndTime
 
-      // For garden appointments that are hourly (either in hourly section or trial section with hourly type)
-      if (moveDetails.appointment.serviceType === 'garden' &&
-        moveDetails.newGardenAppointmentType === 'hourly' &&
-        hourlyTimeSelection) {
-        // Parse the selected hours
-        const [startHour, startMinute] = hourlyTimeSelection.start.split(':').map(Number)
-        const [endHour, endMinute] = hourlyTimeSelection.end.split(':').map(Number)
-
-        // Get the date from the original appointment
-        const originalDate = new Date(moveDetails.newStartTime)
-
-        // Create new start and end times with the selected hours
-        finalStartTime = new Date(
-          originalDate.getFullYear(),
-          originalDate.getMonth(),
-          originalDate.getDate(),
-          startHour,
-          startMinute
-        )
-        finalEndTime = new Date(
-          originalDate.getFullYear(),
-          originalDate.getMonth(),
-          originalDate.getDate(),
-          endHour,
-          endMinute
-        )
-
-      }
-
       // First, update the cache immediately for instant UI feedback
       if (data) {
         // Manually update the cache to reflect the appointment's new position
@@ -5291,14 +4742,7 @@ const ManagerSchedule = () => {
                     ...draft.appointments[appointmentIndex],
                     stationId: moveDetails.newStation.id,
                     startDateTime: finalStartTime.toISOString(),
-                    endDateTime: finalEndTime.toISOString(),
-                    // Update garden appointment type if it's a garden type change
-                    ...(moveDetails.newGardenAppointmentType && {
-                      gardenAppointmentType: moveDetails.newGardenAppointmentType
-                    }),
-                    ...(moveDetails.newGardenIsTrial !== undefined && {
-                      gardenIsTrial: moveDetails.newGardenIsTrial
-                    })
+                    endDateTime: finalEndTime.toISOString()
                   }
                 }
               }
@@ -5311,14 +4755,12 @@ const ManagerSchedule = () => {
       await moveAppointment({
         appointmentId: moveDetails.appointment.id,
         newStationId: moveDetails.newStation.id,
-        newStartTime: moveDetails.newStartTime,
-        newEndTime: moveDetails.newEndTime,
+        newStartTime: finalStartTime.toISOString(),
+        newEndTime: finalEndTime.toISOString(),
         oldStationId: moveDetails.oldStation.id,
         oldStartTime: moveDetails.appointment.startDateTime,
         oldEndTime: moveDetails.appointment.endDateTime,
         appointmentType: moveDetails.appointment.serviceType,
-        ...(moveDetails.newGardenAppointmentType && { newGardenAppointmentType: moveDetails.newGardenAppointmentType }),
-        ...(moveDetails.newGardenIsTrial !== undefined && { newGardenIsTrial: moveDetails.newGardenIsTrial }),
         ...(hourlyTimeSelection && { selectedHours: hourlyTimeSelection }),
       }).unwrap()
 
@@ -5352,12 +4794,6 @@ const ManagerSchedule = () => {
                     stationId: moveDetails.oldStation.id,
                     startDateTime: moveDetails.oldStartTime.toISOString(),
                     endDateTime: moveDetails.oldEndTime.toISOString(),
-                    ...(moveDetails.newGardenAppointmentType && {
-                      gardenAppointmentType: moveDetails.appointment.gardenAppointmentType
-                    }),
-                    ...(moveDetails.newGardenIsTrial !== undefined && {
-                      gardenIsTrial: moveDetails.appointment.gardenIsTrial
-                    })
                   }
                 }
               }
@@ -5371,7 +4807,7 @@ const ManagerSchedule = () => {
     }
   }
 
-  const DraggableAppointmentCard = ({ appointment, isGardenColumn = false }: { appointment: ManagerAppointment; isGardenColumn?: boolean }) => {
+  const DraggableAppointmentCard = ({ appointment }: { appointment: ManagerAppointment }) => {
     const isProposedMeeting = Boolean(appointment.isProposedMeeting)
     const {
       attributes,
@@ -5388,36 +4824,29 @@ const ManagerSchedule = () => {
       disabled: resizingPreview?.appointmentId === appointment.id,
     })
 
-    let style: React.CSSProperties
-
-    if (isGardenColumn) {
-      // For garden columns, no time-based positioning - just normal flow
-      style = transform ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-      } : {}
-    } else {
-      // For regular time-correlated columns, calculate positioning
-      const startDate = parseISODate(appointment.startDateTime)
-      if (!startDate) {
-        return null
-      }
-      const pixelsPerMinute = PIXELS_PER_MINUTE_SCALE[pixelsPerMinuteScale - 1]
-      const startMinutes = Math.max(0, differenceInMinutes(startDate, timeline.start))
-      const top = startMinutes * pixelsPerMinute
-
-      style = transform ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        position: 'absolute' as const,
-        top: `${top}px`,
-        left: '8px',
-        right: '8px',
-      } : {
-        position: 'absolute' as const,
-        top: `${top}px`,
-        left: '8px',
-        right: '8px',
-      }
+    // For regular time-correlated columns, calculate positioning
+    const startDate = parseISODate(appointment.startDateTime)
+    if (!startDate) {
+      return null
     }
+    const pixelsPerMinute = PIXELS_PER_MINUTE_SCALE[pixelsPerMinuteScale - 1]
+    const startMinutes = Math.max(0, differenceInMinutes(startDate, timeline.start))
+    const top = startMinutes * pixelsPerMinute
+
+    const style: React.CSSProperties = transform
+      ? {
+          transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+          position: "absolute",
+          top: `${top}px`,
+          left: "8px",
+          right: "8px",
+        }
+      : {
+          position: "absolute",
+          top: `${top}px`,
+          left: "8px",
+          right: "8px",
+        }
 
     return (
       <div
@@ -5624,18 +5053,15 @@ const ManagerSchedule = () => {
     )
     const isResizing = Boolean(previewEndDate)
     const isExpanded = expandedCards.has(appointment.id)
+    const treatments = appointment.treatments ?? []
 
-    // For garden appointments, use consistent height regardless of duration
-    const originalHeight = appointment.serviceType === 'garden'
-      ? 140
-      : Math.max(1, displayedDurationMinutes * pixelsPerMinute)
+    const originalHeight = Math.max(1, displayedDurationMinutes * pixelsPerMinute)
 
     // Determine if card is "small" and needs expansion
     const isSmallCard = originalHeight < 100 // Increased threshold for small cards
     const hasExpandableContent = Boolean(
       appointment.internalNotes ||
       appointment.subscriptionName ||
-      (appointment.serviceType === "garden" && (appointment.gardenTrimNails || appointment.gardenBrush || appointment.gardenBath || appointment.latePickupRequested)) ||
       appointment.clientName ||
       treatments[0]?.treatmentType ||
       treatments.length > 1 // Multiple treatments
@@ -5652,7 +5078,7 @@ const ManagerSchedule = () => {
     const treatmentTypeName = rawTreatmentTypeName?.trim() ? rawTreatmentTypeName.trim() : undefined
     const rawClassification = appointment.clientClassification ?? primaryTreatment?.clientClassification ?? ""
     const classification = rawClassification.trim() ? rawClassification.trim() : undefined
-    const serviceStyle = SERVICE_STYLES[appointment.serviceType]
+    const serviceStyle = SERVICE_STYLES[appointment.serviceType] ?? DEFAULT_SERVICE_STYLE
     const isProposedMeeting = Boolean(appointment.isProposedMeeting)
 
     // Get card styling based on appointment type
@@ -5669,17 +5095,6 @@ const ManagerSchedule = () => {
       // Private appointments get purple styling
       if (appointment.appointmentType === "private") {
         return "bg-purple-100 border-purple-300"
-      }
-
-      // Garden appointments get special styling
-      if (appointment.serviceType === "garden") {
-        if (appointment.gardenIsTrial) {
-          return "bg-amber-100 border-amber-300"
-        } else if (appointment.gardenAppointmentType === "full-day") {
-          return "bg-green-100 border-green-300"
-        } else {
-          return "bg-blue-100 border-blue-300"
-        }
       }
 
       return serviceStyle.card
@@ -5743,20 +5158,15 @@ const ManagerSchedule = () => {
           !isExpanded && "overflow-hidden" // Hide overflowing content when not expanded
         )}>
           <div className="flex items-center justify-between gap-2 text-xs">
-            {/* Only show time for non-garden appointments or garden appointments that are not full-day */}
-            {appointment.serviceType !== "garden" || appointment.gardenAppointmentType !== "full-day" ? (
-              <span className={cn(
+            <span
+              className={cn(
                 "text-gray-600",
                 isDragging && highlightedSlots && draggedAppointment.appointment && draggedAppointment.appointment.id === appointment.id && "font-medium",
                 isResizing && "font-medium text-blue-700"
-              )}>
-                {timeRangeLabel}
-              </span>
-            ) : (
-              <span className="text-gray-600 font-medium">
-                יום מלא
-              </span>
-            )}
+              )}
+            >
+              {timeRangeLabel}
+            </span>
             <div className="flex items-center gap-1">
               {isProposedMeeting ? (
                 <>
@@ -5776,14 +5186,12 @@ const ManagerSchedule = () => {
                   )}
                 </>
               ) : (
-                appointment.serviceType !== "garden" && (
-                  <Badge
-                    variant="outline"
-                    className={cn("text-[11px] font-medium", statusStyle)}
-                  >
-                    {appointment.status}
-                  </Badge>
-                )
+                <Badge
+                  variant="outline"
+                  className={cn("text-[11px] font-medium", statusStyle)}
+                >
+                  {appointment.status}
+                </Badge>
               )}
               {internalNotes && (
                 <div className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 text-purple-600" title="יש הערות צוות פנימי">
@@ -5793,13 +5201,9 @@ const ManagerSchedule = () => {
               {!isProposedMeeting && appointment.hasCrossServiceAppointment && (
                 <div
                   className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 text-purple-600"
-                  title={appointment.serviceType === "garden" ? "יש גם תור למספרה" : "יש גם תור לגן"}
+                  title="יש גם תור נוסף"
                 >
-                  {appointment.serviceType === "garden" ? (
-                    <Scissors className="h-3 w-3" />
-                  ) : (
-                    <Bone className="h-3 w-3" />
-                  )}
+                  <Scissors className="h-3 w-3" />
                 </div>
               )}
               {!isProposedMeeting && (
@@ -5882,11 +5286,7 @@ const ManagerSchedule = () => {
                           className="w-full justify-start text-purple-600 hover:text-purple-700 hover:bg-purple-50"
                           onClick={(e) => {
                             e.stopPropagation()
-                            if (appointment.serviceType === "garden") {
-                              openGardenEditModal(appointment)
-                            } else {
-                              openGroomingEditModal(appointment)
-                            }
+                            openGroomingEditModal(appointment)
                           }}
                         >
                           <Pencil className="h-4 w-4 ml-2" />
@@ -6048,30 +5448,6 @@ const ManagerSchedule = () => {
                   </div>
                 )}
               </>
-            )}
-            {appointment.serviceType === "garden" && (appointment.gardenTrimNails || appointment.gardenBrush || appointment.gardenBath || appointment.latePickupRequested) && (
-              <div className="flex items-center gap-1 mt-1">
-                {appointment.gardenTrimNails && (
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-100 text-orange-600" title="גזירת ציפורניים">
-                    <Scissors className="h-3 w-3" />
-                  </div>
-                )}
-                {appointment.gardenBrush && (
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-pink-100 text-pink-600" title="סירוק">
-                    <Wand2 className="h-3 w-3" />
-                  </div>
-                )}
-                {appointment.gardenBath && (
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600" title="רחצה">
-                    <Droplets className="h-3 w-3" />
-                  </div>
-                )}
-                {appointment.latePickupRequested && (
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-yellow-100 text-yellow-600" title="איסוף מאוחר">
-                    <Clock className="h-3 w-3" />
-                  </div>
-                )}
-              </div>
             )}
           </div>
           {subscriptionName ? (
@@ -6911,131 +6287,6 @@ const ManagerSchedule = () => {
     )
   }
 
-  type GardenSection = {
-    id: string
-    title: string
-    badgeLabel: string
-    badgeClassName: string
-    indicatorClassName: string
-    titleBackgroundClassName: string
-    dropZoneClassName: string
-    dropZoneHoverClassName: string
-    appointments: ManagerAppointment[]
-  }
-
-  const GardenColumn = ({ sections }: { sections: GardenSection[] }) => {
-    const defaultAccordionValues = sections.map((section) => section.id)
-
-    const GardenAccordionSection = ({ section }: { section: GardenSection }) => {
-      const { setNodeRef, isOver } = useDroppable({
-        id: section.id,
-        data: {
-          type: 'garden-column',
-          columnId: section.id,
-        },
-      })
-
-      return (
-        <AccordionItem
-          value={section.id}
-          className="border-b border-emerald-200 last:border-b-0"
-        >
-          <AccordionTrigger className={cn("px-2 text-right text-sm font-semibold text-gray-900", section.titleBackgroundClassName)}>
-            <div className="flex w-full items-center justify-between gap-2">
-              <span className="flex items-center gap-2">
-                <span className={cn("inline-block h-2.5 w-2.5 rounded-full", section.indicatorClassName)} />
-                {section.title} ({section.appointments.length})
-              </span>
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleCreateGardenAppointment(section.id)
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault()
-                    handleCreateGardenAppointment(section.id)
-                  }
-                }}
-                className="ml-2 rounded-full p-1 hover:bg-gray-200 transition-colors"
-                title="הוסף תור גן חדש"
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-              </span>
-            </div>
-          </AccordionTrigger>
-          <AccordionContent >
-            <div
-              ref={setNodeRef}
-              data-testid={`garden-column-${section.id}`}
-              className={cn(
-                "space-y-2 rounded-md border border-dashed px-2 py-2 transition-colors shadow-sm",
-                isOver ? section.dropZoneHoverClassName : section.dropZoneClassName
-              )}
-              style={{ minHeight: section.appointments.length ? 0 : 96 }}
-            >
-              {section.appointments.length ? (
-                section.appointments.map((appointment) => (
-                  <DraggableAppointmentCard
-                    key={appointment.id}
-                    appointment={appointment}
-                    isGardenColumn
-                  />
-                ))
-              ) : (
-                <div className="py-4 text-center text-xs text-gray-500">
-                  אין תורים להצגה
-                </div>
-              )}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      )
-    }
-
-    return (
-      <div className="flex flex-col gap-2">
-        <div
-          className="relative overflow-hidden rounded-lg border border-slate-200 bg-white"
-          style={{ height: timeline.height }}
-        >
-          <div className="absolute inset-0 pointer-events-none">
-            {timeline.slots.map((slot, index) => (
-              <div
-                key={`garden-slot-${slot.offset}`}
-                className={cn("absolute left-0 right-0 border-b border-slate-100", {
-                  "bg-slate-50/70": index % 2 === 0,
-                })}
-                style={{ top: slot.offset, height: slot.height }}
-              />
-            ))}
-          </div>
-          <div className="absolute inset-0 pointer-events-none">
-            {timeline.hourMarkers.map((marker) => (
-              <div
-                key={`garden-marker-${marker.label}-${marker.offset}`}
-                className="absolute inset-x-0 border-t border-dashed border-slate-200"
-                style={{ top: marker.offset }}
-              />
-            ))}
-          </div>
-          <div className="relative z-10 flex h-full flex-col overflow-hidden">
-            <Accordion
-              type="multiple"
-              defaultValue={defaultAccordionValues}
-              className="flex-1 overflow-y-auto px-2 py-2"
-            >
-              {sections.map((section) => (
-                <GardenAccordionSection key={section.id} section={section} />
-              ))}
-            </Accordion>
-          </div>
-        </div>
-      </div>
-    )
-  }
   const isInitialLoading = !hasLoadedInitialData && (isLoading || !data)
   const shouldShowInitialError = !hasLoadedInitialData && !!error && !isLoading
   const shouldShowInitialLoader = isInitialLoading && showInitialLoader && !shouldShowInitialError
@@ -7080,7 +6331,7 @@ const ManagerSchedule = () => {
           <AlertTitle>שגיאה בטעינת הלוח</AlertTitle>
           <AlertDescription>{scheduleErrorMessage}</AlertDescription>
         </Alert>
-      ) : !filteredStations.length && !shouldShowGardenColumns ? (
+      ) : !filteredStations.length ? (
         <Alert className="border border-amber-200 bg-amber-50">
           <AlertTitle>אין עמדות להצגה</AlertTitle>
           <AlertDescription>
@@ -7200,7 +6451,7 @@ const ManagerSchedule = () => {
                               }}
                               onFocus={() => setIsScheduleSearchOpen(true)}
                               onKeyDown={handleScheduleSearchInputKeyDown}
-                              placeholder="חיפוש תורים, לקוחות או כלבים"
+                              placeholder="חיפוש תורים, לקוחות או טיפולים"
                               className="flex-1 border-none bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
                               autoComplete="off"
                             />
@@ -7314,15 +6565,6 @@ const ManagerSchedule = () => {
                         </div>
                       </div>
                     )}
-
-
-                    {/* Garden Column Headers */}
-                    {shouldShowGardenColumns && (
-                      <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 shadow-sm">
-                        <span className="text-sm font-semibold text-gray-900">גן</span>
-                      </div>
-                    )}
-
                     {visibleStationsWindow.map((station) => {
                       const hasWorkingHours = stationWorkingHours[station.id] && stationWorkingHours[station.id].length > 0
                       return (
@@ -7485,7 +6727,7 @@ const ManagerSchedule = () => {
                               <Input
                                 value={waitingListSearchTerm}
                                 onChange={(event) => setWaitingListSearchTerm(event.target.value)}
-                                placeholder="חיפוש לפי שם כלב, לקוח או טלפון"
+                                placeholder="חיפוש לפי שם לקוח, שירות או טלפון"
                                 className="pr-9 text-sm"
                               />
                               <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -7651,12 +6893,6 @@ const ManagerSchedule = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Garden Columns */}
-                  {shouldShowGardenColumns && (
-                    <GardenColumn sections={gardenSections} />
-                  )}
-
                   {visibleStationsWindow.map((station) => (
                     <DroppableStationColumn key={station.id} station={station} />
                   ))}
@@ -7715,7 +6951,36 @@ const ManagerSchedule = () => {
             <div className="space-y-4">
               {/* Action Buttons Section */}
               <div className="flex flex-col gap-2">
-                <Button onClick={() => setShowServiceTypeSelectionModal(true)} className="w-full">קבע תור חדש</Button>
+                <Button
+                  onClick={() => {
+                    const groomingStations = stations.filter((station) => station.serviceType === "grooming")
+                    const firstGroomingStation = groomingStations[0]
+
+                    if (firstGroomingStation) {
+                      const defaultStartTime = new Date(selectedDate)
+                      defaultStartTime.setHours(9, 0, 0, 0)
+
+                      const defaultEndTime = new Date(selectedDate)
+                      defaultEndTime.setHours(10, 0, 0, 0)
+
+                      setFinalizedDragTimes({
+                        startTime: defaultStartTime,
+                        endTime: defaultEndTime,
+                        stationId: firstGroomingStation.id,
+                      })
+                      setShowAppointmentTypeSelection(true)
+                    } else {
+                      toast({
+                        title: "שגיאה",
+                        description: "לא נמצאו עמדות מספרה",
+                        variant: "destructive",
+                      })
+                    }
+                  }}
+                  className="w-full"
+                >
+                  קבע תור חדש
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="w-full">
                   {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
                   <span className="mr-2">רענן נתונים</span>
@@ -7892,13 +7157,7 @@ const ManagerSchedule = () => {
           selectedAppointment={selectedAppointment}
           onTreatmentClick={handleTreatmentClick}
           onClientClick={handleClientClick}
-          onEditAppointment={(appointment) => {
-            if (appointment.serviceType === "garden") {
-              openGardenEditModal(appointment)
-            } else {
-              openGroomingEditModal(appointment)
-            }
-          }}
+          onEditAppointment={openGroomingEditModal}
           onCancelAppointment={handleCancelAppointment}
           onDeleteAppointment={handleDeleteAppointment}
           isLoading={isLoadingAppointment}
@@ -8006,25 +7265,6 @@ const ManagerSchedule = () => {
         appointments={createdAppointments}
         onAppointmentClick={handleCreatedAppointmentClick}
       />
-
-      {/* Garden Edit Modal */}
-      <GardenEditModal
-        open={gardenEditOpen}
-        onOpenChange={setGardenEditOpen}
-        editingAppointment={editingAppointment}
-        gardenEditForm={gardenEditForm}
-        setGardenEditForm={setGardenEditForm}
-        updateCustomerGarden={updateCustomerGarden}
-        setUpdateCustomerGarden={setUpdateCustomerGarden}
-        gardenEditLoading={gardenEditLoading}
-        onCancel={() => {
-          setGardenEditOpen(false)
-          setEditingAppointment(null)
-        }}
-        onDelete={handleDeleteAppointment}
-        onConfirm={handleGardenEditConfirm}
-      />
-
       {/* Grooming Edit Modal */}
       <GroomingEditModal
         open={groomingEditOpen}
@@ -8237,137 +7477,6 @@ const ManagerSchedule = () => {
         initialData={proposedModalInitialData}
         loading={proposedMeetingMode === "create" ? creatingProposedMeeting : updatingProposedMeeting}
         onSubmit={handleSubmitProposedMeeting}
-      />
-
-      {/* New Garden Appointment Modal */}
-      <NewGardenAppointmentModal
-        open={newGardenAppointmentModalOpen}
-        onOpenChange={setNewGardenAppointmentModalOpen}
-        appointmentType={newGardenAppointmentType}
-        loading={createManagerAppointmentLoading}
-        defaultDate={selectedDate}
-        onConfirm={async (appointmentData) => {
-          try {
-            // Combine date and time to create ISO datetime strings
-            const dateStr = appointmentData.date?.toISOString().split('T')[0]
-            const startDateTime = `${dateStr}T${appointmentData.startTime}:00`
-            const endDateTime = `${dateStr}T${appointmentData.endTime}:00`
-
-            // Get garden stations from the schedule data
-            const gardenStations = stations.filter((s) => s.serviceType === 'garden')
-
-            // Get station ID based on treatment size, or use first garden station if available
-            let stationId: string | undefined
-            if (gardenStations.length > 0) {
-              // Try to find station by name (small treatments vs regular)
-              const smallTreatmentStation = gardenStations.find((s: any) =>
-                s.name?.toLowerCase().includes('קטן') ||
-                s.name?.toLowerCase().includes('small')
-              )
-              const regularStation = gardenStations.find((s: any) =>
-                !s.name?.toLowerCase().includes('קטן') &&
-                !s.name?.toLowerCase().includes('small')
-              )
-
-              if (appointmentData.treatment?.isSmall === true && smallTreatmentStation) {
-                stationId = smallTreatmentStation.id
-              } else if (regularStation) {
-                stationId = regularStation.id
-              } else {
-                // Fallback to first garden station
-                stationId = gardenStations[0].id
-              }
-            }
-
-            if (!stationId) {
-              throw new Error('לא נמצאה עמדה זמינה לגן')
-            }
-
-            // Call the create-manager-appointment function which already handles the webhook
-            const result = await createManagerAppointment({
-              name: `${appointmentData.customer?.fullName || ''} - ${appointmentData.treatment?.name || ''}`,
-              stationId,
-              selectedStations: [stationId],
-              startTime: new Date(startDateTime).toISOString(),
-              endTime: new Date(endDateTime).toISOString(),
-              appointmentType: "garden",
-              customerId: appointmentData.customer?.recordId || appointmentData.customer?.id,
-              treatmentId: appointmentData.treatment?.id,
-              gardenAppointmentType: appointmentData.appointmentType, // 'full-day' | 'hourly' | 'trial'
-              services: {
-                gardenTrimNails: appointmentData.gardenTrimNails,
-                gardenBrush: appointmentData.gardenBrush,
-                gardenBath: appointmentData.gardenBath,
-              },
-              latePickupRequested: appointmentData.latePickupRequested,
-              latePickupNotes: appointmentData.latePickupNotes,
-              notes: appointmentData.notes,
-              internalNotes: appointmentData.internalNotes,
-            }).unwrap()
-
-
-            toast({
-              title: "תור גן נוצר בהצלחה!",
-              description: `התור של ${data.treatment?.name} נוסף ללוח הזמנים`,
-            })
-
-            // Navigate to the appointment date if different from current view
-            if (dateStr && format(selectedDate, 'yyyy-MM-dd') !== dateStr) {
-              const targetDate = parseISO(dateStr)
-              if (targetDate) {
-                setSelectedDate(targetDate)
-              }
-            }
-
-            // Close modal and refetch data
-            setNewGardenAppointmentModalOpen(false)
-            await refetch()
-          } catch (error) {
-            console.error('Error creating garden appointment:', error)
-            toast({
-              title: "שגיאה ביצירת התור",
-              description: "אירעה שגיאה בעת יצירת תור הגן",
-              variant: "destructive",
-            })
-          }
-        }}
-      />
-      {/* Service Type Selection Modal */}
-      <ServiceTypeSelectionModal
-        open={showServiceTypeSelectionModal}
-        onOpenChange={setShowServiceTypeSelectionModal}
-        onSelectGrooming={() => {
-          // Open appointment type selection (personal/business) with default values
-          const groomingStations = stations.filter(s => s.serviceType === 'grooming')
-          const firstGroomingStation = groomingStations[0]
-
-          if (firstGroomingStation) {
-            // Create default times for the selected date
-            const defaultStartTime = new Date(selectedDate)
-            defaultStartTime.setHours(9, 0, 0, 0) // 09:00
-
-            const defaultEndTime = new Date(selectedDate)
-            defaultEndTime.setHours(10, 0, 0, 0) // 10:00
-
-            setFinalizedDragTimes({
-              startTime: defaultStartTime,
-              endTime: defaultEndTime,
-              stationId: firstGroomingStation.id
-            })
-            setShowAppointmentTypeSelection(true)
-          } else {
-            toast({
-              title: "שגיאה",
-              description: "לא נמצאו עמדות מספרה",
-              variant: "destructive",
-            })
-          }
-        }}
-        onSelectGarden={() => {
-          // Open garden appointment modal
-          setNewGardenAppointmentType('hourly')
-          setNewGardenAppointmentModalOpen(true)
-        }}
       />
 
       {/* Treatment Appointments Modal */}

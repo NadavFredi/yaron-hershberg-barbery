@@ -100,7 +100,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
                     } else {
                         toast({
                             title: "שגיאה",
-                            description: result.error || "לא ניתן לטעון את פרטי הכלב",
+                            description: result.error || "לא ניתן לטעון את פרטי הלקוח",
                             variant: "destructive",
                         })
                         onOpenChange(false)
@@ -110,7 +110,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
                     console.error("Failed to load treatment data:", error)
                     toast({
                         title: "שגיאה",
-                        description: "לא ניתן לטעון את פרטי הכלב",
+                        description: "לא ניתן לטעון את פרטי הלקוח",
                         variant: "destructive",
                     })
                     onOpenChange(false)
@@ -190,7 +190,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
         if (!treatmentId) {
             toast({
                 title: "שגיאה",
-                description: "לא ניתן לעדכן כלב ללא זיהוי",
+                description: "לא ניתן לעדכן לקוח ללא שיוך",
                 variant: "destructive",
             })
             return
@@ -199,7 +199,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
         if (!treatmentData.name.trim()) {
             toast({
                 title: "שדה חובה",
-                description: "שם הכלב נדרש",
+                description: "שם הלקוח נדרש",
                 variant: "destructive",
             })
             return
@@ -209,7 +209,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
             if (!treatmentData.treatment_type_id || treatmentData.treatment_type_id === "__none__") {
                 toast({
                     title: "שדה חובה",
-                    description: "יש לבחור גזע לכלב",
+                    description: "יש לבחור סגנון שירות ללקוח",
                     variant: "destructive",
                 })
                 return
@@ -233,19 +233,19 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
 
             if (result.success) {
                 toast({
-                    title: "הכלב עודכן בהצלחה",
+                    title: "הלקוח עודכן בהצלחה",
                     description: `פרטי ${treatmentData.name} עודכנו בהצלחה.`,
                 })
                 handleClose()
                 onSuccess?.()
             } else {
-                throw new Error(result.error || "שגיאה בעדכון הכלב")
+                throw new Error(result.error || "שגיאה בעדכון הלקוח")
             }
         } catch (error) {
             console.error("Failed to update treatment:", error)
             toast({
-                title: "שגיאה בעדכון הכלב",
-                description: error instanceof Error ? error.message : "לא ניתן לעדכן את הכלב כעת",
+                title: "שגיאה בעדכון הלקוח",
+                description: error instanceof Error ? error.message : "לא ניתן לעדכן את הלקוח כעת",
                 variant: "destructive",
             })
         }
@@ -255,25 +255,25 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
         <Dialog open={open} onOpenChange={(open) => (open ? null : handleClose())}>
             <DialogContent dir="rtl" className="max-w-2xl max-h-[90vh] overflow-y-auto text-right">
                 <DialogHeader className="items-start text-right">
-                    <DialogTitle>ערוך פרטי כלב</DialogTitle>
+                    <DialogTitle>ערוך פרטי לקוח</DialogTitle>
                     <DialogDescription>
-                        {lockTreatmentTypeSelection ? "ניתן לעדכן פרטים, אך לא ניתן לשנות את הגזע לאחר שנקבעו תורים." : "עדכן את הפרטים של הכלב"}
+                        {lockTreatmentTypeSelection ? "ניתן לעדכן פרטים, אך לא ניתן לשנות את סגנון השירות לאחר שנקבעו תורים." : "עדכן את הפרטים של הלקוח"}
                     </DialogDescription>
                 </DialogHeader>
                 {isLoadingTreatmentData ? (
                     <div className="flex items-center justify-center p-8">
                         <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                        <span className="mr-2 text-sm text-gray-500">טוען פרטי כלב...</span>
+                        <span className="mr-2 text-sm text-gray-500">טוען פרטי לקוח...</span>
                     </div>
                 ) : (
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label htmlFor="edit-treatment-name" className="text-right">
-                                שם הכלב <span className="text-red-500">*</span>
+                                שם הלקוח <span className="text-red-500">*</span>
                             </Label>
                             <Input
                                 id="edit-treatment-name"
-                                placeholder="הכנס שם הכלב"
+                                placeholder="הכנס שם הלקוח"
                                 value={treatmentData.name}
                                 onChange={(e) => setTreatmentData({ ...treatmentData, name: e.target.value })}
                                 className="text-right"
@@ -282,8 +282,8 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="edit-treatment-treatmentType" className="text-right">
-                                גזע <span className="text-red-500">*</span>
+                                <Label htmlFor="edit-treatment-treatmentType" className="text-right">
+                                סגנון שירות <span className="text-red-500">*</span>
                             </Label>
                             {lockTreatmentTypeSelection ? (
                                 <>
@@ -295,7 +295,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
                                         dir="rtl"
                                     />
                                     <p className="text-xs text-gray-500 text-right">
-                                        לא ניתן לשנות גזע לכלב שכבר הוזמנו לו תורים.
+                                        לא ניתן לשנות סגנון שירות ללקוח שכבר הוזמנו לו תורים.
                                     </p>
                                 </>
                             ) : (
@@ -338,7 +338,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
                                             treatment_type_id: matchedTreatmentType?.id || "",
                                         }))
                                     }}
-                                    placeholder={isLoadingTreatmentTypes ? "טוען גזעים..." : "הקלד כדי לחפש גזע"}
+                                    placeholder={isLoadingTreatmentTypes ? "טוען סגנונות..." : "הקלד כדי לחפש סגנון"}
                                     className="text-right"
                                     searchFn={searchTreatmentTypes}
                                     minSearchLength={1}
@@ -408,7 +408,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
                                     className="h-4 w-4"
                                 />
                                 <Label htmlFor="edit-treatment-aggression-risk" className="text-right cursor-pointer">
-                                    סיכון תוקפנות כלפי כלבים אחרים
+                                    סיכון התנהגותי מול אחרים
                                 </Label>
                             </div>
                             <div className="flex items-center space-x-2 space-x-reverse">
@@ -459,7 +459,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
                         className="inline-flex items-center gap-2"
                     >
                         {isUpdatingTreatment && <Loader2 className="h-4 w-4 animate-spin" />}
-                        עדכן כלב
+                        עדכן לקוח
                     </Button>
                     <Button variant="outline" onClick={handleClose} disabled={isUpdatingTreatment || isLoadingTreatmentData}>
                         בטל
