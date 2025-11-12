@@ -1,10 +1,10 @@
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import React, { Fragment, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, ChevronDown, Plus, MoreHorizontal } from 'lucide-react'
+import { Loader2, ChevronDown, Plus, MoreHorizontal, Save } from 'lucide-react'
 import { useServicesWithStats, useCreateService } from '@/hooks/useServices'
 import { useToast } from '@/hooks/use-toast'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -199,8 +199,8 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
 
   const handleDeleteService = async (serviceId: string, serviceName: string) => {
     const confirmDelete =
-      typeof globalThis !== 'undefined' && typeof (globalThis as any).confirm === 'function'
-        ? (globalThis as any).confirm(`האם למחוק את השירות "${serviceName}"? הפעולה אינה הפיכה.`)
+      typeof globalThis !== 'undefined' && typeof globalThis.confirm === 'function'
+        ? globalThis.confirm(`האם למחוק את השירות "${serviceName}"? הפעולה אינה הפיכה.`)
         : true
     if (!confirmDelete) return
 
@@ -673,6 +673,9 @@ interface ServiceStationsPanelProps {
 const ServiceStationsPanel = ({ serviceId, basePrice, description }: ServiceStationsPanelProps) => {
   const { stations, isLoading, updateStationConfig } = useServiceConfiguration(serviceId)
   const { toast } = useToast()
+  const stationRefs = useRef<Map<string, StationCardRef>>(new Map())
+  const [isSavingAll, setIsSavingAll] = useState(false)
+  const [dirtyStationIds, setDirtyStationIds] = useState<Set<string>>(new Set())
 
   const handleSave = async (params: {
     stationId: string;
@@ -706,6 +709,50 @@ const ServiceStationsPanel = ({ serviceId, basePrice, description }: ServiceStat
     }
   }
 
+  const handleDirtyChange = useCallback((stationId: string, isDirty: boolean) => {
+    setDirtyStationIds(prev => {
+      const next = new Set(prev)
+      if (isDirty) {
+        next.add(stationId)
+      } else {
+        next.delete(stationId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSaveAll = async () => {
+    const dirtyStations = Array.from(stationRefs.current.values()).filter(ref => ref.isDirty())
+    if (dirtyStations.length === 0) {
+      toast({
+        title: 'אין שינויים לשמירה',
+        description: 'כל העמדות כבר נשמרו.',
+      })
+      return
+    }
+
+    setIsSavingAll(true)
+    try {
+      await Promise.all(dirtyStations.map(ref => ref.save()))
+      // Clear dirty state after successful save
+      setDirtyStationIds(new Set())
+      toast({
+        title: 'כל השינויים נשמרו',
+        description: `נשמרו ${dirtyStations.length} עמדות בהצלחה.`,
+      })
+    } catch (error) {
+      console.error('Error saving all stations:', error)
+      toast({
+        title: 'שגיאה בשמירה',
+        description: 'חלק מהעמדות לא נשמרו. נסו שוב.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingAll(false)
+    }
+  }
+
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-10">
@@ -720,22 +767,52 @@ const ServiceStationsPanel = ({ serviceId, basePrice, description }: ServiceStat
 
   return (
     <div className="space-y-4">
-      {description ? (
-        <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
-      ) : null}
+      <div className="flex items-center justify-between gap-3">
+        {description ? (
+          <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
+        ) : <div />}
+        {dirtyStationIds.size > 0 && (
+          <Button
+            size="sm"
+            onClick={handleSaveAll}
+            disabled={isSavingAll}
+            className="flex items-center gap-2 justify-end"
+          >
+            {isSavingAll ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            שמור הכל
+          </Button>
+        )}
+      </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {stations.map((station) => (
           <StationCard
             key={station.id}
+            ref={(ref) => {
+              if (ref) {
+                stationRefs.current.set(station.id, ref)
+              } else {
+                stationRefs.current.delete(station.id)
+              }
+            }}
             station={station}
             basePrice={basePrice}
             onSave={handleSave}
+            onDirtyChange={handleDirtyChange}
           />
         ))}
       </div>
     </div>
   )
+}
+
+interface StationCardRef {
+  save: () => Promise<void>;
+  isDirty: () => boolean;
 }
 
 interface StationCardProps {
@@ -749,9 +826,10 @@ interface StationCardProps {
     remoteBookingAllowed: boolean;
     requiresStaffApproval: boolean;
   }) => Promise<void>;
+  onDirtyChange?: (stationId: string, isDirty: boolean) => void;
 }
 
-const StationCard = ({ station, basePrice, onSave }: StationCardProps) => {
+const StationCard = React.forwardRef<StationCardRef, StationCardProps>(({ station, basePrice, onSave, onDirtyChange }, ref) => {
   const [time, setTime] = useState(station.base_time_minutes.toString())
   const [price, setPrice] = useState(station.price_adjustment.toString())
   const [isSaving, setIsSaving] = useState(false)
@@ -807,7 +885,11 @@ const StationCard = ({ station, basePrice, onSave }: StationCardProps) => {
     remoteDraft !== original.remote ||
     approvalDraft !== original.approval
 
-  const handleSaveClick = async () => {
+  useEffect(() => {
+    onDirtyChange?.(station.id, isDirty)
+  }, [isDirty, station.id, onDirtyChange])
+
+  const handleSaveClick = useCallback(async () => {
     if (!isDirty) return
 
     setIsSaving(true)
@@ -832,7 +914,12 @@ const StationCard = ({ station, basePrice, onSave }: StationCardProps) => {
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [isDirty, minutes, priceNumber, isActiveDraft, remoteDraft, approvalDraft, station.id, onSave])
+
+  useImperativeHandle(ref, () => ({
+    save: handleSaveClick,
+    isDirty: () => isDirty,
+  }), [isDirty, handleSaveClick])
 
   const handleCancel = () => {
     setTime(original.baseTime.toString())
@@ -945,7 +1032,9 @@ const StationCard = ({ station, basePrice, onSave }: StationCardProps) => {
       </div>
     </div>
   )
-}
+})
+
+StationCard.displayName = 'StationCard'
 
 interface StationToggleProps {
   label: string;
