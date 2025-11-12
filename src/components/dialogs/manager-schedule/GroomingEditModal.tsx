@@ -15,7 +15,7 @@ interface ManagerAppointment {
     stationId?: string
     clientName?: string
     treatments: Array<{ name: string }>
-    serviceType: 'grooming' | 'garden'
+    serviceType: 'grooming'
 }
 
 interface ManagerStation {

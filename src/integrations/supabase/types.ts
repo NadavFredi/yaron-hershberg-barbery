@@ -36,7 +36,7 @@ export type Database = {
             foreignKeyName: "appointment_payments_grooming_appointment_id_fkey"
             columns: ["grooming_appointment_id"]
             isOneToOne: false
-            referencedRelation: "grooming_appointments"
+            referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
           {
@@ -464,7 +464,7 @@ export type Database = {
           },
         ]
       }
-      grooming_appointments: {
+      appointments: {
         Row: {
           airtable_id: string | null
           amount_due: number | null
@@ -533,28 +533,28 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "grooming_appointments_customer_id_fkey"
+            foreignKeyName: "appointments_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "grooming_appointments_treatment_id_fkey"
+            foreignKeyName: "appointments_treatment_id_fkey"
             columns: ["treatment_id"]
             isOneToOne: false
             referencedRelation: "treatments"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "grooming_appointments_service_id_fkey"
+            foreignKeyName: "appointments_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "grooming_appointments_station_id_fkey"
+            foreignKeyName: "appointments_station_id_fkey"
             columns: ["station_id"]
             isOneToOne: false
             referencedRelation: "stations"
@@ -650,7 +650,7 @@ export type Database = {
             foreignKeyName: "orders_grooming_appointment_id_fkey"
             columns: ["grooming_appointment_id"]
             isOneToOne: false
-            referencedRelation: "grooming_appointments"
+            referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
         ]
@@ -1087,7 +1087,7 @@ export type Database = {
             foreignKeyName: "ticket_usages_grooming_appointment_id_fkey"
             columns: ["grooming_appointment_id"]
             isOneToOne: false
-            referencedRelation: "grooming_appointments"
+            referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
           {
@@ -1220,7 +1220,7 @@ export type Database = {
             foreignKeyName: "proposed_meetings_reschedule_appointment_id_fkey"
             columns: ["reschedule_appointment_id"]
             isOneToOne: false
-            referencedRelation: "grooming_appointments"
+            referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
           {

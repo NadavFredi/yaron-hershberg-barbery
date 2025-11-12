@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, ChevronDown, Plus } from 'lucide-react'
+import { Loader2, ChevronDown, Plus, MoreHorizontal } from 'lucide-react'
 import { useServicesWithStats, useCreateService } from '@/hooks/useServices'
 import { useToast } from '@/hooks/use-toast'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/integrations/supabase/client'
@@ -161,6 +162,43 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
     }
   }
 
+  const handleDeleteService = async (serviceId: string, serviceName: string) => {
+    const confirmDelete =
+      typeof window === 'undefined'
+        ? true
+        : window.confirm(`האם למחוק את השירות "${serviceName}"? הפעולה אינה הפיכה.`)
+    if (!confirmDelete) return
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', serviceId)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      toast({
+        title: 'השירות נמחק',
+        description: `השירות "${serviceName}" הוסר מהמערכת.`,
+      })
+
+      if (expandedServiceId === serviceId) {
+        setExpandedServiceId(null)
+      }
+
+      await refetch()
+    } catch (error) {
+      console.error('Error deleting service:', error)
+      toast({
+        title: 'שגיאה במחיקת השירות',
+        description: 'לא הצלחנו למחוק את השירות. נסו שוב.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-[200px] items-center justify-center bg-gray-50" dir="rtl">
@@ -260,18 +298,19 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                 <TableHead className="w-12 text-center"></TableHead>
                 <TableHead className="text-right font-semibold">שם השירות</TableHead>
                 <TableHead className="w-28 text-right font-semibold">מחיר בסיס</TableHead>
-                <TableHead className="w-28 text-right font-semibold">זמן ממוצע</TableHead>
+                <TableHead className="w-28 text-right font-semibold">זמן בסיס</TableHead>
                 <TableHead className="w-32 text-right font-semibold">כיסוי עמדות</TableHead>
                 <TableHead className="w-40 text-right font-semibold">טווח מחירים</TableHead>
                 <TableHead className="w-28 text-center font-semibold">פעיל</TableHead>
                 <TableHead className="w-32 text-center font-semibold">תור מרחוק</TableHead>
                 <TableHead className="w-32 text-center font-semibold">אישור צוות</TableHead>
+                <TableHead className="w-12 text-center font-semibold"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(!serviceStats || serviceStats.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={9} className="py-10 text-center text-gray-500">
+                  <TableCell colSpan={10} className="py-10 text-center text-gray-500">
                     אין עדיין שירותים במערכת. צרו שירות חדש כדי להתחיל.
                   </TableCell>
                 </TableRow>
@@ -303,18 +342,13 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                         />
                       </TableCell>
                       <TableCell className="text-right align-middle">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-sm font-semibold text-gray-900">{service.name}</span>
-                          {service.description ? (
-                            <span className="text-xs text-gray-500">{service.description}</span>
-                          ) : null}
-                        </div>
+                        <span className="text-sm font-semibold text-gray-900">{service.name}</span>
                       </TableCell>
                       <TableCell className="text-right align-middle text-gray-700">
                         {formatCurrency(service.base_price)}
                       </TableCell>
                       <TableCell className="text-right align-middle text-gray-700">
-                        {service.averageTime > 0 ? `${service.averageTime} דקות` : 'לא הוגדר'}
+                        {service.baseTime > 0 ? `${service.baseTime} דקות` : 'לא הוגדר'}
                       </TableCell>
                       <TableCell className="text-right align-middle text-gray-700">
                         {activeStationCount} מתוך {service.totalStationsCount}
@@ -347,11 +381,38 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                           </TableCell>
                         )
                       })}
+                      <TableCell className="text-center align-middle" onClick={(event) => event.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-700">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="text-right" dir="rtl">
+                            <DropdownMenuItem onClick={() => setExpandedServiceId(service.id)}>
+                              עריכה
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setExpandedServiceId(service.id)}>
+                              צפייה
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-600"
+                              onClick={() => handleDeleteService(service.id, service.name)}
+                            >
+                              מחיקה
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                     {isExpanded && (
                       <TableRow className="bg-indigo-50/40">
-                        <TableCell colSpan={9} className="border-t border-indigo-100/70 px-6 pb-6 pt-6 align-top">
-                          <ServiceStationsPanel serviceId={service.id} basePrice={service.base_price} />
+                        <TableCell colSpan={10} className="border-t border-indigo-100/70 px-6 pb-6 pt-6 align-top">
+                          <ServiceStationsPanel
+                            serviceId={service.id}
+                            basePrice={service.base_price}
+                            description={service.description}
+                          />
                         </TableCell>
                       </TableRow>
                     )}
@@ -397,9 +458,10 @@ const ParentControl = ({ triState, disabled, onToggle, isPending }: ParentContro
 interface ServiceStationsPanelProps {
   serviceId: string;
   basePrice: number;
+  description?: string | null;
 }
 
-const ServiceStationsPanel = ({ serviceId, basePrice }: ServiceStationsPanelProps) => {
+const ServiceStationsPanel = ({ serviceId, basePrice, description }: ServiceStationsPanelProps) => {
   const { stations, isLoading, updateStationConfig } = useServiceConfiguration(serviceId)
   const { toast } = useToast()
 
@@ -408,13 +470,23 @@ const ServiceStationsPanel = ({ serviceId, basePrice }: ServiceStationsPanelProp
     [stations]
   )
 
-  const handleSave = async (stationId: string, baseTimeMinutes: number, priceAdjustment: number) => {
+  const handleSave = async (params: {
+    stationId: string;
+    baseTimeMinutes: number;
+    priceAdjustment: number;
+    isActive: boolean;
+    remoteBookingAllowed: boolean;
+    requiresStaffApproval: boolean;
+  }) => {
     try {
       await updateStationConfig({
         serviceId,
-        stationId,
-        baseTimeMinutes,
-        priceAdjustment,
+        stationId: params.stationId,
+        baseTimeMinutes: params.baseTimeMinutes,
+        priceAdjustment: params.priceAdjustment,
+        isActive: params.isActive,
+        remoteBookingAllowed: params.remoteBookingAllowed,
+        requiresStaffApproval: params.requiresStaffApproval,
       })
       toast({
         title: 'העמדה עודכנה',
@@ -425,29 +497,6 @@ const ServiceStationsPanel = ({ serviceId, basePrice }: ServiceStationsPanelProp
       toast({
         title: 'שגיאה בשמירת העמדה',
         description: 'לא הצלחנו לעדכן את ההגדרות. נסו שוב.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handleToggle = async (stationId: string, field: ParentField, value: boolean) => {
-    try {
-      await updateStationConfig({
-        serviceId,
-        stationId,
-        ...(field === 'is_active' ? { isActive: value } : {}),
-        ...(field === 'remote_booking_allowed' ? { remoteBookingAllowed: value } : {}),
-        ...(field === 'requires_staff_approval' ? { requiresStaffApproval: value } : {}),
-      })
-      toast({
-        title: 'עודכן בהצלחה',
-        description: `עודכן ערך "${parentFieldLabels[field]}" לעמדה`,
-      })
-    } catch (toggleError) {
-      console.error('Error toggling station field:', toggleError)
-      toast({
-        title: 'שגיאה בעדכון',
-        description: 'לא הצלחנו לשנות את ההגדרה לעמדה הזו. נסו שוב.',
         variant: 'destructive',
       })
     }
@@ -466,13 +515,13 @@ const ServiceStationsPanel = ({ serviceId, basePrice }: ServiceStationsPanelProp
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-gray-900">ניהול עמדות עבור השירות</h3>
-        <span className="text-xs text-gray-500">
-          {activeStations.length} עמדות פעילות מתוך {stations.length}
-        </span>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
+        <span>{activeStations.length} עמדות פעילות מתוך {stations.length}</span>
       </div>
+      {description ? (
+        <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
+      ) : null}
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {stations.map((station) => (
@@ -481,7 +530,6 @@ const ServiceStationsPanel = ({ serviceId, basePrice }: ServiceStationsPanelProp
             station={station}
             basePrice={basePrice}
             onSave={handleSave}
-            onToggle={handleToggle}
           />
         ))}
       </div>
@@ -492,51 +540,105 @@ const ServiceStationsPanel = ({ serviceId, basePrice }: ServiceStationsPanelProp
 interface StationCardProps {
   station: StationWithConfig;
   basePrice: number;
-  onSave: (stationId: string, baseTimeMinutes: number, priceAdjustment: number) => Promise<void>;
-  onToggle: (stationId: string, field: ParentField, value: boolean) => Promise<void>;
+  onSave: (params: {
+    stationId: string;
+    baseTimeMinutes: number;
+    priceAdjustment: number;
+    isActive: boolean;
+    remoteBookingAllowed: boolean;
+    requiresStaffApproval: boolean;
+  }) => Promise<void>;
 }
 
-const StationCard = ({ station, basePrice, onSave, onToggle }: StationCardProps) => {
+const StationCard = ({ station, basePrice, onSave }: StationCardProps) => {
   const [time, setTime] = useState(station.base_time_minutes.toString())
   const [price, setPrice] = useState(station.price_adjustment.toString())
   const [isSaving, setIsSaving] = useState(false)
-  const [toggleLoading, setToggleLoading] = useState<Record<ParentField, boolean>>({
-    is_active: false,
-    remote_booking_allowed: false,
-    requires_staff_approval: false,
+  const [isActiveDraft, setIsActiveDraft] = useState<boolean>(station.is_active)
+  const [remoteDraft, setRemoteDraft] = useState<boolean>(station.remote_booking_allowed)
+  const [approvalDraft, setApprovalDraft] = useState<boolean>(station.requires_staff_approval)
+  const [original, setOriginal] = useState({
+    baseTime: station.base_time_minutes,
+    price: station.price_adjustment,
+    isActive: station.is_active,
+    remote: station.remote_booking_allowed,
+    approval: station.requires_staff_approval,
   })
 
-  const finalPrice = basePrice + parsePriceAdjustment(price, station.price_adjustment)
+  const priceNumber = parsePriceAdjustment(price, station.price_adjustment)
+  const finalPrice = basePrice + priceNumber
   const localIsDisabled = !station.station_is_active
 
   useEffect(() => {
     setTime(station.base_time_minutes.toString())
-  }, [station.base_time_minutes])
+    setPrice(station.price_adjustment.toString())
+    setIsActiveDraft(station.is_active)
+    setRemoteDraft(station.remote_booking_allowed)
+    setApprovalDraft(station.requires_staff_approval)
+    setOriginal({
+      baseTime: station.base_time_minutes,
+      price: station.price_adjustment,
+      isActive: station.is_active,
+      remote: station.remote_booking_allowed,
+      approval: station.requires_staff_approval,
+    })
+  }, [
+    station.base_time_minutes,
+    station.price_adjustment,
+    station.is_active,
+    station.remote_booking_allowed,
+    station.requires_staff_approval,
+  ])
 
   useEffect(() => {
-    setPrice(station.price_adjustment.toString())
-  }, [station.price_adjustment])
+    if (!isActiveDraft) {
+      setRemoteDraft(false)
+      setApprovalDraft(false)
+    }
+  }, [isActiveDraft])
+
+  const minutes = clampMinutes(time, station.base_time_minutes)
+
+  const isDirty =
+    minutes !== original.baseTime ||
+    priceNumber !== original.price ||
+    isActiveDraft !== original.isActive ||
+    remoteDraft !== original.remote ||
+    approvalDraft !== original.approval
 
   const handleSaveClick = async () => {
-    const minutes = clampMinutes(time, station.base_time_minutes)
-    const priceAdjustment = parsePriceAdjustment(price, station.price_adjustment)
+    if (!isDirty) return
 
     setIsSaving(true)
     try {
-      await onSave(station.id, minutes, priceAdjustment)
+      await onSave({
+        stationId: station.id,
+        baseTimeMinutes: minutes,
+        priceAdjustment: priceNumber,
+        isActive: isActiveDraft,
+        remoteBookingAllowed: remoteDraft,
+        requiresStaffApproval: approvalDraft,
+      })
+      setTime(minutes.toString())
+      setPrice(priceNumber.toString())
+      setOriginal({
+        baseTime: minutes,
+        price: priceNumber,
+        isActive: isActiveDraft,
+        remote: remoteDraft,
+        approval: approvalDraft,
+      })
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleToggleChange = async (field: ParentField, checked: CheckedState) => {
-    const value = checked === true
-    setToggleLoading((prev) => ({ ...prev, [field]: true }))
-    try {
-      await onToggle(station.id, field, value)
-    } finally {
-      setToggleLoading((prev) => ({ ...prev, [field]: false }))
-    }
+  const handleCancel = () => {
+    setTime(original.baseTime.toString())
+    setPrice(original.price.toString())
+    setIsActiveDraft(original.isActive)
+    setRemoteDraft(original.remote)
+    setApprovalDraft(original.approval)
   }
 
   return (
@@ -601,39 +703,45 @@ const StationCard = ({ station, basePrice, onSave, onToggle }: StationCardProps)
         <div className="flex flex-wrap gap-2">
           <StationToggle
             label="פעיל"
-            checked={station.is_active}
-            field="is_active"
-            onCheckedChange={handleToggleChange}
-            isLoading={toggleLoading.is_active}
+            checked={isActiveDraft}
+            onCheckedChange={(state) => setIsActiveDraft(state === true)}
             disabled={localIsDisabled}
           />
           <StationToggle
             label="תור מרחוק"
-            checked={station.remote_booking_allowed}
-            field="remote_booking_allowed"
-            onCheckedChange={handleToggleChange}
-            isLoading={toggleLoading.remote_booking_allowed}
-            disabled={!station.is_active || localIsDisabled}
+            checked={remoteDraft}
+            onCheckedChange={(state) => setRemoteDraft(state === true)}
+            disabled={!isActiveDraft || localIsDisabled}
           />
           <StationToggle
             label="אישור צוות"
-            checked={station.requires_staff_approval}
-            field="requires_staff_approval"
-            onCheckedChange={handleToggleChange}
-            isLoading={toggleLoading.requires_staff_approval}
-            disabled={!station.is_active || localIsDisabled}
+            checked={approvalDraft}
+            onCheckedChange={(state) => setApprovalDraft(state === true)}
+            disabled={!isActiveDraft || localIsDisabled}
           />
         </div>
       </div>
 
-      <Button
-        className="mt-3 h-9 w-full text-sm"
-        onClick={handleSaveClick}
-        disabled={isSaving || localIsDisabled}
-      >
-        {isSaving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : null}
-        {isSaving ? 'שומר...' : 'שמור'}
-      </Button>
+      <div className="mt-3 flex w-full gap-2">
+        <Button
+          className="h-9 flex-1 text-sm"
+          onClick={handleSaveClick}
+          disabled={isSaving || localIsDisabled || !isDirty}
+        >
+          {isSaving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : null}
+          {isSaving ? 'שומר...' : 'שמור'}
+        </Button>
+        {isDirty ? (
+          <Button
+            variant="outline"
+            className="h-9 px-4 text-sm"
+            onClick={handleCancel}
+            disabled={isSaving}
+          >
+            בטל
+          </Button>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -641,13 +749,11 @@ const StationCard = ({ station, basePrice, onSave, onToggle }: StationCardProps)
 interface StationToggleProps {
   label: string;
   checked: boolean;
-  field: ParentField;
-  isLoading: boolean;
   disabled?: boolean;
-  onCheckedChange: (field: ParentField, checked: CheckedState) => void;
+  onCheckedChange: (state: CheckedState) => void;
 }
 
-const StationToggle = ({ label, checked, disabled, field, isLoading, onCheckedChange }: StationToggleProps) => (
+const StationToggle = ({ label, checked, disabled, onCheckedChange }: StationToggleProps) => (
   <label
     className={cn(
       "flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-gray-600",
@@ -656,10 +762,9 @@ const StationToggle = ({ label, checked, disabled, field, isLoading, onCheckedCh
   >
     <Checkbox
       checked={checked}
-      onCheckedChange={(state) => onCheckedChange(field, state)}
+      onCheckedChange={onCheckedChange}
       disabled={disabled}
     />
     <span>{label}</span>
-    {isLoading ? <Loader2 className="h-3 w-3 animate-spin text-blue-500" /> : null}
   </label>
 )

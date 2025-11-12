@@ -48,22 +48,6 @@ CREATE TYPE public.payment_status AS ENUM ('unpaid', 'paid', 'partial');
 CREATE TYPE public.appointment_kind AS ENUM ('business', 'personal');
 CREATE TYPE public.questionnaire_result AS ENUM ('not_required', 'pending', 'approved', 'rejected');
 
-CREATE TABLE IF NOT EXISTS public.appointments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
-  station_id UUID NOT NULL REFERENCES public.stations(id) ON DELETE CASCADE,
-  treatment_type_id UUID NOT NULL REFERENCES public.treatment_types(id) ON DELETE SET NULL,
-  status public.appointment_status NOT NULL DEFAULT 'scheduled',
-  scheduled_start TIMESTAMP WITH TIME ZONE NOT NULL,
-  scheduled_end TIMESTAMP WITH TIME ZONE,
-  actual_start TIMESTAMP WITH TIME ZONE,
-  actual_end TIMESTAMP WITH TIME ZONE,
-  notes TEXT,
-  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
 CREATE TABLE IF NOT EXISTS public.station_unavailability (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   station_id UUID NOT NULL REFERENCES public.stations(id) ON DELETE CASCADE,
@@ -258,22 +242,29 @@ CREATE TABLE IF NOT EXISTS public.waitlist (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.grooming_appointments (
+CREATE TABLE IF NOT EXISTS public.appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id UUID REFERENCES public.customers(id) ON DELETE CASCADE,
-  treatment_id UUID REFERENCES public.treatments(id) ON DELETE CASCADE,
-  station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
+  airtable_id TEXT UNIQUE,
+  customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  treatment_id UUID NOT NULL REFERENCES public.treatments(id) ON DELETE CASCADE,
   service_id UUID REFERENCES public.services(id) ON DELETE SET NULL,
+  station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
   status public.appointment_status NOT NULL DEFAULT 'scheduled',
   payment_status public.payment_status NOT NULL DEFAULT 'unpaid',
   appointment_kind public.appointment_kind NOT NULL DEFAULT 'business',
   start_at TIMESTAMP WITH TIME ZONE NOT NULL,
   end_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  series_id TEXT,
+  personal_reason TEXT,
   customer_notes TEXT,
   internal_notes TEXT,
   amount_due NUMERIC(10,2),
+  billing_url TEXT,
+  billing_triggered_at TIMESTAMP WITH TIME ZONE,
+  pickup_reminder_sent_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  CHECK (end_at > start_at)
 );
 
 CREATE TABLE IF NOT EXISTS public.proposed_meetings (
@@ -287,7 +278,7 @@ CREATE TABLE IF NOT EXISTS public.proposed_meetings (
   title TEXT,
   summary TEXT,
   notes TEXT,
-  reschedule_appointment_id UUID REFERENCES public.grooming_appointments(id) ON DELETE SET NULL,
+  reschedule_appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
   reschedule_customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
   reschedule_treatment_id UUID REFERENCES public.treatments(id) ON DELETE SET NULL,
   reschedule_original_start_at TIMESTAMP WITH TIME ZONE,
@@ -382,10 +373,6 @@ CREATE TRIGGER set_updated_at_waitlist
   BEFORE UPDATE ON public.waitlist
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
-CREATE TRIGGER set_updated_at_grooming_appointments
-  BEFORE UPDATE ON public.grooming_appointments
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 CREATE TRIGGER set_updated_at_customer_types
   BEFORE UPDATE ON public.customer_types
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -425,7 +412,6 @@ ALTER TABLE public.station_working_hours ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ticket_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.custom_absence_reasons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.grooming_appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customer_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.station_allowed_customer_types ENABLE ROW LEVEL SECURITY;
@@ -506,13 +492,6 @@ BEGIN
     WHERE schemaname = 'public' AND tablename = 'waitlist' AND policyname = 'Allow all operations on waitlist'
   ) THEN
     EXECUTE 'CREATE POLICY "Allow all operations on waitlist" ON public.waitlist FOR ALL USING (true);';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'grooming_appointments' AND policyname = 'Allow all operations on grooming_appointments'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Allow all operations on grooming_appointments" ON public.grooming_appointments FOR ALL USING (true);';
   END IF;
 
   IF NOT EXISTS (
@@ -646,10 +625,9 @@ SET description = EXCLUDED.description,
     is_active = true;
 
 -- Indexes ---------------------------------------------------------------------
-CREATE INDEX IF NOT EXISTS idx_appointments_client ON public.appointments (client_id);
-CREATE INDEX IF NOT EXISTS idx_appointments_station ON public.appointments (station_id);
-CREATE INDEX IF NOT EXISTS idx_appointments_treatment_type ON public.appointments (treatment_type_id);
-CREATE INDEX IF NOT EXISTS idx_appointments_scheduled_start ON public.appointments (scheduled_start);
+CREATE INDEX IF NOT EXISTS idx_appointments_customer ON public.appointments (customer_id, start_at);
+CREATE INDEX IF NOT EXISTS idx_appointments_treatment ON public.appointments (treatment_id, start_at);
+CREATE INDEX IF NOT EXISTS idx_appointments_station ON public.appointments (station_id, start_at) WHERE status <> 'cancelled';
 
 CREATE INDEX IF NOT EXISTS idx_station_unavailability_station ON public.station_unavailability (station_id);
 CREATE INDEX IF NOT EXISTS idx_business_hours_weekday_shift ON public.business_hours (weekday, shift_order);

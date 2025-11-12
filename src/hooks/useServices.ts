@@ -13,6 +13,7 @@ export interface Service {
 
 export interface ServiceWithStats extends Service {
   averageTime: number;
+  baseTime: number;
   configuredStationsCount: number;
   totalStationsCount: number;
   priceRange: {
@@ -103,6 +104,16 @@ export const useServicesWithStats = () => {
           ? Math.round(activeConfigs.reduce((sum, config) => sum + config.base_time_minutes, 0) / activeConfigs.length)
           : 0;
 
+        const baseTime = (() => {
+          if (activeConfigs.length > 0) {
+            return Math.min(...activeConfigs.map((config) => config.base_time_minutes))
+          }
+          if (stationConfigs.length > 0) {
+            return stationConfigs[0].base_time_minutes
+          }
+          return 0
+        })();
+
         // Calculate price range based on base_price + price_adjustment
         const finalPrices = activeConfigs.map(config => 
           service.base_price + (config.price_adjustment || 0)
@@ -123,6 +134,7 @@ export const useServicesWithStats = () => {
           created_at: service.created_at,
           updated_at: service.updated_at,
           averageTime,
+          baseTime,
           configuredStationsCount: activeConfigs.length,
           totalStationsCount: totalStationsCount || 0,
           priceRange,

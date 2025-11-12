@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Clock, Sparkles, CheckCircle, Scissors, Bone, PlusCircle, ClipboardList, CreditCard, Loader2 } from "lucide-react"
+import { CalendarIcon, Clock, Sparkles, CheckCircle, Scissors, PlusCircle, ClipboardList, CreditCard, Loader2 } from "lucide-react"
 import { reserveAppointment } from "@/integrations/supabase/supabaseService"
 import confetti from "canvas-confetti"
 import { skipToken } from "@reduxjs/toolkit/query"
@@ -13,14 +13,12 @@ import {
     useGetAvailableDatesQuery,
     useGetClientSubscriptionsQuery,
     useGetClientProfileQuery,
-    useGetTreatmentGardenAppointmentsQuery,
     useListOwnerTreatmentsQuery,
     useCreateTreatmentMutation,
     type ListOwnerTreatmentsResponse,
 } from "@/store/services/supabaseApi"
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
 import { useAppDispatch } from "@/store/hooks"
-import { FirstTimeGardenBanner } from "@/components/FirstTimeGardenBanner"
 import { groomingPriceSections } from "@/copy/pricing"
 
 const BUSINESS_TIME_ZONE = "Asia/Jerusalem"

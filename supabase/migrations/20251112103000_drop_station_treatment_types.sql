@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS public.station_treatment_types;
 -- Consolidate appointments: grooming only
 DROP TABLE IF EXISTS public.combined_appointments;
 DROP TABLE IF EXISTS public.daycare_appointments;
-
+DROP TABLE IF EXISTS public.grooming_appointments;
 -- Remove unused daycare capacity limits
 DROP TABLE IF EXISTS public.daycare_capacity_limits;
 

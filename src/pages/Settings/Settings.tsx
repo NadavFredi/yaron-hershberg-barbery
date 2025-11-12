@@ -9,11 +9,10 @@ import { SettingsWorkingHoursSection } from "@/components/settings/SettingsWorki
 import { SettingsStationsSection } from "@/components/settings/SettingsStationsSection/SettingsStationsSection"
 import { SettingsConstraintsSection } from "@/components/settings/SettingsConstraintsSection/SettingsConstraintsSection"
 import { SettingsTreatmentTypeStationMatrixSection } from "@/components/settings/SettingsTreatmentTypeStationMatrixSection/SettingsTreatmentTypeStationMatrixSection"
-import { SettingsGardenSection } from "@/components/settings/SettingsGardenSection/SettingsGardenSection"
 import { SettingsSubnav } from "@/components/navigation/SettingsSubnav"
 import { SettingsServicesSection } from "@/components/settings/SettingsServicesSection/SettingsServicesSection"
 
-const VALID_SECTIONS = ["treatmentTypes", "working-hours", "stations", "services", "constraints", "matrix", "garden"] as const
+const VALID_SECTIONS = ["treatmentTypes", "working-hours", "stations", "services", "constraints", "matrix"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function Settings() {
@@ -102,7 +101,6 @@ export default function Settings() {
                     {activeSection === "services" && <SettingsServicesSection />}
                     {activeSection === "constraints" && <SettingsConstraintsSection />}
                     {activeSection === "matrix" && <SettingsTreatmentTypeStationMatrixSection />}
-                    {activeSection === "garden" && <SettingsGardenSection />}
                 </div>
             </div>
         </AdminLayout>

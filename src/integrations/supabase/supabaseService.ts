@@ -22,7 +22,7 @@ type TreatmentTypeSummary = Pick<
 >
 type TreatmentRowWithTreatmentType = TreatmentTableRow & { treatmentTypes: TreatmentTypeSummary | null }
 type GroomingAppointmentSummary = Pick<
-  Database["public"]["Tables"]["grooming_appointments"]["Row"],
+  Database["public"]["Tables"]["appointments"]["Row"],
   "treatment_id" | "status"
 >
 type CustomerRow = Database["public"]["Tables"]["customers"]["Row"]
@@ -159,7 +159,7 @@ async function hasTreatmentAppointmentHistory(treatmentId: string): Promise<bool
   }
 
   const { count, error } = await supabase
-    .from("grooming_appointments")
+    .from("appointments")
     .select("id", { count: "exact", head: true })
     .eq("treatment_id", treatmentId)
 
@@ -342,7 +342,7 @@ export async function listOwnerTreatments(ownerId: string): Promise<{ treatments
   if (treatmentIds.length > 0) {
     // verbose log removed
     const { data: groomingRows, error: groomingError } = await supabase
-      .from("grooming_appointments")
+      .from("appointments")
       .select("treatment_id, status")
       .in("treatment_id", treatmentIds)
 
@@ -712,7 +712,7 @@ export async function getMergedAppointments(treatmentId: string): Promise<{ appo
     const treatmentName = treatment.name
 
     const { data: groomingAppointments, error: groomingError } = await supabase
-      .from("grooming_appointments")
+      .from("appointments")
       .select("id, status, station_id, start_at, end_at, customer_notes, internal_notes")
       .eq("treatment_id", treatmentId)
       .order("start_at", { ascending: true })
@@ -1012,7 +1012,7 @@ export async function updateAppointmentNotes(
   try {
     // Update customer_notes in grooming appointments (single appointment type supported)
     const { error } = await supabase
-      .from("grooming_appointments")
+      .from("appointments")
       .update({ customer_notes: note || null })
       .eq("id", appointmentId)
 
@@ -1415,7 +1415,7 @@ export async function getManagerSchedule(
       serviceType === "garden"
         ? Promise.resolve([])
         : supabase
-            .from("grooming_appointments")
+            .from("appointments")
             .select(
               `
               id,
@@ -2059,19 +2059,17 @@ export async function managerCancelAppointment(params: {
   groupId?: string
 }): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    const tableName = params.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
-
     // Update appointment status to cancelled
-    const { error } = await supabase.from(tableName).update({ status: "cancelled" }).eq("id", params.appointmentId)
+    const { error } = await supabase.from("appointments").update({ status: "cancelled" }).eq("id", params.appointmentId)
 
     if (error) {
       throw new Error(`Failed to cancel appointment: ${error.message}`)
     }
 
     // If this is a group appointment, cancel all appointments in the group
-    if (params.groupId && params.serviceType === "grooming") {
+    if (params.groupId) {
       const { error: groupError } = await supabase
-        .from("grooming_appointments")
+        .from("appointments")
         .update({ status: "cancelled" })
         .eq("series_id", params.groupId)
 
