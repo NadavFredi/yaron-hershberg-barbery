@@ -10,6 +10,16 @@ import { useToast } from '@/hooks/use-toast'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/integrations/supabase/client'
@@ -25,7 +35,7 @@ interface ServiceLibraryProps {
 }
 
 type ParentField = 'is_active' | 'remote_booking_allowed' | 'requires_staff_approval'
-type InlineField = 'basePrice' | 'baseTime' | 'minPrice' | 'maxPrice'
+type InlineField = 'name' | 'basePrice' | 'baseTime' | 'minPrice' | 'maxPrice'
 
 const parentFieldLabels: Record<ParentField, string> = {
   is_active: 'פעיל',
@@ -61,6 +71,8 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
   const [inlineEdit, setInlineEdit] = useState<{ serviceId: string; field: InlineField } | null>(null)
   const [inlineValue, setInlineValue] = useState('')
   const [inlineLoadingKey, setInlineLoadingKey] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [serviceToDelete, setServiceToDelete] = useState<{ id: string; name: string } | null>(null)
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const updateServiceMutation = useUpdateService()
@@ -197,18 +209,19 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
     }
   }
 
-  const handleDeleteService = async (serviceId: string, serviceName: string) => {
-    const confirmDelete =
-      typeof globalThis !== 'undefined' && typeof globalThis.confirm === 'function'
-        ? globalThis.confirm(`האם למחוק את השירות "${serviceName}"? הפעולה אינה הפיכה.`)
-        : true
-    if (!confirmDelete) return
+  const handleDeleteClick = (serviceId: string, serviceName: string) => {
+    setServiceToDelete({ id: serviceId, name: serviceName })
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteService = async () => {
+    if (!serviceToDelete) return
 
     try {
       const { error: deleteError } = await supabase
         .from('services')
         .delete()
-        .eq('id', serviceId)
+        .eq('id', serviceToDelete.id)
 
       if (deleteError) {
         throw deleteError
@@ -216,13 +229,15 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
 
       toast({
         title: 'השירות נמחק',
-        description: `השירות "${serviceName}" הוסר מהמערכת.`,
+        description: `השירות "${serviceToDelete.name}" הוסר מהמערכת.`,
       })
 
-      if (expandedServiceId === serviceId) {
+      if (expandedServiceId === serviceToDelete.id) {
         setExpandedServiceId(null)
       }
 
+      setDeleteDialogOpen(false)
+      setServiceToDelete(null)
       await refetch()
     } catch (error) {
       console.error('Error deleting service:', error)
@@ -234,9 +249,13 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
     }
   }
 
-  const startInlineEdit = (serviceId: string, field: InlineField, value: number) => {
+  const startInlineEdit = (serviceId: string, field: InlineField, value: number | string) => {
     setInlineEdit({ serviceId, field })
-    setInlineValue(Number.isFinite(value) ? value.toString() : '0')
+    if (field === 'name') {
+      setInlineValue(typeof value === 'string' ? value : '')
+    } else {
+      setInlineValue(Number.isFinite(value) ? value.toString() : '0')
+    }
   }
 
   const cancelInlineEdit = () => {
@@ -247,19 +266,30 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
   const handleInlineSubmit = async (service: (typeof serviceStats)[number]) => {
     if (!inlineEdit || inlineEdit.serviceId !== service.id || inlineLoadingKey) return
 
-    const parsed = Number(inlineValue)
-    if (!Number.isFinite(parsed)) {
-      cancelInlineEdit()
-      return
-    }
-
-    const numericValue = Math.max(0, Math.round(parsed))
     const key = `${service.id}-${inlineEdit.field}`
     setInlineLoadingKey(key)
 
     try {
       switch (inlineEdit.field) {
+        case 'name': {
+          const trimmedName = inlineValue.trim()
+          if (!trimmedName) {
+            cancelInlineEdit()
+            return
+          }
+          await updateServiceMutation.mutateAsync({
+            serviceId: service.id,
+            name: trimmedName,
+          })
+          break
+        }
         case 'basePrice': {
+          const parsed = Number(inlineValue)
+          if (!Number.isFinite(parsed)) {
+            cancelInlineEdit()
+            return
+          }
+          const numericValue = Math.max(0, Math.round(parsed))
           await updateServiceMutation.mutateAsync({
             serviceId: service.id,
             base_price: numericValue,
@@ -267,7 +297,12 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
           break
         }
         case 'baseTime': {
-          const minutes = Math.max(5, numericValue)
+          const parsed = Number(inlineValue)
+          if (!Number.isFinite(parsed)) {
+            cancelInlineEdit()
+            return
+          }
+          const minutes = Math.max(5, Math.round(parsed))
           const { error } = await supabase
             .from('service_station_matrix')
             .update({ base_time_minutes: minutes })
@@ -279,6 +314,12 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
           break
         }
         case 'minPrice': {
+          const parsed = Number(inlineValue)
+          if (!Number.isFinite(parsed)) {
+            cancelInlineEdit()
+            return
+          }
+          const numericValue = Math.max(0, Math.round(parsed))
           const delta = numericValue - service.priceRange.min
           if (delta !== 0) {
             await updateServiceMutation.mutateAsync({
@@ -289,6 +330,12 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
           break
         }
         case 'maxPrice': {
+          const parsed = Number(inlineValue)
+          if (!Number.isFinite(parsed)) {
+            cancelInlineEdit()
+            return
+          }
+          const numericValue = Math.max(0, Math.round(parsed))
           const currentMax = service.priceRange.max
           const delta = numericValue - currentMax
           if (delta !== 0) {
@@ -333,13 +380,14 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
     service: (typeof serviceStats)[number],
     field: InlineField,
     displayValue: string,
-    numericValue: number,
+    numericValue: number | string,
     placeholder?: string,
     widthClass = 'min-w-[80px]'
   ) => {
     const key = `${service.id}-${field}`
     const isEditing = inlineEdit?.serviceId === service.id && inlineEdit.field === field
     const isLoading = inlineLoadingKey === key
+    const isTextInput = field === 'name'
 
     return (
       <div
@@ -349,7 +397,7 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
         {isEditing ? (
           <Input
             autoFocus
-            type="number"
+            type={isTextInput ? 'text' : 'number'}
             value={inlineValue}
             placeholder={placeholder}
             onChange={(event) => setInlineValue(event.target.value)}
@@ -363,7 +411,7 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                 cancelInlineEdit()
               }
             }}
-            className="h-8 w-full text-center"
+            className={cn('h-8 w-full', isTextInput ? 'text-right' : 'text-center')}
           />
         ) : (
           <button
@@ -521,7 +569,14 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                         />
                       </TableCell>
                       <TableCell className="text-right align-middle">
-                        <span className="text-sm font-semibold text-gray-900">{service.name}</span>
+                        {renderEditableValue(
+                          service,
+                          'name',
+                          service.name,
+                          service.name,
+                          'שם השירות',
+                          'min-w-[150px]'
+                        )}
                       </TableCell>
                       <TableCell className="text-right align-middle text-gray-700">
                         {renderEditableValue(
@@ -598,15 +653,9 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="text-right" dir="rtl">
-                            <DropdownMenuItem onClick={() => setExpandedServiceId(service.id)}>
-                              עריכה
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setExpandedServiceId(service.id)}>
-                              צפייה
-                            </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-red-600 focus:text-red-600"
-                              onClick={() => handleDeleteService(service.id, service.name)}
+                              onClick={() => handleDeleteClick(service.id, service.name)}
                             >
                               מחיקה
                             </DropdownMenuItem>
@@ -631,6 +680,28 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
             </TableBody>
           </Table>
         </div>
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>מחיקת שירות</AlertDialogTitle>
+              <AlertDialogDescription className="text-right">
+                האם אתה בטוח שברצונך למחוק את השירות "{serviceToDelete?.name}"?
+                <br />
+                פעולה זו אינה הפיכה ותמחק את כל ההגדרות הקשורות לשירות זה.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel>ביטול</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteService}
+                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              >
+                מחק
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
