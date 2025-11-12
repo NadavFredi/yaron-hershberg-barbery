@@ -17,12 +17,14 @@ import type { CheckedState } from '@radix-ui/react-checkbox'
 import { useServiceConfiguration } from '@/hooks/useServiceConfiguration'
 import type { StationWithConfig } from '@/hooks/useServiceConfiguration'
 import { useQueryClient } from '@tanstack/react-query'
+import { useUpdateService } from '@/hooks/useServices'
 
 interface ServiceLibraryProps {
   defaultExpandedServiceId?: string | null
 }
 
 type ParentField = 'is_active' | 'remote_booking_allowed' | 'requires_staff_approval'
+type InlineField = 'basePrice' | 'baseTime' | 'minPrice' | 'maxPrice'
 
 const parentFieldLabels: Record<ParentField, string> = {
   is_active: 'פעיל',
@@ -55,8 +57,12 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(defaultExpandedServiceId)
   const [pendingParentToggle, setPendingParentToggle] = useState<string | null>(null)
+  const [inlineEdit, setInlineEdit] = useState<{ serviceId: string; field: InlineField } | null>(null)
+  const [inlineValue, setInlineValue] = useState('')
+  const [inlineLoadingKey, setInlineLoadingKey] = useState<string | null>(null)
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const updateServiceMutation = useUpdateService()
 
   const { data: serviceStats, isLoading, error, refetch } = useServicesWithStats()
   const createServiceMutation = useCreateService()
@@ -164,9 +170,9 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
 
   const handleDeleteService = async (serviceId: string, serviceName: string) => {
     const confirmDelete =
-      typeof window === 'undefined'
-        ? true
-        : window.confirm(`האם למחוק את השירות "${serviceName}"? הפעולה אינה הפיכה.`)
+      typeof globalThis !== 'undefined' && typeof (globalThis as any).confirm === 'function'
+        ? (globalThis as any).confirm(`האם למחוק את השירות "${serviceName}"? הפעולה אינה הפיכה.`)
+        : true
     if (!confirmDelete) return
 
     try {
@@ -197,6 +203,151 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
         variant: 'destructive',
       })
     }
+  }
+
+  const startInlineEdit = (serviceId: string, field: InlineField, value: number) => {
+    setInlineEdit({ serviceId, field })
+    setInlineValue(Number.isFinite(value) ? value.toString() : '0')
+  }
+
+  const cancelInlineEdit = () => {
+    setInlineEdit(null)
+    setInlineValue('')
+  }
+
+  const handleInlineSubmit = async (service: (typeof serviceStats)[number]) => {
+    if (!inlineEdit || inlineEdit.serviceId !== service.id || inlineLoadingKey) return
+
+    const parsed = Number(inlineValue)
+    if (!Number.isFinite(parsed)) {
+      cancelInlineEdit()
+      return
+    }
+
+    const numericValue = Math.max(0, Math.round(parsed))
+    const key = `${service.id}-${inlineEdit.field}`
+    setInlineLoadingKey(key)
+
+    try {
+      switch (inlineEdit.field) {
+        case 'basePrice': {
+          await updateServiceMutation.mutateAsync({
+            serviceId: service.id,
+            base_price: numericValue,
+          })
+          break
+        }
+        case 'baseTime': {
+          const minutes = Math.max(5, numericValue)
+          const { error } = await supabase
+            .from('service_station_matrix')
+            .update({ base_time_minutes: minutes })
+            .eq('service_id', service.id)
+
+          if (error) {
+            throw error
+          }
+          break
+        }
+        case 'minPrice': {
+          const delta = numericValue - service.priceRange.min
+          if (delta !== 0) {
+            await updateServiceMutation.mutateAsync({
+              serviceId: service.id,
+              base_price: service.base_price + delta,
+            })
+          }
+          break
+        }
+        case 'maxPrice': {
+          const currentMax = service.priceRange.max
+          const delta = numericValue - currentMax
+          if (delta !== 0) {
+            const maxConfigs = service.stationConfigs.filter(
+              (config) => service.base_price + (config.price_adjustment || 0) === currentMax
+            )
+            const updates = maxConfigs.map((config) =>
+              supabase
+                .from('service_station_matrix')
+                .update({ price_adjustment: (config.price_adjustment || 0) + delta })
+                .eq('service_id', service.id)
+                .eq('station_id', config.station_id)
+            )
+            const results = await Promise.all(updates)
+            const failed = results.find((res) => res.error)
+            if (failed?.error) {
+              throw failed.error
+            }
+          }
+          break
+        }
+        default:
+          break
+      }
+
+      await refetch()
+      await queryClient.invalidateQueries({ queryKey: ['service-station-configs', service.id] })
+      cancelInlineEdit()
+    } catch (error) {
+      console.error('Error updating inline value:', error)
+      toast({
+        title: 'שגיאה בעדכון',
+        description: 'לא הצלחנו לשמור את הערך החדש. נסו שוב.',
+        variant: 'destructive',
+      })
+    } finally {
+      setInlineLoadingKey(null)
+    }
+  }
+
+  const renderEditableValue = (
+    service: (typeof serviceStats)[number],
+    field: InlineField,
+    displayValue: string,
+    numericValue: number,
+    placeholder?: string,
+    widthClass = 'min-w-[80px]'
+  ) => {
+    const key = `${service.id}-${field}`
+    const isEditing = inlineEdit?.serviceId === service.id && inlineEdit.field === field
+    const isLoading = inlineLoadingKey === key
+
+    return (
+      <div
+        className={cn('flex justify-end', widthClass)}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {isEditing ? (
+          <Input
+            autoFocus
+            type="number"
+            value={inlineValue}
+            placeholder={placeholder}
+            onChange={(event) => setInlineValue(event.target.value)}
+            onBlur={() => handleInlineSubmit(service)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                handleInlineSubmit(service)
+              } else if (event.key === 'Escape') {
+                event.preventDefault()
+                cancelInlineEdit()
+              }
+            }}
+            className="h-8 w-full text-center"
+          />
+        ) : (
+          <button
+            type="button"
+            className="flex w-full items-center justify-center rounded border border-transparent px-2 py-1 text-sm font-medium text-gray-700 transition hover:border-indigo-200 hover:bg-indigo-50"
+            onClick={() => startInlineEdit(service.id, field, numericValue)}
+            disabled={isLoading}
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-indigo-500" /> : displayValue}
+          </button>
+        )}
+      </div>
+    )
   }
 
   if (isLoading) {
@@ -345,16 +496,46 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                         <span className="text-sm font-semibold text-gray-900">{service.name}</span>
                       </TableCell>
                       <TableCell className="text-right align-middle text-gray-700">
-                        {formatCurrency(service.base_price)}
+                        {renderEditableValue(
+                          service,
+                          'basePrice',
+                          formatCurrency(service.base_price),
+                          service.base_price
+                        )}
                       </TableCell>
                       <TableCell className="text-right align-middle text-gray-700">
-                        {service.baseTime > 0 ? `${service.baseTime} דקות` : 'לא הוגדר'}
+                        {renderEditableValue(
+                          service,
+                          'baseTime',
+                          service.baseTime > 0 ? `${service.baseTime} דקות` : 'קבע זמן',
+                          service.baseTime > 0 ? service.baseTime : 60,
+                          undefined,
+                          'min-w-[90px]'
+                        )}
                       </TableCell>
                       <TableCell className="text-right align-middle text-gray-700">
                         {activeStationCount} מתוך {service.totalStationsCount}
                       </TableCell>
                       <TableCell className="text-right align-middle text-gray-700">
-                        {formatCurrency(service.priceRange.min)} – {formatCurrency(service.priceRange.max)}
+                        <div className="flex items-center justify-end gap-2">
+                          {renderEditableValue(
+                            service,
+                            'minPrice',
+                            formatCurrency(service.priceRange.min),
+                            service.priceRange.min,
+                            undefined,
+                            'min-w-[70px]'
+                          )}
+                          <span className="text-xs text-gray-400">–</span>
+                          {renderEditableValue(
+                            service,
+                            'maxPrice',
+                            formatCurrency(service.priceRange.max),
+                            service.priceRange.max,
+                            undefined,
+                            'min-w-[70px]'
+                          )}
+                        </div>
                       </TableCell>
                       {(Object.keys(parentFieldLabels) as ParentField[]).map((field) => {
                         const triState =
@@ -516,9 +697,6 @@ const ServiceStationsPanel = ({ serviceId, basePrice, description }: ServiceStat
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
-        <span>{activeStations.length} עמדות פעילות מתוך {stations.length}</span>
-      </div>
       {description ? (
         <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
       ) : null}

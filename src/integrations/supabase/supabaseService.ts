@@ -1410,106 +1410,52 @@ export async function getManagerSchedule(
       stations.push(gardenStation)
     }
 
-    // Fetch grooming appointments
-    const groomingPromise =
-      serviceType === "garden"
-        ? Promise.resolve([])
-        : supabase
-            .from("appointments")
-            .select(
-              `
-              id,
-              status,
-              station_id,
-              start_at,
-              end_at,
-              customer_notes,
-              internal_notes,
-              payment_status,
-              appointment_kind,
-              amount_due,
-              treatment_id,
-              customer_id,
-              stations(id, name),
-              treatments(
-                id,
-                name,
-                treatment_type_id,
-                customer_id,
-                treatmentTypes:treatment_types (
-                  id,
-                  name,
-                  size_class:default_duration_minutes,
-                  min_groom_price:default_price,
-                  max_groom_price:default_price,
-                  color_hex
-                )
-              ),
-              customers(id, full_name, phone, email, classification)
-            `
-            )
-            .gte("start_at", dayStart.toISOString())
-            .lte("start_at", dayEnd.toISOString())
-            .order("start_at")
+    // Fetch all appointments from unified appointments table
+    const appointmentsResult = await supabase
+      .from("appointments")
+      .select(
+        `
+        id,
+        status,
+        station_id,
+        start_at,
+        end_at,
+        customer_notes,
+        internal_notes,
+        payment_status,
+        appointment_kind,
+        amount_due,
+        treatment_id,
+        customer_id,
+        stations(id, name),
+        treatments(
+          id,
+          name,
+          treatment_type_id,
+          customer_id,
+          treatmentTypes:treatment_types (
+            id,
+            name,
+            size_class:default_duration_minutes,
+            min_groom_price:default_price,
+            max_groom_price:default_price,
+            color_hex
+          )
+        ),
+        customers(id, full_name, phone, email, classification)
+      `
+      )
+      .gte("start_at", dayStart.toISOString())
+      .lte("start_at", dayEnd.toISOString())
+      .order("start_at")
 
-    // Fetch daycare appointments
-    const daycarePromise =
-      serviceType === "grooming"
-        ? Promise.resolve([])
-        : supabase
-            .from("daycare_appointments")
-            .select(
-              `
-              id,
-              status,
-              station_id,
-              start_at,
-              end_at,
-              customer_notes,
-              internal_notes,
-              payment_status,
-              service_type,
-              late_pickup_requested,
-              late_pickup_notes,
-              garden_trim_nails,
-              garden_brush,
-              garden_bath,
-              questionnaire_result,
-              treatment_id,
-              customer_id,
-              stations(id, name),
-              treatments(
-                id,
-                name,
-                treatment_type_id,
-                customer_id,
-                treatmentTypes:treatment_types (
-                  id,
-                  name,
-                  size_class:default_duration_minutes,
-                  min_groom_price:default_price,
-                  max_groom_price:default_price,
-                  color_hex
-                )
-              ),
-              customers(id, full_name, phone, email, classification)
-            `
-            )
-            .gte("start_at", dayStart.toISOString())
-            .lte("start_at", dayEnd.toISOString())
-            .order("start_at")
-
-    const [groomingResult, daycareResult] = await Promise.all([groomingPromise, daycarePromise])
-
-    if (groomingResult.error) {
-      throw new Error(`Failed to fetch grooming appointments: ${groomingResult.error.message}`)
-    }
-    if (daycareResult.error) {
-      throw new Error(`Failed to fetch daycare appointments: ${daycareResult.error.message}`)
+    if (appointmentsResult.error) {
+      throw new Error(`Failed to fetch appointments: ${appointmentsResult.error.message}`)
     }
 
-    const groomingAppointments = (groomingResult.data || []) as any[]
-    const daycareAppointments = (daycareResult.data || []) as any[]
+    const allAppointments = (appointmentsResult.data || []) as any[]
+    const groomingAppointments = allAppointments
+    const daycareAppointments: any[] = []
 
     // Fetch combined appointments to check for cross-service links
     // Get all combined appointments and filter to only those relevant to today's appointments

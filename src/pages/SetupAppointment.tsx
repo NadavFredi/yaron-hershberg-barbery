@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Clock, Sparkles, CheckCircle, Scissors, PlusCircle, ClipboardList, CreditCard, Loader2 } from "lucide-react"
+import { CalendarIcon, Clock, Sparkles, CheckCircle, Scissors, Bone, PlusCircle, ClipboardList, CreditCard, Loader2 } from "lucide-react"
 import { reserveAppointment } from "@/integrations/supabase/supabaseService"
+import { AutocompleteFilter } from "@/components/AutocompleteFilter"
 import confetti from "canvas-confetti"
 import { skipToken } from "@reduxjs/toolkit/query"
 import {
@@ -20,6 +21,7 @@ import {
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
 import { useAppDispatch } from "@/store/hooks"
 import { groomingPriceSections } from "@/copy/pricing"
+import { supabase } from "@/integrations/supabase/client"
 
 const BUSINESS_TIME_ZONE = "Asia/Jerusalem"
 const jerusalemDateFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -147,6 +149,30 @@ interface ServiceOption {
     description: string | null
 }
 
+const ALLOWED_SERVICE_TYPES = ["grooming", "garden", "both"] as const
+type AllowedServiceType = (typeof ALLOWED_SERVICE_TYPES)[number]
+
+const ALLOWED_SERVICE_TYPE_SET = new Set<string>(ALLOWED_SERVICE_TYPES)
+
+const SERVICE_TYPE_LABELS: Record<AllowedServiceType, string> = {
+    grooming: "תספורת",
+    garden: "גן",
+    both: "תספורת וגן",
+}
+
+type ServiceSearchResult = {
+    id: string
+    name: string
+    category: string | null
+}
+
+function normalizeServiceCategory(value: string | null | undefined): AllowedServiceType {
+    if (value && ALLOWED_SERVICE_TYPE_SET.has(value)) {
+        return value as AllowedServiceType
+    }
+    return "grooming"
+}
+
 const _SERVICE_DISPLAY_LABELS: Record<string, string> = {
     grooming: "תספורת",
 }
@@ -223,7 +249,9 @@ export default function SetupAppointment() {
     } = useSupabaseAuthWithClientId()
     const dispatch = useAppDispatch()
     const [selectedTreatment, setSelectedTreatment] = useState<string>("")
-    const [selectedServiceType, setSelectedServiceType] = useState<string>("grooming") // Default to barber
+    const [selectedServiceType, setSelectedServiceType] = useState<AllowedServiceType | "">("")
+    const [selectedServiceId, setSelectedServiceId] = useState<string>("")
+    const [selectedServiceName, setSelectedServiceName] = useState<string>("")
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
     const [selectedTime, setSelectedTime] = useState<string>("")
     const [selectedStationId, setSelectedStationId] = useState<string>("")
@@ -240,9 +268,38 @@ export default function SetupAppointment() {
     const [gardenBrush, setGardenBrush] = useState(false)
     const [gardenBath, setGardenBath] = useState(false)
     const [formStep, setFormStep] = useState<1 | 2>(1)
+    const [serviceSearchResults, setServiceSearchResults] = useState<ServiceSearchResult[]>([])
 
     const hasProcessedQueryParams = useRef(false)
     const selectedTreatmentFromParams = useRef(false)
+
+    const searchServices = useCallback(async (searchTerm: string): Promise<string[]> => {
+        try {
+            let query = supabase
+                .from("services")
+                .select("id, name, category")
+                .order("name")
+                .limit(20)
+
+            if (searchTerm && searchTerm.trim().length > 0) {
+                query = query.ilike("name", `%${searchTerm.trim()}%`)
+            }
+
+            const { data, error } = await query
+
+            if (error) {
+                throw error
+            }
+
+            const services = (data ?? []) as ServiceSearchResult[]
+            setServiceSearchResults(services)
+            return services.map((service) => service.name)
+        } catch (error) {
+            console.error("Error searching services:", error)
+            setServiceSearchResults([])
+            return []
+        }
+    }, [])
 
     const ownerId = useMemo(() => {
         if (clientId) {
@@ -517,16 +574,9 @@ export default function SetupAppointment() {
         }
     }, [selectedServiceType])
 
-    // Fetch garden appointments for the selected treatment to check if they already have scheduled appointments
-    const {
-        data: existingGardenAppointments = [],
-        isFetching: isFetchingGardenAppointments,
-    } = useGetTreatmentGardenAppointmentsQuery(
-        selectedTreatmentDetails?.id ?? skipToken,
-        {
-            skip: !selectedTreatmentDetails?.id,
-        }
-    )
+    // No garden flow – keep placeholders for compatibility
+    const existingGardenAppointments: { appointments?: unknown[] } | null = null
+    const isFetchingGardenAppointments = false
 
     const datesQueryArg = selectedTreatment && selectedServiceType
         ? {
@@ -1005,57 +1055,117 @@ export default function SetupAppointment() {
     }, [isExtrasStep, canProceedToExtras])
 
     // Function to update URL with current selections
-    const updateURL = useCallback((newServiceType?: string, newDate?: Date, newTreatmentId?: string) => {
+    const updateURL = useCallback((
+        {
+            serviceType,
+            serviceId,
+            date,
+            treatmentId,
+        }: {
+            serviceType?: string | null
+            serviceId?: string | null
+            date?: Date | null
+            treatmentId?: string | null
+        } = {}
+    ) => {
         const params = new URLSearchParams(searchParams)
 
-        if (newServiceType) {
-            params.set('serviceType', newServiceType)
+        if (serviceType !== undefined) {
+            if (serviceType) {
+                params.set("serviceType", serviceType)
+            } else {
+                params.delete("serviceType")
+            }
         }
 
-        if (newDate) {
-            params.set('date', newDate.toISOString().split('T')[0])
+        if (serviceId !== undefined) {
+            if (serviceId) {
+                params.set("serviceId", serviceId)
+            } else {
+                params.delete("serviceId")
+            }
         }
 
-        const treatmentIdToUse = newTreatmentId || selectedTreatment
-        if (treatmentIdToUse) {
-            params.set('treatmentId', treatmentIdToUse)
+        if (date !== undefined) {
+            if (date) {
+                params.set("date", date.toISOString().split("T")[0])
+            } else {
+                params.delete("date")
+            }
+        }
+
+        if (treatmentId !== undefined) {
+            if (treatmentId) {
+                params.set("treatmentId", treatmentId)
+            } else {
+                params.delete("treatmentId")
+            }
         }
 
         setSearchParams(params)
-    }, [searchParams, selectedTreatment, setSearchParams])
+    }, [searchParams, setSearchParams])
 
     // Function to handle query parameters
-    const processQueryParams = useCallback(() => {
-        const serviceType = searchParams.get('serviceType')
-        const date = searchParams.get('date')
-        const treatmentId = searchParams.get('treatmentId')
+    const processQueryParams = useCallback(async () => {
+        const serviceTypeParam = searchParams.get("serviceType")
+        const serviceIdParam = searchParams.get("serviceId")
+        const dateParam = searchParams.get("date")
+        const treatmentIdParam = searchParams.get("treatmentId")
 
         selectedTreatmentFromParams.current = false
 
-        if (treatmentId) {
-            const treatmentExists = treatments.some((treatment) => treatment.id === treatmentId)
+        if (treatmentIdParam) {
+            const treatmentExists = treatments.some((treatment) => treatment.id === treatmentIdParam)
             if (treatmentExists) {
-                setSelectedTreatment(treatmentId)
+                setSelectedTreatment(treatmentIdParam)
                 selectedTreatmentFromParams.current = true
             } else {
-                console.warn('❌ Treatment ID from query param not found:', treatmentId)
+                console.warn("❌ Treatment ID from query param not found:", treatmentIdParam)
                 selectedTreatmentFromParams.current = false
             }
         }
 
-        if (serviceType && ['grooming', 'garden', 'both'].includes(serviceType)) {
-            setSelectedServiceType(serviceType)
+        if (serviceIdParam) {
+            try {
+                const { data, error } = await supabase
+                    .from("services")
+                    .select("id, name, category")
+                    .eq("id", serviceIdParam)
+                    .maybeSingle()
+
+                if (error) {
+                    throw error
+                }
+
+                if (data) {
+                    const normalizedCategory = normalizeServiceCategory(data.category)
+                    handleServiceTypeChange(normalizedCategory, {
+                        serviceId: data.id,
+                        serviceName: data.name,
+                        skipUrlUpdate: true,
+                    })
+                } else if (serviceTypeParam && ALLOWED_SERVICE_TYPE_SET.has(serviceTypeParam)) {
+                    handleServiceTypeChange(serviceTypeParam, { skipUrlUpdate: true })
+                }
+            } catch (error) {
+                console.error("❌ Failed to hydrate service from query params:", error)
+                if (serviceTypeParam && ALLOWED_SERVICE_TYPE_SET.has(serviceTypeParam)) {
+                    handleServiceTypeChange(serviceTypeParam, { skipUrlUpdate: true })
+                }
+            }
+        } else if (serviceTypeParam && ALLOWED_SERVICE_TYPE_SET.has(serviceTypeParam)) {
+            handleServiceTypeChange(serviceTypeParam, { skipUrlUpdate: true })
         }
 
-        if (date) {
-            const parsedDate = new Date(date)
+        if (dateParam) {
+            const parsedDate = new Date(dateParam)
             if (!isNaN(parsedDate.getTime())) {
                 setSelectedDate(parsedDate)
             } else {
-                console.warn('❌ Invalid date in query param:', date)
+                console.warn("❌ Invalid date in query param:", dateParam)
             }
         }
-    }, [treatments, searchParams])
+    }, [treatments, searchParams, handleServiceTypeChange])
 
     const handleSubscriptionChange = useCallback((value: string) => {
         if (value === "__add_subscription__") {
