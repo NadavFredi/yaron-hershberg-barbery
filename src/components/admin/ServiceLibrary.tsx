@@ -1,6 +1,5 @@
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { MouseEvent } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -10,11 +9,13 @@ import { useServicesWithStats, useCreateService } from '@/hooks/useServices'
 import { useToast } from '@/hooks/use-toast'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/integrations/supabase/client'
 import type { CheckedState } from '@radix-ui/react-checkbox'
 import { useServiceConfiguration } from '@/hooks/useServiceConfiguration'
 import type { StationWithConfig } from '@/hooks/useServiceConfiguration'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface ServiceLibraryProps {
   defaultExpandedServiceId?: string | null
@@ -54,6 +55,7 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(defaultExpandedServiceId)
   const [pendingParentToggle, setPendingParentToggle] = useState<string | null>(null)
   const { toast } = useToast()
+  const queryClient = useQueryClient()
 
   const { data: serviceStats, isLoading, error, refetch } = useServicesWithStats()
   const createServiceMutation = useCreateService()
@@ -146,6 +148,7 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
       })
 
       await refetch()
+      await queryClient.invalidateQueries({ queryKey: ['service-station-configs', serviceId] })
     } catch (updateError) {
       console.error('Error updating parent checkbox:', updateError)
       toast({
@@ -251,99 +254,112 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="divide-y divide-slate-200">
-            {(!serviceStats || serviceStats.length === 0) && (
-              <div className="py-10 text-center text-gray-500">אין עדיין שירותים במערכת. צרו שירות חדש כדי להתחיל.</div>
-            )}
+          <Table containerClassName="overflow-x-auto">
+            <TableHeader className="bg-slate-50">
+              <TableRow className="text-xs text-gray-600">
+                <TableHead className="w-12 text-center"></TableHead>
+                <TableHead className="text-right font-semibold">שם השירות</TableHead>
+                <TableHead className="w-28 text-right font-semibold">מחיר בסיס</TableHead>
+                <TableHead className="w-28 text-right font-semibold">זמן ממוצע</TableHead>
+                <TableHead className="w-32 text-right font-semibold">כיסוי עמדות</TableHead>
+                <TableHead className="w-40 text-right font-semibold">טווח מחירים</TableHead>
+                <TableHead className="w-28 text-center font-semibold">פעיל</TableHead>
+                <TableHead className="w-32 text-center font-semibold">תור מרחוק</TableHead>
+                <TableHead className="w-32 text-center font-semibold">אישור צוות</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(!serviceStats || serviceStats.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={9} className="py-10 text-center text-gray-500">
+                    אין עדיין שירותים במערכת. צרו שירות חדש כדי להתחיל.
+                  </TableCell>
+                </TableRow>
+              )}
 
-            {serviceStats?.map((service) => {
-              const isExpanded = expandedServiceId === service.id
-              const activeTriState = getTriStateForField(service.id, 'is_active')
-              const remoteTriState = getTriStateForField(service.id, 'remote_booking_allowed')
-              const approvalTriState = getTriStateForField(service.id, 'requires_staff_approval')
-              const hasConfigurations = service.stationConfigs.length > 0
+              {serviceStats?.map((service) => {
+                const isExpanded = expandedServiceId === service.id
+                const activeTriState = getTriStateForField(service.id, 'is_active')
+                const remoteTriState = getTriStateForField(service.id, 'remote_booking_allowed')
+                const approvalTriState = getTriStateForField(service.id, 'requires_staff_approval')
+                const hasConfigurations = service.stationConfigs.length > 0
+                const activeStationCount = service.stationConfigs.filter((config) => config.is_active && config.station_is_active).length
 
-              const activeStationCount = service.stationConfigs.filter((config) => config.is_active && config.station_is_active).length
-
-              return (
-                <div
-                  key={service.id}
-                  className="bg-white"
-                >
-                  <div
-                    className={cn(
-                      "grid cursor-pointer gap-4 px-6 py-4 transition-colors md:grid-cols-[minmax(0,1fr)_auto]",
-                      isExpanded ? "bg-indigo-50/50" : "hover:bg-slate-50"
-                    )}
-                    onClick={() => handleToggleService(service.id)}
-                  >
-                    <div className="flex flex-1 flex-col gap-3">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-lg font-semibold text-gray-900">{service.name}</span>
-                            {service.description ? <span className="text-xs text-gray-500">{service.description}</span> : null}
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-600">
-                            <SummaryStat label="מחיר בסיס" value={formatCurrency(service.base_price)} />
-                            <SummaryStat
-                              label="זמן ממוצע"
-                              value={service.averageTime > 0 ? `${service.averageTime} דקות` : 'לא הוגדר'}
-                            />
-                            <SummaryStat
-                              label="כיסוי עמדות"
-                              value={`${activeStationCount} מתוך ${service.totalStationsCount}`}
-                            />
-                            <SummaryStat
-                              label="טווח מחירים"
-                              value={`${formatCurrency(service.priceRange.min)} – ${formatCurrency(service.priceRange.max)}`}
-                            />
-                          </div>
-                        </div>
+                return (
+                  <Fragment key={service.id}>
+                    <TableRow
+                      className={cn(
+                        'cursor-pointer text-sm transition-colors',
+                        isExpanded ? 'bg-indigo-50/60' : 'hover:bg-slate-50'
+                      )}
+                      onClick={() => handleToggleService(service.id)}
+                    >
+                      <TableCell className="text-center align-middle">
                         <ChevronDown
                           className={cn(
-                            "ml-2 h-6 w-6 text-blue-600 transition-transform duration-200",
+                            "mx-auto h-5 w-5 text-blue-600 transition-transform duration-200",
                             isExpanded ? "rotate-180" : ""
                           )}
                         />
-                      </div>
+                      </TableCell>
+                      <TableCell className="text-right align-middle">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm font-semibold text-gray-900">{service.name}</span>
+                          {service.description ? (
+                            <span className="text-xs text-gray-500">{service.description}</span>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right align-middle text-gray-700">
+                        {formatCurrency(service.base_price)}
+                      </TableCell>
+                      <TableCell className="text-right align-middle text-gray-700">
+                        {service.averageTime > 0 ? `${service.averageTime} דקות` : 'לא הוגדר'}
+                      </TableCell>
+                      <TableCell className="text-right align-middle text-gray-700">
+                        {activeStationCount} מתוך {service.totalStationsCount}
+                      </TableCell>
+                      <TableCell className="text-right align-middle text-gray-700">
+                        {formatCurrency(service.priceRange.min)} – {formatCurrency(service.priceRange.max)}
+                      </TableCell>
+                      {(Object.keys(parentFieldLabels) as ParentField[]).map((field) => {
+                        const triState =
+                          field === 'is_active'
+                            ? activeTriState
+                            : field === 'remote_booking_allowed'
+                              ? remoteTriState
+                              : approvalTriState
+                        const mutationKey = `${service.id}:${field}`
+                        const isPending = pendingParentToggle === mutationKey
 
-                      <div className="flex flex-wrap items-center gap-4">
-                        {(Object.keys(parentFieldLabels) as ParentField[]).map((field) => {
-                          const triState =
-                            field === 'is_active'
-                              ? activeTriState
-                              : field === 'remote_booking_allowed'
-                                ? remoteTriState
-                                : approvalTriState
-                          const mutationKey = `${service.id}:${field}`
-                          const isPending = pendingParentToggle === mutationKey
-
-                          return (
+                        return (
+                          <TableCell
+                            key={`${service.id}-${field}`}
+                            className="text-center align-middle"
+                            onClick={(event) => event.stopPropagation()}
+                          >
                             <ParentControl
-                              key={field}
-                              label={parentFieldLabels[field]}
                               triState={triState}
                               disabled={isPending || !hasConfigurations}
                               onToggle={() => handleParentCheckboxChange(service.id, field, triState)}
-                              onClick={(event) => event.stopPropagation()}
                               isPending={isPending}
                             />
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="border-t border-slate-200 bg-indigo-50/40 px-6 pb-6 pt-5">
-                      <ServiceStationsPanel serviceId={service.id} basePrice={service.base_price} />
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                          </TableCell>
+                        )
+                      })}
+                    </TableRow>
+                    {isExpanded && (
+                      <TableRow className="bg-indigo-50/40">
+                        <TableCell colSpan={9} className="border-t border-indigo-100/70 px-6 pb-6 pt-6 align-top">
+                          <ServiceStationsPanel serviceId={service.id} basePrice={service.base_price} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                )
+              })}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>
@@ -353,22 +369,19 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
 export default ServiceLibrary;
 
 interface ParentControlProps {
-  label: string;
   triState: { checked: boolean; indeterminate: boolean };
   disabled?: boolean;
   onToggle: () => void;
-  onClick: (event: MouseEvent) => void;
   isPending: boolean;
 }
 
-const ParentControl = ({ label, triState, disabled, onToggle, onClick, isPending }: ParentControlProps) => {
+const ParentControl = ({ triState, disabled, onToggle, isPending }: ParentControlProps) => {
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 transition hover:border-blue-200 hover:bg-blue-50",
+        "mx-auto flex w-fit items-center justify-center gap-1 rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-gray-600 transition hover:border-blue-200 hover:bg-blue-50",
         disabled && "cursor-not-allowed opacity-70"
       )}
-      onClick={onClick}
     >
       <Checkbox
         checked={triState.checked}
@@ -376,23 +389,10 @@ const ParentControl = ({ label, triState, disabled, onToggle, onClick, isPending
         onCheckedChange={() => onToggle()}
         disabled={disabled}
       />
-      <span>{label}</span>
       {isPending ? <Loader2 className="h-3 w-3 animate-spin text-blue-500" /> : null}
     </div>
   )
 }
-
-interface SummaryStatProps {
-  label: string;
-  value: string;
-}
-
-const SummaryStat = ({ label, value }: SummaryStatProps) => (
-  <div className="flex items-center gap-1">
-    <span className="text-xs text-gray-500">{label}:</span>
-    <span className="text-sm font-medium text-gray-900">{value}</span>
-  </div>
-)
 
 interface ServiceStationsPanelProps {
   serviceId: string;

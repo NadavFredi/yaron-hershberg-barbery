@@ -46,7 +46,7 @@ export async function getWaitingListEntries(customerId: string): Promise<Supabas
   }
 
   const { data, error } = await supabase
-    .from("daycare_waitlist")
+    .from("waitlist")
     .select("*")
     .eq("customer_id", customerId)
     .eq("status", "active")
@@ -85,7 +85,7 @@ export async function registerWaitingList(
     }))
 
     const { error: insertError } = await supabase
-      .from("daycare_waitlist")
+      .from("waitlist")
       .insert(entries)
 
     if (insertError) {
@@ -120,7 +120,7 @@ export async function updateWaitingListEntry(
 
     // Update the first date range to the existing entry
     const { error: updateError } = await supabase
-      .from("daycare_waitlist")
+      .from("waitlist")
       .update({
         service_scope: serviceType,
         start_date: dateRanges[0].startDate,
@@ -135,7 +135,7 @@ export async function updateWaitingListEntry(
     // If there are additional date ranges, create new entries for them
     if (dateRanges.length > 1) {
       const { data: existingEntry } = await supabase
-        .from("daycare_waitlist")
+        .from("waitlist")
         .select("customer_id")
         .eq("id", entryId)
         .single()
@@ -151,7 +151,7 @@ export async function updateWaitingListEntry(
         }))
 
         const { error: insertError } = await supabase
-          .from("daycare_waitlist")
+          .from("waitlist")
           .insert(newEntries)
 
         if (insertError) {
@@ -182,7 +182,7 @@ export async function deleteWaitingListEntry(
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
     const { error } = await supabase
-      .from("daycare_waitlist")
+      .from("waitlist")
       .update({ status: "cancelled" })
       .eq("id", entryId)
 

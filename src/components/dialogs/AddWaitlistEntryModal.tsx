@@ -316,7 +316,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
                 })
             } else {
                 const { error } = await supabase
-                    .from('daycare_waitlist')
+                    .from('waitlist')
                     .insert(supabaseEntries)
 
                 if (error) throw error

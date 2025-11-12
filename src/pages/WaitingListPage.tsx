@@ -238,7 +238,7 @@ export default function WaitingListPage() {
         try {
             // First, get all waitlist entries
             const { data: waitlistData, error: waitlistError } = await supabase
-                .from("daycare_waitlist")
+                .from("waitlist")
                 .select("*")
                 .order("created_at", { ascending: false })
 
@@ -488,7 +488,7 @@ export default function WaitingListPage() {
 
             // Update waitlist entry status
             await supabase
-                .from("daycare_waitlist")
+                .from("waitlist")
                 .update({ status: 'fulfilled' })
                 .eq("id", selectedEntry.id)
 
@@ -528,7 +528,7 @@ export default function WaitingListPage() {
             }
 
             await supabase
-                .from("daycare_waitlist")
+                .from("waitlist")
                 .update({
                     status: 'cancelled',
                     notes: updatedNotes.trim()
@@ -573,7 +573,7 @@ export default function WaitingListPage() {
             const suggestionText = suggestion.notes ? baseSuggestionText + "\n" + suggestion.notes : baseSuggestionText
 
             await supabase
-                .from("daycare_waitlist")
+                .from("waitlist")
                 .update({
                     notes: selectedEntry.notes ? selectedEntry.notes + "\n\n" + suggestionText : suggestionText
                 })
