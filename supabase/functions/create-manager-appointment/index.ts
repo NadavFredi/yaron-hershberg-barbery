@@ -336,12 +336,7 @@ serve(async (req) => {
           ? actualStationIds[0]
           : null
 
-      // Set questionnaire_result based on service_type:
-      // - If service_type is "trial", questionnaire_result should be "pending" (trial needs approval)
-      // - Otherwise, set to "approved" (since manager is creating it, it's approved)
-      // Note: questionnaire_result enum values are: 'not_required', 'pending', 'approved', 'rejected'
-      const questionnaireResult = serviceType === "trial" ? "pending" : "approved"
-
+      // Note: service_type and questionnaire_result columns no longer exist
       const insertPayload = {
         customer_id: resolvedCustomerId!,
         treatment_id: resolvedTreatmentId!,
@@ -349,8 +344,6 @@ serve(async (req) => {
         start_at: startTime,
         end_at: endTime,
         status: "pending" as const,
-        service_type: serviceType,
-        questionnaire_result: questionnaireResult as "not_required" | "pending" | "approved" | "rejected",
         customer_notes: notes || null,
         internal_notes: internalNotes || null,
         late_pickup_requested: latePickupRequested || null,
@@ -374,14 +367,14 @@ serve(async (req) => {
       )
 
       const { data, error } = await supabaseClient
-        .from("daycare_appointments")
+        .from("appointments")
         .insert(insertPayload)
         .select("id")
         .single()
 
       if (error) {
-        console.error(`❌ [create-manager-appointment] Error inserting daycare appointment:`, error)
-        throw new Error(`Failed to create daycare appointment: ${error.message}`)
+        console.error(`❌ [create-manager-appointment] Error inserting appointment:`, error)
+        throw new Error(`Failed to create appointment: ${error.message}`)
       }
 
       console.log(
@@ -414,14 +407,14 @@ serve(async (req) => {
         )
 
         const { data, error } = await supabaseClient
-          .from("grooming_appointments")
+          .from("appointments")
           .insert(insertPayload)
           .select("id")
           .single()
 
         if (error) {
-          console.error(`❌ [create-manager-appointment] Error inserting grooming appointment:`, error)
-          throw new Error(`Failed to create grooming appointment: ${error.message}`)
+          console.error(`❌ [create-manager-appointment] Error inserting appointment:`, error)
+          throw new Error(`Failed to create appointment: ${error.message}`)
         }
 
         console.log(

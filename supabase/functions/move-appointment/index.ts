@@ -156,22 +156,22 @@ serve(async (req) => {
 
     // Update based on appointment type
     if (appointmentType === "grooming") {
-      // Update grooming appointment
-      console.log("Updating grooming appointment:", appointmentId, updateData)
+      // Update appointment
+      console.log("Updating appointment:", appointmentId, updateData)
 
       const { data, error } = await supabaseClient
-        .from("grooming_appointments")
+        .from("appointments")
         .update(updateData)
         .eq("id", appointmentId)
         .select()
         .single()
 
       if (error) {
-        console.error("Error updating grooming appointment:", error)
-        throw new Error(`Failed to update grooming appointment: ${error.message}`)
+        console.error("Error updating appointment:", error)
+        throw new Error(`Failed to update appointment: ${error.message}`)
       }
 
-      console.log("✅ Successfully updated grooming appointment:", data)
+      console.log("✅ Successfully updated appointment:", data)
 
       return new Response(
         JSON.stringify({
@@ -182,32 +182,9 @@ serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       )
     } else if (appointmentType === "garden") {
-      // Update daycare appointment with garden-specific fields
-      // Determine service_type based on newGardenIsTrial (primary) or newGardenAppointmentType
-      if (newGardenIsTrial === true) {
-        updateData.service_type = "trial"
-        // Set questionnaire_result to "pending" for trials (trial needs approval)
-        updateData.questionnaire_result = "pending"
-      } else {
-        // Not a trial, determine service_type from newGardenAppointmentType
-        if (newGardenAppointmentType === "hourly") {
-          updateData.service_type = "hourly"
-        } else if (newGardenAppointmentType === "full-day") {
-          updateData.service_type = "full_day"
-        }
-        // For non-trial appointments created by manager, set questionnaire_result to "approved"
-        if (newGardenIsTrial === false || newGardenAppointmentType !== undefined) {
-          updateData.questionnaire_result = "approved"
-        }
-      }
-
-      console.log(
-        `🔄 [move-appointment] Updating garden appointment service_type:`,
-        updateData.service_type,
-        "questionnaire_result:",
-        updateData.questionnaire_result
-      )
-
+      // Update appointment with garden-specific fields
+      // Note: service_type and questionnaire_result columns no longer exist
+      
       // Add garden-specific fields
       if (typeof latePickupRequested === "boolean") {
         updateData.late_pickup_requested = latePickupRequested
@@ -225,21 +202,21 @@ serve(async (req) => {
         updateData.garden_bath = gardenBath
       }
 
-      console.log("Updating daycare appointment:", appointmentId, updateData)
+      console.log("Updating appointment:", appointmentId, updateData)
 
       const { data, error } = await supabaseClient
-        .from("daycare_appointments")
+        .from("appointments")
         .update(updateData)
         .eq("id", appointmentId)
         .select()
         .single()
 
       if (error) {
-        console.error("Error updating daycare appointment:", error)
-        throw new Error(`Failed to update daycare appointment: ${error.message}`)
+        console.error("Error updating appointment:", error)
+        throw new Error(`Failed to update appointment: ${error.message}`)
       }
 
-      console.log("✅ Successfully updated daycare appointment:", data)
+      console.log("✅ Successfully updated appointment:", data)
 
       return new Response(
         JSON.stringify({
