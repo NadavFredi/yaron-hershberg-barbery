@@ -55,9 +55,9 @@ export const AddTreatmentCustomerModal: React.FC<AddTreatmentCustomerModalProps>
         <Dialog open={open} onOpenChange={onOpenChange} dir="rtl">
             <DialogContent className="sm:max-w-[600px]" dir="rtl">
                 <DialogHeader>
-                    <DialogTitle className="text-right">הוסף כלב</DialogTitle>
+                    <DialogTitle className="text-right">הוסף לקוח</DialogTitle>
                     <DialogDescription className="text-right">
-                        בחר או צור לקוח, ולאחר מכן בחר או צור כלב
+                        בחר או צור לקוח, ולאחר מכן בחר או צור פרופיל שירות
                     </DialogDescription>
                 </DialogHeader>
 
@@ -82,8 +82,8 @@ export const AddTreatmentCustomerModal: React.FC<AddTreatmentCustomerModalProps>
                                 onTreatmentSelect={handleTreatmentSelect}
                                 onTreatmentClear={handleClearTreatment}
                                 onTreatmentCreated={handleTreatmentCreated}
-                                label="בחירת כלב"
-                                placeholder="בחר כלב או הוסף חדש"
+                                label="בחירת לקוח"
+                                placeholder="בחר לקוח או הוסף חדש"
                             />
                         </div>
                     )}

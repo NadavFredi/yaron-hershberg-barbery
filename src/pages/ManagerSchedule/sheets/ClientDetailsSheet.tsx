@@ -91,7 +91,7 @@ export const ClientDetailsSheet = ({
 
                         <Separator />
                         <div className="space-y-3">
-                            <h3 className="text-sm font-medium text-gray-900">כלבים</h3>
+                            <h3 className="text-sm font-medium text-gray-900">פרופילים</h3>
                             <div className="space-y-2">
                                 {(() => {
                                     // Get all treatments belonging to this client from all appointments
@@ -116,7 +116,7 @@ export const ClientDetailsSheet = ({
                                     if (treatments.length === 0) {
                                         return (
                                             <div className="text-center text-sm text-gray-500 py-4">
-                                                אין כלבים עבור לקוח זה
+                                                אין פרופילים עבור לקוח זה
                                             </div>
                                         )
                                     }

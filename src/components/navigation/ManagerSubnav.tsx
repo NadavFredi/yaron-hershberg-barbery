@@ -1,15 +1,7 @@
 import React, { useEffect, useRef } from "react"
 import { Link, useLocation, useSearchParams } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import {
-  Settings,
-  CalendarClock,
-  Users,
-  Sparkles,
-  LayoutDashboard,
-  ClipboardList,
-  UserCog
-} from "lucide-react"
+import { Settings, CalendarClock, Users, LayoutDashboard, ClipboardList, UserCog } from "lucide-react"
 
 interface ManagerSubnavProps {
   isManager: boolean
@@ -77,14 +69,6 @@ export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
     icon: <Users className="h-4 w-4" />,
     match: (pathname, sectionParam) =>
       pathname === "/manager-screens" && sectionParam === "customers"
-  },
-  {
-    id: "treatments",
-    to: "/manager-screens?section=treatments",
-    label: "טיפולים",
-    icon: <Sparkles className="h-4 w-4" />,
-    match: (pathname, sectionParam) =>
-      pathname === "/manager-screens" && sectionParam === "treatments"
   },
   {
     id: "workers",

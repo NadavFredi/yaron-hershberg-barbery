@@ -8,7 +8,7 @@ import { AppointmentDetailsSection, type AppointmentStation, type AppointmentTim
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerSearchInput, type Customer } from "@/components/CustomerSearchInput"
-import type { Treatment } from "@/components/TreatmentSelectInput"
+import { TreatmentSelectInput, type Treatment } from "@/components/TreatmentSelectInput"
 
 type ManagerStation = AppointmentStation
 
@@ -256,6 +256,14 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         setSelectedTreatment(null)
     }
 
+    const handleTreatmentSelect = (treatment: Treatment) => {
+        setSelectedTreatment(treatment)
+    }
+
+    const handleClearTreatment = () => {
+        setSelectedTreatment(null)
+    }
+
     const handleTimesUpdate = (times: FinalizedDragTimes) => {
         setAppointmentTimes((prev) => {
             const next: FinalizedDragTimes = {
@@ -373,18 +381,24 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                             />
 
                             {selectedCustomer && (
-                                <div className="rounded-md border border-blue-100 bg-blue-50/40 p-4 text-right">
-                                    <div className="text-xs font-medium text-blue-700 mb-2">
+                                <div className="rounded-md border border-blue-100 bg-blue-50/40 p-4 text-right space-y-3">
+                                    <div className="text-xs font-medium text-blue-700">
                                         שירות מקושר ללקוח
                                     </div>
-                                    {(isLoadingTreatments || isFetchingTreatments) && (
-                                        <div className="flex items-center justify-end gap-2 text-xs text-blue-600">
-                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                            <span>טוען שירותים זמינים...</span>
-                                        </div>
-                                    )}
-                                    {!isLoadingTreatments && !isFetchingTreatments && selectedTreatment && (
-                                        <div>
+
+                                    <TreatmentSelectInput
+                                        selectedCustomer={selectedCustomer}
+                                        selectedTreatment={selectedTreatment}
+                                        onTreatmentSelect={handleTreatmentSelect}
+                                        onTreatmentClear={handleClearTreatment}
+                                        label="בחר שירות ללקוח"
+                                        placeholder="בחר שירות מתאים"
+                                        className="text-right"
+                                        disabled={isLoadingTreatments || isFetchingTreatments}
+                                    />
+
+                                    {selectedTreatment && (
+                                        <div className="rounded-md border border-blue-200 bg-white/80 p-3 text-right">
                                             <div className="text-sm font-medium text-gray-900">
                                                 {selectedTreatment.name}
                                             </div>
@@ -392,13 +406,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                                                 {selectedTreatment.treatmentType} • {selectedTreatment.size}
                                             </div>
                                         </div>
-                                    )}
-                                    {!isLoadingTreatments && !isFetchingTreatments && !selectedTreatment && (
-                                        <Alert variant="destructive" className="mt-3 text-right">
-                                            <AlertDescription>
-                                                ללקוח זה אין שירות מקושר. יש ליצור שירות מתאים לפני יצירת תור עסקי.
-                                            </AlertDescription>
-                                        </Alert>
                                     )}
                                 </div>
                             )}

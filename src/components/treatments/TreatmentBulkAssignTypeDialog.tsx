@@ -40,9 +40,9 @@ export function TreatmentBulkAssignTreatmentTypeDialog({
         }}>
             <DialogContent dir="rtl" className="max-w-sm text-right">
                 <DialogHeader className="text-right">
-                    <DialogTitle className="text-right">שינוי גזע לכלבים שנבחרו</DialogTitle>
+                    <DialogTitle className="text-right">שינוי סגנון שירות לפרופילים שנבחרו</DialogTitle>
                     <DialogDescription className="text-right">
-                        בחר גזע חדש שיוחל על כל הכלבים שסומנו. הפעולה תשנה את הגזע של הכלב ותעדכן את הקטגוריות שלו בהתאם.
+                        בחר סגנון שירות חדש שיוחל על כל הפרופילים שסומנו. הפעולה תשנה את סגנון השירות של הלקוח ותעדכן את הקטגוריות בהתאם.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 text-right">

@@ -72,7 +72,7 @@ const BookingWizard = () => {
     if (!bookingData.serviceId || !bookingData.treatmentTypeId) {
       toast({
         title: "שגיאה",
-        description: "אנא בחר שירות וגזע כלב",
+        description: "אנא בחר שירות וסגנון מועדף",
         variant: "destructive"
       });
       return;
@@ -134,7 +134,7 @@ const BookingWizard = () => {
       {currentStep === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-2xl">בחירת שירות וגזע הכלב</CardTitle>
+            <CardTitle className="text-center text-2xl">בחירת שירות וסגנון מועדף</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
@@ -154,7 +154,7 @@ const BookingWizard = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>איזה גזע כלב יש לך?</Label>
+              <Label>איזה סגנון טיפול תרצה?</Label>
               <Select value={bookingData.treatmentTypeId} onValueChange={(value) => setBookingData({...bookingData, treatmentTypeId: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="בחר גזע" />
@@ -285,12 +285,12 @@ const BookingWizard = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="treatmentName">שם הכלב *</Label>
+              <Label htmlFor="treatmentName">שם הלקוח *</Label>
               <Input
                 id="treatmentName"
                 value={bookingData.treatmentName || ''}
                 onChange={(e) => setBookingData({...bookingData, treatmentName: e.target.value})}
-                placeholder="הכנס את שם הכלב"
+                placeholder="הכנס את שם הלקוח"
               />
             </div>
 

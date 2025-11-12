@@ -100,7 +100,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
                     } else {
                         toast({
                             title: "שגיאה",
-                            description: result.error || "לא ניתן לטעון את פרטי הכלב",
+                            description: result.error || "לא ניתן לטעון את פרטי הלקוח",
                             variant: "destructive",
                         })
                         onOpenChange(false)
@@ -110,7 +110,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
                     console.error("Failed to load treatment data:", error)
                     toast({
                         title: "שגיאה",
-                        description: "לא ניתן לטעון את פרטי הכלב",
+                        description: "לא ניתן לטעון את פרטי הלקוח",
                         variant: "destructive",
                     })
                     onOpenChange(false)
@@ -190,7 +190,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
         if (!treatmentId) {
             toast({
                 title: "שגיאה",
-                description: "לא ניתן לעדכן כלב ללא זיהוי",
+                description: "לא ניתן לעדכן לקוח ללא שיוך",
                 variant: "destructive",
             })
             return
@@ -199,7 +199,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
         if (!treatmentData.name.trim()) {
             toast({
                 title: "שדה חובה",
-                description: "שם הכלב נדרש",
+                description: "שם הלקוח נדרש",
                 variant: "destructive",
             })
             return
@@ -209,7 +209,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
             if (!treatmentData.treatment_type_id || treatmentData.treatment_type_id === "__none__") {
                 toast({
                     title: "שדה חובה",
-                    description: "יש לבחור גזע לכלב",
+                    description: "יש לבחור סגנון שירות ללקוח",
                     variant: "destructive",
                 })
                 return
@@ -233,7 +233,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
 
             if (result.success) {
                 toast({
-                    title: "הכלב עודכן בהצלחה",
+                    title: "הלקוח עודכן בהצלחה",
                     description: `פרטי ${treatmentData.name} עודכנו בהצלחה.`,
                 })
                 handleClose()
@@ -408,7 +408,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
                                     className="h-4 w-4"
                                 />
                                 <Label htmlFor="edit-treatment-aggression-risk" className="text-right cursor-pointer">
-                                    סיכון תוקפנות כלפי כלבים אחרים
+                                    סיכון התנהגותי מול אחרים
                                 </Label>
                             </div>
                             <div className="flex items-center space-x-2 space-x-reverse">
@@ -459,7 +459,7 @@ export function EditTreatmentDialog({ open, onOpenChange, treatmentId, onSuccess
                         className="inline-flex items-center gap-2"
                     >
                         {isUpdatingTreatment && <Loader2 className="h-4 w-4 animate-spin" />}
-                        עדכן כלב
+                        עדכן לקוח
                     </Button>
                     <Button variant="outline" onClick={handleClose} disabled={isUpdatingTreatment || isLoadingTreatmentData}>
                         בטל

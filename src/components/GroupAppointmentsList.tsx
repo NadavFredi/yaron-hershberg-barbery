@@ -71,7 +71,7 @@ export const GroupAppointmentsList: React.FC<GroupAppointmentsListProps> = ({
                         const startDate = new Date(appointment.startDateTime)
                         const endDate = new Date(appointment.endDateTime)
                         const primaryTreatment = appointment.treatments[0]
-                        const treatmentName = primaryTreatment?.name ?? "ללא שיוך לכלב"
+                        const treatmentName = primaryTreatment?.name ?? "ללא שיוך ללקוח"
                         const isSelected = selectedAppointments.includes(appointment.id)
 
                         return (

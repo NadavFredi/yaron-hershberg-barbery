@@ -132,7 +132,7 @@ export const NewGardenAppointmentModal: React.FC<NewGardenAppointmentModalProps>
         }
 
         if (!selectedTreatment) {
-            alert('יש לבחור כלב')
+            alert('יש לבחור לקוח')
             return
         }
 
@@ -257,7 +257,7 @@ export const NewGardenAppointmentModal: React.FC<NewGardenAppointmentModalProps>
 
                     {/* Customer and Treatment Selection */}
                     <div className="space-y-4">
-                        <h3 className="text-sm font-semibold text-gray-900 text-right">פרטי לקוח וכלב</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 text-right">פרטי לקוח</h3>
 
                         {/* Customer Search */}
                         <CustomerSearchInput

@@ -136,8 +136,8 @@ export function FirstTimeGardenBanner({
                                 <p className="text-sm text-gray-700">
                                     • נמשך כמה שעות בלבד<br />
                                     • היכרות עם הצוות והחברים החדשים<br />
-                                    • עוזר לכלב להתרגל לסביבה החדשה<br />
-                                    • מושלם לכלבים שמגיעים לראשונה
+                                    • עוזר ללקוח להתרגל לסביבה החדשה<br />
+                                    • מושלם ללקוחות שמגיעים לראשונה
                                 </p>
                             </div>
                         ) : canSkipTrial ? (
@@ -166,7 +166,7 @@ export function FirstTimeGardenBanner({
                                     </div>
                                 </div>
                                 <p className="text-sm text-gray-500">
-                                    אפשרות זו לא זמינה כרגע עבור הכלב שלכם
+                                    אפשרות זו לא זמינה כרגע עבור הלקוח שלכם
                                 </p>
                             </div>
                         )}
@@ -174,7 +174,7 @@ export function FirstTimeGardenBanner({
                 )}
 
                 <p className="text-sm text-gray-600 text-right mt-4" dir="rtl">
-                    💡 ביקור הניסיון מושלם לכלבים שמגיעים לראשונה - זה עוזר להם להתרגל לסביבה החדשה
+                    💡 ביקור הניסיון מושלם ללקוחות שמגיעים לראשונה - זה עוזר להם להתרגל לסביבה החדשה
                 </p>
             </CardContent>
         </Card>

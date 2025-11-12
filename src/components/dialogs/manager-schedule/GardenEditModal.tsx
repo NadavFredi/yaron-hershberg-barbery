@@ -137,7 +137,7 @@ export const GardenEditModal: React.FC<GardenEditModalProps> = ({
                             <h3 className="text-lg font-semibold text-gray-900 mb-3 text-right">פרטי התור הנוכחיים</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                 <div className="text-right">
-                                    <span className="font-medium text-gray-600">כלב:</span> {editingAppointment.treatments[0]?.name || 'לא ידוע'}
+                                    <span className="font-medium text-gray-600">לקוח:</span> {editingAppointment.treatments[0]?.name || 'לא ידוע'}
                                 </div>
                                 <div className="text-right">
                                     <span className="font-medium text-gray-600">גזע:</span> {editingAppointment.treatments[0]?.treatmentType || 'לא ידוע'}

@@ -227,20 +227,18 @@ CREATE TABLE IF NOT EXISTS public.services (
   description TEXT,
   category TEXT,
   display_order INTEGER NOT NULL DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-INSERT INTO public.services (name, description, category, display_order, is_active)
+INSERT INTO public.services (name, description, category, display_order)
 VALUES
-  ('grooming', 'טיפולי שיער במספרה', 'barbery', 1, true),
-  ('special-care', 'טיפולי פרימיום מותאמים אישית', 'barbery', 2, true)
+  ('grooming', 'טיפולי שיער במספרה', 'barbery', 1),
+  ('special-care', 'טיפולי פרימיום מותאמים אישית', 'barbery', 2)
 ON CONFLICT (name) DO UPDATE
 SET description = EXCLUDED.description,
     category = EXCLUDED.category,
     display_order = EXCLUDED.display_order,
-    is_active = EXCLUDED.is_active,
     updated_at = now();
 
 

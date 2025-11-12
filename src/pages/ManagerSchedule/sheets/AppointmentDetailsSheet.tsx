@@ -107,7 +107,7 @@ export const AppointmentDetailsSheet = ({
             <SheetContent side="right" className="w-full max-w-md overflow-y-auto" dir="rtl">
                 <SheetHeader>
                     <SheetTitle className="text-right">פרטי תור</SheetTitle>
-                    <SheetDescription className="text-right">צפו בכל הפרטים על התור, הלקוח והכלב.</SheetDescription>
+                    <SheetDescription className="text-right">צפו בכל הפרטים על התור, הלקוח והפרופיל המשויך.</SheetDescription>
                 </SheetHeader>
 
                 {isLoading ? (
@@ -216,7 +216,7 @@ export const AppointmentDetailsSheet = ({
                             <Separator />
 
                             <div className="space-y-3">
-                                <h3 className="text-sm font-medium text-gray-900">כלבים בתור</h3>
+                                <h3 className="text-sm font-medium text-gray-900">פרופילים בתור</h3>
                                 <div className="space-y-3">
                                     {selectedAppointment.treatments.map((treatment) => (
                                         <div

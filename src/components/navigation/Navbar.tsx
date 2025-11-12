@@ -28,7 +28,6 @@ import logoImage from "@/assets/logo.jpeg"
 import { MANAGER_NAV_SECTIONS } from "./ManagerSubnav"
 import { SETTINGS_SECTIONS } from "./SettingsSubnav"
 import { CUSTOMERS_SECTIONS } from "./CustomersSubnav"
-import { TREATMENTS_SECTIONS } from "./TreatmentsSubnav"
 import {
     useGetPendingAppointmentRequestsQuery,
     type PendingAppointmentRequest,
@@ -243,7 +242,6 @@ export function Navbar({ isManager }: NavbarProps) {
     const currentManagerSection = searchParams.get("section")
     const modeParam = searchParams.get("mode")
     const currentCustomersMode = currentManagerSection === "customers" ? (modeParam || "list") : null
-    const currentTreatmentsMode = currentManagerSection === "treatments" ? (modeParam || "list") : null
     const currentSettingsMode = currentManagerSection === "settings" ? (modeParam || "working-hours") : null
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ manager: false })
     const [expandedNestedSections, setExpandedNestedSections] = useState<Record<string, boolean>>({})
@@ -527,12 +525,6 @@ export function Navbar({ isManager }: NavbarProps) {
             label: section.label,
             icon: section.icon,
             isActive: currentManagerSection === "customers" && currentCustomersMode === section.id
-        })),
-        treatments: TREATMENTS_SECTIONS.map((section) => ({
-            to: `/manager-screens?section=treatments&mode=${section.id}`,
-            label: section.label,
-            icon: section.icon,
-            isActive: currentManagerSection === "treatments" && currentTreatmentsMode === section.id
         })),
         settings: SETTINGS_SECTIONS.map((section) => ({
             to: `/manager-screens?section=settings&mode=${section.id}`,

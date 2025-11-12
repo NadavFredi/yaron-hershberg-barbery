@@ -98,7 +98,7 @@ function mapUsageRecord(record: AirtableRecord<Record<string, unknown>>): Subscr
 
   const date = mapDateValue(coalesceField(fields, ["תאריך שימוש", "תאריך", "date"]))
   const createdAt = mapDateValue(coalesceField(fields, ["נוצר בתאריך", "Created", "created_at", "createdAt"]))
-  const treatmentName = coalesceField(fields, ["שם הכלב", "כלב", "treatmentName"])?.toString() ?? null
+  const treatmentName = coalesceField(fields, ["שם הלקוח", "לקוח", "treatmentName"])?.toString() ?? null
   const service = coalesceField(fields, ["שירות", "Service", "סוג שירות"])?.toString() ?? null
   const planName =
     coalesceField(fields, ["סוג כרטיסייה", "כרטיסייה", "חבילה", "שם כרטיסייה", "plan"])?.toString() ?? null

@@ -20,7 +20,7 @@ interface AirtableRecord<T> {
 interface AppointmentFields {
   "מועד התור": string // ISO DateTime string
   "מועד סיום התור": string // ISO DateTime string
-  כלב: string[] // Array of record IDs from 'כלבים' table
+  לקוח: string[] // Array of record IDs from 'לקוחות' table
   עמדה: string[] // Array of record IDs from 'עמדות עבודה'
   סטטוס: string // Status like "confirmed", "pending", "cancelled"
   "סוג שירות": string // Service type like "grooming", "garden", "both"
@@ -116,7 +116,7 @@ async function getTreatmentAppointments(treatmentId: string, config: AirtableCon
     console.log(`🔍 Fetching appointments for treatment ID: ${treatmentId}`)
 
     // First, get the treatment record to find linked appointment IDs
-    const treatmentRecords = await fetchFromAirtable<TreatmentFields>(config, "כלבים", `{מזהה רשומה} = "${treatmentId}"`)
+    const treatmentRecords = await fetchFromAirtable<TreatmentFields>(config, "לקוחות", `{מזהה רשומה} = "${treatmentId}"`)
     if (treatmentRecords.length === 0) {
       throw new Error(`Treatment with ID ${treatmentId} not found`)
     }

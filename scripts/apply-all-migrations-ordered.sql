@@ -10,7 +10,6 @@ CREATE TABLE public.services (
   category TEXT,
   display_order INTEGER NOT NULL DEFAULT 0,
   base_price INTEGER NOT NULL DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -92,12 +91,12 @@ CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE
 CREATE EXTENSION IF NOT EXISTS "http";
 
 -- Insert some sample data
-INSERT INTO public.services (name, description, base_price, category, display_order, is_active) VALUES
-  ('תספורת מלאה', 'תספורת מלאה כולל רחצה וייבוש', 150, 'barbery', 1, true),
-  ('רחצה זייבוש', 'רחצה וייבוש בלבד', 80, 'barbery', 2, true),
-  ('גיזת ציפורניים', 'גיזת ציפורניים וטיפוח כפות', 30, 'barbery', 3, true),
-  ('טיפוח מלא', 'שירות מלא כולל תספורת, רחצה וטיפוח', 200, 'barbery', 4, true),
-  ('תספורת חלקית', 'תספורת חלקית או עיצוב מסוים', 100, 'barbery', 5, true);
+INSERT INTO public.services (name, description, base_price, category, display_order) VALUES
+  ('תספורת מלאה', 'תספורת מלאה כולל רחצה וייבוש', 150, 'barbery', 1),
+  ('רחצה זייבוש', 'רחצה וייבוש בלבד', 80, 'barbery', 2),
+  ('גיזת ציפורניים', 'גיזת ציפורניים וטיפוח כפות', 30, 'barbery', 3),
+  ('טיפוח מלא', 'שירות מלא כולל תספורת, רחצה וטיפוח', 200, 'barbery', 4),
+  ('תספורת חלקית', 'תספורת חלקית או עיצוב מסוים', 100, 'barbery', 5);
 
 INSERT INTO public.stations (name, is_active, break_between_appointments, slot_interval_minutes) VALUES
   ('עמדה 1', true, 15, 60),
@@ -574,8 +573,7 @@ CREATE INDEX IF NOT EXISTS idx_garden_questionnaires_treatment ON public.garden_
 
 -- Services adjustments
 ALTER TABLE public.services
-  ADD COLUMN IF NOT EXISTS category public.service_category NOT NULL DEFAULT 'grooming',
-  ADD COLUMN IF NOT EXISTS active boolean NOT NULL DEFAULT true;
+  ADD COLUMN IF NOT EXISTS category public.service_category NOT NULL DEFAULT 'grooming';
 
 -- Stations adjustments
 DO $$

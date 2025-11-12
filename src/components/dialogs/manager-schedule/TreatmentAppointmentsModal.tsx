@@ -121,7 +121,7 @@ export const TreatmentAppointmentsModal: React.FC<TreatmentAppointmentsModalProp
                 <DialogHeader>
                     <DialogTitle className="text-right">תורים של {treatmentName}</DialogTitle>
                     <DialogDescription className="text-right">
-                        כל התורים (עתידיים וקודמים) של הכלב
+                        כל התורים (עתידיים וקודמים) של הלקוח
                     </DialogDescription>
                 </DialogHeader>
 
@@ -236,7 +236,7 @@ export const TreatmentAppointmentsModal: React.FC<TreatmentAppointmentsModalProp
 
                         {transformedAppointments.length === 0 && activeTab === 'today' && (
                             <div className="text-center text-sm text-gray-500 py-8">
-                                אין תורים עבור כלב זה
+                                אין תורים עבור הלקוח הזה
                             </div>
                         )}
                     </Tabs>

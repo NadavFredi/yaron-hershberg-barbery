@@ -121,8 +121,8 @@ export const TreatmentDetailsSheet = ({
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent side="right" className="w-full max-w-md overflow-y-auto" dir="rtl">
                 <SheetHeader>
-                    <SheetTitle className="text-right">פרטי כלב</SheetTitle>
-                    <SheetDescription className="text-right">צפו בכל הפרטים על הכלב.</SheetDescription>
+                    <SheetTitle className="text-right">פרטי לקוח</SheetTitle>
+                    <SheetDescription className="text-right">צפו בכל הפרטים על הלקוח.</SheetDescription>
                 </SheetHeader>
 
                 {selectedTreatment ? (
@@ -130,7 +130,7 @@ export const TreatmentDetailsSheet = ({
                         <div className="space-y-3">
                             <div className="space-y-2 text-sm text-gray-600">
                                 <div>
-                                    שם הכלב: <span className="font-medium text-gray-900">{selectedTreatment.name}</span>
+                                    שם הלקוח: <span className="font-medium text-gray-900">{selectedTreatment.name}</span>
                                 </div>
                                 {selectedTreatment.treatmentType && (
                                     <div>
@@ -215,7 +215,7 @@ export const TreatmentDetailsSheet = ({
                                     <h3 className="text-sm font-medium text-purple-900">מידע התנהגותי</h3>
                                     {selectedTreatment.tendsToBite && (
                                         <div>
-                                            <h4 className="text-xs font-medium text-purple-800 mb-1">האם הכלב נוטה לנשוך אנשים או להיבהל ממגע במסגרת חדשה:</h4>
+                                            <h4 className="text-xs font-medium text-purple-800 mb-1">האם הלקוח נוטה להילחץ או להירתע ממגע במסגרת חדשה:</h4>
                                             <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                                                 <p className="text-sm text-purple-800">{selectedTreatment.tendsToBite}</p>
                                             </div>
@@ -223,7 +223,7 @@ export const TreatmentDetailsSheet = ({
                                     )}
                                     {selectedTreatment.aggressiveWithOtherTreatments && (
                                         <div>
-                                            <h4 className="text-xs font-medium text-purple-800 mb-1">האם הכלב עלול להפגין תוקפנות כלפי כלבים אחרים:</h4>
+                                            <h4 className="text-xs font-medium text-purple-800 mb-1">האם הלקוח עלול להפגין התנהגות מאתגרת בסביבה חברתית:</h4>
                                             <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                                                 <p className="text-sm text-purple-800">{selectedTreatment.aggressiveWithOtherTreatments}</p>
                                             </div>
@@ -241,7 +241,7 @@ export const TreatmentDetailsSheet = ({
                                     <h3 className="text-sm font-medium text-green-900">מידע גן</h3>
                                     {selectedTreatment.hasBeenToGarden !== undefined && (
                                         <div>
-                                            <span className="text-sm text-gray-600">האם הכלב היה בגן: </span>
+                                            <span className="text-sm text-gray-600">האם הלקוח היה במספרה: </span>
                                             <span className={`font-medium ${selectedTreatment.hasBeenToGarden ? 'text-green-800' : 'text-gray-600'}`}>
                                                 {selectedTreatment.hasBeenToGarden ? 'כן' : 'לא'}
                                             </span>
@@ -347,7 +347,7 @@ export const TreatmentDetailsSheet = ({
                         </div>
                     </div>
                 ) : (
-                    <div className="py-12 text-center text-sm text-gray-500">לא נבחר כלב</div>
+                    <div className="py-12 text-center text-sm text-gray-500">לא נבחר לקוח</div>
                 )}
             </SheetContent>
         </Sheet>

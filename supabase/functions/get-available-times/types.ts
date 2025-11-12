@@ -7,12 +7,12 @@ export interface AirtableRecord<T> {
   fields: T
 }
 
-/** Fields for 'כלבים' table */
+/** Fields for 'לקוחות' table */
 export interface TreatmentFields {
   שם: string
   גזע: string[] // Array of record IDs from 'גזעים'
   "האם מילא שאלון התאמה לגן"?: boolean
-  "האם הכלב היה בגן"?: boolean
+  "האם הלקוח היה במספרה"?: boolean
 }
 
 /** Fields for 'עמדות מול גזעים' table */
