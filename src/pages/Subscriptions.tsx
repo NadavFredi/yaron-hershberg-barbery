@@ -50,9 +50,9 @@ interface SubscriptionUsageResponse {
 
 // Hardcoded checkout URLs - these should eventually be moved to Airtable as well
 const checkoutUrls: Record<string, string> = {
-    "bundle-6": "https://pay.tranzila.com/bloved29/ZVFmb29tNGF2VVBrcno4enB4amFQUT09",
-    "bundle-12": "https://pay.tranzila.com/bloved29/a24xT094Y3B6aHU0TDV1b1RBT2NRUT09",
-    "monthly-pass": "https://pay.tranzila.com/bloved29/ZC91L2tHQkNOTnN2N2wyV1FGS0oxUT09",
+    "bundle-6": "https://pay.tranzila.com",
+    "bundle-12": "https://pay.tranzila.com",
+    "monthly-pass": "https://pay.tranzila.com",
 }
 
 function formatDate(value?: string | null): string {
