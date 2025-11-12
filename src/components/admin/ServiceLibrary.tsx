@@ -18,6 +18,7 @@ import { useServiceConfiguration } from '@/hooks/useServiceConfiguration'
 import type { StationWithConfig } from '@/hooks/useServiceConfiguration'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUpdateService } from '@/hooks/useServices'
+import { useStations } from '@/hooks/useStations'
 
 interface ServiceLibraryProps {
   defaultExpandedServiceId?: string | null
@@ -66,6 +67,7 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
 
   const { data: serviceStats, isLoading, error, refetch } = useServicesWithStats()
   const createServiceMutation = useCreateService()
+  const { data: allStations } = useStations()
 
   const handleCreateService = async () => {
     if (!newServiceName.trim()) return
@@ -105,7 +107,8 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
       return { checked: false, indeterminate: false }
     }
 
-    const relevantConfigs = service.stationConfigs.filter((config) => config.station_is_active)
+    // Check ALL station configs, not just active stations
+    const relevantConfigs = service.stationConfigs
     if (relevantConfigs.length === 0) {
       return { checked: false, indeterminate: false }
     }
@@ -125,11 +128,10 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
     field: ParentField,
     currentState: { checked: boolean; indeterminate: boolean }
   ) => {
-    const service = serviceStats?.find((item) => item.id === serviceId)
-    if (!service || service.stationConfigs.length === 0) {
+    if (!allStations || allStations.length === 0) {
       toast({
-        title: 'אין עמדות לעדכן',
-        description: 'לשירות זה אין עמדות מוגדרות כרגע.',
+        title: 'אין עמדות זמינות',
+        description: 'אין עמדות במערכת לעדכן.',
         variant: 'destructive',
       })
       return
@@ -140,6 +142,33 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
     setPendingParentToggle(mutationKey)
 
     try {
+      // First, ensure all stations have configs for this service
+      const service = serviceStats?.find((item) => item.id === serviceId)
+      const existingStationIds = new Set(service?.stationConfigs.map(c => c.station_id) || [])
+
+      // Create missing configs
+      const missingStations = allStations.filter(s => !existingStationIds.has(s.id))
+      if (missingStations.length > 0) {
+        const inserts = missingStations.map(station => ({
+          service_id: serviceId,
+          station_id: station.id,
+          base_time_minutes: 60,
+          price_adjustment: 0,
+          is_active: field === 'is_active' ? nextValue : true,
+          remote_booking_allowed: field === 'remote_booking_allowed' ? nextValue : false,
+          requires_staff_approval: field === 'requires_staff_approval' ? nextValue : false,
+        }))
+
+        const { error: insertError } = await supabase
+          .from('service_station_matrix')
+          .insert(inserts)
+
+        if (insertError) {
+          throw insertError
+        }
+      }
+
+      // Update all configs for this service
       const { error: updateError } = await supabase
         .from('service_station_matrix')
         .update({ [field]: nextValue })
@@ -472,7 +501,6 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                 const activeTriState = getTriStateForField(service.id, 'is_active')
                 const remoteTriState = getTriStateForField(service.id, 'remote_booking_allowed')
                 const approvalTriState = getTriStateForField(service.id, 'requires_staff_approval')
-                const hasConfigurations = service.stationConfigs.length > 0
                 const activeStationCount = service.stationConfigs.filter((config) => config.is_active && config.station_is_active).length
 
                 return (
@@ -555,7 +583,7 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                           >
                             <ParentControl
                               triState={triState}
-                              disabled={isPending || !hasConfigurations}
+                              disabled={isPending}
                               onToggle={() => handleParentCheckboxChange(service.id, field, triState)}
                               isPending={isPending}
                             />
@@ -645,11 +673,6 @@ interface ServiceStationsPanelProps {
 const ServiceStationsPanel = ({ serviceId, basePrice, description }: ServiceStationsPanelProps) => {
   const { stations, isLoading, updateStationConfig } = useServiceConfiguration(serviceId)
   const { toast } = useToast()
-
-  const activeStations = useMemo(
-    () => stations.filter((station) => station.station_is_active),
-    [stations]
-  )
 
   const handleSave = async (params: {
     stationId: string;

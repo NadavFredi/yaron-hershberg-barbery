@@ -370,6 +370,16 @@ export default function SetupAppointment() {
         return formatSubscriptionDate(selectedSubscription.purchasedAt)
     }, [selectedSubscription])
 
+    const serviceDisplayName = useMemo(() => {
+        if (selectedServiceName && selectedServiceName.trim().length > 0) {
+            return selectedServiceName
+        }
+        if (selectedServiceType) {
+            return SERVICE_TYPE_LABELS[selectedServiceType] ?? selectedServiceType
+        }
+        return ""
+    }, [selectedServiceName, selectedServiceType])
+
     const profileFullName = useMemo(() => {
         const profileName = clientProfile?.fullName?.trim()
         if (profileName && profileName.length > 0) {
@@ -1105,6 +1115,79 @@ export default function SetupAppointment() {
         setSearchParams(params)
     }, [searchParams, setSearchParams])
 
+    const handleServiceTypeChange = useCallback((
+        serviceType: string,
+        options?: {
+            serviceId?: string
+            serviceName?: string
+            skipUrlUpdate?: boolean
+        }
+    ) => {
+        const normalizedType = serviceType
+            ? normalizeServiceCategory(serviceType)
+            : ""
+        const nextServiceId = options?.serviceId ?? ""
+        const nextServiceName = options?.serviceName ??
+            (normalizedType ? SERVICE_TYPE_LABELS[normalizedType as AllowedServiceType] ?? normalizedType : "")
+        const skipUrlUpdate = options?.skipUrlUpdate ?? false
+
+        const isSameSelection =
+            selectedServiceType === normalizedType &&
+            selectedServiceId === nextServiceId &&
+            selectedServiceName === nextServiceName
+
+        setSelectedServiceType(normalizedType)
+        setSelectedServiceId(nextServiceId)
+        setSelectedServiceName(nextServiceName)
+
+        if (!isSameSelection) {
+            setSelectedDate(undefined)
+            setSelectedTime("")
+            setSelectedStationId("")
+            setComment("")
+            setTermsApproved(false)
+            setLatePickupRequested(false)
+            setLatePickupNotes("")
+            setFormStep(1)
+        }
+
+        if (!skipUrlUpdate) {
+            updateURL({
+                serviceType: normalizedType || null,
+                serviceId: nextServiceId || null,
+            })
+        }
+    }, [
+        selectedServiceId,
+        selectedServiceName,
+        selectedServiceType,
+        updateURL,
+    ])
+
+    const handleServiceInputChange = useCallback((value: string) => {
+        if (value.trim().length === 0) {
+            handleServiceTypeChange("", { serviceId: "", serviceName: "" })
+            return
+        }
+
+        setSelectedServiceName(value)
+    }, [handleServiceTypeChange])
+
+    const handleServiceSelect = useCallback((serviceName: string) => {
+        const matchedService = serviceSearchResults.find((service) => service.name === serviceName)
+
+        if (!matchedService) {
+            setSelectedServiceName(serviceName)
+            return
+        }
+
+        const normalizedCategory = normalizeServiceCategory(matchedService.category)
+        handleServiceTypeChange(normalizedCategory, {
+            serviceId: matchedService.id,
+            serviceName: matchedService.name,
+        })
+    }, [serviceSearchResults, handleServiceTypeChange])
+
     // Function to handle query parameters
     const processQueryParams = useCallback(async () => {
         const serviceTypeParam = searchParams.get("serviceType")
@@ -1178,8 +1261,13 @@ export default function SetupAppointment() {
 
     useEffect(() => {
         if (!hasProcessedQueryParams.current && treatments.length > 0) {
-            processQueryParams()
-            hasProcessedQueryParams.current = true
+            (async () => {
+                try {
+                    await processQueryParams()
+                } finally {
+                    hasProcessedQueryParams.current = true
+                }
+            })()
         }
     }, [treatments.length, processQueryParams])
 
@@ -1334,22 +1422,7 @@ export default function SetupAppointment() {
         setFormStep(1)
 
         selectedTreatmentFromParams.current = false
-        updateURL(undefined, undefined, treatmentId)
-    }
-
-    const handleServiceTypeChange = (serviceType: string) => {
-        setSelectedServiceType(serviceType)
-        setSelectedDate(undefined)
-        setSelectedTime("")
-        setSelectedStationId("")
-        setComment("")
-        setTermsApproved(false)
-        setLatePickupRequested(false)
-        setLatePickupNotes("")
-        setFormStep(1)
-
-        // Update URL with new service type
-        updateURL(serviceType)
+        updateURL({ treatmentId })
     }
 
     const handleDateSelect = (date: Date | undefined) => {
@@ -1373,7 +1446,11 @@ export default function SetupAppointment() {
         setFormStep(1)
 
         if (date) {
-            updateURL(selectedServiceType, date)
+            updateURL({
+                serviceType: selectedServiceType || null,
+                serviceId: selectedServiceId || null,
+                date,
+            })
         }
     }
 
@@ -1715,34 +1792,17 @@ export default function SetupAppointment() {
                                 {/* Service Type Selection */}
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700 text-right block">בחר סוג שירות</label>
-                                    <Select value={selectedServiceType} onValueChange={handleServiceTypeChange}>
-                                        <SelectTrigger className="text-right [&>span]:text-right" dir="rtl">
-                                            <SelectValue placeholder="בחר את סוג השירות" />
-                                        </SelectTrigger>
-                                        <SelectContent dir="rtl">
-                                            <SelectItem value="grooming" className="text-right">
-                                                <div className="flex items-center justify-end w-full gap-2">
-                                                    <Scissors className="h-4 w-4 text-blue-600" />
-                                                    <span>תספורת</span>
-                                                </div>
-                                            </SelectItem>
-                                            <SelectItem value="garden" className="text-right">
-                                                <div className="flex items-center justify-end w-full gap-2">
-                                                    <Bone className="h-4 w-4 text-amber-600" />
-                                                    <span>גן</span>
-                                                </div>
-                                            </SelectItem>
-                                            <SelectItem value="both" className="text-right">
-                                                <div className="flex items-center justify-end w-full gap-2">
-                                                    <div className="flex items-center gap-1">
-                                                        <Scissors className="h-3 w-3 text-blue-600" />
-                                                        <Bone className="h-3 w-3 text-amber-600" />
-                                                    </div>
-                                                    <span>תספורת וגן</span>
-                                                </div>
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <AutocompleteFilter
+                                        value={selectedServiceName}
+                                        onChange={handleServiceInputChange}
+                                        onSelect={handleServiceSelect}
+                                        placeholder="בחר את סוג השירות"
+                                        searchFn={searchServices}
+                                        minSearchLength={0}
+                                        autoSearchOnFocus
+                                        initialLoadOnMount
+                                        className="text-right"
+                                    />
 
                                     {includesGroomingService && groomingPriceRange && (
                                         <p className="text-sm text-gray-600 text-right">
@@ -1958,7 +2018,7 @@ export default function SetupAppointment() {
                                                 מחפשים עבורך את התור הקרוב ביותר...
                                             </h3>
                                             <p className="text-sm text-gray-600">
-                                                אנחנו בודקים את כל התאריכים הזמינים עבור {selectedServiceType === 'grooming' ? 'תספורת' : selectedServiceType === 'garden' ? 'גן' : 'תספורת וגן'}
+                                                אנחנו בודקים את כל התאריכים הזמינים עבור {serviceDisplayName || "השירות שנבחר"}
                                             </p>
 
                                         </div>
@@ -2079,7 +2139,12 @@ export default function SetupAppointment() {
                                                     params.set('tab', 'waitingList')
                                                     params.set('action', 'new')
                                                     params.set('treatmentId', selectedTreatment)
-                                                    params.set('serviceType', selectedServiceType)
+                                                    if (selectedServiceType) {
+                                                        params.set('serviceType', selectedServiceType)
+                                                    }
+                                                    if (selectedServiceId) {
+                                                        params.set('serviceId', selectedServiceId)
+                                                    }
                                                     navigate(`/appointments?${params.toString()}`)
                                                 }}
                                             >
@@ -2133,7 +2198,7 @@ export default function SetupAppointment() {
                                                 <span className="font-medium">לקוח:</span> {selectedTreatmentDetails?.name ?? "לא נבחר"}
                                             </div>
                                             <div>
-                                                <span className="font-medium">שירות:</span> {selectedServiceType === "grooming" ? "תספורת" : selectedServiceType === "garden" ? "גן" : "תספורת וגן"}
+                                                <span className="font-medium">שירות:</span> {serviceDisplayName || "לא נבחר"}
                                             </div>
                                             <div>
                                                 <span className="font-medium">תאריך:</span> {selectedDate ? selectedDate.toLocaleDateString("he-IL", { day: "2-digit", month: "short", year: "numeric" }) : "לא נבחר"}
@@ -2428,9 +2493,7 @@ export default function SetupAppointment() {
                                             </div>
                                             <div className="space-y-1">
                                                 <h3 className="font-semibold text-lg">
-                                                    {selectedServiceType === 'grooming' && 'תספורת'}
-                                                    {selectedServiceType === 'garden' && 'גן'}
-                                                    {selectedServiceType === 'both' && 'תספורת וגן'}
+                                                    {serviceDisplayName || (selectedServiceType ? SERVICE_TYPE_LABELS[selectedServiceType] : "שירות")}
                                                 </h3>
                                                 {serviceIntro && (
                                                     <p className="text-sm text-gray-600">{serviceIntro}</p>

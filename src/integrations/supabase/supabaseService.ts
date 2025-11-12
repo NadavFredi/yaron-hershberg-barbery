@@ -1454,31 +1454,12 @@ export async function getManagerSchedule(
     }
 
     const allAppointments = (appointmentsResult.data || []) as any[]
-    const groomingAppointments = allAppointments
-    const daycareAppointments: any[] = []
-
-    // Fetch combined appointments to check for cross-service links
-    // Get all combined appointments and filter to only those relevant to today's appointments
-    const allGroomingIds = new Set(groomingAppointments.map((a) => a.id))
-    const allDaycareIds = new Set(daycareAppointments.map((a) => a.id))
-
-    const { data: combinedData } = await supabase
-      .from("combined_appointments")
-      .select("grooming_appointment_id, daycare_appointment_id")
-
-    // Filter combined appointments to only those in today's appointments
-    const combinedGroomingIds = new Set(
-      (combinedData || []).map((c) => c.grooming_appointment_id).filter((id) => id && allGroomingIds.has(id))
-    )
-    const combinedDaycareIds = new Set(
-      (combinedData || []).map((c) => c.daycare_appointment_id).filter((id) => id && allDaycareIds.has(id))
-    )
 
     // Transform appointments to ManagerAppointment format
     const appointments: ManagerAppointment[] = []
 
-    // Process grooming appointments
-    for (const apt of groomingAppointments) {
+    // Process all appointments
+    for (const apt of allAppointments) {
       const station = Array.isArray(apt.stations) ? apt.stations[0] : apt.stations
       const treatment = Array.isArray(apt.treatments) ? apt.treatments[0] : apt.treatments
       const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
@@ -1497,8 +1478,6 @@ export async function getManagerSchedule(
         maxGroomingPrice: treatmentType?.max_groom_price ? Number(treatmentType.max_groom_price) : undefined,
       }
 
-      const hasCrossService = combinedGroomingIds.has(apt.id)
-
       appointments.push({
         id: apt.id,
         serviceType: "grooming",
@@ -1510,7 +1489,7 @@ export async function getManagerSchedule(
         paymentStatus: apt.payment_status || undefined,
         notes: apt.customer_notes || "",
         internalNotes: apt.internal_notes || undefined,
-        hasCrossServiceAppointment: hasCrossService,
+        hasCrossServiceAppointment: false,
         treatments: [managerTreatment],
         clientId: apt.customer_id,
         clientName: customer?.full_name || undefined,
@@ -1520,71 +1499,6 @@ export async function getManagerSchedule(
         appointmentType: apt.appointment_kind === "personal" ? "private" : "business",
         isPersonalAppointment: apt.appointment_kind === "personal",
         price: apt.amount_due ? Number(apt.amount_due) : undefined,
-        durationMinutes: Math.round((new Date(apt.end_at).getTime() - new Date(apt.start_at).getTime()) / 60000),
-      })
-    }
-
-    // Process daycare appointments
-    for (const apt of daycareAppointments) {
-      const treatment = Array.isArray(apt.treatments) ? apt.treatments[0] : apt.treatments
-      const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
-      const treatmentType = treatment?.treatmentTypes ? (Array.isArray(treatment.treatmentTypes) ? treatment.treatmentTypes[0] : treatment.treatmentTypes) : null
-
-      if (!treatment) continue
-
-      const managerTreatment: ManagerTreatment = {
-        id: treatment.id,
-        name: treatment.name || "",
-        treatmentType: treatmentType?.name,
-        ownerId: treatment.customer_id,
-        clientClassification: customer?.classification,
-        clientName: customer?.full_name,
-        minGroomingPrice: treatmentType?.min_groom_price ? Number(treatmentType.min_groom_price) : undefined,
-        maxGroomingPrice: treatmentType?.max_groom_price ? Number(treatmentType.max_groom_price) : undefined,
-      }
-
-      const hasCrossService = combinedDaycareIds.has(apt.id)
-      // Determine trial status based on service_type (primary source of truth)
-      // If service_type is explicitly set, use it; otherwise fall back to questionnaire_result for backward compatibility
-      const isTrial =
-        apt.service_type === "trial" ||
-        (apt.service_type == null && (apt.questionnaire_result === "pending" || apt.questionnaire_result === "trial"))
-
-      // Determine service type from service_type enum value
-      let serviceType: "full-day" | "hourly"
-      if (apt.service_type === "hourly") {
-        serviceType = "hourly"
-      } else {
-        // Both "full_day" and "trial" are displayed as "full-day" format
-        serviceType = "full-day"
-      }
-
-      appointments.push({
-        id: apt.id,
-        serviceType: "garden",
-        stationId: "garden-station",
-        stationName: "חלל המספרה",
-        startDateTime: apt.start_at,
-        endDateTime: apt.end_at,
-        status: apt.status || "pending",
-        paymentStatus: apt.payment_status || undefined,
-        notes: apt.customer_notes || "",
-        internalNotes: apt.internal_notes || undefined,
-        hasCrossServiceAppointment: hasCrossService,
-        treatments: [managerTreatment],
-        clientId: apt.customer_id,
-        clientName: customer?.full_name || undefined,
-        clientClassification: customer?.classification || undefined,
-        clientEmail: customer?.email || undefined,
-        clientPhone: customer?.phone || undefined,
-        appointmentType: "business",
-        gardenAppointmentType: serviceType,
-        gardenIsTrial: isTrial,
-        latePickupRequested: apt.late_pickup_requested || false,
-        latePickupNotes: apt.late_pickup_notes || undefined,
-        gardenTrimNails: apt.garden_trim_nails || false,
-        gardenBrush: apt.garden_brush || false,
-        gardenBath: apt.garden_bath || false,
         durationMinutes: Math.round((new Date(apt.end_at).getTime() - new Date(apt.start_at).getTime()) / 60000),
       })
     }
@@ -2073,10 +1987,8 @@ export async function getSingleManagerAppointment(
   serviceType: "grooming" | "garden"
 ): Promise<{ success: boolean; appointment?: ManagerAppointment; error?: string }> {
   try {
-    const tableName = serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
-
     const { data, error } = await supabase
-      .from(tableName)
+      .from("appointments")
       .select(
         `
         id,
@@ -2091,11 +2003,6 @@ export async function getSingleManagerAppointment(
         amount_due,
         treatment_id,
         customer_id,
-        ${
-          serviceType === "garden"
-            ? "service_type, late_pickup_requested, late_pickup_notes, garden_trim_nails, garden_brush, garden_bath, questionnaire_result,"
-            : ""
-        }
         stations(id, name),
         treatments(
           id,
@@ -2121,15 +2028,6 @@ export async function getSingleManagerAppointment(
       throw new Error(error?.message || "Appointment not found")
     }
 
-    // Check for combined appointment
-    const { data: combinedData } = await supabase
-      .from("combined_appointments")
-      .select("grooming_appointment_id, daycare_appointment_id")
-      .or(`${serviceType === "grooming" ? "grooming" : "daycare"}_appointment_id.eq.${appointmentId}`)
-      .maybeSingle()
-
-    const hasCrossService = !!combinedData
-
     const station = Array.isArray(data.stations) ? data.stations[0] : data.stations
     const treatment = Array.isArray(data.treatments) ? data.treatments[0] : data.treatments
     const customer = Array.isArray(data.customers) ? data.customers[0] : data.customers
@@ -2152,53 +2050,26 @@ export async function getSingleManagerAppointment(
 
     const appointment: ManagerAppointment = {
       id: data.id,
-      serviceType,
-      stationId: data.station_id || (serviceType === "garden" ? "garden-station" : station?.id || ""),
-      stationName: serviceType === "garden" ? "חלל המספרה" : station?.name || "לא ידוע",
+      serviceType: "grooming",
+      stationId: data.station_id || station?.id || "",
+      stationName: station?.name || "לא ידוע",
       startDateTime: data.start_at,
       endDateTime: data.end_at,
       status: data.status || "pending",
       paymentStatus: data.payment_status || undefined,
       notes: data.customer_notes || "",
       internalNotes: data.internal_notes || undefined,
-      hasCrossServiceAppointment: hasCrossService,
+      hasCrossServiceAppointment: false,
       treatments: [managerTreatment],
       clientId: data.customer_id,
       clientName: customer?.full_name || undefined,
       clientClassification: customer?.classification || undefined,
       clientEmail: customer?.email || undefined,
       clientPhone: customer?.phone || undefined,
-      appointmentType: serviceType === "grooming" && data.appointment_kind === "personal" ? "private" : "business",
+      appointmentType: data.appointment_kind === "personal" ? "private" : "business",
+      isPersonalAppointment: data.appointment_kind === "personal",
       price: data.amount_due ? Number(data.amount_due) : undefined,
       durationMinutes: Math.round((new Date(data.end_at).getTime() - new Date(data.start_at).getTime()) / 60000),
-    }
-
-    if (serviceType === "garden") {
-      const gardenData = data as any
-      // Set gardenAppointmentType based on service_type
-      if (gardenData.service_type === "trial") {
-        appointment.gardenAppointmentType = "full-day" // Trials are displayed as full-day format
-        appointment.gardenIsTrial = true
-      } else if (gardenData.service_type === "hourly") {
-        appointment.gardenAppointmentType = "hourly"
-        appointment.gardenIsTrial = false
-      } else {
-        // service_type === "full_day"
-        appointment.gardenAppointmentType = "full-day"
-        appointment.gardenIsTrial = false
-      }
-
-      // Legacy fallback: also check questionnaire_result for backward compatibility
-      // But prioritize service_type over questionnaire_result
-      if (appointment.gardenIsTrial === undefined) {
-        appointment.gardenIsTrial =
-          gardenData.questionnaire_result === "pending" || gardenData.questionnaire_result === "trial"
-      }
-      appointment.latePickupRequested = gardenData.late_pickup_requested || false
-      appointment.latePickupNotes = gardenData.late_pickup_notes || undefined
-      appointment.gardenTrimNails = gardenData.garden_trim_nails || false
-      appointment.gardenBrush = gardenData.garden_brush || false
-      appointment.gardenBath = gardenData.garden_bath || false
     }
 
     return { success: true, appointment }
