@@ -13,11 +13,11 @@ interface BusinessSettingsProps {
 
 const BusinessSettings = ({ onBack }: BusinessSettingsProps) => {
   const [businessData, setBusinessData] = useState({
-    name: 'B LOVED',
+    name: 'ירון הרשברג- מספרה יוצאת דופן',
     description: 'מרכז טיפוח מקצועי לכלבים',
-    address: 'רחוב הכלבים 123, תל אביב',
+    address: 'ירושלים, ירושלים',
     phone: '03-1234567',
-    email: 'info@bloved.co.il'
+    email: 'info@yaronhershberg.co.il'
   });
 
   const handleSave = () => {
