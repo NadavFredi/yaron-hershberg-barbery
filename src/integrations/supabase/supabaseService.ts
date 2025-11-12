@@ -67,7 +67,7 @@ export interface TreatmentRecord {
   // Garden suitability fields
   questionnaireSuitableForGarden?: boolean // האם נמצא מתאים לגן מהשאלון
   staffApprovedForGarden?: string // האם מתאים לגן מילוי צוות (נמצא מתאים/נמצא לא מתאים/empty)
-  hasRegisteredToGardenBefore?: boolean // האם הכלב נרשם בעבר לגן
+  hasRegisteredToGardenBefore?: boolean // האם הלקוח נרשם בעבר למסלול
   requiresSpecialApproval?: boolean
   groomingMinPrice?: number | null
   groomingMaxPrice?: number | null
@@ -679,7 +679,7 @@ export async function updateTreatment(
     if (isTreatmentTypeChanging) {
       const hasHistory = await hasTreatmentAppointmentHistory(treatmentId)
       if (hasHistory) {
-        throw new Error("לא ניתן לשנות גזע לכלב שכבר הוזמנו לו תורים")
+        throw new Error("לא ניתן לשנות פרופיל שירות ללקוח שכבר הוזמנו לו תורים")
       }
     }
 
@@ -1118,7 +1118,7 @@ export async function deleteTreatment(
     if (hasHistory) {
       return {
         success: false,
-        error: "לא ניתן למחוק כלב שכבר הוזמנו לו תורים",
+        error: "לא ניתן למחוק לקוח שכבר הוזמנו לו תורים",
       }
     }
 
@@ -1130,7 +1130,7 @@ export async function deleteTreatment(
 
     return {
       success: true,
-      message: options?.treatmentName ? `הכלב ${options.treatmentName} הוסר בהצלחה` : undefined,
+      message: options?.treatmentName ? `הלקוח ${options.treatmentName} הוסר בהצלחה` : undefined,
     }
   } catch (error) {
     console.error("Failed to delete treatment:", error)
@@ -1574,7 +1574,7 @@ export async function getManagerSchedule(
     // Add a virtual garden station
     const gardenStation: ManagerStation = {
       id: "garden-station",
-      name: "גן הכלבים",
+      name: "חלל המספרה",
       serviceType: "garden",
       isActive: true,
       displayOrder: Number.MAX_SAFE_INTEGER,
@@ -1791,7 +1791,7 @@ export async function getManagerSchedule(
         id: apt.id,
         serviceType: "garden",
         stationId: "garden-station",
-        stationName: "גן הכלבים",
+        stationName: "חלל המספרה",
         startDateTime: apt.start_at,
         endDateTime: apt.end_at,
         status: apt.status || "pending",
@@ -2383,7 +2383,7 @@ export async function getSingleManagerAppointment(
       id: data.id,
       serviceType,
       stationId: data.station_id || (serviceType === "garden" ? "garden-station" : station?.id || ""),
-      stationName: serviceType === "garden" ? "גן הכלבים" : station?.name || "לא ידוע",
+      stationName: serviceType === "garden" ? "חלל המספרה" : station?.name || "לא ידוע",
       startDateTime: data.start_at,
       endDateTime: data.end_at,
       status: data.status || "pending",

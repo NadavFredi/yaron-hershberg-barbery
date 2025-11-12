@@ -105,7 +105,7 @@ export function OwnerTreatmentsList() {
                         </div>
                         <div>
                             <CardTitle className="text-3xl font-bold text-gray-800">
-                                גזעי כלבים
+                                סוגי טיפולים
                             </CardTitle>
                             <CardDescription className="text-lg text-gray-600 mt-2">
                                 Treatment TreatmentTypes - Choose a treatmentType for grooming appointment
@@ -121,24 +121,24 @@ export function OwnerTreatmentsList() {
                             <CardContent className="p-6">
                                 <div className="flex items-center mb-4">
                                     <Sparkles className="h-6 w-6 text-purple-600 mr-3" />
-                                    <h3 className="text-xl font-semibold text-gray-800">סיכום גזעים (TreatmentTypes Summary)</h3>
+                                    <h3 className="text-xl font-semibold text-gray-800">סיכום טיפולים (TreatmentTypes Summary)</h3>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="text-center">
                                         <div className="text-2xl font-bold text-purple-600">{treatmentTypes.length}</div>
-                                        <div className="text-sm text-purple-800">סה"כ גזעים (Total TreatmentTypes)</div>
+                                        <div className="text-sm text-purple-800">סה"כ טיפולים (Total TreatmentTypes)</div>
                                     </div>
                                     <div className="text-center">
                                         <div className="text-2xl font-bold text-green-600">
                                             {treatmentTypes.filter(b => b.isSmall).length}
                                         </div>
-                                        <div className="text-sm text-green-800">כלבים קטנים (Small Treatments)</div>
+                                        <div className="text-sm text-green-800">טיפולים קצרים (Small Treatments)</div>
                                     </div>
                                     <div className="text-center">
                                         <div className="text-2xl font-bold text-blue-600">
                                             {treatmentTypes.filter(b => !b.isSmall).length}
                                         </div>
-                                        <div className="text-sm text-blue-800">כלבים גדולים (Large Treatments)</div>
+                                        <div className="text-sm text-blue-800">טיפולים ארוכים (Large Treatments)</div>
                                     </div>
                                 </div>
                             </CardContent>
@@ -149,7 +149,7 @@ export function OwnerTreatmentsList() {
                     <div className="space-y-4">
                         <div className="flex items-center justify-center space-x-4 mb-6">
                             <h3 className="text-xl font-semibold text-gray-800">
-                                בחר גזע לקביעת תור (Choose a treatmentType for appointment)
+                                בחר טיפול לקביעת תור (Choose a treatmentType for appointment)
                             </h3>
                             <Button
                                 onClick={loadTreatmentTypes}
@@ -163,7 +163,7 @@ export function OwnerTreatmentsList() {
                         {isLoading ? (
                             <div className="text-center py-8">
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                                <div className="text-gray-600">טוען גזעים... (Loading treatmentTypes...)</div>
+                                <div className="text-gray-600">טוען טיפולים... (Loading treatmentTypes...)</div>
                             </div>
                         ) : error ? (
                             <Card className="bg-red-50 border-red-200">
@@ -178,8 +178,8 @@ export function OwnerTreatmentsList() {
                             <Card className="bg-yellow-50 border-yellow-200">
                                 <CardContent className="p-6 text-center">
                                     <Sparkles className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">לא נמצאו גזעים (No treatmentTypes found)</h3>
-                                    <p className="text-gray-600">לא נמצאו גזעים בטבלה זו (No treatmentTypes found in this table)</p>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">לא נמצאו טיפולים (No treatmentTypes found)</h3>
+                                    <p className="text-gray-600">לא נמצאו טיפולים בטבלה זו (No treatmentTypes found in this table)</p>
                                 </CardContent>
                             </Card>
                         ) : (
@@ -207,7 +207,7 @@ export function OwnerTreatmentsList() {
                                                 <div className="flex items-center space-x-3">
                                                     <Sparkles className="h-4 w-4 text-gray-500" />
                                                     <div>
-                                                        <div className="text-sm text-gray-600">גזע (TreatmentType)</div>
+                                                        <div className="text-sm text-gray-600">טיפול (TreatmentType)</div>
                                                         <div className="font-semibold text-gray-900">{treatmentType.treatmentType}</div>
                                                     </div>
                                                 </div>
@@ -215,7 +215,7 @@ export function OwnerTreatmentsList() {
                                                 <div className="flex items-center space-x-3">
                                                     <Calendar className="h-4 w-4 text-gray-500" />
                                                     <div>
-                                                        <div className="text-sm text-gray-600">כלבים (Treatments)</div>
+                                                        <div className="text-sm text-gray-600">לקוחות (Treatments)</div>
                                                         <div className="font-semibold text-gray-900">{treatmentType.treatmentIds.length}</div>
                                                     </div>
                                                 </div>
@@ -236,7 +236,7 @@ export function OwnerTreatmentsList() {
                                                     handleTreatmentTypeSelect(treatmentType)
                                                 }}
                                             >
-                                                בחר גזע זה (Select This TreatmentType)
+                                                בחר טיפול זה (Select This TreatmentType)
                                             </Button>
                                         </CardContent>
                                     </Card>
@@ -250,19 +250,19 @@ export function OwnerTreatmentsList() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
                             <div className="text-center p-4 bg-blue-50 rounded-lg">
                                 <div className="text-2xl font-bold text-blue-600">{treatmentTypes.length}</div>
-                                <div className="text-sm text-blue-800">סה"כ גזעים (Total TreatmentTypes)</div>
+                                <div className="text-sm text-blue-800">סה"כ טיפולים (Total TreatmentTypes)</div>
                             </div>
                             <div className="text-center p-4 bg-green-50 rounded-lg">
                                 <div className="text-2xl font-bold text-green-600">
                                     {treatmentTypes.filter(b => b.isSmall).length}
                                 </div>
-                                <div className="text-sm text-green-800">כלבים קטנים (Small Treatments)</div>
+                                <div className="text-sm text-green-800">טיפולים קצרים (Small Treatments)</div>
                             </div>
                             <div className="text-center p-4 bg-pink-50 rounded-lg">
                                 <div className="text-2xl font-bold text-pink-600">
                                     {treatmentTypes.filter(b => !b.isSmall).length}
                                 </div>
-                                <div className="text-sm text-pink-800">כלבים גדולים (Large Treatments)</div>
+                                <div className="text-sm text-pink-800">טיפולים ארוכים (Large Treatments)</div>
                             </div>
                         </div>
                     )}

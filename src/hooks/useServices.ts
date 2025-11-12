@@ -19,6 +19,15 @@ export interface ServiceWithStats extends Service {
     min: number;
     max: number;
   };
+  stationConfigs: Array<{
+    station_id: string;
+    base_time_minutes: number;
+    price_adjustment: number;
+    is_active: boolean;
+    remote_booking_allowed: boolean;
+    requires_staff_approval: boolean;
+    station_is_active: boolean;
+  }>;
 }
 
 export const useServices = () => {
@@ -49,6 +58,9 @@ export const useServicesWithStats = () => {
             base_time_minutes,
             price_adjustment,
             station_id,
+            is_active,
+            remote_booking_allowed,
+            requires_staff_approval,
             stations(is_active)
           )
         `)
@@ -63,8 +75,29 @@ export const useServicesWithStats = () => {
         .eq('is_active', true);
 
       const servicesWithStats: ServiceWithStats[] = servicesData.map(service => {
-        const configs = service.service_station_matrix || [];
-        const activeConfigs = configs.filter(config => config.stations?.is_active);
+        type SupabaseStationConfig = {
+          base_time_minutes: number;
+          price_adjustment: number;
+          station_id: string;
+          is_active?: boolean;
+          remote_booking_allowed?: boolean;
+          requires_staff_approval?: boolean;
+          stations?: {
+            is_active: boolean | null;
+          };
+        };
+
+        const configs = (service.service_station_matrix || []) as SupabaseStationConfig[];
+        const stationConfigs = configs.map((config) => ({
+          station_id: config.station_id,
+          base_time_minutes: config.base_time_minutes,
+          price_adjustment: config.price_adjustment,
+          is_active: config.is_active ?? true,
+          remote_booking_allowed: config.remote_booking_allowed ?? false,
+          requires_staff_approval: config.requires_staff_approval ?? false,
+          station_is_active: config.stations?.is_active ?? false,
+        }));
+        const activeConfigs = stationConfigs.filter(config => config.is_active && config.station_is_active);
         
         const averageTime = activeConfigs.length > 0 
           ? Math.round(activeConfigs.reduce((sum, config) => sum + config.base_time_minutes, 0) / activeConfigs.length)
@@ -92,7 +125,8 @@ export const useServicesWithStats = () => {
           averageTime,
           configuredStationsCount: activeConfigs.length,
           totalStationsCount: totalStationsCount || 0,
-          priceRange
+          priceRange,
+          stationConfigs,
         };
       });
 

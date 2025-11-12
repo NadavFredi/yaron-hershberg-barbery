@@ -112,7 +112,7 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
         parseDateTime(appointment.endDateTime) ??
         new Date(appointmentStart.getTime() + 60 * 60 * 1000)
 
-    const title = `${getServiceName(appointment.service)} - ${appointment.treatmentName || "כלב"}`
+    const title = `${getServiceName(appointment.service)} - ${appointment.treatmentName || "לקוח"}`
     const details = appointment.notes ? `הערות: ${appointment.notes}` : ""
 
     const formattedStart = formatForGoogleCalendar(appointmentStart)
@@ -123,7 +123,7 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
         text: title,
         dates: `${formattedStart}/${formattedEnd}`,
         details,
-        location: 'WagTime - מרכז טיפוח כלבים',
+        location: 'WagTime - מספרת בוטיק',
         trp: 'false',
     })
 
@@ -648,7 +648,7 @@ export default function Appointments() {
                 if (!grouped.has(key)) {
                     grouped.set(key, {
                         id: key,
-                        label: entry.treatmentName ?? "בקשות לכלב",
+                        label: entry.treatmentName ?? "בקשות ללקוח",
                         entries: [],
                     })
                 }
@@ -658,7 +658,7 @@ export default function Appointments() {
                     group.treatment = treatment
                     group.label = treatment.name
                 } else if (!group.label) {
-                    group.label = entry.treatmentName ?? "בקשות לכלב"
+                    group.label = entry.treatmentName ?? "בקשות ללקוח"
                 }
 
                 group.entries.push(entry)
@@ -666,7 +666,7 @@ export default function Appointments() {
                 if (!grouped.has(GENERAL_GROUP_KEY)) {
                     grouped.set(GENERAL_GROUP_KEY, {
                         id: GENERAL_GROUP_KEY,
-                        label: "בקשות ללא שיוך לכלב",
+                        label: "בקשות ללא שיוך ללקוח",
                         entries: [],
                     })
                 }
@@ -712,7 +712,7 @@ export default function Appointments() {
     }, [searchParams])
 
     const treatmentsErrorMessage = useMemo(
-        () => extractErrorMessage(treatmentsQueryError, "שגיאה בטעינת רשימת הכלבים"),
+        () => extractErrorMessage(treatmentsQueryError, "שגיאה בטעינת רשימת הלקוחות"),
         [treatmentsQueryError]
     )
 
@@ -1555,8 +1555,8 @@ export default function Appointments() {
                     <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
                     <p className="mt-4 text-gray-600">טוען תורים...</p>
                     <div className="mt-4 space-y-2">
-                        <p className="text-sm text-gray-500">טוען רשימת הכלבים</p>
-                        <p className="text-sm text-gray-500">טוען תורים עבור כל כלב</p>
+                        <p className="text-sm text-gray-500">טוען רשימת הלקוחות</p>
+                        <p className="text-sm text-gray-500">טוען תורים עבור כל לקוח</p>
                     </div>
                 </div>
             </div>
@@ -1644,7 +1644,7 @@ export default function Appointments() {
 
                             <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-right space-y-3">
                                 <div className="text-base font-semibold text-red-800">
-                                    {appointmentPendingCancellation.treatmentName || "כלב לא ידוע"}
+                                    {appointmentPendingCancellation.treatmentName || "לקוח לא ידוע"}
                                 </div>
                                 <div className="flex items-center  gap-2 text-sm text-red-700">
                                     <CalendarIcon className="h-4 w-4" />
@@ -1762,14 +1762,14 @@ export default function Appointments() {
                             <DialogTitle className="text-xl font-semibold text-gray-900">עדכון איסוף מאוחר</DialogTitle>
                         </div>
                         <DialogDescription className="text-xs text-gray-600 leading-relaxed text-right">
-                            ספרו לנו אם תרצו לאסוף את הכלב מאוחר יותר מהגן ביום הזה. איסוף מאוחר זמין עד 17:30.
+                            ספרו לנו אם תרצו להאריך את השהות במספרה ביום הזה. זמינות מאוחרת פתוחה עד 17:30.
                         </DialogDescription>
                     </DialogHeader>
 
                     {latePickupDialogAppointment && (
                         <div className="space-y-4">
                             <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 space-y-1">
-                                <div className="font-semibold">{latePickupDialogAppointment.treatmentName || "כלב"}</div>
+                                <div className="font-semibold">{latePickupDialogAppointment.treatmentName || "לקוח"}</div>
                                 <div className="flex flex-wrap items-center gap-3  text-xs text-gray-500">
                                     {latePickupDialogDateLabel && (
                                         <div className="flex items-center gap-1">
@@ -1893,7 +1893,7 @@ export default function Appointments() {
                         <CardContent className="p-12 text-center">
                             <CalendarIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                             <h3 className="text-xl font-semibold text-gray-800 mb-2">אין תורים</h3>
-                            <p className="text-gray-600 mb-4">עדיין לא קבעת תורים עבור הכלבים שלך.</p>
+                            <p className="text-gray-600 mb-4">עדיין לא קבעת תורים עבור הלקוחות שלך.</p>
                             <Button
                                 onClick={() => navigate('/setup-appointment')}
                                 className="bg-blue-600 hover:bg-blue-700"
@@ -2013,7 +2013,7 @@ export default function Appointments() {
                                                             <div className="flex items-center gap-2 justify-end">
                                                                 {getStatusBadge(appointment)}
 
-                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "כלב לא ידוע"}</h3>
+                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "לקוח לא ידוע"}</h3>
                                                                 {getApprovalBadge(appointment)}
                                                             </div>
                                                             {/* Details row */}
@@ -2142,7 +2142,7 @@ export default function Appointments() {
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" dir="rtl">
                                 <div className="space-y-1 text-right">
                                     <h3 className="text-lg font-semibold text-gray-800">בקשות רשימת המתנה</h3>
-                                    <p className="text-sm text-gray-500">נהל כאן את הבקשות להודעה על תורים פנויים עבור הכלבים שלך.</p>
+                                    <p className="text-sm text-gray-500">נהל כאן את הבקשות להודעה על תורים פנויים עבור הלקוחות שלך.</p>
                                 </div>
                                 <Button
                                     onClick={() => {
@@ -2326,7 +2326,7 @@ export default function Appointments() {
                                                             <div className="flex items-center gap-2 justify-end">
                                                                 {getStatusBadge(appointment)}
                                                                 {appointmentIncludesGarden(appointment) ? renderLatePickupBadge(appointment.latePickupRequested) : null}
-                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "כלב לא ידוע"}</h3>
+                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "לקוח לא ידוע"}</h3>
                                                                 {getApprovalBadge(appointment)}
                                                             </div>
                                                             {/* Details row */}

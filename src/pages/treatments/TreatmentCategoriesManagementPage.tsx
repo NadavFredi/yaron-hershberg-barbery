@@ -35,8 +35,8 @@ const CONFIG: Record<Variant, {
         tableName: "treatment_types",
         relationTable: "treatmentType_treatment_types",
         relationColumn: "treatment_type_id",
-        title: "קטגוריה 1 - סוגי כלב",
-        description: "נהל סוגים כלליים של כלבים כדי לקבץ התנהגות וצרכים משותפים.",
+        title: "קטגוריה 1 - סוגי לקוח",
+        description: "נהל סוגים כלליים של לקוחות כדי לקבץ העדפות וצרכים משותפים.",
         addButtonLabel: "הוסף קטגוריה 1",
         entityLabel: "קטגוריה 1",
         emptyTitle: "לא הוגדרו עדיין קטגוריות 1",
@@ -289,7 +289,7 @@ export default function TreatmentCategoriesManagementPage({ variant }: Treatment
                                     <TableRow className="bg-[hsl(205_80%_96%)]">
                                         <TableHead className="text-right text-sm font-semibold text-primary">שם</TableHead>
                                     <TableHead className="text-right text-sm font-semibold text-primary">מספר גזעים</TableHead>
-                                        <TableHead className="text-right text-sm font-semibold text-primary">מספר כלבים</TableHead>
+                                        <TableHead className="text-right text-sm font-semibold text-primary">מספר לקוחות</TableHead>
                                         <TableHead className="text-right text-sm font-semibold text-primary">נוצר</TableHead>
                                         <TableHead className="text-right text-sm font-semibold text-primary">עודכן</TableHead>
                                         <TableHead className="text-right text-sm font-semibold text-primary w-48">פעולות</TableHead>
@@ -334,7 +334,7 @@ export default function TreatmentCategoriesManagementPage({ variant }: Treatment
                                                         className="px-2 hover:bg-blue-50 text-blue-700"
                                                     >
                                                         <Eye className="h-4 w-4 ml-2" />
-                                                        צפייה בכלבים
+                                                        צפייה בלקוחות
                                                     </Button>
                                                     <Button
                                                         variant="ghost"

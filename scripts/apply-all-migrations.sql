@@ -6,7 +6,7 @@
 
 BEGIN;
 
--- Create treatment_types table (סוג כלב)
+-- Create treatment_types table (סוג טיפול)
 CREATE TABLE IF NOT EXISTS public.treatment_types (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL UNIQUE,
@@ -2244,7 +2244,7 @@ CREATE POLICY custom_absence_reasons_insert_manager
 
 BEGIN;
 
--- Create treatment_types table (סוג כלב)
+-- Create treatment_types table (סוג טיפול)
 CREATE TABLE IF NOT EXISTS public.treatment_types (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL UNIQUE,

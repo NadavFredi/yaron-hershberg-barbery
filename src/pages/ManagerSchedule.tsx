@@ -1324,9 +1324,9 @@ const ManagerSchedule = () => {
         treatment,
         ownerName: clientDetails?.name,
         serviceType: "grooming",
-        serviceLabel: "כלב",
+        serviceLabel: "לקוח",
         appointmentDate: null,
-        dateLabel: clientDetails?.phone ? `טלפון: ${clientDetails.phone}` : "כלב ללא תור ביומן",
+        dateLabel: clientDetails?.phone ? `טלפון: ${clientDetails.phone}` : "לקוח ללא תור ביומן",
         timeLabel: clientDetails?.email ? `דוא"ל: ${clientDetails.email}` : "",
         entityType: "treatment",
         clientName: clientDetails?.name,
@@ -1503,14 +1503,14 @@ const ManagerSchedule = () => {
               const titleText =
                 result.entityType === "personal"
                   ? result.appointment?.personalAppointmentDescription || "תור אישי"
-                  : result.treatment?.name || result.ownerName || "תור ללא כלב"
+                  : result.treatment?.name || result.ownerName || "תור ללא לקוח"
               const secondaryText = (() => {
                 if (result.entityType === "personal") {
                   return "תור אישי ביומן ההנהלה"
                 }
                 if (!result.appointment) {
                   if (result.entityType === "treatment") {
-                    return result.ownerName ? `בעלים: ${result.ownerName}` : "כלב במערכת"
+                    return result.ownerName ? `בעלים: ${result.ownerName}` : "לקוח במערכת"
                   }
                   if (result.entityType === "client") {
                     return result.clientDetails?.classification
@@ -1607,7 +1607,7 @@ const ManagerSchedule = () => {
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 text-gray-500 hover:text-gray-900"
-                        title="פתח כרטיס כלב"
+                        title="פתח כרטיס לקוח"
                         onClick={(event) => {
                           event.preventDefault()
                           event.stopPropagation()
@@ -2838,7 +2838,7 @@ const ManagerSchedule = () => {
         title: "התור נמחק בהצלחה",
         description: isGroupOperation
           ? `${selectedAppointmentIds.length} תורים נמחקו בהצלחה`
-          : `התור של ${appointmentToDelete.treatments[0]?.name || 'הכלב'} נמחק בהצלחה`,
+          : `התור של ${appointmentToDelete.treatments[0]?.name || 'הלקוח'} נמחק בהצלחה`,
         variant: "default",
       })
 
@@ -2923,7 +2923,7 @@ const ManagerSchedule = () => {
         title: "התור בוטל בהצלחה",
         description: isGroupOperation
           ? `${selectedAppointmentIds.length} תורים בוטלו בהצלחה`
-          : `התור של ${appointmentToCancel.treatments[0]?.name || 'הכלב'} בוטל בהצלחה`,
+          : `התור של ${appointmentToCancel.treatments[0]?.name || 'הלקוח'} בוטל בהצלחה`,
         variant: "default",
       })
 
@@ -3211,7 +3211,7 @@ const ManagerSchedule = () => {
       // Show success toast
       toast({
         title: "התור עודכן בהצלחה",
-        description: `התור של ${editingGroomingAppointment.treatments[0]?.name || 'הכלב'} עודכן בהצלחה`,
+        description: `התור של ${editingGroomingAppointment.treatments[0]?.name || 'הלקוח'} עודכן בהצלחה`,
         variant: "default",
       })
 
@@ -6516,7 +6516,7 @@ const ManagerSchedule = () => {
                               }}
                               onFocus={() => setIsScheduleSearchOpen(true)}
                               onKeyDown={handleScheduleSearchInputKeyDown}
-                              placeholder="חיפוש תורים, לקוחות או כלבים"
+                              placeholder="חיפוש תורים, לקוחות או טיפולים"
                               className="flex-1 border-none bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
                               autoComplete="off"
                             />
@@ -6792,7 +6792,7 @@ const ManagerSchedule = () => {
                               <Input
                                 value={waitingListSearchTerm}
                                 onChange={(event) => setWaitingListSearchTerm(event.target.value)}
-                                placeholder="חיפוש לפי שם כלב, לקוח או טלפון"
+                                placeholder="חיפוש לפי שם לקוח, שירות או טלפון"
                                 className="pr-9 text-sm"
                               />
                               <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />

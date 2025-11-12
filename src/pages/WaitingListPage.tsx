@@ -709,11 +709,11 @@ export default function WaitingListPage() {
                             />
                         </div>
                         <div>
-                            <Label className="text-sm mb-2 block">שם כלב</Label>
+                            <Label className="text-sm mb-2 block">שם לקוח</Label>
                             <AutocompleteFilter
                                 value={treatmentNameFilter}
                                 onChange={setTreatmentNameFilter}
-                                placeholder="שם כלב..."
+                                placeholder="שם לקוח..."
                                 searchFn={searchTreatmentNames}
                                 minSearchLength={0}
                                 autoSearchOnFocus
@@ -816,7 +816,7 @@ export default function WaitingListPage() {
                             />
                         </div>
                         <div>
-                            <Label className="text-sm mb-2 block">הצג כלבים ממתינים בתאריך זה</Label>
+                            <Label className="text-sm mb-2 block">הצג לקוחות ממתינים בתאריך זה</Label>
                             <DatePickerInput
                                 value={singleDateFilter}
                                 onChange={setSingleDateFilter}
@@ -923,7 +923,7 @@ export default function WaitingListPage() {
                                 <thead>
                                     <tr className="border-b bg-[hsl(228_36%_95%)] text-right text-primary [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-[hsl(228_36%_95%)]">
                                         <th className="h-12 w-12 text-center align-middle font-semibold"></th>
-                                        <th className="h-12 px-3 align-middle font-semibold">שם הכלב</th>
+                                        <th className="h-12 px-3 align-middle font-semibold">שם הלקוח</th>
                                         <th className="h-12 px-3 align-middle font-semibold">גזע</th>
                                         <th className="h-12 px-3 align-middle font-semibold">קטגוריות</th>
                                         <th className="h-12 px-3 align-middle font-semibold">גודל</th>
@@ -1271,7 +1271,7 @@ function WaitlistEntryRow({
                             <div className="grid gap-8 lg:grid-cols-3">
                                 <InfoSection
                                     icon={<Sparkles className="h-4 w-4" />}
-                                    title="פרטי הכלב"
+                                    title="פרטי הלקוח"
                                     rows={[
                                         { label: "שם", value: entry.treatment?.name || "-" },
                                         { label: "גזע", value: entry.treatment?.treatmentType?.name || "-" },

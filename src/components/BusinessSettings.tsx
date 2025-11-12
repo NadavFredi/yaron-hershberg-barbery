@@ -14,7 +14,7 @@ interface BusinessSettingsProps {
 const BusinessSettings = ({ onBack }: BusinessSettingsProps) => {
   const [businessData, setBusinessData] = useState({
     name: 'ירון הרשברג- מספרה יוצאת דופן',
-    description: 'מרכז טיפוח מקצועי לכלבים',
+    description: 'מספרת בוטיק ללקוחות פרטיים',
     address: 'ירושלים, ירושלים',
     phone: '03-1234567',
     email: 'info@yaronhershberg.co.il'

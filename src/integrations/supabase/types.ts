@@ -969,25 +969,37 @@ export type Database = {
           base_time_minutes: number
           created_at: string
           id: string
-          price: number
+          is_active: boolean
+          price_adjustment: number
+          remote_booking_allowed: boolean
           service_id: string
           station_id: string
+          updated_at: string
+          requires_staff_approval: boolean
         }
         Insert: {
           base_time_minutes?: number
           created_at?: string
           id?: string
-          price?: number
+          is_active?: boolean
+          price_adjustment?: number
+          remote_booking_allowed?: boolean
           service_id: string
           station_id: string
+          updated_at?: string
+          requires_staff_approval?: boolean
         }
         Update: {
           base_time_minutes?: number
           created_at?: string
           id?: string
-          price?: number
+          is_active?: boolean
+          price_adjustment?: number
+          remote_booking_allowed?: boolean
           service_id?: string
           station_id?: string
+          updated_at?: string
+          requires_staff_approval?: boolean
         }
         Relationships: [
           {
@@ -1008,8 +1020,8 @@ export type Database = {
       }
       services: {
         Row: {
-          active: boolean
           category: Database["public"]["Enums"]["service_category"]
+          base_price: number
           created_at: string
           description: string | null
           id: string
@@ -1017,8 +1029,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          active?: boolean
           category?: Database["public"]["Enums"]["service_category"]
+          base_price?: number
           created_at?: string
           description?: string | null
           id?: string
@@ -1026,8 +1038,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          active?: boolean
           category?: Database["public"]["Enums"]["service_category"]
+          base_price?: number
           created_at?: string
           description?: string | null
           id?: string

@@ -177,7 +177,7 @@ const mapDaycareRow = (row: DaycareRow): PendingAppointmentRequest | null => {
     customerPhone: typeof customer?.phone === "string" ? customer.phone : null,
     treatmentId: treatment?.id ? String(treatment.id) : null,
     treatmentName: typeof treatment?.name === "string" ? treatment.name : null,
-    stationName: typeof station?.name === "string" ? (station.name as string) : "גן הכלבים",
+    stationName: typeof station?.name === "string" ? (station.name as string) : "חלל המספרה",
     serviceLabel,
     notes: row.customer_notes ?? null,
     questionnaireResult: normalizeQuestionnaireResult(row.questionnaire_result),

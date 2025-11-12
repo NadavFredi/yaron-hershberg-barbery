@@ -76,7 +76,7 @@ async function getDogAppointments(dogId: string) {
     throw new Error(dogError?.message || `Dog with ID ${dogId} not found`)
   }
 
-  const dogName = dog.name ?? "כלב ללא שם"
+  const dogName = dog.name ?? "לקוח ללא שם"
 
   const { data: appointments, error: appointmentsError } = await supabase
     .from("grooming_appointments")

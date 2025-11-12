@@ -520,7 +520,7 @@ export const supabaseApi = createApi({
                 treatmentId,
                 treatmentTypeId: null,
                 stationId,
-                message: "לכלב לא מוגדר גזע. אנא הגדר גזע לכלב לפני קביעת התור.",
+                message: "ללקוח לא מוגדר סוג שירות. אנא הגדירו סוג שירות ללקוח לפני קביעת התור.",
               },
             }
           }

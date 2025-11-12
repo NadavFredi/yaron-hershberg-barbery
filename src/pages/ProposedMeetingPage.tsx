@@ -279,28 +279,28 @@ const ProposedMeetingPage = () => {
           <CardTitle className="text-lg font-semibold">אנחנו חייבים לדעת מי מגיע</CardTitle>
           <CardDescription>
             {isReschedule
-              ? "התור החדש יישמר עבור אותו כלב מהתור המקורי. אם הכלב אינו מופיע, צרו קשר עם הצוות."
-              : "בחרו כלב/ה, ואם צריך – הזינו קוד מילה אישית."}
+              ? "התור החדש יישמר עבור אותו לקוח מהתור המקורי. אם הלקוח אינו מופיע, צרו קשר עם הצוות."
+              : "בחרו לקוח/ה, ואם צריך – הזינו קוד מילה אישית."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-3">
-            <div className="text-sm font-semibold text-gray-800">בחרו כלב</div>
+            <div className="text-sm font-semibold text-gray-800">בחרו לקוח</div>
             {treatmentsLoading ? (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                טוען כלבים...
+                טוען לקוחות...
               </div>
             ) : missingRequiredTreatment ? (
               <Alert className="border-red-200 bg-red-50">
-                <AlertTitle>לא הצלחנו למצוא את הכלב המתאים</AlertTitle>
+                <AlertTitle>לא הצלחנו למצוא את הלקוח המתאים</AlertTitle>
                 <AlertDescription>
-                  התור הזה מיועד לכלב ספציפי שלא מופיע אצלכם. צרו קשר עם הצוות כדי לעדכן את פרטי החשבון.
+                  התור הזה מיועד ללקוח ספציפי שלא מופיע אצלכם. צרו קשר עם הצוות כדי לעדכן את פרטי החשבון.
                 </AlertDescription>
               </Alert>
             ) : treatmentsForSelection.length === 0 ? (
               <Alert>
-                <AlertTitle>לא מצאנו כלבים בחשבון</AlertTitle>
+                <AlertTitle>לא מצאנו לקוחות בחשבון</AlertTitle>
                 <AlertDescription>
                   הוסיפו את פרטי המטופל דרך הצוות או בעזרת המסכים המנהלתיים, ואז חזרו לכאן.
                 </AlertDescription>

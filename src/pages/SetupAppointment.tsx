@@ -99,7 +99,7 @@ interface Treatment {
     // Garden suitability fields
     questionnaireSuitableForGarden?: boolean // האם נמצא מתאים לגן מהשאלון
     staffApprovedForGarden?: string // האם מתאים לגן מילוי צוות (נמצא מתאים/נמצא לא מתאים/empty)
-    hasRegisteredToGardenBefore?: boolean // האם הכלב נרשם בעבר לגן
+    hasRegisteredToGardenBefore?: boolean // האם הלקוח נרשם בעבר למסלול
 }
 
 interface AvailableDate {
@@ -478,24 +478,24 @@ export default function SetupAppointment() {
 
         const gardenSections: ServiceSection[] = [
             {
-                title: "מה קורה בגן?",
+                title: "מה קורה במספרה?",
                 content: (
                     <div className="space-y-2">
-                        <p>הגן שלנו הוא מקום קטן, אישי ומשפחתי – לכלבים קטנים בלבד 🐾</p>
+                        <p>המספרה שלנו היא מקום קטן, אישי ומשפחתי – חוויית טיפוח מותאמת אישית ✂️</p>
                         <p>
-                            בגן, הכלבלב שלכם יפרוק אנרגיה פיזית ומנטלית בקבוצה אינטימית של עד 10 כלבים. במהלך היום נשחק, נקשקש, נכיר חברים חדשים, נצא לטיול בפארק הסמוך, ננשנש – וגם נלקק 😉🐶
+                            במהלך הביקור תיהנו מטיפול מקצועי ומפנק: שיחת התאמה קצרה, עיצוב שיער וזקן לפי הצורך, פינוקים קטנים ומוזיקה נעימה שמלווה את כל החוויה.
                         </p>
-                        <p>הכל תמיד תחת השגחה צמודה, בסביבה נקייה ומטופחת, עם המון יחס אישי ואהבה 💛</p>
+                        <p>הכול מתבצע תחת תשומת לב אישית של הצוות, בסביבה נקייה ומזמינה, עם המון יחס חם.</p>
                     </div>
                 ),
             },
             {
-                title: "⏰ מתי מגיעים ומתי אוספים?",
+                title: "⏰ מתי מגיעים ומתי מסיימים?",
                 content: (
                     <div className="space-y-2">
-                        <p>ניתן להביא את הכלב לגן החל מהשעה 08:30 בבוקר.</p>
-                        <p>האיסוף הרגיל מתבצע עד 15:30.</p>
-                        <p>ישנה אפשרות לאיסוף מאוחר עד 17:30.</p>
+                        <p>ניתן להגיע לתור החל מהשעה 08:30 בבוקר.</p>
+                        <p>משך הטיפול הרגיל נע בין 45 ל-60 דקות.</p>
+                        <p>אפשר להאריך את הביקור לשירותים משלימים עד 17:30 בתיאום מראש.</p>
                     </div>
                 ),
             },
@@ -511,8 +511,8 @@ export default function SetupAppointment() {
                     { title: "תספורת – מה כולל הטיפול?", content: groomingSections[0].content },
                     { title: "תספורת – כמה זה עולה?", content: groomingSections[1].content },
                     { title: "תספורת – כמה זמן זה לוקח?", content: groomingSections[2].content },
-                    { title: "גן – מה מצפה לכלבלב?", content: gardenSections[0].content },
-                    { title: "גן – מתי מגיעים ומתי אוספים?", content: gardenSections[1].content },
+                    { title: "מספרה – מה מצפה לכם?", content: gardenSections[0].content },
+                    { title: "מספרה – מתי מגיעים ומתי מסיימים?", content: gardenSections[1].content },
                 ]
             default:
                 return []
@@ -653,7 +653,7 @@ export default function SetupAppointment() {
             return {
                 canBookFullDay: false,
                 canBookTrial: false,
-                message: "מצטערים, נראה שהכלב שלכם לא מתאים לגן שלנו. אם אתם חושבים שזו טעות, אנא צרו איתנו קשר באופן פרטי",
+                message: "מצטערים, נראה שהבקשה שבחרתם עדיין לא תואמת את השירות שלנו. אם אתם חושבים שזו טעות, אנא צרו איתנו קשר באופן פרטי",
                 isExplicitlyRejected: true
             }
         }
@@ -677,7 +677,7 @@ export default function SetupAppointment() {
             return {
                 canBookFullDay: false,
                 canBookTrial: false,
-                message: "הכלב שלכם נרשם בעבר לגן אבל עדיין לא אושר על ידי הצוות. אנא המתינו לאישור הצוות לפני קביעת תור נוסף",
+                message: "הבקשה שלכם נרשמה בעבר אבל עדיין לא אושרה על ידי הצוות. אנא המתינו לאישור הצוות לפני קביעת תור נוסף",
                 isExplicitlyRejected: false
             }
         }
@@ -692,7 +692,7 @@ export default function SetupAppointment() {
             return {
                 canBookFullDay: false,
                 canBookTrial: true,
-                message: "מצאנו שהכלב שלכם עלול לא להתאים לגן שלנו. אתם יכולים להכניס אותו רק לניסיון עכשיו, אם נראה שהכלב יתאים טוב - נאפשר לכם לקבוע ימים מלאים",
+                message: "נראה שהבקשה שלכם דורשת בדיקה נוספת. תוכלו לקבוע ניסיון בלבד כרגע, ואם הכול יתאים נאפשר לכם לתאם ביקורים מלאים",
                 isExplicitlyRejected: false
             }
         }
@@ -802,12 +802,12 @@ export default function SetupAppointment() {
     const gardenQuestionnaireMessage = useMemo(
         () =>
             gardenQuestionnaireStatus?.message ||
-            "היי! לפני שנציע תורים לגן, נשמח שתמלאו את שאלון ההתאמה לגן עבור הכלב הזה.",
+            "היי! לפני שנציע תורים במספרה, נשמח שתמלאו את שאלון ההתאמה לשירות עבור הלקוח הזה.",
         [gardenQuestionnaireStatus?.message]
     )
 
     const gardenBlockingMessage = isSizeBlocking
-        ? "מצטערים, הגן שלנו מיועד לכלבים קטנים שעברו התאמה."
+        ? "מצטערים, השירות שלנו מיועד ללקוחות שעברו התאמה מוקדמת."
         : gardenQuestionnaireMessage
 
     const selectedDateKey = useMemo(() => (
@@ -1892,7 +1892,7 @@ export default function SetupAppointment() {
                                         />
                                         {availableDates.length === 0 && !isLoadingDates && (
                                             <p className="text-sm text-yellow-600 text-center">
-                                                אין תאריכים זמינים עבור כלב זה החודש
+                                                אין תאריכים זמינים עבור הלקוח הזה החודש
                                             </p>
                                         )}
                                     </div>
@@ -2022,7 +2022,7 @@ export default function SetupAppointment() {
                                         <h3 className="text-sm font-semibold text-slate-800">סיכום הבחירה</h3>
                                         <div className="space-y-2 text-xs text-slate-600">
                                             <div>
-                                                <span className="font-medium">כלב:</span> {selectedTreatmentDetails?.name ?? "לא נבחר"}
+                                                <span className="font-medium">לקוח:</span> {selectedTreatmentDetails?.name ?? "לא נבחר"}
                                             </div>
                                             <div>
                                                 <span className="font-medium">שירות:</span> {selectedServiceType === "grooming" ? "תספורת" : selectedServiceType === "garden" ? "גן" : "תספורת וגן"}
@@ -2119,7 +2119,7 @@ export default function SetupAppointment() {
                                                 />
                                                 <div className="text-right">
                                                     <label htmlFor="late-pickup" className="text-sm font-medium text-blue-900 cursor-pointer">
-                                                        אני רוצה לאסוף את הכלב מאוחר יותר
+                                                        אני רוצה להשלים את השירות מאוחר יותר
                                                     </label>
                                                     <p className="text-xs text-blue-700 mt-1">
                                                         איסוף מאוחר זמין עד 17:30. נשמח לדעת אם יש פרטים מיוחדים שכדאי שנדע.
@@ -2213,7 +2213,7 @@ export default function SetupAppointment() {
                                                             <div className="text-sm text-yellow-800">
                                                                 <p className="font-medium">התור לא נקבע עדיין</p>
                                                                 <p className="text-xs mt-1">
-                                                                    הגזע של הכלב דורש אישור מיוחד. התור נשלח כבקשה ויאושר על ידי הצוות.
+                                                                    העדפות השירות שנבחרו דורשות אישור מיוחד. התור נשלח כבקשה ויאושר על ידי הצוות.
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -2268,7 +2268,7 @@ export default function SetupAppointment() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
                                         <Sparkles className="h-5 w-5" />
-                                        <span>הכלב שנבחר</span>
+                                        <span>הלקוח שנבחר</span>
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>

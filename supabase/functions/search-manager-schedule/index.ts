@@ -723,7 +723,7 @@ function mapDaycareRow(row: Record<string, unknown>): ManagerAppointment | null 
     id: String(row.id),
     serviceType: "garden",
     stationId: (row.station_id as string) || station?.id || "garden-station",
-    stationName: station?.name || "גן הכלבים",
+    stationName: station?.name || "חלל המספרה",
     startDateTime: start,
     endDateTime: end,
     status: typeof row.status === "string" ? row.status : "pending",
