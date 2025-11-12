@@ -687,6 +687,7 @@ export const supabaseApi = createApi({
         groupId?: string
         customerId?: string
         treatmentId?: string
+        serviceId?: string
         isManualOverride?: boolean
         gardenAppointmentType?: "full-day" | "hourly" | "trial"
         services?: {

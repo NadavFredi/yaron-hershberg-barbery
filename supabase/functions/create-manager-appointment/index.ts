@@ -18,6 +18,7 @@ interface CreateManagerAppointmentRequest {
   groupId?: string
   customerId?: string
   treatmentId?: string
+  serviceId?: string
   isManualOverride?: boolean
   gardenAppointmentType?: "full-day" | "hourly" | "trial"
   services?: {
@@ -118,6 +119,7 @@ serve(async (req) => {
       latePickupNotes,
       notes,
       internalNotes,
+      serviceId,
     }: CreateManagerAppointmentRequest = await req.json()
 
     const normalizedAppointmentType: ManagerAppointmentType =
@@ -163,6 +165,7 @@ serve(async (req) => {
     const appointmentIds: string[] = []
     let resolvedCustomerId: string | undefined = customerId
     let resolvedTreatmentId: string | undefined = treatmentId
+    let resolvedServiceId: string | undefined = serviceId
 
     // Handle private appointments: create/find system customer and treatment
     if (normalizedAppointmentType === "private") {
@@ -247,11 +250,23 @@ serve(async (req) => {
     }
 
     // Validate customer and treatment IDs for business/garden appointments
-    if (normalizedAppointmentType !== "private") {
+    if (normalizedAppointmentType === "garden") {
       if (!resolvedCustomerId || !resolvedTreatmentId) {
         return new Response(
           JSON.stringify({
             error: "Missing required fields: customerId and treatmentId are required for business/garden appointments",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        )
+      }
+    } else if (normalizedAppointmentType === "business") {
+      if (!resolvedCustomerId || (!resolvedServiceId && !resolvedTreatmentId)) {
+        return new Response(
+          JSON.stringify({
+            error: "Missing required fields: business appointments require a customer and service or treatment",
           }),
           {
             status: 400,
@@ -382,7 +397,8 @@ serve(async (req) => {
       for (const stationIdToUse of stationsToUse) {
         const insertPayload = {
           customer_id: resolvedCustomerId!,
-          treatment_id: resolvedTreatmentId!,
+          treatment_id: resolvedTreatmentId ?? null,
+          service_id: resolvedServiceId ?? null,
           station_id: stationIdToUse,
           start_at: startTime,
           end_at: endTime,

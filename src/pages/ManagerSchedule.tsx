@@ -1718,7 +1718,7 @@ const ManagerSchedule = () => {
       const dayEnd = addDays(dayStart, 1)
 
       const { data: waitlistData, error: waitlistError } = await supabase
-        .from("daycare_waitlist")
+        .from("waitlist")
         .select("id, customer_id, treatment_id, service_scope, status, start_date, end_date, notes, created_at, updated_at")
         .eq("status", "active")
         .order("created_at", { ascending: false })

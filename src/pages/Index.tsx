@@ -9,9 +9,9 @@ const Index = () => {
       <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
           <div className="w-24 h-24 mx-auto mb-4">
-            <img src={logoImage} alt="B LOVED Logo" className="w-full h-full object-contain" />
+            <img src={logoImage} alt="לוגו מרפאה יוצאת דופן" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">B LOVED</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">מרפאה יוצאת דופן</h1>
           <p className="text-xl text-gray-600 mb-6">מספרת בוטיק מקצועית</p>
           <p className="text-gray-500 mb-8">ברוכים הבאים למערכת הזימון תורים שלנו</p>
         </div>

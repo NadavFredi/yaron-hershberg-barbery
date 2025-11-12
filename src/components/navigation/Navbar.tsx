@@ -51,7 +51,7 @@ const SERVICE_BADGE_STYLES: Record<PendingAppointmentRequest["serviceType"], str
 
 const SERVICE_TYPE_LABELS: Record<PendingAppointmentRequest["serviceType"], string> = {
     grooming: "מספרה",
-    garden: "גן"
+    garden: "ספא"
 }
 
 const formatDateTime = (value: string | null, options: Intl.DateTimeFormatOptions = {}) => {

@@ -15,14 +15,6 @@ SET open_time = EXCLUDED.open_time,
     close_time = EXCLUDED.close_time,
     updated_at = now();
 
-INSERT INTO public.daycare_capacity_limits (id, effective_date, trial_limit, regular_limit)
-VALUES
-  (gen_random_uuid(), DATE '2025-01-01', 3, 10)
-ON CONFLICT (effective_date) DO UPDATE
-SET trial_limit = EXCLUDED.trial_limit,
-    regular_limit = EXCLUDED.regular_limit,
-    updated_at = now();
-
 INSERT INTO public.ticket_types (id, name, price, description, total_entries, is_unlimited)
 VALUES
   (gen_random_uuid(), 'מעבר חופשי לחודש', 500, 'כניסה חופשית לכל סוגי הטיפולים למשך חודש שלם – ללא הגבלה.', NULL, true),

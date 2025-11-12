@@ -21,7 +21,6 @@ type TreatmentTypeSummary = Pick<
   "name" | "size_class" | "min_groom_price" | "max_groom_price"
 >
 type TreatmentRowWithTreatmentType = TreatmentTableRow & { treatmentTypes: TreatmentTypeSummary | null }
-type DaycareAppointmentSummary = Pick<Database["public"]["Tables"]["daycare_appointments"]["Row"], "treatment_id" | "status">
 type GroomingAppointmentSummary = Pick<
   Database["public"]["Tables"]["grooming_appointments"]["Row"],
   "treatment_id" | "status"
@@ -65,8 +64,8 @@ export interface TreatmentRecord {
   hasAppointmentHistory?: boolean
   hasBeenToGarden?: boolean
   // Garden suitability fields
-  questionnaireSuitableForGarden?: boolean // האם נמצא מתאים לגן מהשאלון
-  staffApprovedForGarden?: string // האם מתאים לגן מילוי צוות (נמצא מתאים/נמצא לא מתאים/empty)
+  questionnaireSuitableForGarden?: boolean // האם נמצא מתאים לספא מהשאלון
+  staffApprovedForGarden?: string // האם מתאים לספא מילוי צוות (נמצא מתאים/נמצא לא מתאים/empty)
   hasRegisteredToGardenBefore?: boolean // האם הלקוח נרשם בעבר למסלול
   requiresSpecialApproval?: boolean
   groomingMinPrice?: number | null
@@ -159,24 +158,17 @@ async function hasTreatmentAppointmentHistory(treatmentId: string): Promise<bool
     throw new Error("treatmentId is required")
   }
 
-  const [{ count: groomingCount, error: groomingError }, { count: daycareCount, error: daycareError }] =
-    await Promise.all([
-      supabase.from("grooming_appointments").select("id", { count: "exact", head: true }).eq("treatment_id", treatmentId),
-      supabase.from("daycare_appointments").select("id", { count: "exact", head: true }).eq("treatment_id", treatmentId),
-    ])
+  const { count, error } = await supabase
+    .from("grooming_appointments")
+    .select("id", { count: "exact", head: true })
+    .eq("treatment_id", treatmentId)
 
-  if (groomingError) {
-    console.error("❌ [hasTreatmentAppointmentHistory] Failed to check grooming appointments", groomingError)
-    throw groomingError
+  if (error) {
+    console.error("❌ [hasTreatmentAppointmentHistory] Failed to check grooming appointments", error)
+    throw error
   }
 
-  if (daycareError) {
-    console.error("❌ [hasTreatmentAppointmentHistory] Failed to check daycare appointments", daycareError)
-    throw daycareError
-  }
-
-  const totalAppointments = (groomingCount ?? 0) + (daycareCount ?? 0)
-  return totalAppointments > 0
+  return (count ?? 0) > 0
 }
 
 // Generic function to call Supabase Edge Functions
@@ -346,44 +338,7 @@ export async function listOwnerTreatments(ownerId: string): Promise<{ treatments
     }
   }
 
-  let daycareVisitsByTreatment: Record<string, boolean> = {}
-  let appointmentHistoryByTreatment: Record<string, boolean> = {}
-  if (treatmentIds.length > 0) {
-    const { data: daycareRows, error: daycareError } = await supabase
-      .from("daycare_appointments")
-      .select("treatment_id, status")
-      .in("treatment_id", treatmentIds)
-
-    if (daycareError) {
-      console.error("❌ [listOwnerTreatments] Failed to load daycare appointments for treatments:", {
-        error: daycareError,
-        message: daycareError.message,
-        details: daycareError.details,
-        hint: daycareError.hint,
-        code: daycareError.code,
-        treatmentIds,
-      })
-      throw daycareError
-    }
-
-    const typedDaycareRows = (daycareRows ?? []) as DaycareAppointmentSummary[]
-    daycareVisitsByTreatment = typedDaycareRows.reduce<Record<string, boolean>>((acc, row) => {
-      if (!row?.treatment_id) {
-        return acc
-      }
-
-      appointmentHistoryByTreatment[row.treatment_id] = true
-
-      const isCompletedAppointment = row.status === "approved" || row.status === "matched" || row.status === "pending"
-
-      if (isCompletedAppointment) {
-        acc[row.treatment_id] = true
-      }
-
-      return acc
-    }, {})
-  }
-
+  const appointmentHistoryByTreatment: Record<string, boolean> = {}
   if (treatmentIds.length > 0) {
     // verbose log removed
     const { data: groomingRows, error: groomingError } = await supabase
@@ -433,7 +388,7 @@ export async function listOwnerTreatments(ownerId: string): Promise<{ treatments
         staffApprovedForGarden = ""
     }
 
-    const hasGardenHistory = Boolean(daycareVisitsByTreatment[treatment.id])
+    const hasGardenHistory = false
     const hasAppointmentHistory = Boolean(appointmentHistoryByTreatment[treatment.id])
 
     // Determine size: prefer treatmentType size_class, fallback to is_small field
@@ -748,7 +703,6 @@ export async function getTreatmentAppointments(treatmentId: string): Promise<{ a
 // Get merged appointments directly from Supabase (grooming + garden combined)
 export async function getMergedAppointments(treatmentId: string): Promise<{ appointments: MergedAppointment[] }> {
   try {
-    // Get treatment name for the appointments
     const { data: treatment, error: treatmentError } = await supabase.from("treatments").select("name").eq("id", treatmentId).single()
 
     if (treatmentError || !treatment) {
@@ -757,163 +711,38 @@ export async function getMergedAppointments(treatmentId: string): Promise<{ appo
 
     const treatmentName = treatment.name
 
-    // Fetch grooming and daycare appointments for this treatment
-    const [groomingResult, daycareResult, combinedResult] = await Promise.all([
-      supabase
-        .from("grooming_appointments")
-        .select("id, status, station_id, start_at, end_at, customer_notes, internal_notes")
-        .eq("treatment_id", treatmentId),
-      supabase
-        .from("daycare_appointments")
-        .select(
-          "id, status, station_id, start_at, end_at, customer_notes, internal_notes, late_pickup_requested, late_pickup_notes, garden_trim_nails, garden_brush, garden_bath"
-        )
-        .eq("treatment_id", treatmentId),
-      supabase.from("combined_appointments").select("grooming_appointment_id, daycare_appointment_id"),
-    ])
+    const { data: groomingAppointments, error: groomingError } = await supabase
+      .from("grooming_appointments")
+      .select("id, status, station_id, start_at, end_at, customer_notes, internal_notes")
+      .eq("treatment_id", treatmentId)
+      .order("start_at", { ascending: true })
 
-    if (groomingResult.error) {
-      throw new Error(`Failed to fetch grooming appointments: ${groomingResult.error.message}`)
-    }
-    if (daycareResult.error) {
-      throw new Error(`Failed to fetch daycare appointments: ${daycareResult.error.message}`)
-    }
-    if (combinedResult.error) {
-      throw new Error(`Failed to fetch combined appointments: ${combinedResult.error.message}`)
+    if (groomingError) {
+      throw new Error(`Failed to fetch grooming appointments: ${groomingError.message}`)
     }
 
-    const groomingAppointments = groomingResult.data || []
-    const daycareAppointments = daycareResult.data || []
-    const combinedAppointments = combinedResult.data || []
-
-    // Create maps to track combined appointments
-    const combinedMap = new Map<string, string>() // Maps grooming_id -> daycare_id
-    combinedAppointments.forEach((ca) => {
-      if (ca.grooming_appointment_id && ca.daycare_appointment_id) {
-        combinedMap.set(ca.grooming_appointment_id, ca.daycare_appointment_id)
-      }
-    })
-
-    // Group appointments by date (YYYY-MM-DD)
     const formatDateKey = (date: string) => new Date(date).toISOString().split("T")[0]
-    const groomingByDate = new Map<string, (typeof groomingAppointments)[0]>()
-    const daycareByDate = new Map<string, (typeof daycareAppointments)[0]>()
+    const mergedAppointments: MergedAppointment[] = (groomingAppointments ?? []).map((apt) => {
+      const start = new Date(apt.start_at)
+      const end = new Date(apt.end_at)
 
-    groomingAppointments.forEach((apt) => {
-      const dateKey = formatDateKey(apt.start_at)
-      groomingByDate.set(dateKey, apt)
-    })
-
-    daycareAppointments.forEach((apt) => {
-      const dateKey = formatDateKey(apt.start_at)
-      daycareByDate.set(dateKey, apt)
-    })
-
-    // Get all unique dates
-    const allDates = new Set<string>()
-    groomingByDate.forEach((_, date) => allDates.add(date))
-    daycareByDate.forEach((_, date) => allDates.add(date))
-
-    const mergedAppointments: MergedAppointment[] = []
-
-    for (const dateKey of Array.from(allDates).sort()) {
-      const groomingAppt = groomingByDate.get(dateKey)
-      const daycareAppt = daycareByDate.get(dateKey)
-
-      if (groomingAppt && daycareAppt) {
-        // Both appointments on the same day - create "both" type
-        const groomingStart = new Date(groomingAppt.start_at)
-        const daycareStart = new Date(daycareAppt.start_at)
-        const appointmentStart = groomingStart < daycareStart ? groomingStart : daycareStart
-
-        const groomingEnd = new Date(groomingAppt.end_at)
-        const daycareEnd = new Date(daycareAppt.end_at)
-        const appointmentEnd = new Date(Math.max(groomingEnd.getTime(), daycareEnd.getTime()))
-
-        // Format date and time
-        const date = dateKey
-        const time = appointmentStart.toTimeString().slice(0, 5) // HH:MM format
-
-        mergedAppointments.push({
-          id: `combined-${groomingAppt.id}-${daycareAppt.id}`,
-          treatmentId,
-          treatmentName,
-          date,
-          time,
-          service: "both",
-          status:
-            groomingAppt.status === "cancelled" || daycareAppt.status === "cancelled"
-              ? "cancelled"
-              : groomingAppt.status,
-          stationId: groomingAppt.station_id || daycareAppt.station_id || undefined,
-          notes: (groomingAppt.customer_notes || daycareAppt.customer_notes || undefined)?.trim() || undefined,
-          groomingNotes: groomingAppt.internal_notes?.trim() || undefined,
-          gardenNotes: daycareAppt.internal_notes?.trim() || undefined,
-          groomingStatus: groomingAppt.status,
-          gardenStatus: daycareAppt.status,
-          startDateTime: appointmentStart.toISOString(),
-          endDateTime: appointmentEnd.toISOString(),
-          groomingAppointmentId: groomingAppt.id,
-          gardenAppointmentId: daycareAppt.id,
-          latePickupRequested: daycareAppt.late_pickup_requested || false,
-          latePickupNotes: daycareAppt.late_pickup_notes?.trim() || undefined,
-          gardenTrimNails: daycareAppt.garden_trim_nails || false,
-          gardenBrush: daycareAppt.garden_brush || false,
-          gardenBath: daycareAppt.garden_bath || false,
-        })
-      } else if (groomingAppt) {
-        // Only grooming appointment
-        const start = new Date(groomingAppt.start_at)
-        const end = new Date(groomingAppt.end_at)
-        const date = formatDateKey(groomingAppt.start_at)
-        const time = start.toTimeString().slice(0, 5)
-
-        mergedAppointments.push({
-          id: groomingAppt.id,
-          treatmentId,
-          treatmentName,
-          date,
-          time,
-          service: "grooming",
-          status: groomingAppt.status,
-          stationId: groomingAppt.station_id || undefined,
-          notes: groomingAppt.customer_notes?.trim() || undefined,
-          groomingNotes: groomingAppt.internal_notes?.trim() || undefined,
-          startDateTime: start.toISOString(),
-          endDateTime: end.toISOString(),
-          groomingAppointmentId: groomingAppt.id,
-        })
-      } else if (daycareAppt) {
-        // Only daycare appointment
-        const start = new Date(daycareAppt.start_at)
-        const end = new Date(daycareAppt.end_at)
-        const date = formatDateKey(daycareAppt.start_at)
-        const time = start.toTimeString().slice(0, 5)
-
-        mergedAppointments.push({
-          id: daycareAppt.id,
-          treatmentId,
-          treatmentName,
-          date,
-          time,
-          service: "garden",
-          status: daycareAppt.status,
-          stationId: daycareAppt.station_id || undefined,
-          notes: daycareAppt.customer_notes?.trim() || undefined,
-          gardenNotes: daycareAppt.internal_notes?.trim() || undefined,
-          startDateTime: start.toISOString(),
-          endDateTime: end.toISOString(),
-          gardenAppointmentId: daycareAppt.id,
-          latePickupRequested: daycareAppt.late_pickup_requested || false,
-          latePickupNotes: daycareAppt.late_pickup_notes?.trim() || undefined,
-          gardenTrimNails: daycareAppt.garden_trim_nails || false,
-          gardenBrush: daycareAppt.garden_brush || false,
-          gardenBath: daycareAppt.garden_bath || false,
-        })
+      return {
+        id: apt.id,
+        treatmentId,
+        treatmentName,
+        date: formatDateKey(apt.start_at),
+        time: start.toTimeString().slice(0, 5),
+        service: "grooming",
+        status: apt.status,
+        stationId: apt.station_id || undefined,
+        notes: apt.customer_notes?.trim() || undefined,
+        groomingNotes: apt.internal_notes?.trim() || undefined,
+        startDateTime: start.toISOString(),
+        endDateTime: end.toISOString(),
+        groomingAppointmentId: apt.id,
       }
-    }
+    })
 
-    // Sort by date and time
     mergedAppointments.sort((a, b) => {
       const dateA = new Date(`${a.date}T${a.time}`).getTime()
       const dateB = new Date(`${b.date}T${b.time}`).getTime()
@@ -1181,12 +1010,9 @@ export async function updateAppointmentNotes(
   note: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Determine which table to update based on serviceType
-    const tableName = serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
-
-    // Update customer_notes field using PostgREST
+    // Update customer_notes in grooming appointments (single appointment type supported)
     const { error } = await supabase
-      .from(tableName)
+      .from("grooming_appointments")
       .update({ customer_notes: note || null })
       .eq("id", appointmentId)
 
@@ -1417,7 +1243,7 @@ export async function approveCombinedAppointments(
     if (groomingResult.success && gardenResult.success) {
       return {
         success: true,
-        message: groomingResult.message || gardenResult.message || "התורים (תספורת וגן) אושרו בהצלחה",
+        message: groomingResult.message || gardenResult.message || "התורים (תספורת וספא) אושרו בהצלחה",
       }
     }
 
@@ -1449,7 +1275,7 @@ export async function cancelCombinedAppointments(
     if (groomingResult.success && gardenResult.success) {
       return {
         success: true,
-        message: groomingResult.message || gardenResult.message || "התורים (תספורת וגן) בוטלו בהצלחה",
+        message: groomingResult.message || gardenResult.message || "התורים (תספורת וספא) בוטלו בהצלחה",
       }
     }
 
@@ -2038,6 +1864,7 @@ export async function createManagerAppointment(params: {
   groupId?: string
   customerId?: string
   treatmentId?: string
+  serviceId?: string
   isManualOverride?: boolean
   gardenAppointmentType?: "full-day" | "hourly" | "trial"
   services?: {

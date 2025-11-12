@@ -13,7 +13,6 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
-          daycare_appointment_id: string | null
           grooming_appointment_id: string | null
           id: string
           payment_id: string
@@ -21,7 +20,6 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string
-          daycare_appointment_id?: string | null
           grooming_appointment_id?: string | null
           id?: string
           payment_id: string
@@ -29,19 +27,11 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
-          daycare_appointment_id?: string | null
           grooming_appointment_id?: string | null
           id?: string
           payment_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "appointment_payments_daycare_appointment_id_fkey"
-            columns: ["daycare_appointment_id"]
-            isOneToOne: false
-            referencedRelation: "daycare_appointments"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "appointment_payments_grooming_appointment_id_fkey"
             columns: ["grooming_appointment_id"]
@@ -178,42 +168,6 @@ export type Database = {
         }
         Relationships: []
       }
-      combined_appointments: {
-        Row: {
-          created_at: string
-          daycare_appointment_id: string | null
-          grooming_appointment_id: string | null
-          id: string
-        }
-        Insert: {
-          created_at?: string
-          daycare_appointment_id?: string | null
-          grooming_appointment_id?: string | null
-          id?: string
-        }
-        Update: {
-          created_at?: string
-          daycare_appointment_id?: string | null
-          grooming_appointment_id?: string | null
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "combined_appointments_daycare_appointment_id_fkey"
-            columns: ["daycare_appointment_id"]
-            isOneToOne: false
-            referencedRelation: "daycare_appointments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "combined_appointments_grooming_appointment_id_fkey"
-            columns: ["grooming_appointment_id"]
-            isOneToOne: false
-            referencedRelation: "grooming_appointments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       credit_tokens: {
         Row: {
           airtable_id: string | null
@@ -309,131 +263,7 @@ export type Database = {
         }
         Relationships: []
       }
-      daycare_appointments: {
-        Row: {
-          airtable_id: string | null
-          amount_due: number | null
-          created_at: string
-          customer_id: string
-          customer_notes: string | null
-          treatment_id: string
-          end_at: string
-          garden_bath: boolean | null
-          garden_brush: boolean | null
-          garden_trim_nails: boolean | null
-          id: string
-          internal_notes: string | null
-          late_pickup_notes: string | null
-          late_pickup_requested: boolean | null
-          payment_status: Database["public"]["Enums"]["payment_status"]
-          questionnaire_result: Database["public"]["Enums"]["questionnaire_result"]
-          series_id: string | null
-          service_type: Database["public"]["Enums"]["daycare_service_type"]
-          start_at: string
-          station_id: string | null
-          status: Database["public"]["Enums"]["appointment_status"]
-          updated_at: string
-        }
-        Insert: {
-          airtable_id?: string | null
-          amount_due?: number | null
-          created_at?: string
-          customer_id: string
-          customer_notes?: string | null
-          treatment_id: string
-          end_at: string
-          garden_bath?: boolean | null
-          garden_brush?: boolean | null
-          garden_trim_nails?: boolean | null
-          id?: string
-          internal_notes?: string | null
-          late_pickup_notes?: string | null
-          late_pickup_requested?: boolean | null
-          payment_status?: Database["public"]["Enums"]["payment_status"]
-          questionnaire_result?: Database["public"]["Enums"]["questionnaire_result"]
-          series_id?: string | null
-          service_type?: Database["public"]["Enums"]["daycare_service_type"]
-          start_at: string
-          station_id?: string | null
-          status?: Database["public"]["Enums"]["appointment_status"]
-          updated_at?: string
-        }
-        Update: {
-          airtable_id?: string | null
-          amount_due?: number | null
-          created_at?: string
-          customer_id?: string
-          customer_notes?: string | null
-          treatment_id?: string
-          end_at?: string
-          garden_bath?: boolean | null
-          garden_brush?: boolean | null
-          garden_trim_nails?: boolean | null
-          id?: string
-          internal_notes?: string | null
-          late_pickup_notes?: string | null
-          late_pickup_requested?: boolean | null
-          payment_status?: Database["public"]["Enums"]["payment_status"]
-          questionnaire_result?: Database["public"]["Enums"]["questionnaire_result"]
-          series_id?: string | null
-          service_type?: Database["public"]["Enums"]["daycare_service_type"]
-          start_at?: string
-          station_id?: string | null
-          status?: Database["public"]["Enums"]["appointment_status"]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "daycare_appointments_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "daycare_appointments_treatment_id_fkey"
-            columns: ["treatment_id"]
-            isOneToOne: false
-            referencedRelation: "treatments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "daycare_appointments_station_id_fkey"
-            columns: ["station_id"]
-            isOneToOne: false
-            referencedRelation: "stations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      daycare_capacity_limits: {
-        Row: {
-          created_at: string
-          effective_date: string
-          id: string
-          regular_limit: number
-          trial_limit: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          effective_date: string
-          id?: string
-          regular_limit?: number
-          trial_limit?: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          effective_date?: string
-          id?: string
-          regular_limit?: number
-          trial_limit?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      daycare_waitlist: {
+      waitlist: {
         Row: {
           airtable_id: string | null
           created_at: string
@@ -478,14 +308,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "daycare_waitlist_customer_id_fkey"
+            foreignKeyName: "waitlist_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "daycare_waitlist_treatment_id_fkey"
+            foreignKeyName: "waitlist_treatment_id_fkey"
             columns: ["treatment_id"]
             isOneToOne: false
             referencedRelation: "treatments"
@@ -781,7 +611,6 @@ export type Database = {
         Row: {
           created_at: string
           customer_id: string | null
-          daycare_appointment_id: string | null
           grooming_appointment_id: string | null
           id: string
           status: string | null
@@ -792,7 +621,6 @@ export type Database = {
         Insert: {
           created_at?: string
           customer_id?: string | null
-          daycare_appointment_id?: string | null
           grooming_appointment_id?: string | null
           id?: string
           status?: string | null
@@ -803,7 +631,6 @@ export type Database = {
         Update: {
           created_at?: string
           customer_id?: string | null
-          daycare_appointment_id?: string | null
           grooming_appointment_id?: string | null
           id?: string
           status?: string | null
@@ -817,13 +644,6 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_daycare_appointment_id_fkey"
-            columns: ["daycare_appointment_id"]
-            isOneToOne: false
-            referencedRelation: "daycare_appointments"
             referencedColumns: ["id"]
           },
           {
@@ -1228,7 +1048,6 @@ export type Database = {
         Row: {
           airtable_id: string | null
           created_at: string
-          daycare_appointment_id: string | null
           treatment_id: string | null
           grooming_appointment_id: string | null
           id: string
@@ -1239,7 +1058,6 @@ export type Database = {
         Insert: {
           airtable_id?: string | null
           created_at?: string
-          daycare_appointment_id?: string | null
           treatment_id?: string | null
           grooming_appointment_id?: string | null
           id?: string
@@ -1250,7 +1068,6 @@ export type Database = {
         Update: {
           airtable_id?: string | null
           created_at?: string
-          daycare_appointment_id?: string | null
           treatment_id?: string | null
           grooming_appointment_id?: string | null
           id?: string
@@ -1259,13 +1076,6 @@ export type Database = {
           used_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "ticket_usages_daycare_appointment_id_fkey"
-            columns: ["daycare_appointment_id"]
-            isOneToOne: false
-            referencedRelation: "daycare_appointments"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "ticket_usages_treatment_id_fkey"
             columns: ["treatment_id"]
@@ -1687,7 +1497,6 @@ export type Database = {
       appointment_kind: "business" | "personal"
       appointment_status: "pending" | "approved" | "cancelled" | "matched"
       customer_class: "extra_vip" | "vip" | "existing" | "new"
-      daycare_service_type: "full_day" | "trial" | "hourly"
       treatment_gender: "male" | "female"
       payment_status: "unpaid" | "paid" | "partial"
       questionnaire_result: "not_required" | "pending" | "approved" | "rejected"
@@ -1841,7 +1650,6 @@ export const Constants = {
       appointment_kind: ["business", "personal"],
       appointment_status: ["pending", "approved", "cancelled", "matched"],
       customer_class: ["extra_vip", "vip", "existing", "new"],
-      daycare_service_type: ["full_day", "trial", "hourly"],
       treatment_gender: ["male", "female"],
       payment_status: ["unpaid", "paid", "partial"],
       questionnaire_result: ["not_required", "pending", "approved", "rejected"],
