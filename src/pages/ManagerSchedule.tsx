@@ -50,7 +50,6 @@ import {
   CancelConfirmationDialog,
   GroomingEditModal,
   AppointmentTypeSelectionModal,
-  ServiceTypeSelectionModal,
   PrivateAppointmentModal,
   BusinessAppointmentModal,
   ProposedMeetingModal,
@@ -727,8 +726,6 @@ const ManagerSchedule = () => {
   const [duplicateLoading, setDuplicateLoading] = useState(false)
   const [duplicateSuccessOpen, setDuplicateSuccessOpen] = useState(false)
   const [isLoadingAppointment, setIsLoadingAppointment] = useState(false)
-  // Service type selection modal state
-  const [showServiceTypeSelectionModal, setShowServiceTypeSelectionModal] = useState(false)
 
   // Treatment appointments modal state
   const [showTreatmentAppointmentsModal, setShowTreatmentAppointmentsModal] = useState(false)
@@ -7019,7 +7016,36 @@ const ManagerSchedule = () => {
             <div className="space-y-4">
               {/* Action Buttons Section */}
               <div className="flex flex-col gap-2">
-                <Button onClick={() => setShowServiceTypeSelectionModal(true)} className="w-full">קבע תור חדש</Button>
+                <Button
+                  onClick={() => {
+                    const groomingStations = stations.filter((station) => station.serviceType === "grooming")
+                    const firstGroomingStation = groomingStations[0]
+
+                    if (firstGroomingStation) {
+                      const defaultStartTime = new Date(selectedDate)
+                      defaultStartTime.setHours(9, 0, 0, 0)
+
+                      const defaultEndTime = new Date(selectedDate)
+                      defaultEndTime.setHours(10, 0, 0, 0)
+
+                      setFinalizedDragTimes({
+                        startTime: defaultStartTime,
+                        endTime: defaultEndTime,
+                        stationId: firstGroomingStation.id,
+                      })
+                      setShowAppointmentTypeSelection(true)
+                    } else {
+                      toast({
+                        title: "שגיאה",
+                        description: "לא נמצאו עמדות מספרה",
+                        variant: "destructive",
+                      })
+                    }
+                  }}
+                  className="w-full"
+                >
+                  קבע תור חדש
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="w-full">
                   {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
                   <span className="mr-2">רענן נתונים</span>
@@ -7516,39 +7542,6 @@ const ManagerSchedule = () => {
         initialData={proposedModalInitialData}
         loading={proposedMeetingMode === "create" ? creatingProposedMeeting : updatingProposedMeeting}
         onSubmit={handleSubmitProposedMeeting}
-      />
-
-      {/* Service Type Selection Modal */}
-      <ServiceTypeSelectionModal
-        open={showServiceTypeSelectionModal}
-        onOpenChange={setShowServiceTypeSelectionModal}
-        onSelectGrooming={() => {
-          // Open appointment type selection (personal/business) with default values
-          const groomingStations = stations.filter(s => s.serviceType === 'grooming')
-          const firstGroomingStation = groomingStations[0]
-
-          if (firstGroomingStation) {
-            // Create default times for the selected date
-            const defaultStartTime = new Date(selectedDate)
-            defaultStartTime.setHours(9, 0, 0, 0) // 09:00
-
-            const defaultEndTime = new Date(selectedDate)
-            defaultEndTime.setHours(10, 0, 0, 0) // 10:00
-
-            setFinalizedDragTimes({
-              startTime: defaultStartTime,
-              endTime: defaultEndTime,
-              stationId: firstGroomingStation.id
-            })
-            setShowAppointmentTypeSelection(true)
-          } else {
-            toast({
-              title: "שגיאה",
-              description: "לא נמצאו עמדות מספרה",
-              variant: "destructive",
-            })
-          }
-        }}
       />
 
       {/* Treatment Appointments Modal */}
