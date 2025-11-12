@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, ChevronDown, Plus, MoreHorizontal, Save } from 'lucide-react'
+import { Loader2, ChevronDown, Plus, MoreHorizontal, Save, X, Check } from 'lucide-react'
 import { useServicesWithStats, useCreateService } from '@/hooks/useServices'
 import { useToast } from '@/hooks/use-toast'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -391,28 +391,51 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
 
     return (
       <div
-        className={cn('flex justify-end', widthClass)}
+        className={cn('flex items-center justify-end gap-1', widthClass)}
         onClick={(event) => event.stopPropagation()}
       >
         {isEditing ? (
-          <Input
-            autoFocus
-            type={isTextInput ? 'text' : 'number'}
-            value={inlineValue}
-            placeholder={placeholder}
-            onChange={(event) => setInlineValue(event.target.value)}
-            onBlur={() => handleInlineSubmit(service)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault()
-                handleInlineSubmit(service)
-              } else if (event.key === 'Escape') {
-                event.preventDefault()
-                cancelInlineEdit()
-              }
-            }}
-            className={cn('h-8 w-full', isTextInput ? 'text-right' : 'text-center')}
-          />
+          <div className="flex items-center gap-1 flex-1">
+            <Input
+              autoFocus
+              type={isTextInput ? 'text' : 'number'}
+              value={inlineValue}
+              placeholder={placeholder}
+              onChange={(event) => setInlineValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  handleInlineSubmit(service)
+                } else if (event.key === 'Escape') {
+                  event.preventDefault()
+                  cancelInlineEdit()
+                }
+              }}
+              className={cn('h-8 flex-1', isTextInput ? 'text-right' : 'text-center')}
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+              onClick={() => handleInlineSubmit(service)}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={cancelInlineEdit}
+              disabled={isLoading}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         ) : (
           <button
             type="button"
@@ -527,8 +550,6 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                 <TableHead className="text-right font-semibold">שם השירות</TableHead>
                 <TableHead className="w-28 text-right font-semibold">מחיר בסיס</TableHead>
                 <TableHead className="w-28 text-right font-semibold">זמן בסיס</TableHead>
-                <TableHead className="w-32 text-right font-semibold">כיסוי עמדות</TableHead>
-                <TableHead className="w-40 text-right font-semibold">טווח מחירים</TableHead>
                 <TableHead className="w-28 text-center font-semibold">פעיל</TableHead>
                 <TableHead className="w-32 text-center font-semibold">תור מרחוק</TableHead>
                 <TableHead className="w-32 text-center font-semibold">אישור צוות</TableHead>
@@ -538,7 +559,7 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
             <TableBody>
               {(!serviceStats || serviceStats.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={10} className="py-10 text-center text-gray-500">
+                  <TableCell colSpan={8} className="py-10 text-center text-gray-500">
                     אין עדיין שירותים במערכת. צרו שירות חדש כדי להתחיל.
                   </TableCell>
                 </TableRow>
@@ -549,7 +570,6 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                 const activeTriState = getTriStateForField(service.id, 'is_active')
                 const remoteTriState = getTriStateForField(service.id, 'remote_booking_allowed')
                 const approvalTriState = getTriStateForField(service.id, 'requires_staff_approval')
-                const activeStationCount = service.stationConfigs.filter((config) => config.is_active && config.station_is_active).length
 
                 return (
                   <Fragment key={service.id}>
@@ -595,30 +615,6 @@ const ServiceLibrary = ({ defaultExpandedServiceId = null }: ServiceLibraryProps
                           undefined,
                           'min-w-[90px]'
                         )}
-                      </TableCell>
-                      <TableCell className="text-right align-middle text-gray-700">
-                        {activeStationCount} מתוך {service.totalStationsCount}
-                      </TableCell>
-                      <TableCell className="text-right align-middle text-gray-700">
-                        <div className="flex items-center justify-end gap-2">
-                          {renderEditableValue(
-                            service,
-                            'minPrice',
-                            formatCurrency(service.priceRange.min),
-                            service.priceRange.min,
-                            undefined,
-                            'min-w-[70px]'
-                          )}
-                          <span className="text-xs text-gray-400">–</span>
-                          {renderEditableValue(
-                            service,
-                            'maxPrice',
-                            formatCurrency(service.priceRange.max),
-                            service.priceRange.max,
-                            undefined,
-                            'min-w-[70px]'
-                          )}
-                        </div>
                       </TableCell>
                       {(Object.keys(parentFieldLabels) as ParentField[]).map((field) => {
                         const triState =

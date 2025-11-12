@@ -196,7 +196,7 @@ export default function WaitingListPage() {
     const searchTreatmentNames = async (searchTerm: string): Promise<string[]> => {
         const trimmedTerm = searchTerm.trim()
         let query = supabase
-            .from("treatments")
+            .from("services")
             .select("name")
             .not("name", "is", null)
 
@@ -250,9 +250,9 @@ export default function WaitingListPage() {
                 return
             }
 
-            // Get unique customer and treatment IDs
+            // Get unique customer and service IDs
             const customerIds = [...new Set(waitlistData.map(e => e.customer_id))]
-            const treatmentIds = [...new Set(waitlistData.map(e => e.treatment_id).filter((id): id is string => Boolean(id)))]
+            const serviceIds = [...new Set(waitlistData.map(e => e.service_id).filter((id): id is string => Boolean(id)))]
 
             // Fetch customers
             const { data: customersData } = await supabase
@@ -260,64 +260,36 @@ export default function WaitingListPage() {
                 .select("id, full_name, phone, email")
                 .in("id", customerIds)
 
-            // Fetch treatments with treatmentTypes
-            let treatmentsData: any[] = []
-            if (treatmentIds.length > 0) {
-                const { data: fetchedTreatments } = await supabase
-                    .from("treatments")
+            // Fetch services (treatments table no longer exists)
+            let servicesData: any[] = []
+            if (serviceIds.length > 0) {
+                const { data: fetchedServices } = await supabase
+                    .from("services")
                     .select(
-                        "id, name, treatment_type_id, treatmentType:treatment_types (id, name, default_duration_minutes, default_price)"
+                        "id, name, description, category"
                     )
-                    .in("id", treatmentIds)
-                treatmentsData = fetchedTreatments || []
+                    .in("id", serviceIds)
+                servicesData = fetchedServices || []
             }
-
-            // Fetch treatmentType types and categories
-            const treatmentTypeIds = [...new Set((treatmentsData || []).map(d => d.treatment_type_id).filter(Boolean))]
-
-            const [typesData, categoriesData] = await Promise.all([
-                treatmentTypeIds.length > 0
-                    ? supabase
-                        .from("treatmentType_treatment_types")
-                        .select("treatment_type_id, treatment_type:treatment_types (id, name)")
-                        .in("treatment_type_id", treatmentTypeIds)
-                    : { data: [], error: null },
-                treatmentTypeIds.length > 0
-                    ? supabase
-                        .from("treatmentType_treatment_categories")
-                        .select("treatment_type_id, treatment_category_id, treatment_category:treatment_categories (id, name)")
-                        .in("treatment_type_id", treatmentTypeIds)
-                    : { data: [], error: null }
-            ])
 
             // Build lookup maps
             const customersMap = new Map((customersData || []).map(c => [c.id, c]))
-            const treatmentsMap = new Map((treatmentsData || []).map(d => [d.id, d]))
-            const typesByTreatmentType = new Map<string, any[]>()
-            const categoriesByTreatmentType = new Map<string, any[]>()
-
-                ; (typesData.data || []).forEach((row: any) => {
-                    if (!typesByTreatmentType.has(row.treatment_type_id)) typesByTreatmentType.set(row.treatment_type_id, [])
-                    if (row.treatment_type) typesByTreatmentType.get(row.treatment_type_id)!.push(row.treatment_type)
-                })
-
-                ; (categoriesData.data || []).forEach((row: any) => {
-                    if (!categoriesByTreatmentType.has(row.treatment_type_id)) categoriesByTreatmentType.set(row.treatment_type_id, [])
-                    if (row.treatment_category) categoriesByTreatmentType.get(row.treatment_type_id)!.push(row.treatment_category)
-                })
+            const servicesMap = new Map((servicesData || []).map(d => [d.id, d]))
 
             // Transform the data
             const transformedData: WaitlistEntry[] = waitlistData.map((entry: any) => {
-                const treatment = treatmentsMap.get(entry.treatment_id)
-                const treatmentTypeId = treatment?.treatment_type_id
+                const service = servicesMap.get(entry.service_id)
 
                 return {
                     ...entry,
                     customer: customersMap.get(entry.customer_id) || undefined,
-                    treatment: treatment ? {
-                        ...treatment,
-                        treatment_types: treatmentTypeId ? (typesByTreatmentType.get(treatmentTypeId) || []) : [],
-                        treatment_categories: treatmentTypeId ? (categoriesByTreatmentType.get(treatmentTypeId) || []) : []
+                    treatment: service ? {
+                        id: service.id,
+                        name: service.name,
+                        treatment_type_id: null, // Services don't have treatment_type_id
+                        treatmentType: service.category ? { id: "", name: service.category } : null,
+                        treatment_types: [],
+                        treatment_categories: []
                     } : undefined
                 }
             })

@@ -1719,7 +1719,7 @@ const ManagerSchedule = () => {
 
       const { data: waitlistData, error: waitlistError } = await supabase
         .from("waitlist")
-        .select("id, customer_id, treatment_id, service_scope, status, start_date, end_date, notes, created_at, updated_at")
+        .select("id, customer_id, service_id, service_scope, status, start_date, end_date, notes, created_at, updated_at")
         .eq("status", "active")
         .order("created_at", { ascending: false })
 
@@ -1743,7 +1743,7 @@ const ManagerSchedule = () => {
       }
 
       const customerIds = [...new Set(relevantEntries.map((entry) => entry.customer_id).filter(Boolean))]
-      const treatmentIds = [...new Set(relevantEntries.map((entry) => entry.treatment_id).filter(Boolean))]
+      const serviceIds = [...new Set(relevantEntries.map((entry) => entry.service_id).filter(Boolean))]
 
       const customerQuery = customerIds.length
         ? supabase
@@ -1762,117 +1762,52 @@ const ManagerSchedule = () => {
           .in("id", customerIds)
         : Promise.resolve({ data: [], error: null })
 
-      const treatmentQuery = treatmentIds.length
+      const serviceQuery = serviceIds.length
         ? supabase
-          .from("treatments")
+          .from("services")
           .select(`
                 id,
                 name,
-                treatment_type_id,
-                customer_id,
-                treatmentType:treatment_types (
-                    id,
-                    name
-                )
+                description,
+                category
             `)
-          .in("id", treatmentIds)
+          .in("id", serviceIds)
         : Promise.resolve({ data: [], error: null })
 
-      const [{ data: customersData, error: customersError }, { data: treatmentsData, error: treatmentsError }] = await Promise.all([
+      const [{ data: customersData, error: customersError }, { data: servicesData, error: servicesError }] = await Promise.all([
         customerQuery,
-        treatmentQuery,
+        serviceQuery,
       ])
 
       if (customersError) {
         throw customersError
       }
-      if (treatmentsError) {
-        throw treatmentsError
-      }
-
-      const treatmentTypeIds = [...new Set((treatmentsData || []).map((treatment: any) => treatment?.treatment_type_id).filter(Boolean))]
-
-      const typesQuery = treatmentTypeIds.length
-        ? supabase
-          .from("treatmentType_treatment_types")
-          .select(`
-              treatment_type_id,
-              treatment_type_id,
-              treatment_type:treatment_types (
-                id,
-                name
-              )
-            `)
-          .in("treatment_type_id", treatmentTypeIds)
-        : Promise.resolve({ data: [], error: null })
-
-      const categoriesQuery = treatmentTypeIds.length
-        ? supabase
-          .from("treatmentType_treatment_categories")
-          .select(`
-              treatment_type_id,
-              treatment_category_id,
-              treatment_category:treatment_categories (
-                id,
-                name
-              )
-            `)
-          .in("treatment_type_id", treatmentTypeIds)
-        : Promise.resolve({ data: [], error: null })
-
-      const [{ data: typesData, error: typesError }, { data: categoriesData, error: categoriesError }] = await Promise.all([
-        typesQuery,
-        categoriesQuery,
-      ])
-
-      if (typesError) {
-        throw typesError
-      }
-      if (categoriesError) {
-        throw categoriesError
+      if (servicesError) {
+        throw servicesError
       }
 
       const customersMap = new Map<string, any>((customersData || []).map((customer: any) => [customer.id, customer]))
-      const treatmentsMap = new Map<string, any>((treatmentsData || []).map((treatment: any) => [treatment.id, treatment]))
-      const typesByTreatmentType = new Map<string, Array<{ id: string; name: string }>>()
-      const categoriesByTreatmentType = new Map<string, Array<{ id: string; name: string }>>()
-
-        ; (typesData || []).forEach((row: any) => {
-          if (!row?.treatment_type_id || !row?.treatment_type) return
-          if (!typesByTreatmentType.has(row.treatment_type_id)) {
-            typesByTreatmentType.set(row.treatment_type_id, [])
-          }
-          typesByTreatmentType.get(row.treatment_type_id)!.push({ id: row.treatment_type.id, name: row.treatment_type.name })
-        })
-
-        ; (categoriesData || []).forEach((row: any) => {
-          if (!row?.treatment_type_id || !row?.treatment_category) return
-          if (!categoriesByTreatmentType.has(row.treatment_type_id)) {
-            categoriesByTreatmentType.set(row.treatment_type_id, [])
-          }
-          categoriesByTreatmentType.get(row.treatment_type_id)!.push({ id: row.treatment_category.id, name: row.treatment_category.name })
-        })
+      const servicesMap = new Map<string, any>((servicesData || []).map((service: any) => [service.id, service]))
 
       const transformed: ManagerWaitlistEntry[] = relevantEntries.map((entry) => {
         const customer = customersMap.get(entry.customer_id)
-        const treatment = treatmentsMap.get(entry.treatment_id)
-        const treatmentTypeId = treatment?.treatment_type_id
+        const service = servicesMap.get(entry.service_id)
 
         return {
           id: entry.id,
-          treatmentId: entry.treatment_id,
-          treatmentName: treatment?.name || "ללא שם",
-          treatmentRecordId: treatment?.record_id ?? null,
-          treatmentRecordNumber: treatment?.record_number ?? null,
-          treatmentTypeName: treatment?.treatmentType?.name ?? null,
+          treatmentId: entry.service_id || "", // Using service_id as treatmentId for compatibility
+          treatmentName: service?.name || "ללא שם",
+          treatmentRecordId: null,
+          treatmentRecordNumber: null,
+          treatmentTypeName: service?.category ?? null,
           customerId: entry.customer_id,
           customerName: customer?.full_name ?? null,
           customerPhone: customer?.phone ?? null,
           customerEmail: customer?.email ?? null,
           customerTypeId: customer?.customer_type_id ?? null,
           customerTypeName: customer?.customer_type?.name ?? null,
-          treatmentTypes: treatmentTypeId ? [...(typesByTreatmentType.get(treatmentTypeId) ?? [])] : [],
-          treatmentCategories: treatmentTypeId ? [...(categoriesByTreatmentType.get(treatmentTypeId) ?? [])] : [],
+          treatmentTypes: [],
+          treatmentCategories: [],
           serviceScope: entry.service_scope as WaitlistServiceScope,
           startDate: entry.start_date,
           endDate: entry.end_date,

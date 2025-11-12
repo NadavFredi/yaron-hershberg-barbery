@@ -498,81 +498,53 @@ export const supabaseApi = createApi({
         serviceType?: "grooming" | "garden" | "both"
       }) {
         try {
-          // Get the treatment's treatment_type_id
-          const { data: treatmentData, error: treatmentError } = await supabase
-            .from("treatments")
-            .select("treatment_type_id")
-            .eq("id", treatmentId)
-            .single()
-
-          if (treatmentError || !treatmentData) {
-            throw new Error(`Treatment with ID ${treatmentId} not found: ${treatmentError?.message || "Unknown error"}`)
-          }
-
-          if (!treatmentData.treatment_type_id) {
-            console.warn("⚠️ [supabaseApi] Treatment has no treatment_type_id, returning unsupported duration", {
-              treatmentId,
-              stationId,
-            })
-            return {
-              data: {
-                supported: false,
-                treatmentId,
-                treatmentTypeId: null,
-                stationId,
-                message: "ללקוח לא מוגדר סוג שירות. אנא הגדירו סוג שירות ללקוח לפני קביעת התור.",
-              },
-            }
-          }
-
-          const treatmentTypeId = treatmentData.treatment_type_id
+          // Note: treatmentId is actually serviceId now (for backward compatibility)
+          const serviceId = treatmentId
 
           if (serviceType === "grooming") {
-            // Fetch station-treatmentType rule (single source of truth for grooming durations)
-            const { data: ruleData, error: ruleError } = await supabase
-              .from("station_treatmentType_rules")
-              .select("duration_modifier_minutes, is_active")
+            // Fetch service-station matrix (single source of truth for service durations at stations)
+            const { data: matrixData, error: matrixError } = await supabase
+              .from("service_station_matrix")
+              .select("base_time_minutes")
+              .eq("service_id", serviceId)
               .eq("station_id", stationId)
-              .eq("treatment_type_id", treatmentTypeId)
               .maybeSingle()
 
-            if (ruleError) {
-              throw new Error(`Failed to fetch station-treatmentType configuration: ${ruleError.message}`)
+            if (matrixError) {
+              throw new Error(`Failed to fetch service-station configuration: ${matrixError.message}`)
             }
 
-            if (!ruleData || !ruleData.is_active) {
-              console.warn("⚠️ [supabaseApi] No active station_treatmentType_rules entry found", {
-                treatmentId,
-                treatmentTypeId,
+            if (!matrixData) {
+              console.warn("⚠️ [supabaseApi] No service_station_matrix entry found", {
+                serviceId,
                 stationId,
               })
               return {
                 data: {
                   supported: false,
-                  treatmentId,
-                  treatmentTypeId,
+                  treatmentId: serviceId,
+                  treatmentTypeId: null,
                   stationId,
                   message: "העמדה שנבחרה אינה תומכת בשירות זה.",
                 },
               }
             }
 
-            const durationMinutes = ruleData.duration_modifier_minutes ?? null
+            const durationMinutes = matrixData.base_time_minutes ?? 60
 
-            if (durationMinutes === null || durationMinutes <= 0) {
-              console.warn("⚠️ [supabaseApi] station_treatmentType_rules returned invalid duration", {
-                treatmentId,
-                treatmentTypeId,
+            if (durationMinutes <= 0) {
+              console.warn("⚠️ [supabaseApi] service_station_matrix returned invalid duration", {
+                serviceId,
                 stationId,
                 durationMinutes,
               })
               return {
                 data: {
                   supported: false,
-                  treatmentId,
-                  treatmentTypeId,
+                  treatmentId: serviceId,
+                  treatmentTypeId: null,
                   stationId,
-                  message: "לא הוגדר משך תספורת עבור הגזע בעמדה זו.",
+                  message: "לא הוגדר משך שירות עבור העמדה הזו.",
                 },
               }
             }
@@ -582,8 +554,8 @@ export const supabaseApi = createApi({
             return {
               data: {
                 supported: true,
-                treatmentId,
-                treatmentTypeId,
+                treatmentId: serviceId,
+                treatmentTypeId: null,
                 stationId,
                 durationSeconds,
                 durationMinutes,
@@ -597,8 +569,8 @@ export const supabaseApi = createApi({
             return {
               data: {
                 supported: true,
-                treatmentId,
-                treatmentTypeId,
+                treatmentId: serviceId,
+                treatmentTypeId: null,
                 stationId,
                 durationSeconds,
                 durationMinutes: defaultGardenMinutes,
@@ -1787,65 +1759,40 @@ export const supabaseApi = createApi({
             }
           }
 
-          // Query treatments with treatmentType information
-          const { data: treatmentsData, error: treatmentsError } = await supabase
-            .from("treatments")
+          // Query services (treatments table no longer exists, services are global)
+          const { data: servicesData, error: servicesError } = await supabase
+            .from("services")
             .select(
               `
               id,
               name,
-              gender,
-              is_small,
-              customer_id,
-              treatmentDetails:treatment_type_id (
-                id,
-                name,
-                default_duration_minutes,
-                default_price,
-                color_hex
-              )
+              description,
+              category
             `
             )
-            .eq("customer_id", customerId)
+            .order("display_order", { ascending: true })
 
-          if (treatmentsError) {
-            console.error("❌ [listOwnerTreatments] Treatments error:", treatmentsError)
-            return { error: { status: "SUPABASE_ERROR", data: treatmentsError.message } }
+          if (servicesError) {
+            console.error("❌ [listOwnerTreatments] Services error:", servicesError)
+            return { error: { status: "SUPABASE_ERROR", data: servicesError.message } }
           }
 
-          // Transform treatments to match expected structure
-          interface TreatmentWithTreatmentType {
-            id: string
-            name: string | null
-            gender: "male" | "female" | null
-            is_small: boolean | null
-            customer_id: string
-            treatmentDetails: {
-              id: string
-              name: string
-              default_duration_minutes: number | null
-              default_price: number | null
-              color_hex: string | null
-            } | null
-          }
-
+          // Transform services to match expected treatment structure (for compatibility)
           const appointmentHistoryByTreatment: Record<string, boolean> = {}
 
-          const treatments = (treatmentsData || []).map((treatment: TreatmentWithTreatmentType) => {
-            const treatmentType = treatment.treatmentDetails || null
-
+          const treatments = (servicesData || []).map((service: any) => {
             return {
-              id: treatment.id,
-              name: treatment.name || "",
-              gender: treatment.gender,
-              treatmentType: treatmentType?.name || "",
-              size: treatmentType?.default_duration_minutes ? `${treatmentType.default_duration_minutes} דקות` : "",
-              isSmall: treatment.is_small === true,
-              ownerId: treatment.customer_id,
-              hasAppointmentHistory: Boolean(appointmentHistoryByTreatment[treatment.id]),
+              id: service.id,
+              name: service.name || "",
+              gender: null as "male" | "female" | null,
+              treatmentType: service.category || "",
+              size: "",
+              isSmall: false,
+              ownerId: customerId, // Use customerId for compatibility
+              hasAppointmentHistory: Boolean(appointmentHistoryByTreatment[service.id]),
               requiresSpecialApproval: false,
-              groomingMinPrice: treatmentType?.default_price ? Number(treatmentType.default_price) : null,
-              groomingMaxPrice: treatmentType?.default_price ? Number(treatmentType.default_price) : null,
+              groomingMinPrice: null,
+              groomingMaxPrice: null,
               hasBeenToGarden: undefined,
               questionnaireSuitableForGarden: undefined,
               staffApprovedForGarden: undefined,

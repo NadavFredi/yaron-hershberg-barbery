@@ -46,24 +46,9 @@ export async function searchCustomers(searchTerm: string): Promise<{
     // Get all customer IDs
     const customerIds = customersData.map((c) => c.id)
 
-    // Fetch treatments for all customers at once
-    const { data: treatmentsData, error: treatmentsError } = await supabase
-      .from("treatments")
-      .select("id, name, customer_id")
-      .in("customer_id", customerIds)
-
-    if (treatmentsError) {
-      console.warn("Error fetching treatments for customers:", treatmentsError)
-    }
-
-    // Group treatments by customer_id
+    // Treatments table no longer exists - services are global, not per-customer
+    // So we just use empty treatments for all customers
     const treatmentsByCustomer: Record<string, string[]> = {}
-    treatmentsData?.forEach((treatment) => {
-      if (!treatmentsByCustomer[treatment.customer_id]) {
-        treatmentsByCustomer[treatment.customer_id] = []
-      }
-      treatmentsByCustomer[treatment.customer_id].push(treatment.name)
-    })
 
     // Build result array
     customersData.forEach((customer) => {
