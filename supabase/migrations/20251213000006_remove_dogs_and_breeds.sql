@@ -3,6 +3,8 @@
 
 -- Step 1: Drop foreign key constraints that reference dogs or breeds
 DO $$
+DECLARE
+  r RECORD;
 BEGIN
   -- Drop foreign key constraints on columns referencing dogs/breeds
   
@@ -143,13 +145,38 @@ DROP INDEX IF EXISTS public.idx_breed_modifiers_breed;
 DROP INDEX IF EXISTS public.idx_station_breed_rules_breed;
 
 -- Step 3: Drop columns that reference dogs/breeds
-ALTER TABLE public.grooming_appointments DROP COLUMN IF EXISTS dog_id;
-ALTER TABLE public.daycare_appointments DROP COLUMN IF EXISTS dog_id;
-ALTER TABLE public.daycare_waitlist DROP COLUMN IF EXISTS dog_id;
-ALTER TABLE public.garden_questionnaires DROP COLUMN IF EXISTS dog_id;
-ALTER TABLE public.ticket_usages DROP COLUMN IF EXISTS dog_id;
-ALTER TABLE public.proposed_meetings DROP COLUMN IF EXISTS reschedule_dog_id;
-ALTER TABLE public.proposed_meeting_invites DROP COLUMN IF EXISTS dog_id;
+DO $$
+BEGIN
+  -- Drop columns only if tables exist
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'grooming_appointments') THEN
+    ALTER TABLE public.grooming_appointments DROP COLUMN IF EXISTS dog_id;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'daycare_appointments') THEN
+    ALTER TABLE public.daycare_appointments DROP COLUMN IF EXISTS dog_id;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'daycare_waitlist') THEN
+    ALTER TABLE public.daycare_waitlist DROP COLUMN IF EXISTS dog_id;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'garden_questionnaires') THEN
+    ALTER TABLE public.garden_questionnaires DROP COLUMN IF EXISTS dog_id;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ticket_usages') THEN
+    ALTER TABLE public.ticket_usages DROP COLUMN IF EXISTS dog_id;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'proposed_meetings') THEN
+    ALTER TABLE public.proposed_meetings DROP COLUMN IF EXISTS reschedule_dog_id;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'proposed_meeting_invites') THEN
+    ALTER TABLE public.proposed_meeting_invites DROP COLUMN IF EXISTS dog_id;
+  END IF;
+END;
+$$;
 
 -- Step 4: Drop junction/bridge tables related to breeds/dogs
 DROP TABLE IF EXISTS public.breed_dog_categories CASCADE;

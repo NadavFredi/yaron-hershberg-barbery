@@ -19,27 +19,13 @@ interface ClientDetail {
     fullName: string
     customerTypeName: string
     createdAt: string
-    dogCount: number
-}
-
-interface DogDetail {
-    id: string
-    customerId: string
-    customerName: string
-    breedName: string
-    categoryNames: string[]
 }
 
 interface ClientsData {
     totalClients: number
-    totalDogs: number
     byCustomerType: Array<{ name: string; count: number }>
-    byBreed: Array<{ name: string; count: number }>
-    byCategory: Array<{ name: string; count: number }>
     byDate: Array<{ date: string; count: number }>
-    byDogsPerClient: Array<{ range: string; count: number }>
     allClients: ClientDetail[]
-    allDogs: DogDetail[]
 }
 
 // Helper function to safely format dates
@@ -92,83 +78,15 @@ export default function ClientsReport() {
 
             if (customersError) throw customersError
 
-            // Fetch dogs with breeds and categories
-            const { data: dogs, error: dogsError } = await supabase
-                .from("dogs")
-                .select(`
-                    id,
-                    customer_id,
-                    breed_id,
-                    breeds (
-                        id,
-                        name
-                    )
-                `)
-
-            if (dogsError) throw dogsError
-
-            // Fetch customer names for dogs
-            const customerIds = dogs?.map((d) => d.customer_id).filter(Boolean) || []
-            let customerMap = new Map<string, { id: string; full_name: string }>()
-
-            if (customerIds.length > 0) {
-                const { data: customersData, error: customersError2 } = await supabase
-                    .from("customers")
-                    .select("id, full_name")
-                    .in("id", [...new Set(customerIds)])
-
-                if (customersData) {
-                    customersData.forEach((c: any) => {
-                        customerMap.set(c.id, c)
-                    })
-                }
-            }
-
-            // Fetch breed categories
-            const breedIds = dogs?.map((d) => d.breed_id).filter(Boolean) || []
-            let breedCategories: Record<string, string[]> = {}
-            if (breedIds.length > 0) {
-                const { data: categoriesData } = await supabase
-                    .from("breed_dog_categories")
-                    .select(`
-                        breed_id,
-                        dog_category:dog_categories (
-                            id,
-                            name
-                        )
-                    `)
-                    .in("breed_id", breedIds)
-
-                if (categoriesData) {
-                    categoriesData.forEach((item: any) => {
-                        const breedId = item.breed_id
-                        const categoryName = item.dog_category?.name
-                        if (breedId && categoryName) {
-                            if (!breedCategories[breedId]) {
-                                breedCategories[breedId] = []
-                            }
-                            breedCategories[breedId].push(categoryName)
-                        }
-                    })
-                }
-            }
-
-            // Aggregate data
+            // Aggregate data (no dogs in barbershop)
             const byCustomerType: Record<string, number> = {}
-            const byBreed: Record<string, number> = {}
-            const byCategory: Record<string, number> = {}
             const byDate: Record<string, number> = {}
-            const dogsPerClient: Record<string, number> = {}
 
             // Build all clients detail array
             const allClients: ClientDetail[] = []
             customers?.forEach((customer) => {
                 const typeName = customer.customer_type?.name || "ללא סוג"
                 byCustomerType[typeName] = (byCustomerType[typeName] || 0) + 1
-
-                // Count dogs per client
-                const clientDogs = dogs?.filter((d) => d.customer_id === customer.id) || []
-                dogsPerClient[customer.id] = clientDogs.length
 
                 // Count by date (for all customers - filtering happens later)
                 if (customer.created_at) {
@@ -181,32 +99,6 @@ export default function ClientsReport() {
                     fullName: customer.full_name || "ללא שם",
                     customerTypeName: typeName,
                     createdAt: customer.created_at || "",
-                    dogCount: clientDogs.length,
-                })
-            })
-
-            // Build all dogs detail array
-            const allDogs: DogDetail[] = []
-            dogs?.forEach((dog) => {
-                const breedName = dog.breeds?.name || "ללא גזע"
-                byBreed[breedName] = (byBreed[breedName] || 0) + 1
-
-                const breedId = dog.breed_id
-                const categoryNames: string[] = []
-                if (breedId && breedCategories[breedId]) {
-                    breedCategories[breedId].forEach((categoryName) => {
-                        byCategory[categoryName] = (byCategory[categoryName] || 0) + 1
-                        categoryNames.push(categoryName)
-                    })
-                }
-
-                const customer = customerMap.get(dog.customer_id) || { id: dog.customer_id, full_name: "ללא שם" }
-                allDogs.push({
-                    id: dog.id,
-                    customerId: dog.customer_id,
-                    customerName: customer.full_name,
-                    breedName,
-                    categoryNames,
                 })
             })
 
