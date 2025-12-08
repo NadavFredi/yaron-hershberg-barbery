@@ -14,7 +14,8 @@ import {
   CreditCard,
   Ticket,
   BarChart3,
-  Bell
+  Bell,
+  Wrench
 } from "lucide-react"
 
 interface ManagerSubnavProps {
@@ -91,6 +92,14 @@ export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
     icon: UserCog,
     match: (pathname, sectionParam) =>
       pathname === "/manager-screens" && sectionParam === "workers"
+  },
+  {
+    id: "services",
+    to: "/manager-screens?section=services",
+    label: "שירותים",
+    icon: Wrench,
+    match: (pathname, sectionParam) =>
+      pathname === "/manager-screens" && sectionParam === "services"
   },
   {
     id: "products",

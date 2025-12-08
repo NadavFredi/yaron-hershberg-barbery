@@ -1,6 +1,5 @@
 -- Add missing tables that the codebase expects
--- This migration creates compatibility tables that map to the treatment-based schema
--- Note: "dog_id" in these tables actually references treatments.id (treatments = human clients)
+-- This migration creates tables that work with the treatment-based schema (no dogs/breeds)
 
 -- Enums ----------------------------------------------------------------------
 DO $$
@@ -27,48 +26,6 @@ BEGIN
 END;
 $$;
 
--- Breeds table (minimal - treatments use treatment_types, not breeds) ------
--- This is kept for compatibility but may not be used
-CREATE TABLE IF NOT EXISTS public.breeds (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  airtable_id TEXT UNIQUE,
-  size_class TEXT,
-  min_groom_price NUMERIC(10,2),
-  max_groom_price NUMERIC(10,2),
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_breeds_name ON public.breeds(name);
-
--- Dogs view (maps to treatments) --------------------------------------------
--- This view allows the code to query "dogs" but it actually uses treatments
-CREATE OR REPLACE VIEW public.dogs AS
-SELECT 
-  t.id,
-  t.customer_id,
-  t.name,
-  NULL::UUID as breed_id,  -- treatments don't have breeds
-  CASE 
-    WHEN t.gender = 'male' THEN 'male'::text
-    WHEN t.gender = 'female' THEN 'female'::text
-    ELSE 'unknown'::text
-  END as gender,
-  t.birth_date,
-  t.notes as health_notes,
-  NULL::TEXT as vet_name,
-  NULL::TEXT as vet_phone,
-  t.notes as staff_notes,
-  t.is_small,
-  NULL::BOOLEAN as aggression_risk,
-  NULL::BOOLEAN as people_anxious,
-  'not_required'::public.questionnaire_result as questionnaire_result,
-  NULL::TEXT as image_url,
-  NULL::TEXT as airtable_id,
-  t.created_at,
-  t.updated_at
-FROM public.treatments t;
-
 -- Daily notes table ----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.daily_notes (
   date DATE PRIMARY KEY,
@@ -78,11 +35,11 @@ CREATE TABLE IF NOT EXISTS public.daily_notes (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Daycare waitlist table (maps treatment_id to dog_id for compatibility) ---
+-- Daycare waitlist table (treatment_id is nullable, no FK since treatments table was dropped)
 CREATE TABLE IF NOT EXISTS public.daycare_waitlist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
-  dog_id UUID NOT NULL REFERENCES public.treatments(id) ON DELETE CASCADE,  -- dog_id = treatment_id
+  treatment_id UUID,  -- No FK constraint since treatments table doesn't exist
   service_scope public.service_scope NOT NULL DEFAULT 'daycare',
   status public.waitlist_status NOT NULL DEFAULT 'active',
   start_date DATE NOT NULL,
@@ -95,15 +52,15 @@ CREATE TABLE IF NOT EXISTS public.daycare_waitlist (
 );
 
 CREATE INDEX IF NOT EXISTS idx_daycare_waitlist_customer ON public.daycare_waitlist(customer_id);
-CREATE INDEX IF NOT EXISTS idx_daycare_waitlist_dog ON public.daycare_waitlist(dog_id);
+CREATE INDEX IF NOT EXISTS idx_daycare_waitlist_treatment ON public.daycare_waitlist(treatment_id);
 CREATE INDEX IF NOT EXISTS idx_daycare_waitlist_status ON public.daycare_waitlist(status);
 CREATE INDEX IF NOT EXISTS idx_daycare_waitlist_dates ON public.daycare_waitlist(start_date, end_date);
 
--- Grooming appointments table (maps treatment_id to dog_id for compatibility)
+-- Grooming appointments table (treatment_id is nullable, no FK since treatments table was dropped)
 CREATE TABLE IF NOT EXISTS public.grooming_appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
-  dog_id UUID NOT NULL REFERENCES public.treatments(id) ON DELETE CASCADE,  -- dog_id = treatment_id
+  treatment_id UUID,  -- No FK constraint since treatments table doesn't exist
   service_id UUID REFERENCES public.services(id) ON DELETE SET NULL,
   station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
   status public.appointment_status NOT NULL DEFAULT 'scheduled',
@@ -126,14 +83,14 @@ CREATE TABLE IF NOT EXISTS public.grooming_appointments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_grooming_appointments_customer ON public.grooming_appointments(customer_id, start_at);
-CREATE INDEX IF NOT EXISTS idx_grooming_appointments_dog ON public.grooming_appointments(dog_id, start_at);
+CREATE INDEX IF NOT EXISTS idx_grooming_appointments_treatment ON public.grooming_appointments(treatment_id, start_at);
 CREATE INDEX IF NOT EXISTS idx_grooming_appointments_station ON public.grooming_appointments(station_id, start_at) WHERE status <> 'cancelled';
 
--- Daycare appointments table (maps treatment_id to dog_id for compatibility)
+-- Daycare appointments table (treatment_id is nullable, no FK since treatments table was dropped)
 CREATE TABLE IF NOT EXISTS public.daycare_appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
-  dog_id UUID NOT NULL REFERENCES public.treatments(id) ON DELETE CASCADE,  -- dog_id = treatment_id
+  treatment_id UUID,  -- No FK constraint since treatments table doesn't exist
   station_id UUID REFERENCES public.stations(id) ON DELETE SET NULL,
   status public.appointment_status NOT NULL DEFAULT 'scheduled',
   payment_status public.payment_status NOT NULL DEFAULT 'unpaid',
@@ -157,28 +114,39 @@ CREATE TABLE IF NOT EXISTS public.daycare_appointments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_daycare_appointments_customer ON public.daycare_appointments(customer_id, start_at);
-CREATE INDEX IF NOT EXISTS idx_daycare_appointments_dog ON public.daycare_appointments(dog_id, start_at);
+CREATE INDEX IF NOT EXISTS idx_daycare_appointments_treatment ON public.daycare_appointments(treatment_id, start_at);
 CREATE INDEX IF NOT EXISTS idx_daycare_appointments_station ON public.daycare_appointments(station_id, start_at) WHERE status <> 'cancelled';
 
 -- Triggers to maintain updated_at -------------------------------------------
-CREATE TRIGGER set_updated_at_daily_notes
-  BEFORE UPDATE ON public.daily_notes
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_updated_at_daily_notes') THEN
+    CREATE TRIGGER set_updated_at_daily_notes
+      BEFORE UPDATE ON public.daily_notes
+      FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  END IF;
 
-CREATE TRIGGER set_updated_at_daycare_waitlist
-  BEFORE UPDATE ON public.daycare_waitlist
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_updated_at_daycare_waitlist') THEN
+    CREATE TRIGGER set_updated_at_daycare_waitlist
+      BEFORE UPDATE ON public.daycare_waitlist
+      FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  END IF;
 
-CREATE TRIGGER set_updated_at_grooming_appointments
-  BEFORE UPDATE ON public.grooming_appointments
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_updated_at_grooming_appointments') THEN
+    CREATE TRIGGER set_updated_at_grooming_appointments
+      BEFORE UPDATE ON public.grooming_appointments
+      FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  END IF;
 
-CREATE TRIGGER set_updated_at_daycare_appointments
-  BEFORE UPDATE ON public.daycare_appointments
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_updated_at_daycare_appointments') THEN
+    CREATE TRIGGER set_updated_at_daycare_appointments
+      BEFORE UPDATE ON public.daycare_appointments
+      FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  END IF;
+END;
+$$;
 
 -- Row Level Security ---------------------------------------------------------
-ALTER TABLE public.breeds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daycare_waitlist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.grooming_appointments ENABLE ROW LEVEL SECURITY;
@@ -187,13 +155,6 @@ ALTER TABLE public.daycare_appointments ENABLE ROW LEVEL SECURITY;
 -- Open policies for now (to be hardened later) -------------------------------
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'breeds' AND policyname = 'Allow all operations on breeds'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Allow all operations on breeds" ON public.breeds FOR ALL USING (true);';
-  END IF;
-
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
     WHERE schemaname = 'public' AND tablename = 'daily_notes' AND policyname = 'Allow all operations on daily_notes'
@@ -223,3 +184,4 @@ BEGIN
   END IF;
 END;
 $$;
+

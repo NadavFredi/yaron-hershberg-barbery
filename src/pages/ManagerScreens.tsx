@@ -8,13 +8,14 @@ import WaitingListPage from "@/pages/WaitingListPage"
 import CustomersSection from "@/pages/CustomersSection"
 import AppointmentsSection from "@/pages/AppointmentsSection"
 import WorkersSection from "@/pages/WorkersSection"
+import ServicesSection from "@/pages/ServicesSection"
 import ProductsSection from "@/pages/ProductsSection"
 import PaymentsSection from "@/pages/PaymentsSection"
 import SubscriptionsSection from "@/pages/SubscriptionsSection"
 import ReportsSection from "@/pages/ReportsSection"
 import RemindersPage from "@/pages/RemindersPage"
 
-const VALID_SECTIONS = ["settings", "waiting-list", "customers", "appointments", "workers", "products", "payments", "subscriptions", "reports", "reminders"] as const
+const VALID_SECTIONS = ["settings", "waiting-list", "customers", "appointments", "workers", "services", "products", "payments", "subscriptions", "reports", "reminders"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function ManagerScreens() {
@@ -70,6 +71,7 @@ export default function ManagerScreens() {
                     {activeSection === "customers" && <CustomersSection />}
                     {activeSection === "appointments" && <AppointmentsSection />}
                     {activeSection === "workers" && <WorkersSection />}
+                    {activeSection === "services" && <ServicesSection />}
                     {activeSection === "products" && <ProductsSection />}
                     {activeSection === "payments" && <PaymentsSection />}
                     {activeSection === "subscriptions" && <SubscriptionsSection />}
