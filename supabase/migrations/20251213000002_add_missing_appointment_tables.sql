@@ -77,10 +77,13 @@ CREATE TABLE IF NOT EXISTS public.grooming_appointments (
   billing_triggered_at TIMESTAMP WITH TIME ZONE,
   pickup_reminder_sent_at TIMESTAMP WITH TIME ZONE,
   airtable_id TEXT UNIQUE,
+  client_confirmed_arrival BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   CHECK (end_at > start_at)
 );
+
+COMMENT ON COLUMN public.grooming_appointments.client_confirmed_arrival IS 'Client confirmation that they will arrive for the appointment. Separate from manager approval (status field). Only clients can update this field.';
 
 CREATE INDEX IF NOT EXISTS idx_grooming_appointments_customer ON public.grooming_appointments(customer_id, start_at);
 CREATE INDEX IF NOT EXISTS idx_grooming_appointments_treatment ON public.grooming_appointments(treatment_id, start_at);
