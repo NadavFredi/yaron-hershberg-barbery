@@ -228,86 +228,8 @@ export default function WaitingListPage() {
     const loadWaitlistEntries = async () => {
         setIsLoading(true)
         try {
-            // First, get all waitlist entries
-            const { data: waitlistData, error: waitlistError } = await supabase
-                .from("daycare_waitlist")
-                .select("*")
-                .order("created_at", { ascending: false })
-
-            if (waitlistError) throw waitlistError
-
-            if (!waitlistData || waitlistData.length === 0) {
-                setWaitlistEntries([])
-                setIsLoading(false)
-                return
-            }
-
-            // Get unique customer and dog IDs
-            const customerIds = [...new Set(waitlistData.map(e => e.customer_id))]
-            const dogIds = [...new Set(waitlistData.map(e => e.dog_id))]
-
-            // Fetch customers
-            const { data: customersData } = await supabase
-                .from("customers")
-                .select("id, full_name, phone, email")
-                .in("id", customerIds)
-
-            // Fetch dogs with breeds
-            const { data: dogsData } = await supabase
-                .from("dogs")
-                .select(`
-                    id,
-                    name,
-                    breed_id,
-                    breed:breeds (
-                        id,
-                        name,
-                        size_class
-                    )
-                `)
-                .in("id", dogIds)
-
-            // Fetch breed categories (dog_types was consolidated into dog_categories)
-            const breedIds = [...new Set((dogsData || []).map(d => d.breed_id).filter(Boolean))]
-
-            const categoriesData = breedIds.length > 0
-                ? await supabase
-                    .from("breed_dog_categories")
-                    .select(`
-                        breed_id,
-                        dog_category_id,
-                        dog_category:dog_categories (id, name)
-                    `)
-                    .in("breed_id", breedIds)
-                : { data: [], error: null }
-
-            // Build lookup maps
-            const customersMap = new Map((customersData || []).map(c => [c.id, c]))
-            const dogsMap = new Map((dogsData || []).map(d => [d.id, d]))
-            const categoriesByBreed = new Map<string, any[]>()
-
-            ; (categoriesData.data || []).forEach((row: any) => {
-                if (!categoriesByBreed.has(row.breed_id)) categoriesByBreed.set(row.breed_id, [])
-                if (row.dog_category) categoriesByBreed.get(row.breed_id)!.push(row.dog_category)
-            })
-
-            // Transform the data
-            const transformedData: WaitlistEntry[] = waitlistData.map((entry: any) => {
-                const dog = dogsMap.get(entry.dog_id)
-                const breedId = dog?.breed_id
-
-                return {
-                    ...entry,
-                    customer: customersMap.get(entry.customer_id) || undefined,
-                    dog: dog ? {
-                        ...dog,
-                        dog_types: [], // dog_types was consolidated into dog_categories
-                        dog_categories: breedId ? (categoriesByBreed.get(breedId) || []) : []
-                    } : undefined
-                }
-            })
-
-            setWaitlistEntries(transformedData)
+            // Daycare waitlist doesn't exist in this system - return empty array
+            setWaitlistEntries([])
         } catch (error) {
             console.error("Error loading waitlist entries:", error)
             toast({

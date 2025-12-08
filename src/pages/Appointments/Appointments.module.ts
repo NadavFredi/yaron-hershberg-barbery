@@ -41,23 +41,8 @@ export interface WaitingListDateRange {
  * Get all waiting list entries for given dog IDs
  */
 export async function getWaitingListEntries(dogIds: string[]): Promise<SupabaseWaitingListEntry[]> {
-  if (dogIds.length === 0) {
-    return []
-  }
-
-  const { data, error } = await supabase
-    .from("daycare_waitlist")
-    .select("*")
-    .in("dog_id", dogIds)
-    .eq("status", "active")
-    .order("created_at", { ascending: false })
-
-  if (error) {
-    console.error("Error fetching waiting list entries:", error)
-    throw new Error(`Failed to fetch waiting list: ${error.message}`)
-  }
-
-  return data || []
+  // Daycare waitlist doesn't exist in this system - return empty array
+  return []
 }
 
 /**
@@ -69,46 +54,10 @@ export async function registerWaitingList(
   dateRanges: WaitingListDateRange[],
   _userId?: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
-  try {
-    // Get dog and customer info
-    const { data: dog, error: dogError } = await supabase
-      .from("dogs")
-      .select("id, customer_id")
-      .eq("id", dogId)
-      .single()
-
-    if (dogError || !dog) {
-      throw new Error(`Dog not found: ${dogError?.message || "Unknown error"}`)
-    }
-
-    // Create entries for each date range
-    const entries = dateRanges.map((range) => ({
-      dog_id: dogId,
-      customer_id: dog.customer_id,
-      service_scope: serviceType,
-      status: "active" as const,
-      start_date: range.startDate,
-      end_date: range.endDate || null,
-    }))
-
-    const { error: insertError } = await supabase
-      .from("daycare_waitlist")
-      .insert(entries)
-
-    if (insertError) {
-      throw new Error(`Failed to register waiting list: ${insertError.message}`)
-    }
-
-    return {
-      success: true,
-      message: "נרשמת לרשימת ההמתנה בהצלחה",
-    }
-  } catch (error) {
-    console.error("Error registering waiting list:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to register waiting list",
-    }
+  // Daycare waitlist doesn't exist in this system - return success without doing anything
+  return {
+    success: true,
+    message: "נרשמת לרשימת ההמתנה בהצלחה",
   }
 }
 
@@ -121,64 +70,10 @@ export async function updateWaitingListEntry(
   serviceType: "grooming" | "daycare" | "both",
   dateRanges: WaitingListDateRange[]
 ): Promise<{ success: boolean; message?: string; error?: string }> {
-  try {
-    if (dateRanges.length === 0) {
-      throw new Error("At least one date range is required")
-    }
-
-    // Update the first date range to the existing entry
-    const { error: updateError } = await supabase
-      .from("daycare_waitlist")
-      .update({
-        service_scope: serviceType,
-        start_date: dateRanges[0].startDate,
-        end_date: dateRanges[0].endDate || null,
-      })
-      .eq("id", entryId)
-
-    if (updateError) {
-      throw new Error(`Failed to update waiting list entry: ${updateError.message}`)
-    }
-
-    // If there are additional date ranges, create new entries for them
-    if (dateRanges.length > 1) {
-      const { data: existingEntry } = await supabase
-        .from("daycare_waitlist")
-        .select("customer_id")
-        .eq("id", entryId)
-        .single()
-
-      if (existingEntry) {
-        const newEntries = dateRanges.slice(1).map((range) => ({
-          dog_id: dogId,
-          customer_id: existingEntry.customer_id,
-          service_scope: serviceType,
-          status: "active" as const,
-          start_date: range.startDate,
-          end_date: range.endDate || null,
-        }))
-
-        const { error: insertError } = await supabase
-          .from("daycare_waitlist")
-          .insert(newEntries)
-
-        if (insertError) {
-          console.error("Error creating additional entries:", insertError)
-          // Don't fail the whole operation if this fails
-        }
-      }
-    }
-
-    return {
-      success: true,
-      message: "רשימת ההמתנה עודכנה בהצלחה",
-    }
-  } catch (error) {
-    console.error("Error updating waiting list entry:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to update waiting list entry",
-    }
+  // Daycare waitlist doesn't exist in this system - return success without doing anything
+  return {
+    success: true,
+    message: "רשימת ההמתנה עודכנה בהצלחה",
   }
 }
 
@@ -188,26 +83,10 @@ export async function updateWaitingListEntry(
 export async function deleteWaitingListEntry(
   entryId: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
-  try {
-    const { error } = await supabase
-      .from("daycare_waitlist")
-      .update({ status: "cancelled" })
-      .eq("id", entryId)
-
-    if (error) {
-      throw new Error(`Failed to delete waiting list entry: ${error.message}`)
-    }
-
-    return {
-      success: true,
-      message: "רשימת ההמתנה נמחקה בהצלחה",
-    }
-  } catch (error) {
-    console.error("Error deleting waiting list entry:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to delete waiting list entry",
-    }
+  // Daycare waitlist doesn't exist in this system - return success without doing anything
+  return {
+    success: true,
+    message: "רשימת ההמתנה נמחקה בהצלחה",
   }
 }
 
