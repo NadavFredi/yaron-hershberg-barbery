@@ -70,20 +70,20 @@ serve(async (req) => {
 })
 
 async function getProfileAppointments(profileId: string) {
-  const { data: profile, error: profileError } = await supabase
-    .from("treatments")
-    .select("name")
+  const { data: customer, error: customerError } = await supabase
+    .from("customers")
+    .select("id, full_name")
     .eq("id", profileId)
-    .single()
+    .maybeSingle()
 
-  if (profileError || !profile) {
-    throw new Error(profileError?.message || `Profile with ID ${profileId} not found`)
+  if (customerError || !customer) {
+    throw new Error(customerError?.message || `Customer with ID ${profileId} not found`)
   }
 
-  const profileName = profile.name ?? "לקוח ללא שם"
+  const profileName = customer.full_name ?? "לקוח ללא שם"
 
   const { data: appointments, error: appointmentsError } = await supabase
-    .from("grooming_appointments")
+    .from("appointments")
     .select(
       `
         id,
@@ -92,10 +92,12 @@ async function getProfileAppointments(profileId: string) {
         status,
         customer_notes,
         station_id,
-        stations ( id, name )
+        appointment_name,
+        stations ( id, name ),
+        services ( id, name )
       `
     )
-    .eq("treatment_id", profileId)
+    .eq("customer_id", profileId)
     .order("start_at", { ascending: false })
 
   if (appointmentsError) {
@@ -113,10 +115,10 @@ async function getProfileAppointments(profileId: string) {
       profileName,
       date: startDate ? startDate.toISOString().split("T")[0] : "",
       time: startDate ? startDate.toISOString().split("T")[1]?.slice(0, 5) ?? "" : "",
-      service: "grooming" as const,
+      service: appointment.services?.name ?? "שירות",
       status: appointment.status ?? "pending",
       stationId: appointment.station_id ?? "",
-      notes: appointment.customer_notes ?? "",
+      notes: appointment.customer_notes ?? appointment.appointment_name ?? "",
       startDateTime: start,
       endDateTime: end,
       stationName: appointment.stations?.name ?? null,
@@ -125,4 +127,3 @@ async function getProfileAppointments(profileId: string) {
 
   return { appointments: mapped }
 }
-
