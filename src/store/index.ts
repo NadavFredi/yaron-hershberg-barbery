@@ -4,9 +4,8 @@ import { supabaseApi } from "./services/supabaseApi"
 import { pinnedAppointmentsApi } from "@/pages/ManagerSchedule/pinnedAppointments/pinnedAppointmentsApi"
 import authReducer from "./slices/authSlice"
 import appointmentsReducer from "./slices/appointmentsSlice"
-import dogsReducer from "./slices/dogsSlice"
+// Removed dogsReducer and breedsReducer - barbery system doesn't use dogs/breeds
 import servicesReducer from "./slices/servicesSlice"
-import breedsReducer from "./slices/breedsSlice"
 import stationsReducer from "./slices/stationsSlice"
 import managerScheduleReducer from "./slices/managerScheduleSlice"
 import matrixSectionReducer from "./slices/matrixSectionSlice"
@@ -17,9 +16,8 @@ export const store = configureStore({
   reducer: {
     auth: authReducer,
     appointments: appointmentsReducer,
-    dogs: dogsReducer,
+    // Removed dogs and breeds reducers - barbery system doesn't use dogs/breeds
     services: servicesReducer,
-    breeds: breedsReducer,
     stations: stationsReducer,
     managerSchedule: managerScheduleReducer,
     matrixSection: matrixSectionReducer,

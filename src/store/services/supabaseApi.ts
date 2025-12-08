@@ -268,7 +268,7 @@ export const supabaseApi = createApi({
   tagTypes: [
     "User",
     "Appointment",
-    "Dog",
+    // Removed "Dog" tag - barbery system doesn't use dogs
     "Availability",
     "WaitingList",
     "GardenAppointment",
@@ -767,12 +767,9 @@ export const supabaseApi = createApi({
           let dogId: string | undefined
           try {
             const { getSingleManagerAppointment } = await import("@/integrations/supabase/supabaseService")
-            const appointmentResult = await getSingleManagerAppointment(params.appointmentId, params.appointmentType)
-            if (appointmentResult.success && appointmentResult.appointment) {
-              dogId = appointmentResult.appointment.dogs[0]?.id
-            }
+            // Removed dogId fetch - barbery system doesn't use dogs
           } catch (error) {
-            console.warn("Failed to fetch dogId for cache invalidation:", error)
+            console.warn("Error during cache invalidation:", error)
           }
 
           const result = await moveAppointmentRecord(params)

@@ -23,8 +23,6 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 interface PaymentData {
     total: number
     count: number
-    byBreed: Record<string, { total: number; count: number; breedName: string }>
-    byBreedCategory: Record<string, { total: number; count: number; categoryName: string }>
     byClientCategory: Record<string, { total: number; count: number; categoryName: string }>
     byStation: Record<string, { total: number; count: number; stationName: string }>
     byService: { grooming: { total: number; count: number }; garden: { total: number; count: number } }
@@ -33,13 +31,10 @@ interface PaymentData {
         id: string
         start_at: string
         amount_due: number
-        breedName: string
-        breedCategoryName?: string
         clientCategoryName?: string
         stationName: string
         serviceType: string
         customerName?: string
-        dogName?: string
     }>
 }
 
@@ -55,15 +50,12 @@ export default function PaymentsReport() {
         from: initialStartDate,
         to: initialEndDate,
     })
-    const [serviceFilter, setServiceFilter] = useState<"all" | "grooming" | "garden">("all")
     const [selectedStationIds, setSelectedStationIds] = useState<string[]>([])
     const [customerTypeFilter, setCustomerTypeFilter] = useState<string>("all")
-    const [breedFilter, setBreedFilter] = useState<string>("all")
-    const [viewMode, setViewMode] = useState<"byDate" | "byBreed" | "byBreedCategory" | "byClientCategory" | "byStation" | "byService">("byDate")
-    
+    const [viewMode, setViewMode] = useState<"byDate" | "byClientCategory" | "byStation" | "byService">("byDate")
+
     const { data: stations = [], isLoading: isLoadingStations } = useStations()
     const [customerTypes, setCustomerTypes] = useState<Array<{ id: string; name: string }>>([])
-    const [breeds, setBreeds] = useState<Array<{ id: string; name: string }>>([])
     const [detailModalOpen, setDetailModalOpen] = useState(false)
     const [detailModalData, setDetailModalData] = useState<any[]>([])
     const [detailModalTitle, setDetailModalTitle] = useState("")
@@ -95,8 +87,6 @@ export default function PaymentsReport() {
         try {
             const { data: customerTypeData } = await supabase.from("customer_types").select("id, name").order("priority", { ascending: true })
             setCustomerTypes(customerTypeData || [])
-            // Breeds table doesn't exist in this system - set empty array
-            setBreeds([])
         } catch (error) {
             console.error("Failed to fetch filter options:", error)
         }
@@ -112,27 +102,19 @@ export default function PaymentsReport() {
             const fromIso = startDate ? startOfDay(startDate).toISOString() : undefined
             const toIso = endDate ? endOfDay(endDate).toISOString() : undefined
 
-            const shouldFetchGrooming = serviceFilter === "all" || serviceFilter === "grooming"
-            const shouldFetchGarden = serviceFilter === "all" || serviceFilter === "garden"
+            // Only grooming appointments in barbershop
+            const shouldFetchGrooming = true
 
+            // Only fetch grooming appointments (no daycare in barbershop)
             const groomingPromise = shouldFetchGrooming
                 ? supabase
-                      .from("grooming_appointments")
-                      .select(
-                          `
+                    .from("grooming_appointments")
+                    .select(
+                        `
                           id,
                           amount_due,
                           station_id,
                           start_at,
-                          dogs (
-                              id,
-                              name,
-                              breed_id,
-                              breeds (
-                                  id,
-                                  name
-                              )
-                          ),
                           customers (
                               id,
                               full_name,
@@ -147,58 +129,18 @@ export default function PaymentsReport() {
                               name
                           )
                       `
-                      )
-                      .gte("start_at", fromIso || "")
-                      .lte("start_at", toIso || "")
+                    )
+                    .gte("start_at", fromIso || "")
+                    .lte("start_at", toIso || "")
                 : Promise.resolve({ data: [], error: null })
 
-            const gardenPromise = shouldFetchGarden
-                ? supabase
-                      .from("daycare_appointments")
-                      .select(
-                          `
-                          id,
-                          amount_due,
-                          station_id,
-                          start_at,
-                          dogs (
-                              id,
-                              name,
-                              breed_id,
-                              breeds (
-                                  id,
-                                  name
-                              )
-                          ),
-                          customers (
-                              id,
-                              full_name,
-                              customer_type_id,
-                              customer_type:customer_types (
-                                  id,
-                                  name
-                              )
-                          ),
-                          stations (
-                              id,
-                              name
-                          )
-                      `
-                      )
-                      .gte("start_at", fromIso || "")
-                      .lte("start_at", toIso || "")
-                : Promise.resolve({ data: [], error: null })
+            const groomingResult = await groomingPromise
 
-            const [groomingResult, gardenResult] = await Promise.all([groomingPromise, gardenPromise])
-
-            if (groomingResult.error || gardenResult.error) {
-                throw groomingResult.error || gardenResult.error
+            if (groomingResult.error) {
+                throw groomingResult.error
             }
 
-            const allAppointments = [
-                ...(groomingResult.data || []).map((apt: any) => ({ ...apt, serviceType: "grooming" })),
-                ...(gardenResult.data || []).map((apt: any) => ({ ...apt, serviceType: "garden" })),
-            ]
+            const allAppointments = (groomingResult.data || []).map((apt: any) => ({ ...apt, serviceType: "grooming" }))
 
             // Filter by stations
             let filteredAppointments = allAppointments
@@ -215,55 +157,12 @@ export default function PaymentsReport() {
                 )
             }
 
-            // Filter by breed
-            if (breedFilter !== "all") {
-                filteredAppointments = filteredAppointments.filter(
-                    (apt: any) => apt.dogs?.breed_id === breedFilter || apt.dogs?.breeds?.id === breedFilter
-                )
-            }
-
-            // Fetch breed categories for all breed IDs
-            const breedIds = new Set<string>()
-            filteredAppointments.forEach((apt: any) => {
-                const breedId = apt.dogs?.breed_id || apt.dogs?.breeds?.id
-                if (breedId) breedIds.add(breedId)
-            })
-
-            const breedCategoryMap: Record<string, string[]> = {}
-            if (breedIds.size > 0) {
-                const { data: breedCategories } = await supabase
-                    .from("breed_dog_categories")
-                    .select(
-                        `
-                        breed_id,
-                        dog_category:dog_categories (
-                            id,
-                            name
-                        )
-                    `
-                    )
-                    .in("breed_id", Array.from(breedIds))
-
-                if (breedCategories) {
-                    breedCategories.forEach((item: any) => {
-                        const breedId = item.breed_id
-                        const categoryName = item.dog_category?.name
-                        if (breedId && categoryName) {
-                            if (!breedCategoryMap[breedId]) {
-                                breedCategoryMap[breedId] = []
-                            }
-                            breedCategoryMap[breedId].push(categoryName)
-                        }
-                    })
-                }
-            }
+            // No breed filtering in barbershop
 
             // Aggregate data
             const data: PaymentData = {
                 total: 0,
                 count: 0,
-                byBreed: {},
-                byBreedCategory: {},
                 byClientCategory: {},
                 byStation: {},
                 byService: { grooming: { total: 0, count: 0 }, garden: { total: 0, count: 0 } },
@@ -278,39 +177,13 @@ export default function PaymentsReport() {
                 data.total += amount
                 data.count += 1
 
-                const breedId = apt.dogs?.breed_id || apt.dogs?.breeds?.id
-                const breedName = apt.dogs?.breeds?.name || "ללא גזע"
                 const stationId = apt.station_id
                 const stationName = apt.stations?.name || "ללא עמדה"
                 const clientCategoryName = apt.customers?.customer_type?.name || "ללא סוג"
-                const breedCategories = breedId ? breedCategoryMap[breedId] || [] : []
 
-                // By service
-                if (apt.serviceType === "grooming") {
-                    data.byService.grooming.total += amount
-                    data.byService.grooming.count += 1
-                } else {
-                    data.byService.garden.total += amount
-                    data.byService.garden.count += 1
-                }
-
-                // By breed
-                if (breedId) {
-                    if (!data.byBreed[breedId]) {
-                        data.byBreed[breedId] = { total: 0, count: 0, breedName }
-                    }
-                    data.byBreed[breedId].total += amount
-                    data.byBreed[breedId].count += 1
-                }
-
-                // By breed category
-                breedCategories.forEach((categoryName) => {
-                    if (!data.byBreedCategory[categoryName]) {
-                        data.byBreedCategory[categoryName] = { total: 0, count: 0, categoryName }
-                    }
-                    data.byBreedCategory[categoryName].total += amount
-                    data.byBreedCategory[categoryName].count += 1
-                })
+                // By service (only grooming in barbershop)
+                data.byService.grooming.total += amount
+                data.byService.grooming.count += 1
 
                 // By client category
                 if (!data.byClientCategory[clientCategoryName]) {
@@ -341,13 +214,10 @@ export default function PaymentsReport() {
                     id: apt.id,
                     start_at: apt.start_at,
                     amount_due: amount,
-                    breedName,
-                    breedCategoryName: breedCategories.join(", ") || undefined,
                     clientCategoryName,
                     stationName,
                     serviceType: apt.serviceType,
                     customerName: apt.customers?.full_name,
-                    dogName: apt.dogs?.name,
                 })
             })
 
@@ -362,23 +232,12 @@ export default function PaymentsReport() {
         } finally {
             setIsLoading(false)
         }
-    }, [startDate, endDate, serviceFilter, selectedStationIds, customerTypeFilter, breedFilter, toast])
+    }, [startDate, endDate, selectedStationIds, customerTypeFilter, toast])
 
     useEffect(() => {
         fetchPaymentData()
     }, [fetchPaymentData])
 
-    const chartDataByBreed = useMemo(() => {
-        if (!paymentData) return []
-        return Object.entries(paymentData.byBreed)
-            .map(([id, data]) => ({
-                name: data.breedName,
-                total: data.total,
-                count: data.count,
-            }))
-            .sort((a, b) => b.total - a.total)
-            .slice(0, 10)
-    }, [paymentData])
 
     const chartDataByStation = useMemo(() => {
         if (!paymentData) return []
@@ -404,20 +263,9 @@ export default function PaymentsReport() {
         if (!paymentData) return []
         return [
             { name: "מספרה", value: paymentData.byService.grooming.total },
-            { name: "גן", value: paymentData.byService.garden.total },
         ].filter((item) => item.value > 0)
     }, [paymentData])
 
-    const chartDataByBreedCategory = useMemo(() => {
-        if (!paymentData) return []
-        return Object.entries(paymentData.byBreedCategory)
-            .map(([name, data]) => ({
-                name: data.categoryName,
-                total: data.total,
-                count: data.count,
-            }))
-            .sort((a, b) => b.total - a.total)
-    }, [paymentData])
 
     const chartDataByClientCategory = useMemo(() => {
         if (!paymentData) return []
@@ -430,7 +278,7 @@ export default function PaymentsReport() {
             .sort((a, b) => b.total - a.total)
     }, [paymentData])
 
-    const handleChartClick = (category: string, type: "date" | "breed" | "breedCategory" | "clientCategory" | "station" | "service") => {
+    const handleChartClick = (category: string, type: "date" | "clientCategory" | "station" | "service") => {
         if (!paymentData) return
 
         let filtered: any[] = []
@@ -447,16 +295,6 @@ export default function PaymentsReport() {
                 title = `פרטי תשלומים - ${category}`
                 description = `סה"כ ${filtered.length} תורים`
                 break
-            case "breed":
-                filtered = paymentData.allAppointments.filter((apt) => apt.breedName === category)
-                title = `פרטי תשלומים - ${category}`
-                description = `סה"כ ${filtered.length} תורים`
-                break
-            case "breedCategory":
-                filtered = paymentData.allAppointments.filter((apt) => apt.breedCategoryName?.includes(category))
-                title = `פרטי תשלומים - קטגוריית גזע: ${category}`
-                description = `סה"כ ${filtered.length} תורים`
-                break
             case "clientCategory":
                 filtered = paymentData.allAppointments.filter((apt) => apt.clientCategoryName === category)
                 title = `פרטי תשלומים - קטגוריית לקוח: ${category}`
@@ -468,8 +306,8 @@ export default function PaymentsReport() {
                 description = `סה"כ ${filtered.length} תורים`
                 break
             case "service":
-                filtered = paymentData.allAppointments.filter((apt) => apt.serviceType === (category === "מספרה" ? "grooming" : "garden"))
-                title = `פרטי תשלומים - ${category}`
+                filtered = paymentData.allAppointments.filter((apt) => apt.serviceType === "grooming")
+                title = `פרטי תשלומים - מספרה`
                 description = `סה"כ ${filtered.length} תורים`
                 break
         }
@@ -521,20 +359,6 @@ export default function PaymentsReport() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>סוג שירות</Label>
-                            <Select value={serviceFilter} onValueChange={(v) => setServiceFilter(v as any)}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent dir="rtl">
-                                    <SelectItem value="all">כל השירותים</SelectItem>
-                                    <SelectItem value="grooming">מספרה</SelectItem>
-                                    <SelectItem value="garden">גן</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
                             <Label>קטגוריית לקוח</Label>
                             <Select value={customerTypeFilter} onValueChange={setCustomerTypeFilter}>
                                 <SelectTrigger>
@@ -545,23 +369,6 @@ export default function PaymentsReport() {
                                     {customerTypes.map((type) => (
                                         <SelectItem key={type.id} value={type.id}>
                                             {type.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>גזע</Label>
-                            <Select value={breedFilter} onValueChange={setBreedFilter}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent dir="rtl">
-                                    <SelectItem value="all">כל הגזעים</SelectItem>
-                                    {breeds.map((breed) => (
-                                        <SelectItem key={breed.id} value={breed.id}>
-                                            {breed.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -605,7 +412,7 @@ export default function PaymentsReport() {
 
             {paymentData && (
                 <>
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2">
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardDescription>סה"כ תשלומים</CardDescription>
@@ -630,17 +437,6 @@ export default function PaymentsReport() {
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardDescription>גן</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-3xl font-bold text-emerald-600">
-                                    ₪{paymentData.byService.garden.total.toLocaleString("he-IL")}
-                                </div>
-                                <p className="text-sm text-slate-500 mt-1">{paymentData.byService.garden.count} תורים</p>
-                            </CardContent>
-                        </Card>
                     </div>
 
                     <Card>
@@ -649,10 +445,8 @@ export default function PaymentsReport() {
                         </CardHeader>
                         <CardContent>
                             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)} dir="rtl">
-                                <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
+                                <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
                                     <TabsTrigger value="byDate">לפי תאריך</TabsTrigger>
-                                    <TabsTrigger value="byBreed">לפי גזע</TabsTrigger>
-                                    <TabsTrigger value="byBreedCategory">לפי קטגוריית גזע</TabsTrigger>
                                     <TabsTrigger value="byClientCategory">לפי קטגוריית לקוח</TabsTrigger>
                                     <TabsTrigger value="byStation">לפי תחנה</TabsTrigger>
                                     <TabsTrigger value="byService">לפי שירות</TabsTrigger>
@@ -722,133 +516,6 @@ export default function PaymentsReport() {
                                     </div>
                                 </TabsContent>
 
-                                <TabsContent value="byBreed" className="mt-6">
-                                    <div className="h-80">
-                                        <HighchartsReact
-                                            highcharts={Highcharts}
-                                            options={{
-                                                chart: {
-                                                    type: "bar",
-                                                    backgroundColor: "transparent",
-                                                    style: { fontFamily: "inherit" },
-                                                },
-                                                title: { text: null },
-                                                xAxis: {
-                                                    categories: chartDataByBreed.map((d) => d.name),
-                                                    labels: { style: { fontSize: "12px", fontWeight: "500" } },
-                                                },
-                                                yAxis: {
-                                                    title: {
-                                                        text: "סכום (₪)",
-                                                        style: { fontSize: "13px", fontWeight: "600" },
-                                                    },
-                                                    labels: {
-                                                        formatter: function (this: any) {
-                                                            return `₪${this.value.toLocaleString("he-IL")}`
-                                                        },
-                                                        style: { fontSize: "12px" },
-                                                    },
-                                                },
-                                                tooltip: {
-                                                    formatter: function (this: any) {
-                                                        return `<div style="font-weight: 600; margin-bottom: 4px;">${this.x}</div>
-                                                            <div><span style="color: ${this.color}">●</span> סכום: <strong>₪${this.y.toLocaleString("he-IL")}</strong></div>`
-                                                    },
-                                                    useHTML: true,
-                                                },
-                                                legend: { enabled: false },
-                                                plotOptions: {
-                                                    bar: {
-                                                        borderRadius: 4,
-                                                        dataLabels: {
-                                                            enabled: false,
-                                                        },
-                                                        cursor: "pointer",
-                                                        point: {
-                                                            events: {
-                                                                click: function (this: any) {
-                                                                    handleChartClick(this.category, "breed")
-                                                                },
-                                                            },
-                                                        },
-                                                    },
-                                                },
-                                                series: [
-                                                    {
-                                                        name: "סכום",
-                                                        data: chartDataByBreed.map((d) => d.total),
-                                                        color: "#10b981",
-                                                    },
-                                                ],
-                                                credits: { enabled: false },
-                                            }}
-                                        />
-                                    </div>
-                                </TabsContent>
-
-                                <TabsContent value="byBreedCategory" className="mt-6">
-                                    <div className="h-80">
-                                        <HighchartsReact
-                                            highcharts={Highcharts}
-                                            options={{
-                                                chart: {
-                                                    type: "bar",
-                                                    backgroundColor: "transparent",
-                                                    style: { fontFamily: "inherit" },
-                                                },
-                                                title: { text: null },
-                                                xAxis: {
-                                                    categories: chartDataByBreedCategory.map((d) => d.name),
-                                                    labels: { style: { fontSize: "12px", fontWeight: "500" } },
-                                                },
-                                                yAxis: {
-                                                    title: {
-                                                        text: "סכום (₪)",
-                                                        style: { fontSize: "13px", fontWeight: "600" },
-                                                    },
-                                                    labels: {
-                                                        formatter: function (this: any) {
-                                                            return `₪${this.value.toLocaleString("he-IL")}`
-                                                        },
-                                                        style: { fontSize: "12px" },
-                                                    },
-                                                },
-                                                tooltip: {
-                                                    formatter: function (this: any) {
-                                                        return `<div style="font-weight: 600; margin-bottom: 4px;">${this.x}</div>
-                                                            <div><span style="color: ${this.color}">●</span> סכום: <strong>₪${this.y.toLocaleString("he-IL")}</strong></div>`
-                                                    },
-                                                    useHTML: true,
-                                                },
-                                                legend: { enabled: false },
-                                                plotOptions: {
-                                                    bar: {
-                                                        borderRadius: 4,
-                                                        dataLabels: {
-                                                            enabled: false,
-                                                        },
-                                                        cursor: "pointer",
-                                                        point: {
-                                                            events: {
-                                                                click: function (this: any) {
-                                                                    handleChartClick(this.category, "breedCategory")
-                                                                },
-                                                            },
-                                                        },
-                                                    },
-                                                },
-                                                series: [
-                                                    {
-                                                        name: "סכום",
-                                                        data: chartDataByBreedCategory.map((d) => d.total),
-                                                        color: "#f59e0b",
-                                                    },
-                                                ],
-                                                credits: { enabled: false },
-                                            }}
-                                        />
-                                    </div>
-                                </TabsContent>
 
                                 <TabsContent value="byClientCategory" className="mt-6">
                                     <div className="h-80">
@@ -1061,29 +728,12 @@ export default function PaymentsReport() {
                         render: (value) => format(new Date(value), "dd/MM/yyyy HH:mm"),
                     },
                     {
-                        key: "serviceType",
-                        label: "סוג שירות",
-                        render: (value) => value === "grooming" ? "מספרה" : "גן",
-                    },
-                    {
                         key: "stationName",
                         label: "תחנה",
                     },
                     {
                         key: "customerName",
                         label: "לקוח",
-                    },
-                    {
-                        key: "dogName",
-                        label: "כלב",
-                    },
-                    {
-                        key: "breedName",
-                        label: "גזע",
-                    },
-                    {
-                        key: "breedCategoryName",
-                        label: "קטגוריית גזע",
                     },
                     {
                         key: "clientCategoryName",

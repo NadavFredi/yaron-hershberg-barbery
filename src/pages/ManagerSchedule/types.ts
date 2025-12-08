@@ -9,6 +9,7 @@ export interface ManagerStation {
   displayOrder?: number
 }
 
+// Removed ManagerDog - barbery system doesn't use dogs
 export interface ManagerDog {
   id: string
   name: string
@@ -16,22 +17,6 @@ export interface ManagerDog {
   ownerId?: string
   clientClassification?: string
   clientName?: string
-  gender?: string
-  notes?: string
-  medicalNotes?: string
-  importantNotes?: string
-  internalNotes?: string
-  vetName?: string
-  vetPhone?: string
-  healthIssues?: string
-  birthDate?: string
-  tendsToBite?: string
-  aggressiveWithOtherDogs?: string
-  hasBeenToGarden?: boolean
-  suitableForGardenFromQuestionnaire?: boolean
-  notSuitableForGardenFromQuestionnaire?: boolean
-  recordId?: string
-  recordNumber?: string
   minGroomingPrice?: number
   maxGroomingPrice?: number
 }
@@ -77,7 +62,7 @@ export interface ManagerAppointment {
   internalNotes?: string
   groomingNotes?: string
   hasCrossServiceAppointment?: boolean
-  dogs: ManagerDog[]
+  dogs: ManagerDog[] // Empty array - barbery system doesn't use dogs
   serviceName?: string
   subscriptionName?: string
   clientId?: string
@@ -111,10 +96,9 @@ export interface ManagerAppointment {
   proposedCreatedAt?: string
   proposedInvites?: ProposedMeetingInvite[]
   proposedCategories?: ProposedMeetingCategory[]
-  proposedDogCategories?: ProposedMeetingDogCategory[]
+  // Removed proposedDogCategories, proposedLinkedDogId - barbery system doesn't use dogs
   proposedLinkedAppointmentId?: string
   proposedLinkedCustomerId?: string
-  proposedLinkedDogId?: string
   proposedOriginalStart?: string
   proposedOriginalEnd?: string
   clientApprovedArrival?: string | null
@@ -140,14 +124,11 @@ export interface ManagerScheduleSearchClient {
   address?: string
 }
 
-export interface ManagerScheduleDogSearchResult {
-  dog: ManagerDog
-  owner?: ManagerScheduleSearchClient
-}
+// Removed ManagerScheduleDogSearchResult - barbery system doesn't use dogs
 
 export interface ManagerScheduleSearchResponse {
   appointments: ManagerAppointment[]
-  dogs: ManagerScheduleDogSearchResult[]
+  dogs: [] // Empty - barbery system doesn't use dogs
   clients: ManagerScheduleSearchClient[]
 }
 
@@ -190,18 +171,13 @@ export type WaitlistServiceScope = "grooming" | "daycare" | "both"
 
 export interface ManagerWaitlistEntry {
   id: string
-  dogId: string
-  dogName: string
-  dogRecordId?: string | null
-  dogRecordNumber?: string | null
-  breedName?: string | null
+  // Removed dogId, dogName, breedName, dogCategories - barbery system doesn't use dogs
   customerId: string
   customerName?: string | null
   customerPhone?: string | null
   customerEmail?: string | null
   customerTypeId?: string | null
   customerTypeName?: string | null
-  dogCategories: Array<{ id: string; name: string }>
   serviceScope: WaitlistServiceScope
   startDate: string
   endDate: string | null
@@ -214,12 +190,12 @@ export type WaitlistBucketGroup = {
   entries: ManagerWaitlistEntry[]
 }
 
-export type ScheduleSearchResultType = "dog" | "client" | "personal" | "appointment"
+export type ScheduleSearchResultType = "client" | "personal" | "appointment" // Removed "dog"
 
 export type ScheduleSearchEntry = {
   id: string
   appointment?: ManagerAppointment
-  dog?: ManagerDog
+  // Removed dog - barbery system doesn't use dogs
   ownerName?: string
   stationName?: string
   serviceType: ManagerAppointment["serviceType"]
@@ -245,29 +221,5 @@ export interface ClientDetails {
   recordNumber?: string
 }
 
-export interface DogDetails {
-  id: string
-  name: string
-  breed?: string
-  clientClassification?: string
-  owner?: ClientDetails
-  age?: string
-  weight?: string
-  gender?: string
-  notes?: string
-  medicalNotes?: string
-  importantNotes?: string
-  internalNotes?: string
-  vetName?: string
-  vetPhone?: string
-  healthIssues?: string
-  birthDate?: string
-  tendsToBite?: string
-  aggressiveWithOtherDogs?: string
-  hasBeenToGarden?: boolean
-  suitableForGardenFromQuestionnaire?: boolean
-  notSuitableForGardenFromQuestionnaire?: boolean
-  recordId?: string
-  recordNumber?: string
-}
+// Removed DogDetails interface - barbery system doesn't use dogs
 

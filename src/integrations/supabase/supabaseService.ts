@@ -21,7 +21,7 @@ type ProposedMeetingRow = Database["public"]["Tables"]["proposed_meetings"]["Row
   stations?: { id: string; name: string } | { id: string; name: string }[] | null
   proposed_meeting_invites?: ProposedMeetingInviteRow[] | null
   proposed_meeting_categories?: ProposedMeetingCategoryRow[] | null
-  proposed_meeting_dog_categories?: ProposedMeetingDogCategoryRow[] | null
+  // Removed proposed_meeting_dog_categories - barbery system doesn't use dogs
 }
 type ProposedMeetingInviteRow = Database["public"]["Tables"]["proposed_meeting_invites"]["Row"] & {
   customers?:
@@ -34,9 +34,7 @@ type ProposedMeetingInviteRow = Database["public"]["Tables"]["proposed_meeting_i
 type ProposedMeetingCategoryRow = Database["public"]["Tables"]["proposed_meeting_categories"]["Row"] & {
   customer_type?: Pick<CustomerTypeRow, "name"> | null
 }
-type ProposedMeetingDogCategoryRow = Database["public"]["Tables"]["proposed_meeting_dog_categories"]["Row"] & {
-  dog_category?: { name: string } | null
-}
+// Removed ProposedMeetingDogCategoryRow - barbery system doesn't use dogs
 
 const PROPOSED_MEETING_WEBHOOK_URL = "https://hook.eu2.make.com/4vndwatkc4r648au3t1mc394gh73pfny"
 const PROPOSED_MEETING_CODE_ATTEMPTS = 5
@@ -70,7 +68,7 @@ export interface DogRecord {
 
 export interface AppointmentRecord {
   id: string
-  dogId: string
+  // Removed dogId - barbery system doesn't use dogs
   date: string
   time: string
   service: string
@@ -422,7 +420,7 @@ export async function cancelAppointment(appointmentId: string): Promise<{
 export interface CancelAppointmentOptions {
   serviceType?: "grooming" | "garden" | "both"
   appointmentTime?: string
-  dogId?: string
+  // Removed dogId - barbery system doesn't use dogs
   stationId?: string
 }
 
@@ -444,7 +442,7 @@ export async function cancelAppointmentWebhook(
       appointmentId,
       appointmentTime: options.appointmentTime,
       serviceType: options.serviceType,
-      dogId: options.dogId,
+      // Removed dogId - barbery system doesn't use dogs
       stationId: options.stationId,
     })
   } catch (error) {
@@ -699,12 +697,7 @@ const mapProposedMeetingRowToAppointment = (row: ProposedMeetingRow | null): Man
       customerTypeName: category.customer_type?.name ?? null,
     })) ?? []
 
-  const dogCategories =
-    row.proposed_meeting_dog_categories?.map((category) => ({
-      id: category.id,
-      dogCategoryId: category.dog_category_id,
-      dogCategoryName: category.dog_category?.name ?? null,
-    })) ?? []
+  // Removed dogCategories - barbery system doesn't use dogs
 
   const durationMinutes = Math.max(
     1,
@@ -741,10 +734,10 @@ const mapProposedMeetingRowToAppointment = (row: ProposedMeetingRow | null): Man
     proposedCreatedAt: row.created_at || undefined,
     proposedInvites: invites,
     proposedCategories: categories,
-    proposedDogCategories: dogCategories,
+    // Removed proposedDogCategories - barbery system doesn't use dogs
     proposedLinkedAppointmentId: row.reschedule_appointment_id || undefined,
     proposedLinkedCustomerId: row.reschedule_customer_id || undefined,
-    proposedLinkedDogId: row.reschedule_dog_id || undefined,
+    // Removed proposedLinkedDogId - barbery system doesn't use dogs
     proposedOriginalStart: row.reschedule_original_start_at || undefined,
     proposedOriginalEnd: row.reschedule_original_end_at || undefined,
   }
@@ -992,7 +985,7 @@ export async function getManagerSchedule(
             notes,
             reschedule_appointment_id,
             reschedule_customer_id,
-            reschedule_dog_id,
+            // Removed reschedule_dog_id - barbery system doesn't use dogs
             reschedule_original_start_at,
             reschedule_original_end_at,
             created_at,
@@ -1020,11 +1013,7 @@ export async function getManagerSchedule(
               customer_type_id,
               customer_type:customer_types(name)
             ),
-            proposed_meeting_dog_categories(
-              id,
-              dog_category_id,
-              dog_category:dog_categories(name)
-            )
+            -- Removed proposed_meeting_dog_categories - barbery system doesn't use dogs
           `
         )
         .gte("start_at", dayStart.toISOString())
@@ -1179,7 +1168,7 @@ export async function createManagerAppointment(params: {
   appointmentType: "private" | "business" | "garden"
   groupId?: string
   customerId?: string
-  dogId?: string
+  // Removed dogId - barbery system doesn't use dogs
   isManualOverride?: boolean
   gardenAppointmentType?: "full-day" | "hourly" | "trial"
   services?: {
@@ -1445,7 +1434,7 @@ export async function managerCancelAppointment(params: {
   appointmentId: string
   appointmentTime: string
   serviceType: "grooming" | "garden"
-  dogId?: string
+  // Removed dogId - barbery system doesn't use dogs
   stationId?: string
   updateCustomer?: boolean
   clientName?: string
@@ -1490,7 +1479,7 @@ export async function managerDeleteAppointment(params: {
   appointmentId: string
   appointmentTime: string
   serviceType: "grooming" | "garden"
-  dogId?: string
+  // Removed dogId - barbery system doesn't use dogs
   stationId?: string
   updateCustomer?: boolean
   clientName?: string
@@ -1770,11 +1759,11 @@ export async function getProposedMeetingPublic(meetingId: string): Promise<Propo
 
 export async function bookProposedMeeting(params: {
   meetingId: string
-  dogId: string
+  // Removed dogId - barbery system doesn't use dogs // Removed requirement - barbery system doesn't use dogs
   code?: string
 }): Promise<{ success: boolean; appointmentId?: string }> {
-  if (!params.meetingId || !params.dogId) {
-    throw new Error("meetingId and dogId are required")
+  if (!params.meetingId) {
+    throw new Error("meetingId is required")
   }
 
   const { data, error } = await supabase.functions.invoke("book-proposed-meeting", {
@@ -1803,7 +1792,7 @@ export interface ProposedMeetingInput {
   notes?: string
   customerIds: string[]
   customerTypeIds: string[]
-  dogCategoryIds?: string[]
+  // Removed dogCategoryIds - barbery system doesn't use dogs
   dogIds?: Array<{ customerId: string; dogId: string }>
   status?: string
   code?: string
@@ -1838,7 +1827,7 @@ export async function createProposedMeeting(params: ProposedMeetingInput): Promi
     status: params.status || "proposed",
     reschedule_appointment_id: params.rescheduleAppointmentId ?? null,
     reschedule_customer_id: params.rescheduleCustomerId ?? null,
-    reschedule_dog_id: params.rescheduleDogId ?? null,
+    // Removed reschedule_dog_id - barbery system doesn't use dogs
     reschedule_original_start_at: params.rescheduleOriginalStartAt ?? null,
     reschedule_original_end_at: params.rescheduleOriginalEndAt ?? null,
   }
@@ -1878,7 +1867,7 @@ export async function createProposedMeeting(params: ProposedMeetingInput): Promi
 
   try {
     await syncProposedMeetingCategories(createdMeetingId, params.customerTypeIds)
-    await syncProposedMeetingDogCategories(createdMeetingId, params.dogCategoryIds || [])
+    // Removed syncProposedMeetingDogCategories - barbery system doesn't use dogs
     await syncProposedMeetingInvites(createdMeetingId, params.customerIds, params.customerTypeIds, params.dogIds)
   } catch (syncError) {
     console.error("❌ [createProposedMeeting] Failed to sync metadata, rolling back", syncError)
@@ -1905,7 +1894,7 @@ export async function updateProposedMeeting(params: ProposedMeetingUpdateInput):
     status: params.status || "proposed",
     reschedule_appointment_id: params.rescheduleAppointmentId ?? null,
     reschedule_customer_id: params.rescheduleCustomerId ?? null,
-    reschedule_dog_id: params.rescheduleDogId ?? null,
+    // Removed reschedule_dog_id - barbery system doesn't use dogs
     reschedule_original_start_at: params.rescheduleOriginalStartAt ?? null,
     reschedule_original_end_at: params.rescheduleOriginalEndAt ?? null,
   }
@@ -1917,8 +1906,8 @@ export async function updateProposedMeeting(params: ProposedMeetingUpdateInput):
   }
 
   await syncProposedMeetingCategories(params.meetingId, params.customerTypeIds)
-  await syncProposedMeetingDogCategories(params.meetingId, params.dogCategoryIds || [])
-  await syncProposedMeetingInvites(params.meetingId, params.customerIds, params.customerTypeIds, params.dogIds)
+  // Removed syncProposedMeetingDogCategories - barbery system doesn't use dogs
+  await syncProposedMeetingInvites(params.meetingId, params.customerIds, params.customerTypeIds, undefined)
 
   return { success: true }
 }
@@ -2114,7 +2103,8 @@ async function syncProposedMeetingCategories(meetingId: string, categoryIds: str
   }
 }
 
-async function syncProposedMeetingDogCategories(meetingId: string, dogCategoryIds: string[]): Promise<void> {
+// Removed syncProposedMeetingDogCategories - barbery system doesn't use dogs
+async function _syncProposedMeetingDogCategories_removed(meetingId: string, dogCategoryIds: string[]): Promise<void> {
   if (!supabase) {
     throw new Error("Supabase client not initialized")
   }
@@ -2167,21 +2157,18 @@ async function syncProposedMeetingInvites(
 
   const { data: existing, error } = await supabase
     .from("proposed_meeting_invites")
-    .select("id, customer_id, source, source_category_id, dog_id")
+    .select("id, customer_id, source, source_category_id")
     .eq("proposed_meeting_id", meetingId)
 
   if (error) {
     throw new Error(error.message || "Failed to load meeting invites")
   }
 
-  // Create a map keyed by customerId+dogId for proper matching
-  const plan = new Map<
-    string,
-    { source: "manual" | "category"; sourceCategoryId?: string | null; dogId?: string | null }
-  >()
+  // Removed dog_id matching - barbery system doesn't use dogs
+  // Create a map keyed by customerId for proper matching
+  const plan = new Map<string, { source: "manual" | "category"; sourceCategoryId?: string | null }>()
   desiredPlan.forEach((meta, customerId) => {
-    const key = `${customerId}:${meta.dogId ?? "null"}`
-    plan.set(key, meta)
+    plan.set(customerId, { source: meta.source, sourceCategoryId: meta.sourceCategoryId })
   })
 
   const invitesToDelete: string[] = []
@@ -2189,33 +2176,25 @@ async function syncProposedMeetingInvites(
     id: string
     source: string
     source_category_id: string | null
-    dog_id: string | null
   }> = []
 
   for (const invite of existing ?? []) {
-    const inviteKey = `${invite.customer_id}:${invite.dog_id ?? "null"}`
-    const desired = plan.get(inviteKey)
+    const desired = plan.get(invite.customer_id)
     if (!desired) {
       invitesToDelete.push(invite.id)
       continue
     }
 
     const normalizedCategory = desired.sourceCategoryId ?? null
-    const normalizedDogId = desired.dogId ?? null
-    if (
-      invite.source !== desired.source ||
-      (invite.source_category_id ?? null) !== normalizedCategory ||
-      (invite.dog_id ?? null) !== normalizedDogId
-    ) {
+    if (invite.source !== desired.source || (invite.source_category_id ?? null) !== normalizedCategory) {
       invitesToUpdate.push({
         id: invite.id,
         source: desired.source,
         source_category_id: normalizedCategory,
-        dog_id: normalizedDogId,
       })
     }
 
-    plan.delete(inviteKey)
+    plan.delete(invite.customer_id)
   }
 
   if (invitesToDelete.length) {
@@ -2228,23 +2207,18 @@ async function syncProposedMeetingInvites(
         id: invite.id,
         source: invite.source,
         source_category_id: invite.source_category_id,
-        dog_id: invite.dog_id,
       })),
       { onConflict: "id" }
     )
   }
 
   if (plan.size) {
-    // Extract customerId and dogId from the key
-    const invitesToInsert = Array.from(plan.entries()).map(([key, meta]) => {
-      const [customerId, dogIdStr] = key.split(":")
-      const dogId = dogIdStr === "null" ? null : dogIdStr
+    const invitesToInsert = Array.from(plan.entries()).map(([customerId, meta]) => {
       return {
         proposed_meeting_id: meetingId,
         customer_id: customerId,
         source: meta.source,
         source_category_id: meta.sourceCategoryId ?? null,
-        dog_id: dogId,
       }
     })
     await supabase.from("proposed_meeting_invites").insert(invitesToInsert)
@@ -2254,26 +2228,16 @@ async function syncProposedMeetingInvites(
 async function buildInvitePlan(
   manualCustomerIds: string[],
   categoryIds: string[],
-  dogIds?: Array<{ customerId: string; dogId: string }>
-): Promise<Map<string, { source: "manual" | "category"; sourceCategoryId?: string | null; dogId?: string | null }>> {
-  const plan = new Map<
-    string,
-    { source: "manual" | "category"; sourceCategoryId?: string | null; dogId?: string | null }
-  >()
+  dogIds?: Array<{ customerId: string; dogId: string }> // Ignored - barbery system doesn't use dogs
+): Promise<Map<string, { source: "manual" | "category"; sourceCategoryId?: string | null }>> {
+  const plan = new Map<string, { source: "manual" | "category"; sourceCategoryId?: string | null }>()
   const manualIds = uniqueStrings(manualCustomerIds)
 
-  // Create a map of customerId -> dogId from dogIds array
-  const dogIdMap = new Map<string, string>()
-  if (dogIds) {
-    dogIds.forEach(({ customerId, dogId }) => {
-      dogIdMap.set(customerId, dogId)
-    })
-  }
+  // Removed dogId mapping - barbery system doesn't use dogs
 
   manualIds.forEach((customerId) => {
     plan.set(customerId, {
       source: "manual",
-      dogId: dogIdMap.get(customerId) ?? null,
     })
   })
 
@@ -2290,7 +2254,6 @@ async function buildInvitePlan(
     plan.set(customer.id, {
       source: "category",
       sourceCategoryId: customer.customer_type_id ?? null,
-      dogId: dogIdMap.get(customer.id) ?? null, // Use dogId if specified for this customer
     })
   }
 
