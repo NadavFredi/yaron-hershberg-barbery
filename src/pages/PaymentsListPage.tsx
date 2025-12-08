@@ -18,7 +18,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { PaymentModal } from "@/components/dialogs/manager-schedule/PaymentModal"
 import { SelectCustomerForPaymentDialog } from "@/components/dialogs/payments/SelectCustomerForPaymentDialog"
 import type { Customer } from "@/components/CustomerSearchInput"
-import type { Dog } from "@/components/DogSelectInput"
 
 interface Customer {
     id: string

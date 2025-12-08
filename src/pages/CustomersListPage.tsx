@@ -12,8 +12,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AutocompleteFilter } from "@/components/AutocompleteFilter"
 import { DatePickerInput } from "@/components/DatePickerInput"
-import { ClientDetailsSheet, DogDetailsSheet } from "@/pages/ManagerSchedule/sheets/index"
-import type { ManagerDog } from "./ManagerSchedule/types"
+import { ClientDetailsSheet } from "@/pages/ManagerSchedule/sheets/index"
 import { AddCustomerDialog } from "@/components/AddCustomerDialog"
 import { EditCustomerDialog } from "@/components/EditCustomerDialog"
 import { BulkCustomersDeleteDialog } from "@/components/dialogs/customers/BulkCustomersDeleteDialog"
@@ -53,24 +52,6 @@ type SelectedClientDetails = {
     address?: string
 }
 
-type SelectedDogDetails = {
-    id: string
-    name: string
-    breed?: string
-    clientClassification?: string
-    gender?: string
-    healthIssues?: string | null
-    vetName?: string | null
-    vetPhone?: string | null
-    birthDate?: string | null
-    internalNotes?: string | null
-    owner?: {
-        name?: string
-        phone?: string
-        email?: string
-        customerTypeName?: string
-    }
-}
 
 // Customer Type MultiSelect Component
 function CustomerTypeMultiSelect({
@@ -332,10 +313,7 @@ export default function CustomersListPage() {
 
     // Sheet states
     const [isClientDetailsOpen, setIsClientDetailsOpen] = useState(false)
-    const [isDogDetailsOpen, setIsDogDetailsOpen] = useState(false)
     const [selectedClientForSheet, setSelectedClientForSheet] = useState<SelectedClientDetails | null>(null)
-    const [selectedDogForSheet, setSelectedDogForSheet] = useState<SelectedDogDetails | null>(null)
-    const [clientDogs, setClientDogs] = useState<ManagerDog[]>([])
 
     useEffect(() => {
         fetchCustomers()
@@ -443,7 +421,6 @@ export default function CustomersListPage() {
                 .select(`
                     *,
                     customer_type:customer_types(id, name, priority),
-                    dogs:dogs(id, name, breed_id, breed:breeds(id, name))
                 `)
                 .order("created_at", { ascending: false })
 
@@ -995,42 +972,6 @@ export default function CustomersListPage() {
 
     // Handle customer click to open sheet
     const handleCustomerClick = async (customer: Customer) => {
-        // Fetch all dogs for this customer
-        const { data: dogsData, error } = await supabase
-            .from("dogs")
-            .select(`
-                *,
-                breed:breeds(id, name)
-            `)
-            .eq("customer_id", customer.id)
-
-        if (error) {
-            console.error("Error fetching customer dogs:", error)
-            toast({
-                title: "שגיאה",
-                description: "לא ניתן לטעון את כלבי הלקוח",
-                variant: "destructive",
-            })
-            return
-        }
-
-        // Transform dogs to ManagerDog format
-        const managerDogs: ManagerDog[] = (dogsData || []).map((dog: any) => ({
-            id: dog.id,
-            name: dog.name,
-            breed: dog.breed?.name,
-            clientName: customer.full_name,
-            clientClassification: customer.classification,
-            gender: dog.gender === 'male' ? 'זכר' : 'נקבה',
-            healthIssues: dog.health_notes,
-            vetName: dog.vet_name,
-            vetPhone: dog.vet_phone,
-            birthDate: dog.birth_date,
-            internalNotes: dog.staff_notes,
-        }))
-
-        setClientDogs(managerDogs)
-
         const clientDetails = {
             name: customer.full_name,
             phone: customer.phone,
@@ -1041,51 +982,6 @@ export default function CustomersListPage() {
         }
         setSelectedClientForSheet(clientDetails)
         setIsClientDetailsOpen(true)
-    }
-
-    // Handle dog click from client sheet
-    const handleDogClick = (dog: ManagerDog) => {
-        const dogDetails = {
-            id: dog.id,
-            name: dog.name,
-            breed: dog.breed,
-            clientClassification: dog.clientClassification,
-            owner: selectedClientForSheet ? {
-                name: selectedClientForSheet.name,
-                phone: selectedClientForSheet.phone,
-                email: selectedClientForSheet.email,
-                customerTypeName: selectedClientForSheet.customerTypeName,
-            } : undefined,
-            gender: dog.gender,
-            healthIssues: dog.healthIssues,
-            vetName: dog.vetName,
-            vetPhone: dog.vetPhone,
-            birthDate: dog.birthDate,
-            internalNotes: dog.internalNotes,
-        }
-        setSelectedDogForSheet(dogDetails)
-        setIsDogDetailsOpen(true)
-        setIsClientDetailsOpen(false)
-    }
-
-    // Handle client click from dog sheet
-    const handleClientClickFromDog = (client: {
-        name?: string
-        phone?: string
-        email?: string
-        customerTypeName?: string
-    }) => {
-        // Reopen client sheet
-        const clientDetails = {
-            name: client.name,
-            phone: client.phone,
-            email: client.email,
-            classification: "existing",
-            customerTypeName: client.customerTypeName,
-        }
-        setSelectedClientForSheet(clientDetails)
-        setIsClientDetailsOpen(true)
-        setIsDogDetailsOpen(false)
     }
 
     useEffect(() => {
@@ -1848,28 +1744,10 @@ export default function CustomersListPage() {
                 onOpenChange={setIsClientDetailsOpen}
                 selectedClient={selectedClientForSheet}
                 data={{
-                    appointments: clientDogs.map(dog => ({
-                        id: `dummy-${dog.id}`,
-                        dogs: [dog],
-                        clientName: selectedClientForSheet?.name,
-                        clientClassification: selectedClientForSheet?.classification,
-                    })),
+                    appointments: [],
                 }}
-                onDogClick={handleDogClick}
             />
 
-            {/* Dog Details Sheet */}
-            <DogDetailsSheet
-                open={isDogDetailsOpen}
-                onOpenChange={setIsDogDetailsOpen}
-                selectedDog={selectedDogForSheet}
-                showAllPastAppointments={false}
-                setShowAllPastAppointments={() => { }}
-                data={{}}
-                onClientClick={handleClientClickFromDog}
-                onAppointmentClick={() => { }}
-                onShowDogAppointments={() => { }}
-            />
         </div>
     )
 }

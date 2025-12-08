@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Clock, Dog, MapPin, CheckCircle, Scissors, Bone, PlusCircle, ClipboardList, CreditCard, Loader2, PawPrint, Heart, AlertTriangle, Sparkles, Search } from "lucide-react"
+import { CalendarIcon, Clock, MapPin, CheckCircle, Scissors, PlusCircle, ClipboardList, CreditCard, Loader2, Heart, AlertTriangle, Sparkles, Search } from "lucide-react"
 import { reserveAppointment } from "@/integrations/supabase/supabaseService"
 import confetti from "canvas-confetti"
 import { skipToken } from "@reduxjs/toolkit/query"
@@ -13,12 +13,8 @@ import {
     supabaseApi,
     useGetAvailableDatesQuery,
     useGetClientSubscriptionsQuery,
-    useGetDogGardenAppointmentsQuery,
-    useListOwnerDogsQuery,
-    type ListOwnerDogsResponse,
 } from "@/store/services/supabaseApi"
 import { useToast } from "@/components/ui/use-toast"
-import { AddDogDialog } from "@/components/AddDogDialog"
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
 import { useAppDispatch } from "@/store/hooks"
 import { FirstTimeGardenBanner } from "@/components/FirstTimeGardenBanner"
@@ -197,7 +193,6 @@ function formatIls(value: number): string {
     return ilsFormatter.format(value)
 }
 
-type ListOwnerDogsResponse = { dogs: Dog[] }
 interface AvailableDatesResponse {
     availableDates: AvailableDate[]
     gardenQuestionnaire?: GardenQuestionnaireStatus
@@ -214,7 +209,6 @@ export default function SetupAppointment() {
         isFetchingClientId,
     } = useSupabaseAuthWithClientId()
     const dispatch = useAppDispatch()
-    const [selectedDog, setSelectedDog] = useState<string>("")
     const [selectedServiceType, setSelectedServiceType] = useState<string>("grooming") // Default to barber
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
     const [selectedTime, setSelectedTime] = useState<string>("")
@@ -233,11 +227,9 @@ export default function SetupAppointment() {
     const [gardenBrush, setGardenBrush] = useState(false)
     const [gardenBath, setGardenBath] = useState(false)
     const [formStep, setFormStep] = useState<1 | 2>(1)
-    const [isAddDogDialogOpen, setIsAddDogDialogOpen] = useState(false)
     const { toast } = useToast()
 
     const hasProcessedQueryParams = useRef(false)
-    const selectedDogFromParams = useRef(false)
 
     const ownerId = useMemo(() => {
         if (clientId) {
@@ -250,40 +242,6 @@ export default function SetupAppointment() {
 
         return user.user_metadata?.client_id || null
     }, [clientId, user])
-
-    const {
-        data: dogsQueryData,
-        isFetching: isFetchingDogs,
-        refetch: refetchDogs,
-    } = useListOwnerDogsQuery(ownerId ?? skipToken, {
-        skip: !ownerId,
-    })
-
-    const openAddDogForm = useCallback(() => {
-        if (!ownerId) {
-            console.warn("Cannot open add-dog form without ownerId")
-            toast({
-                title: "שגיאה",
-                description: "לא ניתן להוסיף כלב ללא זיהוי לקוח",
-                variant: "destructive",
-            })
-            return
-        }
-        setIsAddDogDialogOpen(true)
-    }, [ownerId, toast])
-
-    const handleAddDogSuccess = useCallback(async (dogId: string) => {
-        // Refetch dogs and select the newly created dog
-        const refetchResult = await refetchDogs()
-        if (refetchResult.data) {
-            const response = refetchResult.data as ListOwnerDogsResponse
-            const newDog = response.dogs?.find((d) => d.id === dogId)
-            if (newDog) {
-                setSelectedDog(dogId)
-            }
-        }
-    }, [refetchDogs, setSelectedDog])
-
 
     const {
         data: subscriptionsData,
@@ -303,11 +261,6 @@ export default function SetupAppointment() {
         })
         return map
     }, [stationsData])
-
-    const dogs = useMemo<Dog[]>(() => {
-        const response = dogsQueryData as ListOwnerDogsResponse | undefined
-        return response?.dogs ?? []
-    }, [dogsQueryData])
 
     const subscriptionsResponse = useMemo(() => subscriptionsData as ClientSubscriptionsResponse | undefined, [subscriptionsData])
 

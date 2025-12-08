@@ -13,7 +13,6 @@ import BreedsManagementPage from "./pages/BreedsManagement";
 import StationsManagementPage from "./pages/StationsManagement";
 import NotFound from "./pages/NotFound";
 import { SimpleTest } from "./components/SimpleTest";
-import { OwnerDogsList } from "./components/BreedSelector";
 import { AuthContainer } from "./components/auth/AuthContainer";
 import { UserOnboarding } from "./components/auth/UserOnboarding";
 import { Navbar } from "./components/navigation/Navbar";
@@ -22,7 +21,6 @@ import { ThirdLevelSubnav } from "./components/navigation/ThirdLevelSubnav";
 import { AppFooter } from "./components/layout/AppFooter";
 import { CreditCardWarningBanner } from "./components/layout/CreditCardWarningBanner";
 import { useAppSelector } from "./store/hooks";
-import MyDogs from "./pages/MyDogs"
 import SetupAppointment from "./pages/SetupAppointment"
 import Appointments from "./pages/Appointments/Appointments"
 import ProfileSettings from "./pages/ProfileSettings"
@@ -73,7 +71,6 @@ const AppContent = () => {
             <Route path="/admin" element={<Admin />} />
             <Route path="/auth" element={<AuthContainer />} />
             <Route path="/onboarding" element={<UserOnboarding userEmail="" onBackToAuth={() => { }} />} />
-            <Route path="/my-dogs" element={<MyDogs />} />
             <Route path="/setup-appointment" element={<SetupAppointment />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/subscriptions" element={<Subscriptions />} />
@@ -81,7 +78,6 @@ const AppContent = () => {
             <Route path="/about" element={<About />} />
             <Route path="/profile" element={<ProfileSettings />} />
             <Route path="/test" element={<SimpleTest />} />
-            <Route path="/breeds" element={<OwnerDogsList />} />
             <Route path="/admin/breeds" element={<BreedsManagementPage />} />
             <Route path="/admin/stations" element={<StationsManagementPage />} />
             <Route path="/settings" element={<Settings />} />

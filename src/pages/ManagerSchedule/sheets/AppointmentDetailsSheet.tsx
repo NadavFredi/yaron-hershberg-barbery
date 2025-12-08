@@ -10,7 +10,6 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { DogAppointmentsModal } from "@/components/dialogs/manager-schedule/DogAppointmentsModal"
 import { PaymentModal } from "@/components/dialogs/manager-schedule/PaymentModal"
 import { SeriesAppointmentsModal } from "@/components/dialogs/manager-schedule/SeriesAppointmentsModal"
 import { SendInvoiceDialog } from "@/components/dialogs/manager-schedule/SendInvoiceDialog"
@@ -161,8 +160,6 @@ export const AppointmentDetailsSheet = ({
     const [isSavingGroomingNotes, setIsSavingGroomingNotes] = useState(false)
     const [isSavingClientNotes, setIsSavingClientNotes] = useState(false)
     const [isSavingAllChanges, setIsSavingAllChanges] = useState(false)
-    const [dogAppointmentsModalOpen, setDogAppointmentsModalOpen] = useState(false)
-    const [selectedDogForAppointments, setSelectedDogForAppointments] = useState<{ id: string; name: string } | null>(null)
     const [payments, setPayments] = useState<Array<Payment & { appointmentPayment: AppointmentPayment }>>([])
     const [customerContacts, setCustomerContacts] = useState<CustomerContact[]>([])
     const [appointmentClientPhone, setAppointmentClientPhone] = useState<string | null>(null)
@@ -761,16 +758,6 @@ export const AppointmentDetailsSheet = ({
         setHasBeenUnlinkedFromSeries(false)
     }, [selectedAppointment, open])
 
-    const handleShowDogAppointments = (dog: ManagerDog) => {
-        setSelectedDogForAppointments({ id: dog.id, name: dog.name })
-        setDogAppointmentsModalOpen(true)
-    }
-
-    const handleAppointmentClick = (appointment: ManagerAppointment) => {
-        // Close the modal when an appointment is clicked
-        setDogAppointmentsModalOpen(false)
-        // Optionally, you could navigate to the appointment details here
-    }
 
     const handleSaveInternalNotes = async () => {
         if (!selectedAppointment) return
@@ -2093,17 +2080,6 @@ export const AppointmentDetailsSheet = ({
                     )
                 })() : null}
             </SheetContent>
-
-            {/* Dog Appointments Modal */}
-            {selectedDogForAppointments && (
-                <DogAppointmentsModal
-                    open={dogAppointmentsModalOpen}
-                    onOpenChange={setDogAppointmentsModalOpen}
-                    dogId={selectedDogForAppointments.id}
-                    dogName={selectedDogForAppointments.name}
-                    onAppointmentClick={handleAppointmentClick}
-                />
-            )}
 
             {/* Payment Modal */}
             {selectedAppointment && (

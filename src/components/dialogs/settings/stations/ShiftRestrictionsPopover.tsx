@@ -5,7 +5,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge"
 import { Settings2 } from "lucide-react"
 import { CustomerTypeMultiSelect, type CustomerTypeOption } from "@/components/customer-types/CustomerTypeMultiSelect"
-import { DogCategoryMultiSelect, type DogCategoryOption } from "@/components/dog-categories/DogCategoryMultiSelect"
 
 interface StationWorkingHour {
     id?: string
@@ -15,23 +14,21 @@ interface StationWorkingHour {
     close_time: string
     shift_order: number
     allowedCustomerTypeIds?: string[]
-    allowedDogCategoryIds?: string[]
     blockedCustomerTypeIds?: string[]
-    blockedDogCategoryIds?: string[]
 }
 
 interface ShiftRestrictionsPopoverProps {
     shift: StationWorkingHour
     customerTypes: CustomerTypeOption[]
-    dogCategories: DogCategoryOption[]
+    dogCategories?: never[]
     isLoadingCustomerTypes: boolean
-    isLoadingDogCategories: boolean
+    isLoadingDogCategories?: boolean
     onCreateCustomerType: (name: string) => Promise<string | null>
-    onCreateDogCategory: (name: string) => Promise<string | null>
+    onCreateDogCategory?: (name: string) => Promise<string | null>
     onRefreshCustomerTypes: () => Promise<void>
-    onRefreshDogCategories: () => Promise<void>
+    onRefreshDogCategories?: () => Promise<void>
     onRestrictionChange: (
-        type: "customerTypes" | "dogCategories" | "blockedCustomerTypes" | "blockedDogCategories",
+        type: "customerTypes" | "blockedCustomerTypes",
         ids: string[]
     ) => void
 }
@@ -39,21 +36,15 @@ interface ShiftRestrictionsPopoverProps {
 export function ShiftRestrictionsPopover({
     shift,
     customerTypes,
-    dogCategories,
     isLoadingCustomerTypes,
-    isLoadingDogCategories,
     onCreateCustomerType,
-    onCreateDogCategory,
     onRefreshCustomerTypes,
-    onRefreshDogCategories,
     onRestrictionChange,
 }: ShiftRestrictionsPopoverProps) {
     const [popoverOpen, setPopoverOpen] = useState(false)
 
-    const allowedCount =
-        (shift.allowedCustomerTypeIds?.length || 0) + (shift.allowedDogCategoryIds?.length || 0)
-    const blockedCount =
-        (shift.blockedCustomerTypeIds?.length || 0) + (shift.blockedDogCategoryIds?.length || 0)
+    const allowedCount = shift.allowedCustomerTypeIds?.length || 0
+    const blockedCount = shift.blockedCustomerTypeIds?.length || 0
     const totalRestrictions = allowedCount + blockedCount
 
     return (
@@ -113,20 +104,6 @@ export function ShiftRestrictionsPopover({
                                     onRefreshOptions={onRefreshCustomerTypes}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-xs text-green-700 text-right block font-medium">
-                                    קטגוריות כלבים מורשות (אופציונלי)
-                                </Label>
-                                <DogCategoryMultiSelect
-                                    options={dogCategories}
-                                    selectedIds={shift.allowedDogCategoryIds || []}
-                                    onSelectionChange={(ids) => onRestrictionChange("dogCategories", ids)}
-                                    placeholder="כל הקטגוריות..."
-                                    isLoading={isLoadingDogCategories}
-                                    onCreateDogCategory={onCreateDogCategory}
-                                    onRefreshOptions={onRefreshDogCategories}
-                                />
-                            </div>
                         </div>
                         <div className="border-t border-red-200 pt-3 space-y-3 bg-red-50/30 rounded p-3">
                             <div className="space-y-2">
@@ -141,21 +118,6 @@ export function ShiftRestrictionsPopover({
                                     isLoading={isLoadingCustomerTypes}
                                     onCreateCustomerType={onCreateCustomerType}
                                     onRefreshOptions={onRefreshCustomerTypes}
-                                />
-                                <p className="text-xs text-red-600 text-right">חסימות גוברות על הרשאות</p>
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-xs text-red-700 text-right block font-medium">
-                                    קטגוריות כלבים חסומות (אופציונלי)
-                                </Label>
-                                <DogCategoryMultiSelect
-                                    options={dogCategories}
-                                    selectedIds={shift.blockedDogCategoryIds || []}
-                                    onSelectionChange={(ids) => onRestrictionChange("blockedDogCategories", ids)}
-                                    placeholder="אין חסימות..."
-                                    isLoading={isLoadingDogCategories}
-                                    onCreateDogCategory={onCreateDogCategory}
-                                    onRefreshOptions={onRefreshDogCategories}
                                 />
                                 <p className="text-xs text-red-600 text-right">חסימות גוברות על הרשאות</p>
                             </div>

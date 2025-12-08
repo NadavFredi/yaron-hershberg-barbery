@@ -25,7 +25,6 @@ import {
     PlayCircle,
     PauseCircle,
     Sparkles,
-    Dog,
     Calendar,
     ClipboardList,
     Ticket,
@@ -196,7 +195,7 @@ const ManagerNotificationBell = ({
                                         </Badge>
                                     </div>
                                     <div className="text-xs text-slate-600">
-                                        {request.dogName ? `כלב: ${request.dogName}` : "ללא שם כלב"}
+                                        {request.customerName || "לקוח ללא שם"}
                                     </div>
                                     <div className="text-xs text-slate-500">
                                         {`תור מתוכנן: ${formatDateTime(request.startAt)}`}
@@ -401,7 +400,6 @@ export function Navbar({ isManager }: NavbarProps) {
     const modeParam = searchParams.get("mode")
     const pinnedParam = searchParams.get("pinned")
     const currentCustomersMode = currentManagerSection === "customers" ? (modeParam || "list") : null
-    const currentDogsMode = currentManagerSection === "dogs" ? (modeParam || "list") : null
     const currentSettingsMode = currentManagerSection === "settings" ? (modeParam || "working-hours") : null
     const currentSubscriptionsMode = currentManagerSection === "subscriptions" ? (modeParam || "list") : null
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ manager: false })
@@ -775,7 +773,6 @@ export function Navbar({ isManager }: NavbarProps) {
 
     const navItems = [
         { path: "/about", label: "אודות", icon: Sparkles, requiresAuth: false, requiresManager: false },
-        { path: "/my-dogs", label: "הכלבים שלי", icon: Dog, requiresAuth: true, requiresManager: false },
         { path: "/setup-appointment", label: "קבע תור", icon: Calendar, requiresAuth: true, requiresManager: false },
         { path: "/appointments", label: "התורים שלי", icon: ClipboardList, requiresAuth: true, requiresManager: false },
         { path: "/subscriptions", label: "הכרטיסיות שלי", icon: Ticket, requiresAuth: true, requiresManager: false },
@@ -797,12 +794,6 @@ export function Navbar({ isManager }: NavbarProps) {
             label: section.label,
             icon: section.icon,
             isActive: currentManagerSection === "customers" && currentCustomersMode === section.id
-        })),
-        dogs: THIRD_LEVEL_SECTIONS.dogs.map((section) => ({
-            to: `/manager-screens?section=dogs&mode=${section.id}`,
-            label: section.label,
-            icon: section.icon,
-            isActive: currentManagerSection === "dogs" && currentDogsMode === section.id
         })),
         settings: THIRD_LEVEL_SECTIONS.settings.map((section) => ({
             to: `/manager-screens?section=settings&mode=${section.id}`,
@@ -927,7 +918,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                 </div>
                                 <div>
                                     <h1 className="text-lg font-bold text-gray-900 leading-tight">B LOVED</h1>
-                                    <p className="text-xs text-gray-600 leading-tight">מספרת כלבים מקצועית</p>
+                                    <p className="text-xs text-gray-600 leading-tight">מספרה מקצועית</p>
                                 </div>
                             </Link>
                             <div className="flex items-center gap-2">
@@ -957,13 +948,13 @@ export function Navbar({ isManager }: NavbarProps) {
 
                         {/* Desktop Header */}
                         <div className="hidden xl:grid xl:grid-cols-[auto,1fr,auto] xl:items-center xl:gap-6 py-4">
-                            <Link to={user ? "/my-dogs" : "/"} className="flex items-center gap-3">
+                            <Link to={user ? "/setup-appointment" : "/"} className="flex items-center gap-3">
                                 <div className="w-12 h-12 shrink-0">
                                     <img src={logoImage} alt="B LOVED Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <div>
                                     <h1 className="text-2xl font-bold text-gray-900 leading-tight">B LOVED</h1>
-                                    <p className="text-sm text-gray-600 leading-tight">מספרת כלבים מקצועית</p>
+                                    <p className="text-sm text-gray-600 leading-tight">מספרה מקצועית</p>
                                 </div>
                             </Link>
 

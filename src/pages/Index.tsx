@@ -12,7 +12,7 @@ const Index = () => {
             <img src={logoImage} alt="B LOVED Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-3">B LOVED</h1>
-          <p className="text-xl text-gray-600 mb-6">מספרת כלבים מקצועית</p>
+          <p className="text-xl text-gray-600 mb-6">מספרה מקצועית</p>
           <p className="text-gray-500 mb-8">ברוכים הבאים למערכת הזימון תורים שלנו</p>
         </div>
 

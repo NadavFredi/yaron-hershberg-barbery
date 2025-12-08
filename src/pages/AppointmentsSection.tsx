@@ -27,9 +27,9 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { AppointmentDetailsSheet, ClientDetailsSheet, DogDetailsSheet } from "@/pages/ManagerSchedule/sheets"
+import { AppointmentDetailsSheet, ClientDetailsSheet } from "@/pages/ManagerSchedule/sheets"
 import { useAppDispatch } from "@/store/hooks"
-import { setSelectedClient, setIsClientDetailsOpen, setSelectedDog, setIsDogDetailsOpen, type ClientDetails, type DogDetails } from "@/store/slices/managerScheduleSlice"
+import { setSelectedClient, setIsClientDetailsOpen, type ClientDetails } from "@/store/slices/managerScheduleSlice"
 import { SettingsStationsPerDaySection } from "@/components/settings/SettingsStationsPerDaySection/SettingsStationsPerDaySection"
 import { useStations } from "@/hooks/useStations"
 import { MultiSelectDropdown } from "@/components/settings/SettingsBreedStationMatrixSection/components/MultiSelectDropdown"
@@ -46,9 +46,6 @@ type EnrichedAppointment = ManagerAppointment & {
 
 type ClientDetailsSheetProps = ComponentProps<typeof ClientDetailsSheet>
 type ClientDetailsPayload = ClientDetailsSheetProps["selectedClient"]
-
-type DogDetailsSheetProps = ComponentProps<typeof DogDetailsSheet>
-type DogDetailsPayload = DogDetailsSheetProps["selectedDog"]
 
 interface OptionItem {
     id: string
@@ -818,37 +815,6 @@ export default function AppointmentsSection() {
         dispatch(setIsClientDetailsOpen(true))
     }
 
-    const buildDogDetailsPayload = (dog: ManagerDog, appointment?: EnrichedAppointment): DogDetails => {
-        const typedDog = dog as CategorizedDog
-        const ownerName = appointment?.clientName || typedDog.clientName || ""
-        const clientId = appointment?.clientId || typedDog.ownerId
-        return {
-            id: typedDog.id,
-            name: typedDog.name || "כלב ללא שם",
-            breed: typedDog.breed,
-            clientClassification: typedDog.clientClassification || appointment?.clientClassification,
-            owner: ownerName
-                ? {
-                      name: ownerName,
-                      classification: appointment?.clientClassification || typedDog.clientClassification,
-                      customerTypeName: appointment?.clientCustomerTypeName || typedDog.customerTypeName,
-                      phone: appointment?.clientPhone,
-                      email: appointment?.clientEmail,
-                      clientId: clientId,
-                      recordId: clientId, // Also set recordId for compatibility
-                  }
-                : undefined,
-            notes: appointment?.notes,
-            internalNotes: appointment?.internalNotes,
-            customer_id: clientId,
-        }
-    }
-
-    const openDogSheet = (dog: ManagerDog, appointment?: EnrichedAppointment) => {
-        const payload = buildDogDetailsPayload(dog, appointment)
-        dispatch(setSelectedDog(payload))
-        dispatch(setIsDogDetailsOpen(true))
-    }
 
     const openAppointmentSheet = (appointment: EnrichedAppointment) => {
         setSelectedAppointment(appointment)
@@ -860,21 +826,6 @@ export default function AppointmentsSection() {
         openClientSheet(buildClientDetailsFromAppointment(appointment))
     }
 
-    const handleDogCellClick = (event: MouseEvent<HTMLButtonElement>, appointment: EnrichedAppointment) => {
-        event.stopPropagation()
-        const dog = appointment.dogs?.[0]
-        if (dog) {
-            openDogSheet(dog as ManagerDog, appointment)
-        }
-    }
-
-    const handleAppointmentDogClick = (dog: ManagerDog) => {
-        if (selectedAppointment) {
-            openDogSheet(dog, selectedAppointment)
-        } else {
-            openDogSheet(dog)
-        }
-    }
 
     const handleAppointmentClientClick = (client: ClientDetailsPayload) => {
         openClientSheet(client)
@@ -889,15 +840,7 @@ export default function AppointmentsSection() {
         }
     }
 
-    const handleDogSheetAppointmentClick = (appointment: ManagerAppointment) => {
-        const fullAppointment = appointments.find((item) => item.id === appointment.id)
-        if (fullAppointment) {
-            openAppointmentSheet(fullAppointment)
-        }
-    }
-
-    const handleShowDogAppointments = (dogId: string, dogName: string) => {
-        setIsDogSheetOpen(false)
+    const handleShowDogAppointments = (_dogId: string, dogName: string) => {
         setSearchTerm(dogName)
         toast({
             title: "סינון לפי כלב",
@@ -1487,13 +1430,9 @@ export default function AppointmentsSection() {
                                                 </TableCell>
                                                 <TableCell>
                                                     {primaryDog ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(event) => handleDogCellClick(event, appointment)}
-                                                            className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                                                        >
+                                                        <span className="font-medium">
                                                             {primaryDog.name || "—"}
-                                                        </button>
+                                                        </span>
                                                     ) : (
                                                         <div className="font-medium text-slate-500">—</div>
                                                     )}
@@ -1541,7 +1480,6 @@ export default function AppointmentsSection() {
                     open={isAppointmentSheetOpen}
                     onOpenChange={setIsAppointmentSheetOpen}
                     selectedAppointment={selectedAppointment}
-                    onDogClick={handleAppointmentDogClick}
                     onClientClick={handleAppointmentClientClick}
                     onEditAppointment={(appointment) =>
                         toast({ title: "עריכת תור", description: `עריכת תורים תתאפשר בקרוב עבור ${appointment?.clientName ?? "לקוח"}.` })
@@ -1553,10 +1491,6 @@ export default function AppointmentsSection() {
 
                 <ClientDetailsSheet
                     data={{ appointments }}
-                />
-
-                <DogDetailsSheet
-                    onShowDogAppointments={handleShowDogAppointments}
                 />
             </div>
         </div>

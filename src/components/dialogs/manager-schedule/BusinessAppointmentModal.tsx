@@ -12,7 +12,6 @@ import {
 } from "@/pages/ManagerSchedule/components/AppointmentDetailsSection"
 import { useToast } from "@/hooks/use-toast"
 import { type Customer, CustomerSearchInput } from "@/components/CustomerSearchInput"
-import { type Dog, DogSelectInput } from "@/components/DogSelectInput"
 
 type ManagerStation = AppointmentStation
 
@@ -29,7 +28,6 @@ interface BusinessAppointmentModalProps {
     onCancel: () => void
     onSuccess?: () => void
     prefillCustomer?: Customer | null
-    prefillDog?: Dog | null
 }
 
 export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> = ({
@@ -40,10 +38,8 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     onCancel,
     onSuccess,
     prefillCustomer = null,
-    prefillDog = null
 }) => {
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-    const [selectedDog, setSelectedDog] = useState<Dog | null>(null)
     const [appointmentTimes, setAppointmentTimes] = useState<FinalizedDragTimes | null>(() => finalizedDragTimes ? {
         startTime: finalizedDragTimes.startTime ? new Date(finalizedDragTimes.startTime) : null,
         endTime: finalizedDragTimes.endTime ? new Date(finalizedDragTimes.endTime) : null,
@@ -66,7 +62,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     useEffect(() => {
         if (!open) {
             setSelectedCustomer(null)
-            setSelectedDog(null)
             setSyncMeetingsTimes(true)
             hasSetSyncDefaultRef.current = false
         }
@@ -78,11 +73,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         }
     }, [open, prefillCustomer])
 
-    useEffect(() => {
-        if (open && prefillDog) {
-            setSelectedDog(prefillDog)
-        }
-    }, [open, prefillDog])
 
     useEffect(() => {
         if (finalizedDragTimes) {
@@ -111,57 +101,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         }
     }, [open, appointmentTimes?.startTime, appointmentTimes?.endTime])
 
-    useEffect(() => {
-        if (!syncMeetingsTimes) {
-            setDurationStatus('idle')
-            setDurationMinutes(null)
-            setDurationMessage(null)
-            return
-        }
-
-        if (selectedDog?.id && appointmentTimes?.stationId) {
-            setDurationStatus('checking')
-            setDurationMinutes(null)
-            setDurationMessage(null)
-            triggerBreedDuration({ dogId: selectedDog.id, stationId: appointmentTimes.stationId, serviceType: 'grooming' })
-        } else {
-            setDurationStatus('idle')
-            setDurationMinutes(null)
-            setDurationMessage(null)
-        }
-    }, [selectedDog?.id, selectedDog?.breed, appointmentTimes?.stationId, syncMeetingsTimes, triggerBreedDuration])
-
-    useEffect(() => {
-        if (!breedDurationData) {
-            return
-        }
-
-        if (selectedDog?.id && breedDurationData.dogId && breedDurationData.dogId !== selectedDog.id) {
-            return
-        }
-
-        if (appointmentTimes?.stationId && breedDurationData.stationId && breedDurationData.stationId !== appointmentTimes.stationId) {
-            return
-        }
-
-        if (breedDurationData.supported) {
-            const minutes = typeof breedDurationData.durationMinutes === 'number' ? breedDurationData.durationMinutes : null
-            if (minutes == null) {
-                setDurationStatus('error')
-                setDurationMinutes(null)
-                setDurationMessage('לא התקבל משך תספורת תקין עבור הגזע והעמדה שנבחרו.')
-                return
-            }
-
-            setDurationStatus('supported')
-            setDurationMinutes(minutes)
-            setDurationMessage(null)
-        } else {
-            setDurationStatus('unsupported')
-            setDurationMinutes(null)
-            setDurationMessage(breedDurationData.message ?? 'העמדה שנבחרה אינה תומכת בגזע זה.')
-        }
-    }, [breedDurationData, selectedDog?.id, appointmentTimes?.stationId])
 
     useEffect(() => {
         if (!isBreedDurationError) {
@@ -218,20 +157,10 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
 
     const handleCustomerSelect = (customer: Customer) => {
         setSelectedCustomer(customer)
-        setSelectedDog(null) // Reset dog selection when customer changes
-    }
-
-    const handleDogSelect = (dog: Dog) => {
-        setSelectedDog(dog)
     }
 
     const handleClearCustomer = () => {
         setSelectedCustomer(null)
-        setSelectedDog(null)
-    }
-
-    const handleClearDog = () => {
-        setSelectedDog(null)
     }
 
     const handleTimesUpdate = (times: FinalizedDragTimes) => {
@@ -288,7 +217,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
             // Close the modal and reset form
             onOpenChange(false)
             setSelectedCustomer(null)
-            setSelectedDog(null)
             setAppointmentTimes(null)
             onSuccess?.()
 
@@ -388,13 +316,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                                 onCustomerClear={handleClearCustomer}
                             />
 
-                            {/* Dog Selection */}
-                            <DogSelectInput
-                                selectedCustomer={selectedCustomer}
-                                selectedDog={selectedDog}
-                                onDogSelect={handleDogSelect}
-                                onDogClear={handleClearDog}
-                            />
                         </div>
                     </div>
                 )}

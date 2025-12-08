@@ -26,12 +26,10 @@ import {
   WaitlistDropDialog,
   PinnedAppointmentDropDialog,
   ManagerCustomerCommunicationModal,
-  ManagerInvoiceModal,
-  ManagerDogReadyModal
+  ManagerInvoiceModal
 } from "@/components/dialogs/manager-schedule/index"
 import { ManagerAppointmentCreationModals } from "@/components/modals/manager-schedule/ManagerAppointmentCreationModals"
 import { ManagerAppointmentDetailsSheet } from "@/components/sheets/manager-schedule/ManagerAppointmentDetailsSheet"
-import { ManagerDogDetailsSheet } from "@/components/sheets/manager-schedule/ManagerDogDetailsSheet"
 import { ManagerClientDetailsSheet } from "@/components/sheets/manager-schedule/ManagerClientDetailsSheet"
 import { ManagerConstraintDetailsSheet } from "@/components/sheets/manager-schedule/ManagerConstraintDetailsSheet"
 import { ManagerScheduleLoadingState } from "./ManagerSchedule/components/ManagerScheduleLoadingState"
@@ -134,7 +132,6 @@ const ManagerSchedule = () => {
         </div>
       </div>
       <ManagerAppointmentDetailsSheet />
-      <ManagerDogDetailsSheet />
       <ManagerClientDetailsSheet />
       <ManagerConstraintDetailsSheet />
       <MoveConfirmationDialog />
@@ -158,7 +155,6 @@ const ManagerSchedule = () => {
       <PinnedAppointmentDropDialog />
       <ManagerCustomerCommunicationModal />
       <ManagerInvoiceModal />
-      <ManagerDogReadyModal />
       <ApproveWithModifyDialog />
     </div>
   )

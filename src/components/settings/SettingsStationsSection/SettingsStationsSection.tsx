@@ -26,9 +26,7 @@ import { Filter, X } from "lucide-react"
 import { BreedMultiSelect } from "./BreedMultiSelect"
 import { ShiftRestrictionsPopover } from "@/components/dialogs/settings/stations/ShiftRestrictionsPopover"
 import { useCreateCustomerType } from "@/hooks/useCreateCustomerType"
-import { useCreateDogCategory } from "@/hooks/useCreateDogCategory"
 import type { CustomerTypeOption } from "@/components/customer-types/CustomerTypeMultiSelect"
-import type { DogCategoryOption } from "@/components/dog-categories/DogCategoryMultiSelect"
 
 interface Station {
     id: string
@@ -273,20 +271,12 @@ export function SettingsStationsSection() {
     const [stationAllowedCustomerTypes, setStationAllowedCustomerTypes] = useState<Record<string, CustomerTypeOption[]>>({})
     const [viewingAllowedCustomerTypes, setViewingAllowedCustomerTypes] = useState<CustomerTypeOption[]>([])
     const [viewingCustomerTypes, setViewingCustomerTypes] = useState<CustomerTypeOption[]>([])
-    const [viewingDogCategories, setViewingDogCategories] = useState<DogCategoryOption[]>([])
     const [isLoadingViewingCustomerTypes, setIsLoadingViewingCustomerTypes] = useState(false)
-    const [isLoadingViewingDogCategories, setIsLoadingViewingDogCategories] = useState(false)
 
     const { createCustomerType } = useCreateCustomerType({
         onSuccess: (id, name) => {
             const newCustomerType: CustomerTypeOption = { id, name }
             setViewingCustomerTypes((prev) => [...prev, newCustomerType])
-        },
-    })
-    const { createDogCategory } = useCreateDogCategory({
-        onSuccess: (id, name) => {
-            const newDogCategory: DogCategoryOption = { id, name }
-            setViewingDogCategories((prev) => [...prev, newDogCategory])
         },
     })
 
@@ -744,26 +734,6 @@ export function SettingsStationsSection() {
         }
     }
 
-    const fetchViewingDogCategories = async () => {
-        setIsLoadingViewingDogCategories(true)
-        try {
-            const { data, error } = await supabase
-                .from("dog_categories")
-                .select("id, name")
-                .order("name", { ascending: true })
-
-            if (error) throw error
-            const transformed = (data || []).map((item) => ({
-                id: item.id,
-                name: item.name,
-            }))
-            setViewingDogCategories(transformed)
-        } catch (error) {
-            console.error("❌ [SettingsStationsSection] Failed to load dog categories:", error)
-        } finally {
-            setIsLoadingViewingDogCategories(false)
-        }
-    }
 
     const handleView = async (station: Station) => {
         setViewingStation(station)
@@ -796,8 +766,8 @@ export function SettingsStationsSection() {
                 [station.id]: allowedTypes,
             }))
 
-            // Load customer types and dog categories for the restrictions popover
-            await Promise.all([fetchViewingCustomerTypes(), fetchViewingDogCategories()])
+            // Load customer types for the restrictions popover
+            await fetchViewingCustomerTypes()
         } finally {
             setIsViewDialogOpen(true)
         }
@@ -1997,13 +1967,13 @@ export function SettingsStationsSection() {
                                                                             <ShiftRestrictionsPopover
                                                                                 shift={shift}
                                                                                 customerTypes={viewingCustomerTypes}
-                                                                                dogCategories={viewingDogCategories}
+                                                                                dogCategories={[]}
                                                                                 isLoadingCustomerTypes={isLoadingViewingCustomerTypes}
-                                                                                isLoadingDogCategories={isLoadingViewingDogCategories}
+                                                                                isLoadingDogCategories={false}
                                                                                 onCreateCustomerType={createCustomerType}
-                                                                                onCreateDogCategory={createDogCategory}
+                                                                                onCreateDogCategory={async () => null}
                                                                                 onRefreshCustomerTypes={fetchViewingCustomerTypes}
-                                                                                onRefreshDogCategories={fetchViewingDogCategories}
+                                                                                onRefreshDogCategories={async () => {}}
                                                                                 onRestrictionChange={() => {
                                                                                     // Read-only in view mode, so this is a no-op
                                                                                 }}

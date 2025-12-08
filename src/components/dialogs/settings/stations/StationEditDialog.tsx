@@ -13,8 +13,6 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { supabaseApi } from "@/store/services/supabaseApi"
 import { CustomerTypeMultiSelect, type CustomerTypeOption } from "@/components/customer-types/CustomerTypeMultiSelect"
 import { useCreateCustomerType } from "@/hooks/useCreateCustomerType"
-import { DogCategoryMultiSelect, type DogCategoryOption } from "@/components/dog-categories/DogCategoryMultiSelect"
-import { useCreateDogCategory } from "@/hooks/useCreateDogCategory"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Shield, X } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -36,9 +34,7 @@ interface StationWorkingHour {
     close_time: string
     shift_order: number
     allowedCustomerTypeIds?: string[]
-    allowedDogCategoryIds?: string[]
     blockedCustomerTypeIds?: string[]
-    blockedDogCategoryIds?: string[]
 }
 
 interface DayShifts {
@@ -80,9 +76,7 @@ const fetchStationWorkingHours = async (stationId: string): Promise<StationWorki
             open_time: h.open_time?.substring(0, 5) || "",
             close_time: h.close_time?.substring(0, 5) || "",
             allowedCustomerTypeIds: [] as string[],
-            allowedDogCategoryIds: [] as string[],
             blockedCustomerTypeIds: [] as string[],
-            blockedDogCategoryIds: [] as string[],
         }))
 
         // Fetch shift restrictions
@@ -96,41 +90,20 @@ const fetchStationWorkingHours = async (stationId: string): Promise<StationWorki
                     .select("shift_id, customer_type_id")
                     .in("shift_id", shiftIds)
 
-                // Fetch allowed dog category restrictions
-                const { data: dogCategoryRestrictions } = await supabase
-                    .from("shift_allowed_dog_categories")
-                    .select("shift_id, dog_category_id")
-                    .in("shift_id", shiftIds)
-
                 // Fetch blocked customer type restrictions
                 const { data: blockedCustomerTypeRestrictions } = await supabase
                     .from("shift_blocked_customer_types")
                     .select("shift_id, customer_type_id")
                     .in("shift_id", shiftIds)
 
-                // Fetch blocked dog category restrictions
-                const { data: blockedDogCategoryRestrictions } = await supabase
-                    .from("shift_blocked_dog_categories")
-                    .select("shift_id, dog_category_id")
-                    .in("shift_id", shiftIds)
-
                 // Group restrictions by shift_id
                 const customerTypeMap = new Map<string, string[]>()
-                const dogCategoryMap = new Map<string, string[]>()
                 const blockedCustomerTypeMap = new Map<string, string[]>()
-                const blockedDogCategoryMap = new Map<string, string[]>()
 
                 customerTypeRestrictions?.forEach((r) => {
                     if (r.shift_id) {
                         const existing = customerTypeMap.get(r.shift_id) || []
                         customerTypeMap.set(r.shift_id, [...existing, r.customer_type_id])
-                    }
-                })
-
-                dogCategoryRestrictions?.forEach((r) => {
-                    if (r.shift_id) {
-                        const existing = dogCategoryMap.get(r.shift_id) || []
-                        dogCategoryMap.set(r.shift_id, [...existing, r.dog_category_id])
                     }
                 })
 
@@ -141,20 +114,11 @@ const fetchStationWorkingHours = async (stationId: string): Promise<StationWorki
                     }
                 })
 
-                blockedDogCategoryRestrictions?.forEach((r) => {
-                    if (r.shift_id) {
-                        const existing = blockedDogCategoryMap.get(r.shift_id) || []
-                        blockedDogCategoryMap.set(r.shift_id, [...existing, r.dog_category_id])
-                    }
-                })
-
                 // Apply restrictions to shifts
                 shifts.forEach((shift) => {
                     if (shift.id) {
                         shift.allowedCustomerTypeIds = customerTypeMap.get(shift.id) || []
-                        shift.allowedDogCategoryIds = dogCategoryMap.get(shift.id) || []
                         shift.blockedCustomerTypeIds = blockedCustomerTypeMap.get(shift.id) || []
-                        shift.blockedDogCategoryIds = blockedDogCategoryMap.get(shift.id) || []
                     }
                 })
             }
@@ -210,13 +174,10 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
         is_active: true,
         slotIntervalMinutes: "60",
         allowedCustomerTypeIds: [] as string[],
-        allowedDogCategoryIds: [] as string[],
     })
     const [dayShifts, setDayShifts] = useState<DayShifts[]>([])
     const [customerTypes, setCustomerTypes] = useState<CustomerTypeOption[]>([])
     const [isLoadingCustomerTypes, setIsLoadingCustomerTypes] = useState(false)
-    const [dogCategories, setDogCategories] = useState<DogCategoryOption[]>([])
-    const [isLoadingDogCategories, setIsLoadingDogCategories] = useState(false)
 
     const hasFetchedCustomerTypesRef = useRef(false)
     const { createCustomerType } = useCreateCustomerType({
@@ -227,16 +188,6 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
                 name,
             }
             setCustomerTypes((prev) => [...prev, newCustomerType])
-        },
-    })
-    const { createDogCategory } = useCreateDogCategory({
-        onSuccess: (id, name) => {
-            // Add to local state immediately
-            const newDogCategory: DogCategoryOption = {
-                id,
-                name,
-            }
-            setDogCategories((prev) => [...prev, newDogCategory])
         },
     })
 
@@ -337,89 +288,6 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
         [toast]
     )
 
-    const fetchDogCategories = useCallback(async () => {
-        console.log("🔍 [StationEditDialog] Fetching dog categories...")
-        setIsLoadingDogCategories(true)
-        try {
-            const { data, error } = await supabase
-                .from("dog_categories")
-                .select("id, name")
-                .order("name", { ascending: true })
-
-            if (error) throw error
-            const transformed = (data || []).map((item) => ({
-                id: item.id,
-                name: item.name,
-            }))
-            setDogCategories(transformed)
-            console.log("✅ [StationEditDialog] Loaded dog categories:", transformed)
-        } catch (error) {
-            console.error("❌ [StationEditDialog] Failed to load dog categories:", error)
-            toast({
-                title: "שגיאה בטעינת קטגוריות הכלבים",
-                description: "לא הצלחנו לטעון את קטגוריות הכלבים. נסה שוב מאוחר יותר.",
-                variant: "destructive",
-            })
-        } finally {
-            setIsLoadingDogCategories(false)
-        }
-    }, [toast])
-
-    const fetchAllowedDogCategories = useCallback(
-        async (stationId: string) => {
-            console.log("🔍 [StationEditDialog] Fetching allowed dog categories for station:", stationId)
-            try {
-                const { data, error } = await supabase
-                    .from("station_allowed_dog_categories")
-                    .select("dog_category_id, dog_category:dog_categories(id, name)")
-                    .eq("station_id", stationId)
-
-                if (error) throw error
-
-                type AllowedRow = {
-                    dog_category_id: string
-                    dog_category: { id: string; name: string } | null
-                }
-
-                const rows = (data || []) as AllowedRow[]
-                const ids = rows
-                    .map((row) => row.dog_category_id)
-                    .filter((value): value is string => Boolean(value))
-
-                setFormData((prev) => ({
-                    ...prev,
-                    allowedDogCategoryIds: ids,
-                }))
-
-                setDogCategories((prev) => {
-                    const existingIds = new Set(prev.map((item) => item.id))
-                    const merged = [...prev]
-                    rows.forEach((row) => {
-                        const option = row.dog_category
-                        if (option && !existingIds.has(option.id)) {
-                            merged.push({ id: option.id, name: option.name })
-                            existingIds.add(option.id)
-                        }
-                    })
-                    return merged
-                })
-
-                console.log("✅ [StationEditDialog] Station allowed dog categories:", ids)
-            } catch (error) {
-                console.error("❌ [StationEditDialog] Failed to fetch allowed dog categories:", error)
-                toast({
-                    title: "שגיאה בטעינת קטגוריות הכלבים לעמדה",
-                    description: "לא הצלחנו לטעון את קטגוריות הכלבים המורשות לעמדה זו.",
-                    variant: "destructive",
-                })
-                setFormData((prev) => ({
-                    ...prev,
-                    allowedDogCategoryIds: [],
-                }))
-            }
-        },
-        [toast]
-    )
 
 
     useEffect(() => {
@@ -429,8 +297,7 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
         }
 
         void fetchCustomerTypes()
-        void fetchDogCategories()
-    }, [open, fetchCustomerTypes, fetchDogCategories])
+    }, [open, fetchCustomerTypes])
 
     // Auto-select current day when modal opens (only if autoFilterByCurrentDay is true)
     useEffect(() => {
@@ -451,13 +318,11 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
                 is_active: station.is_active,
                 slotIntervalMinutes: String(station.slot_interval_minutes ?? 60),
                 allowedCustomerTypeIds: [],
-                allowedDogCategoryIds: [],
             })
             fetchStationWorkingHours(station.id).then((hours) => {
                 setDayShifts(processHoursData(hours))
             })
             void fetchAllowedCustomerTypes(station.id)
-            void fetchAllowedDogCategories(station.id)
         } else if (open && !station) {
             // Adding new station
             setFormData({
@@ -465,7 +330,6 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
                 is_active: true,
                 slotIntervalMinutes: "60",
                 allowedCustomerTypeIds: [],
-                allowedDogCategoryIds: [],
             })
             const emptyShifts: DayShifts[] = WEEKDAYS.map((day) => ({
                 weekday: day.value,
@@ -504,9 +368,7 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
                         close_time: "17:00",
                         shift_order: maxShiftOrder + 1,
                         allowedCustomerTypeIds: [],
-                        allowedDogCategoryIds: [],
                         blockedCustomerTypeIds: [],
-                        blockedDogCategoryIds: [],
                     }
 
                     return { ...dayShift, shifts: [...dayShift.shifts, newShift] }
@@ -519,7 +381,7 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
     const handleShiftRestrictionChange = (
         weekday: string,
         shiftIndex: number,
-        type: "customerTypes" | "dogCategories" | "blockedCustomerTypes" | "blockedDogCategories",
+        type: "customerTypes" | "blockedCustomerTypes",
         ids: string[]
     ) => {
         setDayShifts((prev) =>
@@ -527,16 +389,7 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
                 if (dayShift.weekday === weekday) {
                     const newShifts = [...dayShift.shifts]
                     if (newShifts[shiftIndex]) {
-                        let fieldName: string
-                        if (type === "customerTypes") {
-                            fieldName = "allowedCustomerTypeIds"
-                        } else if (type === "dogCategories") {
-                            fieldName = "allowedDogCategoryIds"
-                        } else if (type === "blockedCustomerTypes") {
-                            fieldName = "blockedCustomerTypeIds"
-                        } else {
-                            fieldName = "blockedDogCategoryIds"
-                        }
+                        const fieldName = type === "customerTypes" ? "allowedCustomerTypeIds" : "blockedCustomerTypeIds"
                         newShifts[shiftIndex] = {
                             ...newShifts[shiftIndex],
                             [fieldName]: ids,
@@ -687,29 +540,6 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
 
             // Save station-level dog category restrictions
             console.log("🔄 [StationEditDialog] Persisting allowed dog categories for station:", stationId)
-            const { error: deleteDogCategoryError } = await supabase
-                .from("station_allowed_dog_categories")
-                .delete()
-                .eq("station_id", stationId)
-
-            if (deleteDogCategoryError) throw deleteDogCategoryError
-
-            if (formData.allowedDogCategoryIds.length > 0) {
-                const payload = formData.allowedDogCategoryIds.map((dogCategoryId) => ({
-                    station_id: stationId,
-                    dog_category_id: dogCategoryId,
-                }))
-
-                const { error: insertDogCategoryError } = await supabase
-                    .from("station_allowed_dog_categories")
-                    .insert(payload)
-
-                if (insertDogCategoryError) throw insertDogCategoryError
-                console.log("✅ [StationEditDialog] Saved allowed dog categories:", payload)
-            } else {
-                console.log("ℹ️ [StationEditDialog] No dog category restrictions selected. Station open to all dog categories.")
-            }
-
             // Save working hours
             // Delete all existing shifts first (this will cascade delete shift restrictions)
             const { error: deleteError } = await supabase.from("station_working_hours").delete().eq("station_id", stationId)
@@ -717,13 +547,11 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
             if (deleteError) throw deleteError
 
             // Collect all shifts to insert
-            const shiftsToInsert: Omit<StationWorkingHour, "id" | "allowedCustomerTypeIds" | "allowedDogCategoryIds" | "blockedCustomerTypeIds" | "blockedDogCategoryIds">[] = []
+            const shiftsToInsert: Omit<StationWorkingHour, "id" | "allowedCustomerTypeIds" | "blockedCustomerTypeIds">[] = []
             const shiftRestrictions: Array<{
                 shiftId: string
                 customerTypeIds: string[]
-                dogCategoryIds: string[]
                 blockedCustomerTypeIds: string[]
-                blockedDogCategoryIds: string[]
             }> = []
 
             dayShifts.forEach((dayShift) => {
@@ -758,9 +586,7 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
                                 shiftRestrictions.push({
                                     shiftId: insertedShift.id,
                                     customerTypeIds: shift.allowedCustomerTypeIds || [],
-                                    dogCategoryIds: shift.allowedDogCategoryIds || [],
                                     blockedCustomerTypeIds: shift.blockedCustomerTypeIds || [],
-                                    blockedDogCategoryIds: shift.blockedDogCategoryIds || [],
                                 })
                             }
                         })
@@ -768,9 +594,7 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
 
                     // Save shift-level restrictions
                     const customerTypeRestrictions: Array<{ shift_id: string; customer_type_id: string }> = []
-                    const dogCategoryRestrictions: Array<{ shift_id: string; dog_category_id: string }> = []
                     const blockedCustomerTypeRestrictions: Array<{ shift_id: string; customer_type_id: string }> = []
-                    const blockedDogCategoryRestrictions: Array<{ shift_id: string; dog_category_id: string }> = []
 
                     shiftRestrictions.forEach((restriction) => {
                         restriction.customerTypeIds.forEach((customerTypeId) => {
@@ -779,22 +603,10 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
                                 customer_type_id: customerTypeId,
                             })
                         })
-                        restriction.dogCategoryIds.forEach((dogCategoryId) => {
-                            dogCategoryRestrictions.push({
-                                shift_id: restriction.shiftId,
-                                dog_category_id: dogCategoryId,
-                            })
-                        })
                         restriction.blockedCustomerTypeIds.forEach((customerTypeId) => {
                             blockedCustomerTypeRestrictions.push({
                                 shift_id: restriction.shiftId,
                                 customer_type_id: customerTypeId,
-                            })
-                        })
-                        restriction.blockedDogCategoryIds.forEach((dogCategoryId) => {
-                            blockedDogCategoryRestrictions.push({
-                                shift_id: restriction.shiftId,
-                                dog_category_id: dogCategoryId,
                             })
                         })
                     })
@@ -807,28 +619,12 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
                         console.log("✅ [StationEditDialog] Saved shift customer type restrictions:", customerTypeRestrictions.length)
                     }
 
-                    if (dogCategoryRestrictions.length > 0) {
-                        const { error: insertDogCategoryError } = await supabase
-                            .from("shift_allowed_dog_categories")
-                            .insert(dogCategoryRestrictions)
-                        if (insertDogCategoryError) throw insertDogCategoryError
-                        console.log("✅ [StationEditDialog] Saved shift dog category restrictions:", dogCategoryRestrictions.length)
-                    }
-
                     if (blockedCustomerTypeRestrictions.length > 0) {
                         const { error: insertBlockedCustomerTypeError } = await supabase
                             .from("shift_blocked_customer_types")
                             .insert(blockedCustomerTypeRestrictions)
                         if (insertBlockedCustomerTypeError) throw insertBlockedCustomerTypeError
                         console.log("✅ [StationEditDialog] Saved shift blocked customer type restrictions:", blockedCustomerTypeRestrictions.length)
-                    }
-
-                    if (blockedDogCategoryRestrictions.length > 0) {
-                        const { error: insertBlockedDogCategoryError } = await supabase
-                            .from("shift_blocked_dog_categories")
-                            .insert(blockedDogCategoryRestrictions)
-                        if (insertBlockedDogCategoryError) throw insertBlockedDogCategoryError
-                        console.log("✅ [StationEditDialog] Saved shift blocked dog category restrictions:", blockedDogCategoryRestrictions.length)
                     }
                 }
             }
@@ -939,29 +735,6 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
                                         />
                                         <p className="text-xs text-muted-foreground text-right">
                                             אם לא ייבחרו סוגי לקוחות — כל הלקוחות יוכלו להזמין תורים לעמדה.
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label className="text-right font-medium">
-                                            רק כלבים מקטגוריות אלו יוכלו להזמין תורים לעמדה זו
-                                        </Label>
-                                        <DogCategoryMultiSelect
-                                            options={dogCategories}
-                                            selectedIds={formData.allowedDogCategoryIds}
-                                            onSelectionChange={(ids) =>
-                                                setFormData((prev) => ({
-                                                    ...prev,
-                                                    allowedDogCategoryIds: ids,
-                                                }))
-                                            }
-                                            placeholder="בחר קטגוריות כלבים..."
-                                            isLoading={isLoadingDogCategories}
-                                            onCreateDogCategory={createDogCategory}
-                                            onRefreshOptions={fetchDogCategories}
-                                        />
-                                        <p className="text-xs text-muted-foreground text-right">
-                                            אם לא ייבחרו קטגוריות כלבים — כל הקטגוריות יוכלו להזמין תורים לעמדה.
                                         </p>
                                     </div>
                                 </div>
@@ -1133,13 +906,9 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFi
                                                                             <ShiftRestrictionsPopover
                                                                                 shift={shift}
                                                                                 customerTypes={customerTypes}
-                                                                                dogCategories={dogCategories}
                                                                                 isLoadingCustomerTypes={isLoadingCustomerTypes}
-                                                                                isLoadingDogCategories={isLoadingDogCategories}
                                                                                 onCreateCustomerType={createCustomerType}
-                                                                                onCreateDogCategory={createDogCategory}
                                                                                 onRefreshCustomerTypes={() => fetchCustomerTypes({ force: true })}
-                                                                                onRefreshDogCategories={fetchDogCategories}
                                                                                 onRestrictionChange={(type, ids) =>
                                                                                     handleShiftRestrictionChange(
                                                                                         dayShift.weekday,

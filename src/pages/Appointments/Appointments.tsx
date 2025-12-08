@@ -55,7 +55,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { BothAppointmentCard } from "@/components/BothAppointmentCard"
 import { AddWaitlistEntryModal } from "@/components/dialogs/AddWaitlistEntryModal"
 import type { Customer as WaitlistCustomer } from "@/components/CustomerSearchInput"
-import type { Dog as WaitlistModalDog } from "@/components/DogSelectInput"
 
 // Utility function to get service name in Hebrew
 const getServiceName = (service: string) => {

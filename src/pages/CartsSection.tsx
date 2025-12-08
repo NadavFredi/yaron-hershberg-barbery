@@ -19,7 +19,6 @@ import { SelectCustomerForPaymentDialog } from "@/components/dialogs/payments/Se
 import type { ManagerAppointment } from "@/pages/ManagerSchedule/types"
 import type { PaymentData } from "@/components/dialogs/manager-schedule/PaymentModal/types"
 import type { Customer } from "@/components/CustomerSearchInput"
-import type { Dog } from "@/components/DogSelectInput"
 
 interface CartItem {
     id: string

@@ -6,94 +6,22 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, UserPlus, Users, Search, X, Sparkles, Copy, LinkIcon, Dog } from "lucide-react"
+import { Loader2, UserPlus, Users, Search, X, Sparkles, Copy, LinkIcon } from "lucide-react"
 
 import { AppointmentDetailsSection, type AppointmentTimes, type AppointmentStation } from "@/pages/ManagerSchedule/components/AppointmentDetailsSection"
-import { useSearchCustomersQuery, useSendManualProposedMeetingWebhookMutation, useListOwnerDogsQuery } from "@/store/services/supabaseApi"
+import { useSearchCustomersQuery, useSendManualProposedMeetingWebhookMutation } from "@/store/services/supabaseApi"
 import { useDebounce } from "@/hooks/useDebounce"
 import type { Customer } from "@/components/CustomerSearchInput"
-import type { DogRecord } from "@/integrations/supabase/supabaseService"
 import { supabase } from "@/integrations/supabase/client"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { CustomerTypeMultiSelect, type CustomerTypeOption } from "@/components/customer-types/CustomerTypeMultiSelect"
 import { useCreateCustomerType } from "@/hooks/useCreateCustomerType"
-import { DogCategoryMultiSelect, type DogCategoryOption } from "@/components/dog-categories/DogCategoryMultiSelect"
-import { useCreateDogCategory } from "@/hooks/useCreateDogCategory"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { skipToken } from "@reduxjs/toolkit/query"
 
 type ManagerStation = AppointmentStation & { serviceType: "grooming" | "garden" }
 
-// Component to select a dog for a specific customer
-function CustomerDogSelector({
-  customer,
-  selectedDogId,
-  onDogSelect,
-  onRemove,
-}: {
-  customer: Customer
-  selectedDogId: string
-  onDogSelect: (dogId: string | null) => void
-  onRemove: () => void
-}) {
-  const { data: dogsData, isLoading: isLoadingDogs } = useListOwnerDogsQuery(
-    customer.id || skipToken,
-    { skip: !customer.id }
-  )
-
-  const dogs = useMemo<DogRecord[]>(() => dogsData?.dogs ?? [], [dogsData])
-
-  return (
-    <div className="rounded-md border border-slate-200 p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="flex items-center gap-2">
-            <span>{customer.fullName || "לקוח ללא שם"}</span>
-            <button
-              type="button"
-              onClick={onRemove}
-              className="text-slate-500 hover:text-slate-700"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </Badge>
-        </div>
-      </div>
-      {isLoadingDogs ? (
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          טוען כלבים...
-        </div>
-      ) : dogs.length > 0 ? (
-        <div className="space-y-1">
-          <Label className="text-xs text-slate-600 text-right block">בחר כלב (אופציונלי)</Label>
-          <Select
-            value={selectedDogId || "__all__"}
-            onValueChange={(value) => onDogSelect(value === "__all__" ? null : value)}
-            dir="rtl"
-          >
-            <SelectTrigger className="w-full text-right">
-              <SelectValue placeholder="כל הכלבים" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">כל הכלבים</SelectItem>
-              {dogs.map((dog) => (
-                <SelectItem key={dog.id} value={dog.id}>
-                  {dog.name || "כלב ללא שם"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ) : (
-        <div className="text-xs text-slate-500 text-right">
-          ללקוח זה אין כלבים רשומים
-        </div>
-      )}
-    </div>
-  )
-}
 
 export interface ProposedMeetingModalSubmission {
   title: string
@@ -105,8 +33,6 @@ export interface ProposedMeetingModalSubmission {
   serviceType: "grooming" | "garden"
   customerIds: string[]
   customerTypeIds: string[]
-  dogCategoryIds: string[]
-  dogIds?: Array<{ customerId: string; dogId: string }>
   meetingId?: string
 }
 
@@ -119,9 +45,8 @@ export interface ProposedMeetingInitialData {
   serviceType: "grooming" | "garden"
   startDateTime: string
   endDateTime: string
-  manualInvites?: Array<{ id: string; fullName?: string | null; phone?: string | null; email?: string | null; dogId?: string | null }>
+  manualInvites?: Array<{ id: string; fullName?: string | null; phone?: string | null; email?: string | null }>
   customerTypeIds?: string[]
-  dogCategoryIds?: string[]
   code?: string
 }
 
@@ -156,10 +81,6 @@ export const ProposedMeetingModal = ({
   const [selectedCustomerTypeIds, setSelectedCustomerTypeIds] = useState<string[]>([])
   const [customerTypeOptions, setCustomerTypeOptions] = useState<CustomerTypeOption[]>([])
   const [isLoadingCustomerTypes, setIsLoadingCustomerTypes] = useState(false)
-  const [selectedDogCategoryIds, setSelectedDogCategoryIds] = useState<string[]>([])
-  const [dogCategoryOptions, setDogCategoryOptions] = useState<DogCategoryOption[]>([])
-  const [isLoadingDogCategories, setIsLoadingDogCategories] = useState(false)
-  const [selectedDogIds, setSelectedDogIds] = useState<Map<string, string>>(new Map()) // customerId -> dogId
 
   const { createCustomerType } = useCreateCustomerType({
     onSuccess: (id, name) => {
@@ -169,16 +90,6 @@ export const ProposedMeetingModal = ({
         name,
       }
       setCustomerTypeOptions((prev) => [...prev, newCustomerType])
-    },
-  })
-  const { createDogCategory } = useCreateDogCategory({
-    onSuccess: (id, name) => {
-      // Add to local state immediately
-      const newDogCategory: DogCategoryOption = {
-        id,
-        name,
-      }
-      setDogCategoryOptions((prev) => [...prev, newDogCategory])
     },
   })
   const [customerSearchTerm, setCustomerSearchTerm] = useState("")
@@ -349,7 +260,6 @@ export const ProposedMeetingModal = ({
 
     if (initialData?.manualInvites?.length) {
       const uniqueCustomers = new Map<string, Customer>()
-      const dogIdsMap = new Map<string, string>()
       initialData.manualInvites.forEach((invite) => {
         if (invite.id) {
           uniqueCustomers.set(invite.id, {
@@ -358,20 +268,14 @@ export const ProposedMeetingModal = ({
             phone: invite.phone ?? undefined,
             email: invite.email ?? undefined,
           })
-          if (invite.dogId) {
-            dogIdsMap.set(invite.id, invite.dogId)
-          }
         }
       })
       setSelectedCustomers(Array.from(uniqueCustomers.values()))
-      setSelectedDogIds(dogIdsMap)
     } else {
       setSelectedCustomers([])
-      setSelectedDogIds(new Map())
     }
 
     setSelectedCustomerTypeIds(initialData?.customerTypeIds ?? [])
-    setSelectedDogCategoryIds(initialData?.dogCategoryIds ?? [])
     setCustomerSearchTerm("")
     setCopyLinkSuccess(false)
     setCopyCodeSuccess(false)
@@ -422,33 +326,6 @@ export const ProposedMeetingModal = ({
   useEffect(() => {
     if (!open) {
       return
-    }
-    let isMounted = true
-
-    setIsLoadingDogCategories(true)
-    supabase
-      .from("dog_categories")
-      .select("id, name")
-      .order("name", { ascending: true })
-      .then(({ data, error }) => {
-        if (!isMounted) {
-          return
-        }
-        if (error) {
-          console.error("❌ [ProposedMeetingModal] Failed to load dog categories:", error)
-          setDogCategoryOptions([])
-        } else {
-          setDogCategoryOptions(data ?? [])
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoadingDogCategories(false)
-        }
-      })
-
-    return () => {
-      isMounted = false
     }
   }, [open])
 
@@ -531,14 +408,6 @@ export const ProposedMeetingModal = ({
       return
     }
 
-    // Build dogIds array from selectedDogIds map
-    const dogIds: Array<{ customerId: string; dogId: string }> = []
-    selectedDogIds.forEach((dogId, customerId) => {
-      if (dogId) {
-        dogIds.push({ customerId, dogId })
-      }
-    })
-
     await onSubmit({
       title: title.trim(),
       summary: summary.trim(),
@@ -549,8 +418,6 @@ export const ProposedMeetingModal = ({
       serviceType: resolvedServiceType,
       customerIds: selectedCustomers.map((customer) => customer.id),
       customerTypeIds: selectedCustomerTypeIds,
-      dogCategoryIds: selectedDogCategoryIds,
-      dogIds: dogIds.length > 0 ? dogIds : undefined,
       meetingId: initialData?.meetingId,
     })
   }
@@ -759,30 +626,22 @@ export const ProposedMeetingModal = ({
                       {selectedCustomers.length > 0 && (
                         <div className="space-y-3">
                           {selectedCustomers.map((customer) => (
-                            <CustomerDogSelector
-                              key={customer.id}
-                              customer={customer}
-                              selectedDogId={selectedDogIds.get(customer.id) || ""}
-                              onDogSelect={(dogId) => {
-                                if (dogId) {
-                                  setSelectedDogIds(prev => new Map(prev).set(customer.id, dogId))
-                                } else {
-                                  setSelectedDogIds(prev => {
-                                    const next = new Map(prev)
-                                    next.delete(customer.id)
-                                    return next
-                                  })
-                                }
-                              }}
-                              onRemove={() => {
-                                handleRemoveCustomer(customer.id)
-                                setSelectedDogIds(prev => {
-                                  const next = new Map(prev)
-                                  next.delete(customer.id)
-                                  return next
-                                })
-                              }}
-                            />
+                            <div key={customer.id} className="rounded-md border border-slate-200 p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="secondary" className="flex items-center gap-2">
+                                    <span>{customer.fullName || "לקוח ללא שם"}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveCustomer(customer.id)}
+                                      className="text-slate-500 hover:text-slate-700"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -790,42 +649,6 @@ export const ProposedMeetingModal = ({
                   </div>
                 </div>
 
-                <div className="space-y-3 border-t pt-4">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-right font-semibold flex items-center gap-2">
-                      <Dog className="h-4 w-4 text-lime-600" />
-                      קטגוריות כלבים
-                    </Label>
-                    <Badge variant="outline" className="text-[11px]">
-                      {selectedDogCategoryIds.length} נבחרו
-                    </Badge>
-                  </div>
-                  <DogCategoryMultiSelect
-                    options={dogCategoryOptions}
-                    selectedIds={selectedDogCategoryIds}
-                    onSelectionChange={setSelectedDogCategoryIds}
-                    placeholder="בחר קטגוריות כלבים..."
-                    isLoading={isLoadingDogCategories}
-                    onCreateDogCategory={createDogCategory}
-                    onRefreshOptions={async () => {
-                      setIsLoadingDogCategories(true)
-                      try {
-                        const { data, error } = await supabase
-                          .from("dog_categories")
-                          .select("id, name")
-                          .order("name", { ascending: true })
-
-                        if (error) {
-                          console.error("❌ [ProposedMeetingModal] Failed to refresh dog categories:", error)
-                        } else {
-                          setDogCategoryOptions(data ?? [])
-                        }
-                      } finally {
-                        setIsLoadingDogCategories(false)
-                      }
-                    }}
-                  />
-                </div>
               </div>
             </div>
 

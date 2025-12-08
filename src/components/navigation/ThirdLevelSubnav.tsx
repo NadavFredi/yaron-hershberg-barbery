@@ -6,7 +6,6 @@ import { setIsSubnavHovered, setIsNavbarHovered } from "@/store/slices/navbarSli
 import {
   Users,
   Tag,
-  Dog,
   Ticket,
   CreditCard,
   ShoppingCart,
@@ -35,18 +34,12 @@ export const THIRD_LEVEL_SECTIONS = {
     { id: "working-hours", label: "שעות עבודה גלובליות", icon: Clock },
     { id: "stations", label: "ניהול עמדות", icon: Building2 },
     { id: "stations-per-day", label: "עמדות לפי יום", icon: CalendarDays },
-    { id: "breeds", label: "ניהול גזעים", icon: Dog },
     { id: "constraints", label: "אילוצים", icon: AlertCircle },
-    { id: "matrix", label: "מטריצת גזעים-עמדות", icon: BarChart3 },
     { id: "garden", label: "הגדרות גן", icon: Flower2 },
   ],
   customers: [
     { id: "list", label: "לקוחות", description: "ניהול רשימת לקוחות", icon: Users },
     { id: "types", label: "סוגי לקוחות", description: "הגדרת סוגים וקדימויות", icon: Tag },
-  ],
-  dogs: [
-    { id: "list", label: "כלבים", description: "רשימת כל הכלבים במערכת", icon: Dog },
-    { id: "category2", label: "קטגוריות כלבים", description: "ניהול קטגוריות כלבים", icon: Tag },
   ],
   subscriptions: [
     { id: "list", label: "מנויים", description: "ניהול רשימת מנויים", icon: Ticket },
@@ -156,7 +149,6 @@ export function ThirdLevelSubnav() {
   const ariaLabels: Record<SectionKey, string> = {
     settings: "תפריט הגדרות",
     customers: "תפריט לקוחות",
-    dogs: "תפריט כלבים",
     subscriptions: "תפריט מנויים",
     payments: "תפריט תשלומים",
     products: "תפריט מוצרים",

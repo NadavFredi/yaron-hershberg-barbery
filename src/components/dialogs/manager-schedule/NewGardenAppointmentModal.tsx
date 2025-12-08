@@ -10,7 +10,6 @@ import { X, Scissors, Wand2, Droplets, Loader2 } from "lucide-react"
 import { DatePickerInput } from "@/components/DatePickerInput"
 import { TimePickerInput } from "@/components/TimePickerInput"
 import { CustomerSearchInput, type Customer } from "@/components/CustomerSearchInput"
-import { DogSelectInput, type Dog } from "@/components/DogSelectInput"
 
 
 interface NewGardenAppointmentForm {
@@ -19,7 +18,6 @@ interface NewGardenAppointmentForm {
     endTime: string
     appointmentType: 'full-day' | 'hourly' | 'trial'
     customer: Customer | null
-    dog: Dog | null
     notes: string
     internalNotes: string
     latePickupRequested: boolean
@@ -36,7 +34,6 @@ interface NewGardenAppointmentModalProps {
     loading?: boolean
     defaultDate?: Date
     defaultCustomer?: Customer | null
-    defaultDog?: Dog | null
     onConfirm: (data: NewGardenAppointmentForm) => void
 }
 
@@ -47,18 +44,15 @@ export const NewGardenAppointmentModal: React.FC<NewGardenAppointmentModalProps>
     loading = false,
     defaultDate,
     defaultCustomer = null,
-    defaultDog = null,
     onConfirm
 }) => {
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-    const [selectedDog, setSelectedDog] = useState<Dog | null>(null)
     const [form, setForm] = useState<NewGardenAppointmentForm>({
         date: defaultDate || new Date(),
         startTime: '07:00',
         endTime: '19:00',
         appointmentType: appointmentType || 'hourly',
         customer: null,
-        dog: null,
         notes: '',
         internalNotes: '',
         latePickupRequested: false,
@@ -81,14 +75,12 @@ export const NewGardenAppointmentModal: React.FC<NewGardenAppointmentModalProps>
         if (open) {
             // Set default customer and dog if provided, otherwise reset
             setSelectedCustomer(defaultCustomer)
-            setSelectedDog(defaultDog)
             setForm({
                 date: defaultDate || new Date(),
                 startTime: '07:00',
                 endTime: '19:00',
                 appointmentType: appointmentType || 'hourly',
                 customer: null,
-                dog: null,
                 notes: '',
                 internalNotes: '',
                 latePickupRequested: false,
@@ -98,24 +90,14 @@ export const NewGardenAppointmentModal: React.FC<NewGardenAppointmentModalProps>
                 gardenBath: false,
             })
         }
-    }, [open, defaultDate, appointmentType, defaultCustomer, defaultDog])
+    }, [open, defaultDate, appointmentType, defaultCustomer])
 
     const handleCustomerSelect = (customer: Customer) => {
         setSelectedCustomer(customer)
-        setSelectedDog(null) // Reset dog selection when customer changes
-    }
-
-    const handleDogSelect = (dog: Dog) => {
-        setSelectedDog(dog)
     }
 
     const handleClearCustomer = () => {
         setSelectedCustomer(null)
-        setSelectedDog(null)
-    }
-
-    const handleClearDog = () => {
-        setSelectedDog(null)
     }
 
     const handleConfirm = () => {
@@ -135,15 +117,9 @@ export const NewGardenAppointmentModal: React.FC<NewGardenAppointmentModalProps>
             return
         }
 
-        if (!selectedDog) {
-            alert('יש לבחור כלב')
-            return
-        }
-
         onConfirm({
             ...form,
             customer: selectedCustomer,
-            dog: selectedDog,
         })
     }
 
@@ -259,9 +235,9 @@ export const NewGardenAppointmentModal: React.FC<NewGardenAppointmentModalProps>
                         </div>
                     )}
 
-                    {/* Customer and Dog Selection */}
+                    {/* Customer Selection */}
                     <div className="space-y-4">
-                        <h3 className="text-sm font-semibold text-gray-900 text-right">פרטי לקוח וכלב</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 text-right">פרטי לקוח</h3>
 
                         {/* Customer Search */}
                         <CustomerSearchInput
@@ -271,14 +247,6 @@ export const NewGardenAppointmentModal: React.FC<NewGardenAppointmentModalProps>
                             disabled={loading}
                         />
 
-                        {/* Dog Selection */}
-                        <DogSelectInput
-                            selectedCustomer={selectedCustomer}
-                            selectedDog={selectedDog}
-                            onDogSelect={handleDogSelect}
-                            onDogClear={handleClearDog}
-                            disabled={loading}
-                        />
                     </div>
 
                     {/* Services */}

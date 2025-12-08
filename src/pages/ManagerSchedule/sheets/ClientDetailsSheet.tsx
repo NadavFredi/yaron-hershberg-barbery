@@ -7,7 +7,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Textarea } from "@/components/ui/textarea"
 import { MoreHorizontal, Pencil, Phone, Calendar, CreditCard, Save, Loader2, X, Bell } from "lucide-react"
 import { EditCustomerDialog } from "@/components/EditCustomerDialog"
-import { DogAppointmentsModal } from "@/components/dialogs/manager-schedule/DogAppointmentsModal"
 import { CustomerPaymentsModal } from "@/components/dialogs/payments/CustomerPaymentsModal"
 import { CustomerRemindersModal } from "@/components/dialogs/reminders/CustomerRemindersModal"
 import { MessagingActions } from "@/components/sheets/MessagingActions"
@@ -62,8 +61,6 @@ export const ClientDetailsSheet = ({
     const [originalStaffNotes, setOriginalStaffNotes] = useState("")
     const [isSavingStaffNotes, setIsSavingStaffNotes] = useState(false)
     const [contacts, setContacts] = useState<CustomerContact[]>([])
-    const [dogAppointmentsModalOpen, setDogAppointmentsModalOpen] = useState(false)
-    const [selectedDogForAppointments, setSelectedDogForAppointments] = useState<{ id: string; name: string } | null>(null)
     const [isPaymentsModalOpen, setIsPaymentsModalOpen] = useState(false)
     const [hasUnpaidPayments, setHasUnpaidPayments] = useState(false)
     const [hasAnyPayments, setHasAnyPayments] = useState(false)
@@ -345,16 +342,6 @@ export const ClientDetailsSheet = ({
     }
 
 
-    const handleShowDogAppointments = (dog: ManagerDog) => {
-        setSelectedDogForAppointments({ id: dog.id, name: dog.name })
-        setDogAppointmentsModalOpen(true)
-    }
-
-    const handleAppointmentClick = (_appointment: ManagerAppointment) => {
-        // Close the modal when an appointment is clicked
-        setDogAppointmentsModalOpen(false)
-        // Optionally, you could navigate to the appointment details here
-    }
 
     const handlePaymentClick = async () => {
         if (!hasClientId || !clientId) {
@@ -929,17 +916,6 @@ export const ClientDetailsSheet = ({
                 customerId={clientId || null}
                 onSuccess={handleCustomerUpdated}
             />
-
-            {/* Dog Appointments Modal */}
-            {selectedDogForAppointments && (
-                <DogAppointmentsModal
-                    open={dogAppointmentsModalOpen}
-                    onOpenChange={setDogAppointmentsModalOpen}
-                    dogId={selectedDogForAppointments.id}
-                    dogName={selectedDogForAppointments.name}
-                    onAppointmentClick={handleAppointmentClick}
-                />
-            )}
 
             {/* Customer Payments Modal */}
             {selectedClient && hasClientId && (

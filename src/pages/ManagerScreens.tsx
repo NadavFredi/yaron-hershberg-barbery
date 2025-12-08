@@ -6,7 +6,6 @@ import { useSupabaseAuth } from "@/hooks/useSupabaseAuth"
 import Settings from "@/pages/Settings/Settings"
 import WaitingListPage from "@/pages/WaitingListPage"
 import CustomersSection from "@/pages/CustomersSection"
-import DogsSection from "@/pages/DogsSection"
 import AppointmentsSection from "@/pages/AppointmentsSection"
 import WorkersSection from "@/pages/WorkersSection"
 import ProductsSection from "@/pages/ProductsSection"
@@ -15,7 +14,7 @@ import SubscriptionsSection from "@/pages/SubscriptionsSection"
 import ReportsSection from "@/pages/ReportsSection"
 import RemindersPage from "@/pages/RemindersPage"
 
-const VALID_SECTIONS = ["settings", "waiting-list", "customers", "dogs", "appointments", "workers", "products", "payments", "subscriptions", "reports", "reminders"] as const
+const VALID_SECTIONS = ["settings", "waiting-list", "customers", "appointments", "workers", "products", "payments", "subscriptions", "reports", "reminders"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function ManagerScreens() {
@@ -69,7 +68,6 @@ export default function ManagerScreens() {
                     {activeSection === "settings" && <Settings />}
                     {activeSection === "waiting-list" && <WaitingListPage />}
                     {activeSection === "customers" && <CustomersSection />}
-                    {activeSection === "dogs" && <DogsSection />}
                     {activeSection === "appointments" && <AppointmentsSection />}
                     {activeSection === "workers" && <WorkersSection />}
                     {activeSection === "products" && <ProductsSection />}
