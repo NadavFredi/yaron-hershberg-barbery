@@ -628,35 +628,19 @@ export async function approveCombinedAppointments(
   }
 }
 
+// Removed combined_appointments - barbery system only uses grooming appointments
 export async function cancelCombinedAppointments(
   params: CombinedAppointmentActionParams
 ): Promise<CombinedAppointmentActionResult> {
-  ensureCombinedIds(params)
+  // Just cancel the grooming appointment since we don't use combined appointments
+  const groomingResult = await cancelAppointmentWebhook(params.groomingAppointmentId, {
+    serviceType: "grooming",
+  })
 
-  try {
-    return await callCombinedAppointmentAction("cancel", params)
-  } catch (error) {
-    console.warn("Falling back to individual cancellation calls:", error)
-    const [groomingResult, gardenResult] = await Promise.all([
-      cancelAppointmentWebhook(params.groomingAppointmentId, {
-        serviceType: "grooming",
-      }),
-      cancelAppointmentWebhook(params.gardenAppointmentId, {
-        serviceType: "garden",
-      }),
-    ])
-
-    if (groomingResult.success && gardenResult.success) {
-      return {
-        success: true,
-        message: groomingResult.message || gardenResult.message || "התורים (תספורת וגן) בוטלו בהצלחה",
-      }
-    }
-
-    return {
-      success: false,
-      error: (!groomingResult.success ? groomingResult.error : gardenResult.error) || "שגיאה בביטול התורים",
-    }
+  return {
+    success: groomingResult.success,
+    message: groomingResult.message || "התור בוטל בהצלחה",
+    error: groomingResult.error,
   }
 }
 
@@ -837,20 +821,9 @@ export async function getManagerSchedule(
 
     // Fetch combined appointments to check for cross-service links
     // Get all combined appointments and filter to only those relevant to today's appointments
-    const allGroomingIds = new Set(groomingAppointments.map((a) => a.id))
-    const allDaycareIds = new Set(daycareAppointments.map((a) => a.id))
-
-    const { data: combinedData } = await supabase
-      .from("combined_appointments")
-      .select("grooming_appointment_id, daycare_appointment_id")
-
-    // Filter combined appointments to only those in today's appointments
-    const combinedGroomingIds = new Set(
-      (combinedData || []).map((c) => c.grooming_appointment_id).filter((id) => id && allGroomingIds.has(id))
-    )
-    const combinedDaycareIds = new Set(
-      (combinedData || []).map((c) => c.daycare_appointment_id).filter((id) => id && allDaycareIds.has(id))
-    )
+    // Removed combined_appointments - barbery system only uses grooming appointments
+    const combinedGroomingIds = new Set<string>()
+    const combinedDaycareIds = new Set<string>()
 
     // Transform appointments to ManagerAppointment format
     const appointments: ManagerAppointment[] = []
@@ -985,7 +958,6 @@ export async function getManagerSchedule(
             notes,
             reschedule_appointment_id,
             reschedule_customer_id,
-            // Removed reschedule_dog_id - barbery system doesn't use dogs
             reschedule_original_start_at,
             reschedule_original_end_at,
             created_at,
@@ -1012,8 +984,7 @@ export async function getManagerSchedule(
               id,
               customer_type_id,
               customer_type:customer_types(name)
-            ),
-            -- Removed proposed_meeting_dog_categories - barbery system doesn't use dogs
+            )
           `
         )
         .gte("start_at", dayStart.toISOString())
@@ -1579,14 +1550,8 @@ export async function getSingleManagerAppointment(
     // Take the first result (should only be one since we're querying by ID)
     const appointmentData = data[0]
 
-    // Check for combined appointment
-    const { data: combinedData } = await supabase
-      .from("combined_appointments")
-      .select("grooming_appointment_id, daycare_appointment_id")
-      .or(`${serviceType === "grooming" ? "grooming" : "daycare"}_appointment_id.eq.${appointmentId}`)
-      .maybeSingle()
-
-    const hasCrossService = !!combinedData
+    // Removed combined_appointments check - barbery system only uses grooming appointments
+    const hasCrossService = false
 
     const station = Array.isArray(appointmentData.stations) ? appointmentData.stations[0] : appointmentData.stations
     const customer = Array.isArray(appointmentData.customers) ? appointmentData.customers[0] : appointmentData.customers

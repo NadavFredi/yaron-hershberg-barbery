@@ -84,9 +84,7 @@ interface AppointmentsData {
         durationMinutes: number
         serviceType: string
         sourceTable: string
-        gardenServiceType?: string | null
         customerName?: string
-        dogName?: string
     }>
 }
 
@@ -103,7 +101,7 @@ export default function AppointmentsReport() {
         from: initialStartDate,
         to: initialEndDate,
     })
-    const [serviceFilter, setServiceFilter] = useState<"all" | "grooming" | "garden">("all")
+    // No service filter needed - only grooming in barbershop
     const [selectedStationIds, setSelectedStationIds] = useState<string[]>([])
     const { data: stations = [], isLoading: isLoadingStations } = useStations()
     const [detailModalOpen, setDetailModalOpen] = useState(false)
@@ -140,94 +138,40 @@ export default function AppointmentsReport() {
             const fromIso = startDate ? startOfDay(startDate).toISOString() : undefined
             const toIso = endDate ? endOfDay(endDate).toISOString() : undefined
 
-            const shouldFetchGrooming = serviceFilter === "all" || serviceFilter === "grooming"
-            const shouldFetchGarden = serviceFilter === "all" || serviceFilter === "garden"
-
-            const groomingPromise = shouldFetchGrooming
-                ? supabase
-                    .from("grooming_appointments")
-                    .select(
-                        `
+            // Only fetch grooming appointments (no daycare in barbershop)
+            const groomingPromise = supabase
+                .from("grooming_appointments")
+                .select(
+                    `
+                      id,
+                      start_at,
+                      end_at,
+                      created_at,
+                      updated_at,
+                      status,
+                      station_id,
+                      amount_due,
+                      customer_id,
+                      stations (
                           id,
-                          start_at,
-                          end_at,
-                          created_at,
-                          updated_at,
-                          status,
-                          station_id,
-                          amount_due,
-                          customer_id,
-                          stations (
-                              id,
-                              name
-                          ),
-                          customers (
-                              id,
-                              full_name
-                          ),
-                          dogs (
-                              id,
-                              name,
-                              breed_id,
-                              breeds (
-                                  id,
-                                  min_groom_price
-                              )
-                          )
-                      `
-                    )
-                    .gte("start_at", fromIso || "")
-                    .lte("start_at", toIso || "")
-                : Promise.resolve({ data: [], error: null })
-
-            const gardenPromise = shouldFetchGarden
-                ? supabase
-                    .from("daycare_appointments")
-                    .select(
-                        `
+                          name
+                      ),
+                      customers (
                           id,
-                          start_at,
-                          end_at,
-                          created_at,
-                          updated_at,
-                          status,
-                          station_id,
-                          amount_due,
-                          service_type,
-                          customer_id,
-                          stations (
-                              id,
-                              name
-                          ),
-                          customers (
-                              id,
-                              full_name
-                          ),
-                          dogs (
-                              id,
-                              name,
-                              breed_id,
-                              breeds (
-                                  id,
-                                  min_groom_price
-                              )
-                          )
-                      `
-                    )
-                    .gte("start_at", fromIso || "")
-                    .lte("start_at", toIso || "")
-                : Promise.resolve({ data: [], error: null })
+                          full_name
+                      )
+                  `
+                )
+                .gte("start_at", fromIso || "")
+                .lte("start_at", toIso || "")
 
-            const [groomingResult, gardenResult] = await Promise.all([groomingPromise, gardenPromise])
+            const groomingResult = await groomingPromise
 
-            if (groomingResult.error || gardenResult.error) {
-                throw groomingResult.error || gardenResult.error
+            if (groomingResult.error) {
+                throw groomingResult.error
             }
 
-            let allAppointments = [
-                ...(groomingResult.data || []).map((apt: any) => ({ ...apt, serviceType: "grooming", sourceTable: "grooming_appointments" })),
-                ...(gardenResult.data || []).map((apt: any) => ({ ...apt, serviceType: "garden", sourceTable: "daycare_appointments" })),
-            ]
+            let allAppointments = (groomingResult.data || []).map((apt: any) => ({ ...apt, serviceType: "grooming", sourceTable: "grooming_appointments" }))
 
             // Filter by stations - only filter if stations are selected
             // If no stations selected, show all appointments grouped by their actual stations
@@ -240,43 +184,21 @@ export default function AppointmentsReport() {
                 })
             }
 
-            // Fetch actual payments for appointments
+            // Fetch actual payments for appointments (only grooming in barbershop)
             const appointmentIds = allAppointments.map((apt: any) => apt.id)
             const paymentMap: Record<string, number> = {}
 
             if (appointmentIds.length > 0) {
-                // Fetch from appointment_payments
-                const groomingIds = allAppointments.filter((apt: any) => apt.sourceTable === "grooming_appointments").map((apt: any) => apt.id)
-                const gardenIds = allAppointments.filter((apt: any) => apt.sourceTable === "daycare_appointments").map((apt: any) => apt.id)
+                const { data: paymentData } = await supabase
+                    .from("appointment_payments")
+                    .select("grooming_appointment_id, amount")
+                    .in("grooming_appointment_id", appointmentIds)
 
-                const paymentPromises = []
-                if (groomingIds.length > 0) {
-                    paymentPromises.push(
-                        supabase
-                            .from("appointment_payments")
-                            .select("grooming_appointment_id, amount")
-                            .in("grooming_appointment_id", groomingIds)
-                    )
-                }
-                if (gardenIds.length > 0) {
-                    paymentPromises.push(
-                        supabase
-                            .from("appointment_payments")
-                            .select("daycare_appointment_id, amount")
-                            .in("daycare_appointment_id", gardenIds)
-                    )
-                }
-
-                if (paymentPromises.length > 0) {
-                    const paymentResults = await Promise.all(paymentPromises)
-                    paymentResults.forEach((result) => {
-                        if (result.data) {
-                            result.data.forEach((payment: any) => {
-                                const aptId = payment.grooming_appointment_id || payment.daycare_appointment_id
-                                if (aptId) {
-                                    paymentMap[aptId] = (paymentMap[aptId] || 0) + Number(payment.amount || 0)
-                                }
-                            })
+                if (paymentData) {
+                    paymentData.forEach((payment: any) => {
+                        const aptId = payment.grooming_appointment_id
+                        if (aptId) {
+                            paymentMap[aptId] = (paymentMap[aptId] || 0) + Number(payment.amount || 0)
                         }
                     })
                 }
@@ -294,11 +216,9 @@ export default function AppointmentsReport() {
             const byCreationDateMap: Record<string, number> = {}
             const byModifyDateMap: Record<string, number> = {}
             const byStationByDateMap: Record<string, Record<string, { count: number; worth: number; paid: number; activeHours: number }>> = {}
-            const byGardenByDateMap: Record<string, Record<string, { count: number; worth: number; paid: number }>> = {}
-            const byGardenServiceTypeMap: Record<string, number> = {}
             const enrichedAppointments: AppointmentsData["allAppointments"] = []
 
-            // Separate stats for grooming and garden
+            // Stats for grooming (only service in barbershop)
             const groomingStats = {
                 totalAppointments: 0,
                 totalActiveHours: 0,
@@ -306,25 +226,11 @@ export default function AppointmentsReport() {
                 totalPaid: 0,
                 cartItemsWorth: 0,
             }
-            const gardenStats = {
-                totalAppointments: 0,
-                totalActiveHours: 0,
-                totalWorth: 0,
-                totalPaid: 0,
-            }
 
             allAppointments.forEach((apt: any) => {
-                // Calculate amount due - use amount_due if available, otherwise use breed min_groom_price for grooming
-                let amountDue = apt.amount_due ? Number(apt.amount_due) : 0
-                if (amountDue === 0 && apt.serviceType === "grooming") {
-                    // Try to get breed min_groom_price - dogs can be object or array
-                    const dog = Array.isArray(apt.dogs) ? apt.dogs[0] : apt.dogs
-                    if (dog?.breeds?.min_groom_price) {
-                        amountDue = Number(dog.breeds.min_groom_price) || 0
-                    }
-                }
+                // Calculate amount due (no dogs/breeds in barbershop)
+                const amountDue = apt.amount_due ? Number(apt.amount_due) : 0
                 const paid = paymentMap[apt.id] || 0
-                const isGrooming = apt.serviceType === "grooming"
 
                 // Calculate appointment duration
                 let durationMinutes = 0
@@ -338,49 +244,33 @@ export default function AppointmentsReport() {
                     // Ignore invalid dates
                 }
 
-                // Update service-specific stats
-                if (isGrooming) {
-                    groomingStats.totalAppointments += 1
-                    groomingStats.totalActiveHours += durationMinutes
-                    groomingStats.totalWorth += amountDue
-                    groomingStats.totalPaid += paid
-                } else {
-                    gardenStats.totalAppointments += 1
-                    gardenStats.totalActiveHours += durationMinutes
-                    gardenStats.totalWorth += amountDue
-                    gardenStats.totalPaid += paid
-                }
+                // Update service-specific stats (only grooming in barbershop)
+                groomingStats.totalAppointments += 1
+                groomingStats.totalActiveHours += durationMinutes
+                groomingStats.totalWorth += amountDue
+                groomingStats.totalPaid += paid
 
-                // Only group by station for grooming appointments (gardens don't have stations)
-                let stationId = "no-station"
-                let stationName = "ללא עמדה"
+                // Group by station (only grooming in barbershop)
+                const stationId = apt.station_id ? String(apt.station_id) : "no-station"
+                const stationName = apt.stations?.name || "ללא עמדה"
 
-                if (isGrooming) {
-                    stationId = apt.station_id ? String(apt.station_id) : "no-station"
-                    stationName = apt.stations?.name || "ללא עמדה"
-
-                    if (!stationMap[stationId]) {
-                        stationMap[stationId] = {
-                            stationId,
-                            stationName,
-                            totalAppointments: 0,
-                            activeHours: 0,
-                            inactiveHours: 0,
-                            totalHours: totalAvailableMinutes,
-                            totalWorth: 0,
-                            totalPaid: 0,
-                        }
+                if (!stationMap[stationId]) {
+                    stationMap[stationId] = {
+                        stationId,
+                        stationName,
+                        totalAppointments: 0,
+                        activeHours: 0,
+                        inactiveHours: 0,
+                        totalHours: totalAvailableMinutes,
+                        totalWorth: 0,
+                        totalPaid: 0,
                     }
-
-                    stationMap[stationId].totalAppointments += 1
-                    stationMap[stationId].totalWorth += amountDue
-                    stationMap[stationId].totalPaid += paid
-                    stationMap[stationId].activeHours += durationMinutes
-                } else {
-                    // For garden appointments, use "garden" as the station identifier
-                    stationId = "garden"
-                    stationName = "גן"
                 }
+
+                stationMap[stationId].totalAppointments += 1
+                stationMap[stationId].totalWorth += amountDue
+                stationMap[stationId].totalPaid += paid
+                stationMap[stationId].activeHours += durationMinutes
 
                 // By date
                 const dateKey = format(new Date(apt.start_at), "yyyy-MM-dd")
@@ -410,39 +300,17 @@ export default function AppointmentsReport() {
                     byModifyDateMap[modifyDateKey] += 1
                 }
 
-                // By station by date (only for grooming)
-                if (isGrooming) {
-                    if (!byStationByDateMap[stationId]) {
-                        byStationByDateMap[stationId] = {}
-                    }
-                    if (!byStationByDateMap[stationId][dateKey]) {
-                        byStationByDateMap[stationId][dateKey] = { count: 0, worth: 0, paid: 0, activeHours: 0 }
-                    }
-                    byStationByDateMap[stationId][dateKey].count += 1
-                    byStationByDateMap[stationId][dateKey].worth += amountDue
-                    byStationByDateMap[stationId][dateKey].paid += paid
-                    byStationByDateMap[stationId][dateKey].activeHours += durationMinutes
-                } else {
-                    // By garden by date and service type
-                    const serviceType = apt.service_type || "full_day"
-                    const serviceTypeLabel = serviceType === "full_day" ? "יום מלא" : serviceType === "trial" ? "ניסיון" : "שעתי"
-
-                    if (!byGardenByDateMap[dateKey]) {
-                        byGardenByDateMap[dateKey] = {}
-                    }
-                    if (!byGardenByDateMap[dateKey][serviceTypeLabel]) {
-                        byGardenByDateMap[dateKey][serviceTypeLabel] = { count: 0, worth: 0, paid: 0 }
-                    }
-                    byGardenByDateMap[dateKey][serviceTypeLabel].count += 1
-                    byGardenByDateMap[dateKey][serviceTypeLabel].worth += amountDue
-                    byGardenByDateMap[dateKey][serviceTypeLabel].paid += paid
-
-                    // By garden service type
-                    if (!byGardenServiceTypeMap[serviceTypeLabel]) {
-                        byGardenServiceTypeMap[serviceTypeLabel] = 0
-                    }
-                    byGardenServiceTypeMap[serviceTypeLabel] += 1
+                // By station by date (only grooming in barbershop)
+                if (!byStationByDateMap[stationId]) {
+                    byStationByDateMap[stationId] = {}
                 }
+                if (!byStationByDateMap[stationId][dateKey]) {
+                    byStationByDateMap[stationId][dateKey] = { count: 0, worth: 0, paid: 0, activeHours: 0 }
+                }
+                byStationByDateMap[stationId][dateKey].count += 1
+                byStationByDateMap[stationId][dateKey].worth += amountDue
+                byStationByDateMap[stationId][dateKey].paid += paid
+                byStationByDateMap[stationId][dateKey].activeHours += durationMinutes
 
                 // Store enriched appointment for detail modal
                 enrichedAppointments.push({
@@ -458,21 +326,19 @@ export default function AppointmentsReport() {
                     durationMinutes,
                     serviceType: apt.serviceType,
                     sourceTable: apt.sourceTable,
-                    gardenServiceType: apt.service_type || null, // For garden appointments
                     customerName: apt.customers?.full_name,
-                    dogName: apt.dogs?.name,
                 })
             })
 
-            // Calculate inactive hours for stations (only grooming)
+            // Calculate inactive hours for stations
             Object.values(stationMap).forEach((stat) => {
                 stat.inactiveHours = Math.max(0, stat.totalHours - stat.activeHours)
             })
 
-            // Fetch cart items worth for grooming appointments
+            // Fetch cart items worth for appointments
             let cartItemsWorth: number = 0
-            const groomingAppointmentIds = allAppointments.filter((apt: any) => apt.serviceType === "grooming").map((apt: any) => apt.id)
-            if (groomingAppointmentIds.length > 0) {
+            const appointmentIdsForOrders = allAppointments.map((apt: any) => apt.id)
+            if (appointmentIdsForOrders.length > 0) {
                 const { data: ordersData } = await supabase
                     .from("orders")
                     .select(`
@@ -483,7 +349,7 @@ export default function AppointmentsReport() {
                             unit_price
                         )
                     `)
-                    .in("grooming_appointment_id", groomingAppointmentIds)
+                    .in("grooming_appointment_id", appointmentIdsForOrders)
                     .not("grooming_appointment_id", "is", null)
 
                 if (ordersData) {
@@ -501,10 +367,10 @@ export default function AppointmentsReport() {
                 }
             }
 
-            // Calculate totals
-            const totalActiveHours = groomingStats.totalActiveHours + gardenStats.totalActiveHours
-            const totalWorth = groomingStats.totalWorth + gardenStats.totalWorth
-            const totalPaid = groomingStats.totalPaid + gardenStats.totalPaid
+            // Calculate totals (only grooming in barbershop)
+            const totalActiveHours = groomingStats.totalActiveHours
+            const totalWorth = groomingStats.totalWorth
+            const totalPaid = groomingStats.totalPaid
 
             // Build byStationByDate array
             const byStationByDateArray: AppointmentsData["byStationByDate"] = []
@@ -524,35 +390,6 @@ export default function AppointmentsReport() {
                 })
             })
 
-            // Build byGardenByDate array (split by service type)
-            const byGardenByDateArray: AppointmentsData["byGardenByDate"] = []
-            Object.entries(byGardenByDateMap).forEach(([date, serviceTypes]) => {
-                Object.entries(serviceTypes).forEach(([serviceType, data]) => {
-                    byGardenByDateArray.push({
-                        date: format(new Date(date), "dd/MM"),
-                        serviceType,
-                        count: data.count,
-                        worth: data.worth,
-                        paid: data.paid,
-                    })
-                })
-            })
-            byGardenByDateArray.sort((a, b) => {
-                const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime()
-                if (dateCompare !== 0) return dateCompare
-                // If same date, sort by service type: יום מלא, שעתי, ניסיון
-                const serviceOrder: Record<string, number> = { "יום מלא": 1, "שעתי": 2, "ניסיון": 3 }
-                return (serviceOrder[a.serviceType] || 0) - (serviceOrder[b.serviceType] || 0)
-            })
-
-            // Build byGardenServiceType array
-            const byGardenServiceTypeArray: AppointmentsData["byGardenServiceType"] = Object.entries(byGardenServiceTypeMap)
-                .map(([serviceType, count]) => ({
-                    serviceType,
-                    count,
-                }))
-                .sort((a, b) => b.count - a.count)
-
             setAppointmentsData({
                 totalAppointments: allAppointments.length,
                 totalActiveHours,
@@ -563,7 +400,10 @@ export default function AppointmentsReport() {
                     cartItemsWorth,
                 },
                 garden: {
-                    ...gardenStats,
+                    totalAppointments: 0,
+                    totalActiveHours: 0,
+                    totalWorth: 0,
+                    totalPaid: 0,
                 },
                 byStation: Object.values(stationMap).sort((a, b) => b.totalAppointments - a.totalAppointments),
                 byDate: Object.entries(byDateMap)
@@ -588,8 +428,8 @@ export default function AppointmentsReport() {
                     }))
                     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
                 byStationByDate: byStationByDateArray,
-                byGardenByDate: byGardenByDateArray,
-                byGardenServiceType: byGardenServiceTypeArray,
+                byGardenByDate: [], // No daycare in barbershop
+                byGardenServiceType: [], // No daycare in barbershop
                 allAppointments: enrichedAppointments,
             })
         } catch (error) {
@@ -602,7 +442,7 @@ export default function AppointmentsReport() {
         } finally {
             setIsLoading(false)
         }
-    }, [startDate, endDate, serviceFilter, selectedStationIds, toast])
+    }, [startDate, endDate, selectedStationIds, toast])
 
     useEffect(() => {
         fetchAppointmentsData()
@@ -753,20 +593,6 @@ export default function AppointmentsReport() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>סוג שירות</Label>
-                            <Select value={serviceFilter} onValueChange={(v) => setServiceFilter(v as any)}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent dir="rtl">
-                                    <SelectItem value="all">כל השירותים</SelectItem>
-                                    <SelectItem value="grooming">מספרה</SelectItem>
-                                    <SelectItem value="garden">גן</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
                             <Label>תחנות</Label>
                             {isLoadingStations ? (
                                 <div className="flex items-center justify-center h-10 text-sm text-slate-500">
@@ -787,118 +613,68 @@ export default function AppointmentsReport() {
 
             {appointmentsData && (
                 <>
-                    {/* Grooming and Garden Stats - Side by Side */}
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {/* Grooming Stats */}
-                        {(serviceFilter === "all" || serviceFilter === "grooming") && (
-                            <Card className="border-l-4 border-l-blue-500 cursor-pointer hover:shadow-md transition-shadow" onClick={() => {
-                                const filtered = appointmentsData.allAppointments.filter((apt) => apt.serviceType === "grooming")
-                                setDetailModalTitle("תורים - מספרה")
-                                setDetailModalDescription(`סה"כ ${filtered.length} תורים`)
-                                setDetailModalData(filtered)
-                                setDetailModalOpen(true)
-                            }}>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-blue-700 text-lg">מספרה</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="flex gap-2 justify-center items-stretch">
-                                        <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
-                                            <CardContent className="pt-3 pb-3 text-center">
-                                                <p className="text-[10px] text-slate-500 mb-0.5">סה"כ תורים</p>
-                                                <p className="text-xl font-bold text-blue-600 leading-tight">{appointmentsData.grooming.totalAppointments}</p>
-                                            </CardContent>
-                                        </Card>
-                                        <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
-                                            <CardContent className="pt-3 pb-3 text-center">
-                                                <p className="text-[10px] text-slate-500 mb-0.5">שעות פעילות</p>
-                                                <p className="text-xl font-bold text-blue-600 leading-tight">
-                                                    {formatDurationFromMinutes(appointmentsData.grooming.totalActiveHours)}
-                                                </p>
-                                            </CardContent>
-                                        </Card>
-                                        <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
-                                            <CardContent className="pt-3 pb-3 text-center">
-                                                <p className="text-[10px] text-slate-500 mb-0.5">שווי תורים</p>
-                                                <p className="text-xl font-bold text-blue-600 leading-tight">
-                                                    ₪{appointmentsData.grooming.totalWorth.toLocaleString("he-IL")}
-                                                </p>
-                                            </CardContent>
-                                        </Card>
-                                        <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
-                                            <CardContent className="pt-3 pb-3 text-center">
-                                                <p className="text-[10px] text-slate-500 mb-0.5">שולם בפועל</p>
-                                                <p className="text-xl font-bold text-blue-600 leading-tight">
-                                                    ₪{appointmentsData.grooming.totalPaid.toLocaleString("he-IL")}
-                                                </p>
-                                            </CardContent>
-                                        </Card>
-                                        <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
-                                            <CardContent className="pt-3 pb-3 text-center">
-                                                <p className="text-[10px] text-slate-500 mb-0.5">שווי פריטי עגלה</p>
-                                                <p className="text-xl font-bold text-blue-600 leading-tight">
-                                                    ₪{appointmentsData.grooming.cartItemsWorth.toLocaleString("he-IL")}
-                                                </p>
-                                            </CardContent>
-                                        </Card>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        {/* Garden Stats by Service Type */}
-                        {(serviceFilter === "all" || serviceFilter === "garden") && (
-                            <Card className="border-l-4 border-l-emerald-500">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-emerald-700 text-lg">גן - לפי סוג שירות</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    {appointmentsData.byGardenServiceType.length > 0 ? (
-                                        <div className="flex gap-3">
-                                            {appointmentsData.byGardenServiceType.map((item) => (
-                                            <Card
-                                                key={item.serviceType}
-                                                className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200"
-                                                onClick={() => {
-                                                    const serviceTypeMap: Record<string, string> = {
-                                                        "יום מלא": "full_day",
-                                                        "ניסיון": "trial",
-                                                        "שעתי": "hourly",
-                                                    }
-                                                    const serviceTypeValue = serviceTypeMap[item.serviceType] || "full_day"
-                                                    const filtered = appointmentsData.allAppointments.filter(
-                                                        (apt) => apt.serviceType === "garden" && apt.gardenServiceType === serviceTypeValue
-                                                    )
-                                                    setDetailModalTitle(`תורים - גן: ${item.serviceType}`)
-                                                    setDetailModalDescription(`סה"כ ${item.count} תורים`)
-                                                    setDetailModalData(filtered)
-                                                    setDetailModalOpen(true)
-                                                }}
-                                            >
-                                                <CardContent className="pt-4">
-                                                    <p className="text-xs text-slate-500 mb-1">{item.serviceType}</p>
-                                                    <p className="text-2xl font-bold text-emerald-600">{item.count}</p>
-                                                    <p className="text-xs text-slate-400 mt-1">תורים</p>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
-                                    </div>
-                                    ) : (
-                                        <div className="text-center py-8 text-slate-500">
-                                            <p>אין תורי גן בתקופה זו</p>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        )}
+                    {/* Grooming Stats */}
+                    <div className="grid gap-4 md:grid-cols-1">
+                        <Card className="border-l-4 border-l-blue-500 cursor-pointer hover:shadow-md transition-shadow" onClick={() => {
+                            const filtered = appointmentsData.allAppointments.filter((apt) => apt.serviceType === "grooming")
+                            setDetailModalTitle("תורים - מספרה")
+                            setDetailModalDescription(`סה"כ ${filtered.length} תורים`)
+                            setDetailModalData(filtered)
+                            setDetailModalOpen(true)
+                        }}>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-blue-700 text-lg">מספרה</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex gap-2 justify-center items-stretch">
+                                    <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
+                                        <CardContent className="pt-3 pb-3 text-center">
+                                            <p className="text-[10px] text-slate-500 mb-0.5">סה"כ תורים</p>
+                                            <p className="text-xl font-bold text-blue-600 leading-tight">{appointmentsData.grooming.totalAppointments}</p>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
+                                        <CardContent className="pt-3 pb-3 text-center">
+                                            <p className="text-[10px] text-slate-500 mb-0.5">שעות פעילות</p>
+                                            <p className="text-xl font-bold text-blue-600 leading-tight">
+                                                {formatDurationFromMinutes(appointmentsData.grooming.totalActiveHours)}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
+                                        <CardContent className="pt-3 pb-3 text-center">
+                                            <p className="text-[10px] text-slate-500 mb-0.5">שווי תורים</p>
+                                            <p className="text-xl font-bold text-blue-600 leading-tight">
+                                                ₪{appointmentsData.grooming.totalWorth.toLocaleString("he-IL")}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
+                                        <CardContent className="pt-3 pb-3 text-center">
+                                            <p className="text-[10px] text-slate-500 mb-0.5">שולם בפועל</p>
+                                            <p className="text-xl font-bold text-blue-600 leading-tight">
+                                                ₪{appointmentsData.grooming.totalPaid.toLocaleString("he-IL")}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
+                                        <CardContent className="pt-3 pb-3 text-center">
+                                            <p className="text-[10px] text-slate-500 mb-0.5">שווי פריטי עגלה</p>
+                                            <p className="text-xl font-bold text-blue-600 leading-tight">
+                                                ₪{appointmentsData.grooming.cartItemsWorth.toLocaleString("he-IL")}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
 
-                    {/* Station Analysis - Only for Grooming */}
-                    {(serviceFilter === "all" || serviceFilter === "grooming") && appointmentsData.byStation.length > 0 && (
+                    {/* Station Analysis */}
+                    {appointmentsData.byStation.length > 0 && (
                         <Card>
                             <CardHeader>
-                                <CardTitle>ניתוח לפי תחנה (מספרה בלבד)</CardTitle>
-                                <CardDescription>גנים אינם משויכים לתחנות</CardDescription>
+                                <CardTitle>ניתוח לפי תחנה</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <div className="h-96">
@@ -1019,89 +795,13 @@ export default function AppointmentsReport() {
                         </Card>
                     )}
 
-                    {/* Garden Service Type Bar Chart */}
-                    {(serviceFilter === "all" || serviceFilter === "garden") && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>גן - לפי סוג שירות</CardTitle>
-                                <CardDescription>סה"כ תורים לכל סוג שירות</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {appointmentsData.byGardenServiceType.length > 0 ? (
-                                    <div className="h-96">
-                                        <HighchartsReact
-                                            highcharts={Highcharts}
-                                            options={{
-                                                chart: {
-                                                    type: "column",
-                                                    backgroundColor: "transparent",
-                                                    style: { fontFamily: "inherit" },
-                                                },
-                                                title: { text: null },
-                                                xAxis: {
-                                                    categories: appointmentsData.byGardenServiceType.map((d) => d.serviceType),
-                                                    labels: { style: { fontSize: "12px", fontWeight: "500" } },
-                                                },
-                                            yAxis: {
-                                                title: {
-                                                    text: "כמות תורים",
-                                                    style: { fontSize: "13px", fontWeight: "600" },
-                                                },
-                                                labels: { style: { fontSize: "12px" } },
-                                            },
-                                            tooltip: {
-                                                formatter: function (this: any) {
-                                                    const item = appointmentsData.byGardenServiceType.find((d) => d.serviceType === this.x)
-                                                    if (item) {
-                                                        return `<div style="font-weight: 600; margin-bottom: 8px;">${this.x}</div>
-                                                            <div style="margin: 4px 0;">
-                                                                <span style="color: ${this.color}">●</span>
-                                                                <span style="font-weight: 500;">כמות תורים:</span>
-                                                                <span style="font-weight: 600; margin-right: 8px;">${item.count}</span>
-                                                            </div>`
-                                                    }
-                                                    return `<div style="font-weight: 600; margin-bottom: 4px;">${this.x}</div>
-                                                        <div><span style="color: ${this.color}">●</span> כמות תורים: <strong>${this.y}</strong></div>`
-                                                },
-                                                useHTML: true,
-                                            },
-                                            legend: { enabled: false },
-                                            plotOptions: {
-                                                column: {
-                                                    dataLabels: {
-                                                        enabled: true,
-                                                        style: { fontSize: "12px", fontWeight: "600" },
-                                                    },
-                                                    colorByPoint: true,
-                                                    colors: ["#10b981", "#3b82f6", "#f59e0b"],
-                                                },
-                                            },
-                                            series: [
-                                                {
-                                                    name: "כמות תורים",
-                                                    data: appointmentsData.byGardenServiceType.map((d) => d.count),
-                                                },
-                                            ],
-                                            credits: { enabled: false },
-                                        }}
-                                    />
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-8 text-slate-500">
-                                        <p>אין תורי גן בתקופה זו</p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {/* Station by Date Line Chart - Only for Grooming */}
-                    {(serviceFilter === "all" || serviceFilter === "grooming") && appointmentsData.byStationByDate.length > 0 && (
+                    {/* Station by Date Line Chart */}
+                    {appointmentsData.byStationByDate.length > 0 && (
                         <Card>
                             <CardHeader>
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <CardTitle>ניתוח תחנות לפי תאריך (מספרה)</CardTitle>
+                                        <CardTitle>ניתוח תחנות לפי תאריך</CardTitle>
                                         <CardDescription>לכל תחנה קו נפרד - בחר מה להציג על ציר ה-Y</CardDescription>
                                     </div>
                                     <div className="w-48">
@@ -1319,143 +1019,6 @@ export default function AppointmentsReport() {
                         </Card>
                     )}
 
-                    {/* Garden by Date Line Chart - Split by Service Type */}
-                    {(serviceFilter === "all" || serviceFilter === "garden") && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>ניתוח גן לפי תאריך</CardTitle>
-                                <CardDescription>כמות תורים לפי יום וסוג שירות</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {appointmentsData.byGardenByDate.length > 0 ? (
-                                    <div className="h-96">
-                                    <HighchartsReact
-                                        highcharts={Highcharts}
-                                        options={(() => {
-                                            // Get unique dates
-                                            const uniqueDates = Array.from(new Set(appointmentsData.byGardenByDate.map((d) => d.date))).sort(
-                                                (a, b) => new Date(a).getTime() - new Date(b).getTime()
-                                            )
-
-                                            // Service types in order
-                                            const serviceTypes = ["יום מלא", "שעתי", "ניסיון"]
-                                            const serviceTypeColors: Record<string, string> = {
-                                                "יום מלא": "#10b981",
-                                                "שעתי": "#3b82f6",
-                                                "ניסיון": "#f59e0b",
-                                            }
-
-                                            // Build series for each service type
-                                            const series = serviceTypes.map((serviceType) => {
-                                                const data = uniqueDates.map((date) => {
-                                                    const item = appointmentsData.byGardenByDate.find(
-                                                        (d) => d.date === date && d.serviceType === serviceType
-                                                    )
-                                                    return item ? item.count : 0
-                                                })
-                                                return {
-                                                    name: serviceType,
-                                                    data,
-                                                    color: serviceTypeColors[serviceType] || "#10b981",
-                                                }
-                                            })
-
-                                            return {
-                                                chart: {
-                                                    type: "line",
-                                                    backgroundColor: "transparent",
-                                                    style: { fontFamily: "inherit" },
-                                                },
-                                                title: { text: null },
-                                                xAxis: {
-                                                    categories: uniqueDates,
-                                                    labels: { style: { fontSize: "12px", fontWeight: "500" } },
-                                                },
-                                                yAxis: {
-                                                    title: {
-                                                        text: "כמות תורים",
-                                                        style: { fontSize: "13px", fontWeight: "600" },
-                                                    },
-                                                    labels: { style: { fontSize: "12px" } },
-                                                },
-                                                tooltip: {
-                                                    shared: true,
-                                                    useHTML: true,
-                                                    formatter: function (this: any) {
-                                                        let tooltip = `<div style="font-weight: 600; margin-bottom: 8px;">${this.x}</div>`
-                                                        this.points?.forEach((point: any) => {
-                                                            if (point.y > 0) {
-                                                                tooltip += `<div style="margin: 4px 0;">
-                                                                    <span style="color: ${point.color}">●</span>
-                                                                    <span style="font-weight: 500;">${point.series.name}:</span>
-                                                                    <span style="font-weight: 600; margin-right: 8px;">${point.y}</span>
-                                                                </div>`
-                                                            }
-                                                        })
-                                                        return tooltip
-                                                    },
-                                                },
-                                                legend: {
-                                                    enabled: true,
-                                                    align: "center",
-                                                    verticalAlign: "bottom",
-                                                    itemStyle: { fontSize: "13px", fontWeight: "500" },
-                                                    margin: 30,
-                                                    padding: 15,
-                                                    itemMarginBottom: 10,
-                                                },
-                                                plotOptions: {
-                                                    line: {
-                                                        marker: {
-                                                            radius: 4,
-                                                            lineWidth: 2,
-                                                        },
-                                                        lineWidth: 3,
-                                                        cursor: "pointer",
-                                                        point: {
-                                                            events: {
-                                                                click: function (this: any) {
-                                                                    const serviceType = this.series.name
-                                                                    const date = this.category
-                                                                    if (!appointmentsData) return
-
-                                                                    // Map Hebrew service type labels to database values
-                                                                    const serviceTypeMap: Record<string, string> = {
-                                                                        "יום מלא": "full_day",
-                                                                        "ניסיון": "trial",
-                                                                        "שעתי": "hourly",
-                                                                    }
-                                                                    const serviceTypeValue = serviceTypeMap[serviceType] || "full_day"
-
-                                                                    // Filter appointments by service type and date
-                                                                    const filtered = appointmentsData.allAppointments.filter((apt) => {
-                                                                        const aptDate = format(new Date(apt.start_at), "dd/MM")
-                                                                        return apt.serviceType === "garden" && apt.gardenServiceType === serviceTypeValue && aptDate === date
-                                                                    })
-
-                                                                    setDetailModalTitle(`פרטי תורים - גן: ${serviceType} - ${date}`)
-                                                                    setDetailModalDescription(`סה"כ ${filtered.length} תורים`)
-                                                                    setDetailModalData(filtered)
-                                                                    setDetailModalOpen(true)
-                                                                },
-                                                            },
-                                                        },
-                                                    },
-                                                },
-                                                series,
-                                                credits: { enabled: false },
-                                            }
-                                        })()}
-                                    />
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-8 text-slate-500">
-                                        <p>אין תורי גן בתקופה זו</p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    )}
 
                     {/* Appointments by Creation Date and Modify Date - Combined Chart */}
                     {(appointmentsData.byCreationDate.length > 0 || appointmentsData.byModifyDate.length > 0) && (
@@ -1628,17 +1191,8 @@ export default function AppointmentsReport() {
                         label: "תחנה",
                     },
                     {
-                        key: "serviceType",
-                        label: "סוג שירות",
-                        render: (value) => value === "grooming" ? "מספרה" : "גן",
-                    },
-                    {
                         key: "customerName",
                         label: "לקוח",
-                    },
-                    {
-                        key: "dogName",
-                        label: "כלב",
                     },
                     {
                         key: "durationMinutes",
