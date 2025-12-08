@@ -125,51 +125,13 @@ export default function ClientsReport() {
                 })
                 .map(({ sortKey, ...item }) => item)
 
-            // Build byDogsPerClient buckets
-            const dogsPerClientRanges = [
-                { range: "0 כלבים", min: 0, max: 0 },
-                { range: "1 כלב", min: 1, max: 1 },
-                { range: "2 כלבים", min: 2, max: 2 },
-                { range: "3 כלבים", min: 3, max: 3 },
-                { range: "4-5 כלבים", min: 4, max: 5 },
-                { range: "6-10 כלבים", min: 6, max: 10 },
-                { range: "11+ כלבים", min: 11, max: Infinity },
-            ]
-
-            const byDogsPerClientMap = new Map<string, number>()
-            Object.values(dogsPerClient).forEach((count) => {
-                const range = dogsPerClientRanges.find(
-                    (r) => count >= r.min && count <= (r.max === Infinity ? 999999 : r.max)
-                )
-                if (range) {
-                    byDogsPerClientMap.set(range.range, (byDogsPerClientMap.get(range.range) || 0) + 1)
-                }
-            })
-
-            const byDogsPerClientArray = dogsPerClientRanges
-                .filter((r) => byDogsPerClientMap.has(r.range))
-                .map((r) => ({
-                    range: r.range,
-                    count: byDogsPerClientMap.get(r.range) || 0,
-                }))
-
             setClientsData({
                 totalClients: customers?.length || 0,
-                totalDogs: dogs?.length || 0,
                 byCustomerType: Object.entries(byCustomerType)
                     .map(([name, count]) => ({ name, count }))
                     .sort((a, b) => b.count - a.count),
-                byBreed: Object.entries(byBreed)
-                    .map(([name, count]) => ({ name, count }))
-                    .sort((a, b) => b.count - a.count)
-                    .slice(0, 10),
-                byCategory: Object.entries(byCategory)
-                    .map(([name, count]) => ({ name, count }))
-                    .sort((a, b) => b.count - a.count),
                 byDate: byDateArray, // This contains all dates, will be filtered in useMemo
-                byDogsPerClient: byDogsPerClientArray,
                 allClients,
-                allDogs,
             })
         } catch (error) {
             console.error("Failed to fetch clients data:", error)
@@ -260,7 +222,6 @@ export default function ClientsReport() {
             "שם לקוח": client.fullName,
             "סוג לקוח": client.customerTypeName,
             "תאריך יצירה": formatDateSafe(client.createdAt, "dd/MM/yyyy"),
-            "כמות כלבים": String(client.dogCount),
         })))
         setDetailModalOpen(true)
     }
@@ -278,20 +239,9 @@ export default function ClientsReport() {
                 title = `פרטי לקוחות - ${category}`
                 description = `סה"כ ${filtered.length} לקוחות`
                 break
-            case "byBreed":
-                filtered = clientsData.allDogs.filter((d) => d.breedName === category)
-                title = `פרטי כלבים - ${category}`
-                description = `סה"כ ${filtered.length} כלבים`
-                break
-            case "byCategory":
-                filtered = clientsData.allDogs.filter((d) => d.categoryNames && Array.isArray(d.categoryNames) && d.categoryNames.includes(category))
-                title = `פרטי כלבים - ${category}`
-                description = `סה"כ ${filtered.length} כלבים`
-                break
             case "byDate":
                 // Convert dd/MM back to date for filtering
                 const [day, month] = category.split("/")
-                const year = new Date().getFullYear()
                 filtered = clientsData.allClients.filter((c) => {
                     if (!c.createdAt) return false
                     try {
@@ -305,25 +255,6 @@ export default function ClientsReport() {
                 })
                 title = `פרטי לקוחות - ${category}`
                 description = `סה"כ ${filtered.length} לקוחות שנוצרו בתאריך זה`
-                break
-            case "byDogsPerClient":
-                // Parse range
-                const match = category.match(/(\d+)/)
-                if (category === "0 כלבים") {
-                    filtered = clientsData.allClients.filter((c) => c.dogCount === 0)
-                } else if (match) {
-                    const num = parseInt(match[1])
-                    if (category.includes("+")) {
-                        filtered = clientsData.allClients.filter((c) => c.dogCount >= num)
-                    } else if (category.includes("-")) {
-                        const [min, max] = category.split("-").map((n) => parseInt(n.match(/\d+/)![0]))
-                        filtered = clientsData.allClients.filter((c) => c.dogCount >= min && c.dogCount <= max)
-                    } else {
-                        filtered = clientsData.allClients.filter((c) => c.dogCount === num)
-                    }
-                }
-                title = `פרטי לקוחות - ${category}`
-                description = `סה"כ ${filtered.length} לקוחות`
                 break
         }
 
@@ -404,98 +335,6 @@ export default function ClientsReport() {
                     ],
                 }
 
-            case "byBreed":
-                return {
-                    ...commonOptions,
-                    chart: { ...commonOptions.chart, type: "bar" },
-                    xAxis: {
-                        categories: clientsData.byBreed.map((d) => d.name),
-                        labels: { style: { fontSize: "12px", fontWeight: "500" } },
-                    },
-                    yAxis: {
-                        title: {
-                            text: "כמות כלבים",
-                            style: { fontSize: "13px", fontWeight: "600" },
-                        },
-                        labels: { style: { fontSize: "12px" } },
-                    },
-                    tooltip: {
-                        ...commonOptions.tooltip,
-                        formatter: function (this: any) {
-                            return `<div style="font-weight: 600; margin-bottom: 4px;">${this.x}</div>
-                                <div><span style="color: ${this.color}">●</span> כמות כלבים: <strong>${this.y}</strong></div>`
-                        },
-                    },
-                    legend: { enabled: false },
-                    plotOptions: {
-                        bar: {
-                            borderRadius: 4,
-                            dataLabels: { enabled: false },
-                            cursor: "pointer",
-                            point: {
-                                events: {
-                                    click: function (this: any) {
-                                        handleChartClick(this.category, "byBreed")
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    series: [
-                        {
-                            name: "כמות כלבים",
-                            data: clientsData.byBreed.map((d) => d.count),
-                            color: "#10b981",
-                        },
-                    ],
-                }
-
-            case "byCategory":
-                return {
-                    ...commonOptions,
-                    chart: { ...commonOptions.chart, type: "column" },
-                    xAxis: {
-                        categories: clientsData.byCategory.map((d) => d.name),
-                        labels: { style: { fontSize: "12px", fontWeight: "500" } },
-                    },
-                    yAxis: {
-                        title: {
-                            text: "כמות כלבים",
-                            style: { fontSize: "13px", fontWeight: "600" },
-                        },
-                        labels: { style: { fontSize: "12px" } },
-                    },
-                    tooltip: {
-                        ...commonOptions.tooltip,
-                        formatter: function (this: any) {
-                            return `<div style="font-weight: 600; margin-bottom: 4px;">${this.x}</div>
-                                <div><span style="color: ${this.color}">●</span> כמות כלבים: <strong>${this.y}</strong></div>`
-                        },
-                    },
-                    legend: { enabled: false },
-                    plotOptions: {
-                        column: {
-                            borderRadius: 4,
-                            dataLabels: { enabled: false },
-                            cursor: "pointer",
-                            point: {
-                                events: {
-                                    click: function (this: any) {
-                                        handleChartClick(this.category, "byCategory")
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    series: [
-                        {
-                            name: "כמות כלבים",
-                            data: clientsData.byCategory.map((d) => d.count),
-                            color: "#8b5cf6",
-                        },
-                    ],
-                }
-
             case "byDate":
                 const byDateData = filteredByDateData || clientsData.byDate
                 return {
@@ -541,52 +380,6 @@ export default function ClientsReport() {
                     ],
                 }
 
-            case "byDogsPerClient":
-                return {
-                    ...commonOptions,
-                    chart: { ...commonOptions.chart, type: "column" },
-                    xAxis: {
-                        categories: clientsData.byDogsPerClient.map((d) => d.range),
-                        labels: { style: { fontSize: "12px", fontWeight: "500" } },
-                    },
-                    yAxis: {
-                        title: {
-                            text: "כמות לקוחות",
-                            style: { fontSize: "13px", fontWeight: "600" },
-                        },
-                        labels: { style: { fontSize: "12px" } },
-                    },
-                    tooltip: {
-                        ...commonOptions.tooltip,
-                        formatter: function (this: any) {
-                            return `<div style="font-weight: 600; margin-bottom: 4px;">${this.x}</div>
-                                <div><span style="color: ${this.color}">●</span> כמות לקוחות: <strong>${this.y}</strong></div>`
-                        },
-                    },
-                    legend: { enabled: false },
-                    plotOptions: {
-                        column: {
-                            borderRadius: 4,
-                            dataLabels: { enabled: false },
-                            cursor: "pointer",
-                            point: {
-                                events: {
-                                    click: function (this: any) {
-                                        handleChartClick(this.category, "byDogsPerClient")
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    series: [
-                        {
-                            name: "כמות לקוחות",
-                            data: clientsData.byDogsPerClient.map((d) => d.count),
-                            color: COLORS[2],
-                        },
-                    ],
-                }
-
             default:
                 return null
         }
@@ -600,7 +393,7 @@ export default function ClientsReport() {
                         <Users className="h-7 w-7 text-primary" />
                         דוח לקוחות
                     </h1>
-                    <p className="text-slate-600">סטטיסטיקות מפורטות על לקוחות וכלבים</p>
+                    <p className="text-slate-600">סטטיסטיקות מפורטות על לקוחות</p>
                 </div>
                 <Button onClick={fetchClientsData} disabled={isLoading} variant="outline" size="sm">
                     {isLoading ? (
@@ -619,7 +412,7 @@ export default function ClientsReport() {
 
             {clientsData && (
                 <>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-1">
                         <Card
                             className="cursor-pointer hover:bg-gray-50 transition-colors"
                             onClick={() => {
@@ -630,7 +423,6 @@ export default function ClientsReport() {
                                     "שם לקוח": client.fullName,
                                     "סוג לקוח": client.customerTypeName,
                                     "תאריך יצירה": formatDateSafe(client.createdAt, "dd/MM/yyyy"),
-                                    "כמות כלבים": String(client.dogCount),
                                 })))
                                 setDetailModalOpen(true)
                             }}
@@ -642,31 +434,9 @@ export default function ClientsReport() {
                                 <div className="text-4xl font-bold text-blue-600">{clientsData.totalClients}</div>
                             </CardContent>
                         </Card>
-
-                        <Card
-                            className="cursor-pointer hover:bg-gray-50 transition-colors"
-                            onClick={() => {
-                                setDetailModalTitle("כל הכלבים")
-                                setDetailModalDescription(`סה"כ ${clientsData.totalDogs} כלבים`)
-                                setDetailModalData(clientsData.allDogs.map((dog) => ({
-                                    id: dog.id,
-                                    "שם לקוח": dog.customerName || "ללא שם",
-                                    "גזע": dog.breedName || "ללא גזע",
-                                    "קטגוריות": (dog.categoryNames && Array.isArray(dog.categoryNames) && dog.categoryNames.length > 0 ? dog.categoryNames.join(", ") : "ללא"),
-                                })))
-                                setDetailModalOpen(true)
-                            }}
-                        >
-                            <CardHeader className="pb-2">
-                                <CardDescription>סה"כ כלבים</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-4xl font-bold text-emerald-600">{clientsData.totalDogs}</div>
-                            </CardContent>
-                        </Card>
                     </div>
 
-                    <div className="grid gap-6 md:grid-cols-2 mt-6">
+                    <div className="grid gap-6 md:grid-cols-1 mt-6">
                         <Card>
                             <CardHeader>
                                 <CardTitle>התפלגות לפי סוג לקוח</CardTitle>
@@ -679,22 +449,9 @@ export default function ClientsReport() {
                                 </div>
                             </CardContent>
                         </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>התפלגות לפי גזע (Top 10)</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="h-80">
-                                    {getChartOptions("byBreed") && (
-                                        <HighchartsReact highcharts={Highcharts} options={getChartOptions("byBreed")} />
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
                     </div>
 
-                    <div className="grid gap-6 md:grid-cols-2 mt-6">
+                    <div className="grid gap-6 md:grid-cols-1 mt-6">
                         <Card>
                             <CardHeader className="relative">
                                 <div className="flex items-center justify-between mb-2">
@@ -750,35 +507,7 @@ export default function ClientsReport() {
                                 </div>
                             </CardContent>
                         </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>התפלגות כמות כלבים ללקוח</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="h-80">
-                                    {clientsData.byDogsPerClient.length > 0 && getChartOptions("byDogsPerClient") && (
-                                        <HighchartsReact highcharts={Highcharts} options={getChartOptions("byDogsPerClient")} />
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
                     </div>
-
-                    {clientsData.byCategory.length > 0 && (
-                        <Card className="mt-6">
-                            <CardHeader>
-                                <CardTitle>התפלגות לפי קטגוריה</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="h-80">
-                                    {getChartOptions("byCategory") && (
-                                        <HighchartsReact highcharts={Highcharts} options={getChartOptions("byCategory")} />
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
 
                     {/* Detail Modal */}
                     <ChartDetailModal
@@ -788,10 +517,6 @@ export default function ClientsReport() {
                         description={detailModalDescription}
                         data={detailModalData.map((item) => {
                             // Check if data is already in Hebrew key format (from summary cards or chart clicks)
-                            if ("שם לקוח" in item && "גזע" in item) {
-                                // Already formatted for dogs
-                                return item
-                            }
                             if ("שם לקוח" in item && "סוג לקוח" in item) {
                                 // Already formatted for clients
                                 return item
@@ -804,31 +529,16 @@ export default function ClientsReport() {
                                     "שם לקוח": item.fullName,
                                     "סוג לקוח": item.customerTypeName,
                                     "תאריך יצירה": formatDateSafe(item.createdAt, "dd/MM/yyyy"),
-                                    "כמות כלבים": String(item.dogCount),
                                 }
                             }
-                            // Otherwise it's a dog detail (raw format)
-                            return {
-                                id: item.id,
-                                "שם לקוח": item.customerName || "ללא שם",
-                                "גזע": item.breedName || "ללא גזע",
-                                "קטגוריות": (item.categoryNames && Array.isArray(item.categoryNames) && item.categoryNames.length > 0 ? item.categoryNames.join(", ") : "ללא"),
-                            }
+                            // Fallback
+                            return item
                         })}
-                        columns={
-                            detailModalData.length > 0 && ("סוג לקוח" in detailModalData[0] || "fullName" in detailModalData[0])
-                                ? [
-                                    { key: "שם לקוח", label: "שם לקוח" },
-                                    { key: "סוג לקוח", label: "סוג לקוח" },
-                                    { key: "תאריך יצירה", label: "תאריך יצירה" },
-                                    { key: "כמות כלבים", label: "כמות כלבים" },
-                                ]
-                                : [
-                                    { key: "שם לקוח", label: "שם לקוח" },
-                                    { key: "גזע", label: "גזע" },
-                                    { key: "קטגוריות", label: "קטגוריות" },
-                                ]
-                        }
+                        columns={[
+                            { key: "שם לקוח", label: "שם לקוח" },
+                            { key: "סוג לקוח", label: "סוג לקוח" },
+                            { key: "תאריך יצירה", label: "תאריך יצירה" },
+                        ]}
                     />
                 </>
             )}
