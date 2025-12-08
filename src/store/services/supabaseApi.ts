@@ -3170,15 +3170,8 @@ export const supabaseApi = createApi({
             return { data: {} }
           }
 
-          // Fetch allowed dog categories for shifts
-          const { data: dogCategoriesData, error: dogCategoriesError } = await supabase
-            .from("shift_allowed_dog_categories")
-            .select("shift_id, dog_category_id")
-            .in("shift_id", shiftIds)
-
-          if (dogCategoriesError) {
-            console.error("Error fetching shift allowed dog categories:", dogCategoriesError)
-          }
+          // Removed shift_allowed_dog_categories - barbery system doesn't use dogs
+          const dogCategoriesData: never[] = []
 
           // Fetch allowed customer types for shifts
           const { data: customerTypesData, error: customerTypesError } = await supabase
@@ -3194,35 +3187,22 @@ export const supabaseApi = createApi({
           const restrictionsMap: Record<
             string,
             {
-              allowedDogCategories: string[]
               allowedCustomerTypes: string[]
             }
           > = {}
 
           shiftIds.forEach((shiftId) => {
             restrictionsMap[shiftId] = {
-              allowedDogCategories: [],
               allowedCustomerTypes: [],
             }
           })
 
-          if (dogCategoriesData) {
-            dogCategoriesData.forEach((item) => {
-              if (!restrictionsMap[item.shift_id]) {
-                restrictionsMap[item.shift_id] = {
-                  allowedDogCategories: [],
-                  allowedCustomerTypes: [],
-                }
-              }
-              restrictionsMap[item.shift_id].allowedDogCategories.push(item.dog_category_id)
-            })
-          }
+          // Removed dog category processing - barbery system doesn't use dogs
 
           if (customerTypesData) {
             customerTypesData.forEach((item) => {
               if (!restrictionsMap[item.shift_id]) {
                 restrictionsMap[item.shift_id] = {
-                  allowedDogCategories: [],
                   allowedCustomerTypes: [],
                 }
               }

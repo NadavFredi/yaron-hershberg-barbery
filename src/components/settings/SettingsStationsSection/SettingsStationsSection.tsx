@@ -349,17 +349,17 @@ export function SettingsStationsSection() {
                 requires_staff_approval: boolean
             }>> = {}
 
-            ;(data || []).forEach((rule) => {
-                if (!rule.station_id || !rule.breed_id) return
-                if (!grouped[rule.station_id]) {
-                    grouped[rule.station_id] = []
-                }
-                grouped[rule.station_id].push({
-                    breed_id: rule.breed_id,
-                    remote_booking_allowed: rule.remote_booking_allowed || false,
-                    requires_staff_approval: rule.requires_staff_approval || false,
+                ; (data || []).forEach((rule) => {
+                    if (!rule.station_id || !rule.breed_id) return
+                    if (!grouped[rule.station_id]) {
+                        grouped[rule.station_id] = []
+                    }
+                    grouped[rule.station_id].push({
+                        breed_id: rule.breed_id,
+                        remote_booking_allowed: rule.remote_booking_allowed || false,
+                        requires_staff_approval: rule.requires_staff_approval || false,
+                    })
                 })
-            })
 
             setStationBreedRules(grouped)
         } catch (error) {
@@ -470,9 +470,8 @@ export function SettingsStationsSection() {
                 open_time: h.open_time?.substring(0, 5) || "",
                 close_time: h.close_time?.substring(0, 5) || "",
                 allowedCustomerTypeIds: [] as string[],
-                allowedDogCategoryIds: [] as string[],
                 blockedCustomerTypeIds: [] as string[],
-                blockedDogCategoryIds: [] as string[],
+                // Removed allowedDogCategoryIds and blockedDogCategoryIds - barbery system doesn't use dogs
             }))
 
             // Fetch shift restrictions
@@ -486,11 +485,9 @@ export function SettingsStationsSection() {
                         .select("shift_id, customer_type_id")
                         .in("shift_id", shiftIds)
 
-                    // Fetch allowed dog category restrictions
-                    const { data: dogCategoryRestrictions } = await supabase
-                        .from("shift_allowed_dog_categories")
-                        .select("shift_id, dog_category_id")
-                        .in("shift_id", shiftIds)
+                    // Removed dog category restrictions - barbery system doesn't use dogs
+                    const dogCategoryRestrictions: never[] = []
+                    const blockedDogCategoryRestrictions: never[] = []
 
                     // Fetch blocked customer type restrictions
                     const { data: blockedCustomerTypeRestrictions } = await supabase
@@ -498,17 +495,10 @@ export function SettingsStationsSection() {
                         .select("shift_id, customer_type_id")
                         .in("shift_id", shiftIds)
 
-                    // Fetch blocked dog category restrictions
-                    const { data: blockedDogCategoryRestrictions } = await supabase
-                        .from("shift_blocked_dog_categories")
-                        .select("shift_id, dog_category_id")
-                        .in("shift_id", shiftIds)
-
                     // Group restrictions by shift_id
                     const customerTypeMap = new Map<string, string[]>()
-                    const dogCategoryMap = new Map<string, string[]>()
                     const blockedCustomerTypeMap = new Map<string, string[]>()
-                    const blockedDogCategoryMap = new Map<string, string[]>()
+                    // Removed dog category maps - barbery system doesn't use dogs
 
                     customerTypeRestrictions?.forEach((r) => {
                         if (r.shift_id) {
@@ -517,12 +507,7 @@ export function SettingsStationsSection() {
                         }
                     })
 
-                    dogCategoryRestrictions?.forEach((r) => {
-                        if (r.shift_id) {
-                            const existing = dogCategoryMap.get(r.shift_id) || []
-                            dogCategoryMap.set(r.shift_id, [...existing, r.dog_category_id])
-                        }
-                    })
+                    // Removed dog category restriction processing - barbery system doesn't use dogs
 
                     blockedCustomerTypeRestrictions?.forEach((r) => {
                         if (r.shift_id) {
@@ -531,20 +516,12 @@ export function SettingsStationsSection() {
                         }
                     })
 
-                    blockedDogCategoryRestrictions?.forEach((r) => {
-                        if (r.shift_id) {
-                            const existing = blockedDogCategoryMap.get(r.shift_id) || []
-                            blockedDogCategoryMap.set(r.shift_id, [...existing, r.dog_category_id])
-                        }
-                    })
-
                     // Apply restrictions to shifts
                     shifts.forEach((shift) => {
                         if (shift.id) {
                             shift.allowedCustomerTypeIds = customerTypeMap.get(shift.id) || []
-                            shift.allowedDogCategoryIds = dogCategoryMap.get(shift.id) || []
                             shift.blockedCustomerTypeIds = blockedCustomerTypeMap.get(shift.id) || []
-                            shift.blockedDogCategoryIds = blockedDogCategoryMap.get(shift.id) || []
+                            // Removed dog category restrictions - barbery system doesn't use dogs
                         }
                     })
                 }
@@ -1353,7 +1330,7 @@ export function SettingsStationsSection() {
         if (filters.breedIds.length > 0) {
             filtered = filtered.filter(station => {
                 const rules = stationBreedRules[station.id] || []
-                return filters.breedIds.some(breedId => 
+                return filters.breedIds.some(breedId =>
                     rules.some(rule => rule.breed_id === breedId)
                 )
             })
@@ -1376,7 +1353,7 @@ export function SettingsStationsSection() {
                 }
                 const hasApproval = rules.some(r => r.requires_staff_approval)
                 const allHaveApproval = rules.length > 0 && rules.every(r => r.requires_staff_approval)
-                
+
                 if (filters.approvalFilter === "all_breeds") return allHaveApproval
                 if (filters.approvalFilter === "some") return hasApproval && !allHaveApproval
                 if (filters.approvalFilter === "none") return !hasApproval
@@ -1393,7 +1370,7 @@ export function SettingsStationsSection() {
                 }
                 const hasRemote = rules.some(r => r.remote_booking_allowed)
                 const allHaveRemote = rules.length > 0 && rules.every(r => r.remote_booking_allowed)
-                
+
                 if (filters.remoteFilter === "all_breeds") return allHaveRemote
                 if (filters.remoteFilter === "some") return hasRemote && !allHaveRemote
                 if (filters.remoteFilter === "none") return !hasRemote
@@ -1555,10 +1532,10 @@ export function SettingsStationsSection() {
                             <span>שומר סדר...</span>
                         </div>
                     )}
-                <Button onClick={handleAdd} className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    הוסף עמדה חדשה
-                </Button>
+                    <Button onClick={handleAdd} className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        הוסף עמדה חדשה
+                    </Button>
                 </div>
             </div>
 
@@ -1967,7 +1944,7 @@ export function SettingsStationsSection() {
                                                                                 onCreateCustomerType={createCustomerType}
                                                                                 onCreateDogCategory={async () => null}
                                                                                 onRefreshCustomerTypes={fetchViewingCustomerTypes}
-                                                                                onRefreshDogCategories={async () => {}}
+                                                                                onRefreshDogCategories={async () => { }}
                                                                                 onRestrictionChange={() => {
                                                                                     // Read-only in view mode, so this is a no-op
                                                                                 }}

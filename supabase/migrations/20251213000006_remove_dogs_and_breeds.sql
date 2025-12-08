@@ -186,6 +186,10 @@ DROP TABLE IF EXISTS public.dog_categories CASCADE;
 DROP TABLE IF EXISTS public.breed_service_rules CASCADE;
 DROP TABLE IF EXISTS public.breed_treatment_types CASCADE;
 
+-- Also drop shift dog category restriction tables (handled in separate migration but ensuring here too)
+DROP TABLE IF EXISTS public.shift_allowed_dog_categories CASCADE;
+DROP TABLE IF EXISTS public.shift_blocked_dog_categories CASCADE;
+
 -- Step 5: Drop main dogs and breeds tables
 DROP TABLE IF EXISTS public.dogs CASCADE;
 DROP TABLE IF EXISTS public.breeds CASCADE;
