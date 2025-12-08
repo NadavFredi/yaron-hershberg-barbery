@@ -10,9 +10,7 @@ import { SettingsStationsSection } from "@/components/settings/SettingsStationsS
 import { SettingsStationsPerDaySection } from "@/components/settings/SettingsStationsPerDaySection/SettingsStationsPerDaySection"
 import { SettingsConstraintsSection } from "@/components/settings/SettingsConstraintsSection/SettingsConstraintsSection"
 import { SettingsBreedStationMatrixSection } from "@/components/settings/SettingsBreedStationMatrixSection/SettingsBreedStationMatrixSection"
-import { SettingsGardenSection } from "@/components/settings/SettingsGardenSection/SettingsGardenSection"
-
-const VALID_SECTIONS = ["breeds", "working-hours", "stations", "stations-per-day", "constraints", "matrix", "garden"] as const
+const VALID_SECTIONS = ["breeds", "working-hours", "stations", "stations-per-day", "constraints", "matrix"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function Settings() {
@@ -98,7 +96,6 @@ export default function Settings() {
                     {activeSection === "stations-per-day" && <SettingsStationsPerDaySection />}
                     {activeSection === "constraints" && <SettingsConstraintsSection />}
                     {activeSection === "matrix" && <SettingsBreedStationMatrixSection />}
-                    {activeSection === "garden" && <SettingsGardenSection />}
                 </div>
             </div>
         </AdminLayout>

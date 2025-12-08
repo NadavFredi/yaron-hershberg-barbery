@@ -14,7 +14,6 @@ import {
   AlertCircle,
   Building2,
   Clock,
-  Flower2,
   CalendarDays,
   UserCog,
   ListChecks,
@@ -26,6 +25,7 @@ import {
   Users as UsersIcon,
   Settings,
   History,
+  Grid3x3,
 } from "lucide-react"
 
 // Define all third level navigation sections
@@ -35,7 +35,7 @@ export const THIRD_LEVEL_SECTIONS = {
     { id: "stations", label: "ניהול עמדות", icon: Building2 },
     { id: "stations-per-day", label: "עמדות לפי יום", icon: CalendarDays },
     { id: "constraints", label: "אילוצים", icon: AlertCircle },
-    { id: "garden", label: "הגדרות גן", icon: Flower2 },
+    { id: "matrix", label: "מטריצת שירותים-עמדות", icon: Grid3x3 },
   ],
   customers: [
     { id: "list", label: "לקוחות", description: "ניהול רשימת לקוחות", icon: Users },
