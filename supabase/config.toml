@@ -159,7 +159,7 @@ entrypoint = "./functions/duplicate-appointment/index.ts"
 [functions.get-treatmentType-pricing]
 enabled = true
 verify_jwt = false
-entrypoint = "./functions/get-treatmentType-pricing/index.ts"
+entrypoint = "./functions/get-treatment-type-pricing/index.ts"
 
 [functions.save-appointment-price]
 enabled = true

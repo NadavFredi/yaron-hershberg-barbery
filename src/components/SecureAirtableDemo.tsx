@@ -80,7 +80,7 @@ export function SecureAirtableDemo() {
         setIsLoading(true)
         setError(null)
         try {
-            const result = await getAvailableDates(treatmentId, "grooming")
+            const result = await getAvailableDates(treatmentId)
             setAvailableDates(result.availableDates)
             console.log("✅ Available dates loaded:", result)
         } catch (err) {

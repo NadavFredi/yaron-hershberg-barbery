@@ -685,10 +685,17 @@ export async function getMergedAppointments(treatmentId: string): Promise<{ appo
 }
 
 // Get available dates for a treatment using the backend-configured calendar window
-export async function getAvailableDates(treatmentId: string, serviceType: string): Promise<AvailableDatesResult> {
+export async function getAvailableDates(serviceId: string): Promise<AvailableDatesResult> {
   try {
-    // Use the new direct Supabase implementation instead of edge function
-    const availableDates = await getAvailableDatesDirectly(treatmentId, serviceType)
+    const result = await callSupabaseFunction("get-available-times", {
+      serviceId,
+      mode: "date",
+    })
+
+    const availableDates =
+      (result.data as { availableDates?: AvailableDate[] } | undefined)?.availableDates ||
+      (result as { availableDates?: AvailableDate[] }).availableDates ||
+      []
 
     return { availableDates }
   } catch (error) {
@@ -698,11 +705,10 @@ export async function getAvailableDates(treatmentId: string, serviceType: string
 }
 
 // Get available times for a treatment on a specific date
-export async function getAvailableTimes(treatmentId: string, date: string): Promise<AvailableTime[]> {
+export async function getAvailableTimes(serviceId: string, date: string): Promise<AvailableTime[]> {
   try {
-    // Edge function will handle all complex calculation - this just calls it
     const result = await callSupabaseFunction("get-available-times", {
-      treatmentId,
+      serviceId,
       date,
       mode: "time",
     })
@@ -716,18 +722,13 @@ export async function getAvailableTimes(treatmentId: string, date: string): Prom
 
 // 6. Reserve appointment for treatment on a specific date
 export async function reserveAppointment(
-  treatmentId: string,
+  serviceId: string,
   date: string,
   stationId: string,
   startTime: string,
   notes?: string,
-  isTrial?: boolean,
-  appointmentType?: string,
-  latePickupRequested?: boolean,
-  latePickupNotes?: string,
-  gardenTrimNails?: boolean,
-  gardenBrush?: boolean,
-  gardenBath?: boolean
+  appointmentName?: string,
+  appointmentKind?: string,
 ): Promise<{
   success: boolean
   data?: any
@@ -735,18 +736,13 @@ export async function reserveAppointment(
   error?: string
 }> {
   const payload = {
-    treatmentId,
+    serviceId,
     date,
     stationId,
     startTime,
     ...(notes ? { notes } : {}),
-    ...(isTrial !== undefined ? { isTrial } : {}),
-    ...(appointmentType ? { appointmentType } : {}),
-    ...(latePickupRequested !== undefined ? { latePickupRequested } : {}),
-    ...(latePickupNotes ? { latePickupNotes } : {}),
-    ...(gardenTrimNails !== undefined ? { gardenTrimNails } : {}),
-    ...(gardenBrush !== undefined ? { gardenBrush } : {}),
-    ...(gardenBath !== undefined ? { gardenBath } : {}),
+    ...(appointmentName ? { appointmentName } : {}),
+    ...(appointmentKind ? { appointmentKind } : {}),
   }
 
   const result = await callSupabaseFunction("reserve-appointment", payload)

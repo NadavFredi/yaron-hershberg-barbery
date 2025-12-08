@@ -309,7 +309,11 @@ serve(async (req: Request) => {
     }
 
     if (mode === "time" && date) {
-      const availableTimes = computeForDate(date)
+      const availableTimes = computeForDate(date).map((slot) => ({
+        ...slot,
+        available: true,
+        duration: stations.find((s) => s.stationId === slot.stationId)?.duration ?? DEFAULT_DURATION,
+      }))
       return new Response(JSON.stringify({ success: true, availableTimes }), {
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
         status: 200,
@@ -318,7 +322,11 @@ serve(async (req: Request) => {
 
     const availableDates = allDates
       .map((dateKey) => {
-        const slots = computeForDate(dateKey)
+        const slots = computeForDate(dateKey).map((slot) => ({
+          ...slot,
+          available: true,
+          duration: stations.find((s) => s.stationId === slot.stationId)?.duration ?? DEFAULT_DURATION,
+        }))
         return {
           date: dateKey,
           available: slots.length > 0,
