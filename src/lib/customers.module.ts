@@ -38,47 +38,18 @@ export async function searchCustomers(searchTerm: string): Promise<{
 
   console.log(`Found ${customersData?.length || 0} customers matching "${searchTerm}"`)
 
-  // For each customer, get their dogs' names
-  const customersWithDogs: CustomerSearchResult[] = []
-
-  if (customersData && customersData.length > 0) {
-    // Get all customer IDs
-    const customerIds = customersData.map((c) => c.id)
-
-    // Fetch dogs for all customers at once
-    const { data: dogsData, error: dogsError } = await supabase
-      .from("dogs")
-      .select("id, name, customer_id")
-      .in("customer_id", customerIds)
-
-    if (dogsError) {
-      console.warn("Error fetching dogs for customers:", dogsError)
-    }
-
-    // Group dogs by customer_id
-    const dogsByCustomer: Record<string, string[]> = {}
-    dogsData?.forEach((dog) => {
-      if (!dogsByCustomer[dog.customer_id]) {
-        dogsByCustomer[dog.customer_id] = []
-      }
-      dogsByCustomer[dog.customer_id].push(dog.name)
-    })
-
-    // Build result array
-    customersData.forEach((customer) => {
-      customersWithDogs.push({
-        id: customer.id,
-        fullName: customer.full_name || undefined,
-        phone: customer.phone || undefined,
-        email: customer.email || undefined,
-        dogNames: dogsByCustomer[customer.id]?.join(", ") || undefined,
-      })
-    })
-  }
+  // Build result array (no dogs in barbershop)
+  const customers: CustomerSearchResult[] = (customersData || []).map((customer) => ({
+    id: customer.id,
+    fullName: customer.full_name || undefined,
+    phone: customer.phone || undefined,
+    email: customer.email || undefined,
+    dogNames: undefined, // No dogs in barbershop
+  }))
 
   return {
-    customers: customersWithDogs,
-    count: customersWithDogs.length,
+    customers,
+    count: customers.length,
     searchTerm,
   }
 }

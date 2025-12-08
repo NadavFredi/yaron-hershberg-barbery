@@ -334,16 +334,6 @@ export default function AppointmentsSection() {
                         internal_notes,
                         station_id,
                         customer_id,
-                        dogs (
-                            id,
-                            name,
-                            customer_id,
-                            breed_id,
-                            breeds (
-                                id,
-                                name
-                            )
-                        ),
                         customers (
                             id,
                             full_name,
@@ -392,86 +382,12 @@ export default function AppointmentsSection() {
 
             const [groomingData, daycareData] = await Promise.all([groomingPromise(), daycarePromise()])
 
-            const breedIdSet = new Set<string>()
-            const collectBreedIds = (rows: Array<{ dogs?: RawDogRecord | RawDogRecord[] | null }>) => {
-                rows.forEach((row) => {
-                    const dog = getFirst<RawDogRecord>(row.dogs)
-                    const breed = getFirst<RawBreedRecord>(dog?.breeds)
-                    const breedId = dog?.breed_id ?? breed?.id
-                    if (breedId) {
-                        breedIdSet.add(breedId)
-                    }
-                })
-            }
-
-            collectBreedIds(groomingData)
-            collectBreedIds(daycareData)
-
-            const breedIdList = Array.from(breedIdSet)
-            const typesByBreed = new Map<string, OptionItem[]>()
-            const categoriesByBreed = new Map<string, OptionItem[]>()
-
-            if (breedIdList.length > 0) {
-                const { data: categoriesData, error: categoriesError } = await supabase
-                    .from("breed_dog_categories")
-                    .select(
-                        `
-                        breed_id,
-                        dog_category:dog_categories (
-                            id,
-                            name
-                        )
-                    `
-                    )
-                    .in("breed_id", breedIdList)
-
-                if (categoriesError) {
-                    console.error("Failed to fetch breed categories", { categoriesError })
-                } else {
-                    const typedCategoriesData = (categoriesData ?? []) as BreedDogCategoryRow[]
-                    typedCategoriesData.forEach((row) => {
-                        if (!row?.breed_id) return
-                        const normalizedCategory = normalizeOption(row.dog_category)
-                        if (!normalizedCategory) return
-                        if (!categoriesByBreed.has(row.breed_id)) {
-                            categoriesByBreed.set(row.breed_id, [])
-                        }
-                        categoriesByBreed.get(row.breed_id)!.push(normalizedCategory)
-                    })
-                }
-            }
-
-            const enhanceDog = (dogRecord: RawDogRecord | null, customerRecord: RawCustomerRecord | null) => {
-                if (!dogRecord) return null
-                const breed = getFirst<RawBreedRecord>(dogRecord.breeds)
-                const breedId = dogRecord.breed_id ?? breed?.id
-                const typeEntries = breedId ? typesByBreed.get(breedId) ?? [] : []
-                const categoryEntries = breedId ? categoriesByBreed.get(breedId) ?? [] : []
-
-                const managerDog: CategorizedDog = {
-                    id: dogRecord.id,
-                    name: dogRecord.name || "",
-                    ownerId: dogRecord.customer_id || undefined,
-                    breed: breed?.name ?? undefined,
-                    clientClassification: customerRecord?.classification || undefined,
-                    clientName: customerRecord?.full_name || undefined,
-                }
-
-                managerDog.category1Ids = typeEntries.map((item) => item.id)
-                managerDog.category1Names = typeEntries.map((item) => item.name)
-                managerDog.category2Ids = categoryEntries.map((item) => item.id)
-                managerDog.category2Names = categoryEntries.map((item) => item.name)
-                managerDog.customerTypeName = customerRecord?.customer_type?.name ?? undefined
-
-                return managerDog
-            }
+            // Removed all breed/dog processing - barbery system doesn't use dogs/breeds
 
             const mappedGrooming: EnrichedAppointment[] = groomingData.map((apt) => {
-                const dog = getFirst<RawDogRecord>(apt.dogs)
                 const customer = getFirst<RawCustomerRecord>(apt.customers)
                 const station = getFirst<RawStationRecord>(apt.stations)
                 const service = getFirst<RawServiceRecord>(apt.services)
-                const managerDog = enhanceDog(dog, customer)
 
                 return {
                     id: apt.id,
@@ -583,22 +499,7 @@ export default function AppointmentsSection() {
                 }
             }
 
-            const matchesDogCategory = (selectedId: string, key: "category1Ids" | "category2Ids") => {
-                if (selectedId === "all") return true
-                return appointment.dogs?.some((dog) => {
-                    const typedDog = dog as CategorizedDog
-                    const ids = key === "category1Ids" ? typedDog.category1Ids : typedDog.category2Ids
-                    return Array.isArray(ids) && ids.includes(selectedId)
-                })
-            }
-
-            if (dogCategory1Filter !== "all" && !matchesDogCategory(dogCategory1Filter, "category1Ids")) {
-                return false
-            }
-
-            if (dogCategory2Filter !== "all" && !matchesDogCategory(dogCategory2Filter, "category2Ids")) {
-                return false
-            }
+            // Removed dog category filters - barbery system doesn't use dogs/breeds
 
             if (selectedStationIds.length > 0) {
                 if (!appointment.stationId || !selectedStationIds.includes(appointment.stationId)) {
@@ -617,8 +518,7 @@ export default function AppointmentsSection() {
                 appointment.stationName,
                 appointment.notes,
                 appointment.internalNotes,
-                appointment.dogs?.[0]?.name,
-                appointment.dogs?.[0]?.breed,
+                // Removed dog/breed from search - barbery system doesn't use dogs
             ]
                 .filter(Boolean)
                 .join(" ")

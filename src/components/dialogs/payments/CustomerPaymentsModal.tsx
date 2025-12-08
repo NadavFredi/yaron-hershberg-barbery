@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Loader2, CreditCard, Calendar as CalendarIcon, Dog, Filter, X, Plus } from "lucide-react"
+import { Loader2, CreditCard, Calendar as CalendarIcon, Filter, X, Plus } from "lucide-react"
 import { format, startOfDay, endOfDay } from "date-fns"
 import { he } from "date-fns/locale"
 import { supabase } from "@/integrations/supabase/client"
@@ -18,7 +18,6 @@ import { PaymentModal } from "@/components/dialogs/manager-schedule/PaymentModal
 interface Payment {
     id: string
     customer_id: string
-    dog_id: string | null
     amount: number
     currency: string
     status: "unpaid" | "paid" | "partial"
@@ -26,7 +25,6 @@ interface Payment {
     note: string | null
     created_at: string
     updated_at: string
-    dog_name?: string
 }
 
 interface CustomerPaymentsModalProps {
@@ -63,131 +61,18 @@ export const CustomerPaymentsModal: React.FC<CustomerPaymentsModalProps> = ({
 
             if (customerError) throw customerError
 
-            // Fetch payments linked to customer's dogs via appointments
-            // Get all appointments for customer's dogs, then get payments for those appointments
-            const { data: customerDogs } = await supabase
-                .from("dogs")
-                .select("id")
-                .eq("customer_id", customerId)
-
-            const dogIds = (customerDogs || []).map(d => d.id)
-
-            const dogPaymentIds = new Set<string>()
-            const appointmentDogMap = new Map<string, string>() // payment_id -> dog_id
-
-            if (dogIds.length > 0) {
-                // Get grooming appointments for these dogs
-                const { data: groomingApps } = await supabase
-                    .from("grooming_appointments")
-                    .select("id, dog_id")
-                    .in("dog_id", dogIds)
-
-                // Get daycare appointments for these dogs
-                const { data: daycareApps } = await supabase
-                    .from("daycare_appointments")
-                    .select("id, dog_id")
-                    .in("dog_id", dogIds)
-
-                const allAppointmentIds = [
-                    ...(groomingApps || []).map(a => ({ id: a.id, dog_id: a.dog_id })),
-                    ...(daycareApps || []).map(a => ({ id: a.id, dog_id: a.dog_id }))
-                ]
-
-                if (allAppointmentIds.length > 0) {
-                    // Get appointment_payments for these appointments
-                    // Split into grooming and daycare queries
-                    const queries = []
-
-                    if ((groomingApps || []).length > 0) {
-                        const groomingIds = (groomingApps || []).map(a => a.id)
-                        queries.push(
-                            supabase
-                                .from("appointment_payments")
-                                .select("payment_id, grooming_appointment_id, daycare_appointment_id")
-                                .in("grooming_appointment_id", groomingIds)
-                        )
-                    }
-
-                    if ((daycareApps || []).length > 0) {
-                        const daycareIds = (daycareApps || []).map(a => a.id)
-                        queries.push(
-                            supabase
-                                .from("appointment_payments")
-                                .select("payment_id, grooming_appointment_id, daycare_appointment_id")
-                                .in("daycare_appointment_id", daycareIds)
-                        )
-                    }
-
-                    const results = await Promise.all(queries)
-                    const appointmentPayments = results.flatMap(r => r.data || [])
-
-                    if (appointmentPayments) {
-                        appointmentPayments.forEach(ap => {
-                            const appointmentId = ap.grooming_appointment_id || ap.daycare_appointment_id
-                            const appointment = allAppointmentIds.find(a => a.id === appointmentId)
-                            if (appointment && ap.payment_id) {
-                                dogPaymentIds.add(ap.payment_id)
-                                appointmentDogMap.set(ap.payment_id, appointment.dog_id)
-                            }
-                        })
-                    }
-                }
-            }
-
-            // Fetch payments for dog-related appointments
-            let dogPayments: any[] = []
-            if (dogPaymentIds.size > 0) {
-                const { data: dogPaymentsData, error: dogPaymentsError } = await supabase
-                    .from("payments")
-                    .select("*")
-                    .in("id", Array.from(dogPaymentIds))
-                    .order("created_at", { ascending: false })
-
-                if (dogPaymentsError) throw dogPaymentsError
-                dogPayments = dogPaymentsData || []
-            }
-
-            // Combine and deduplicate payments
-            const allPaymentIds = new Set([
-                ...(customerPayments || []).map(p => p.id),
-                ...dogPayments.map(p => p.id)
-            ])
-
-            const combinedPayments = Array.from(allPaymentIds).map(id => {
-                const customerPayment = (customerPayments || []).find(p => p.id === id)
-                const dogPayment = dogPayments.find(p => p.id === id)
-                return customerPayment || dogPayment
-            }).filter(Boolean)
-
-            // Fetch dog names for payments linked to dogs
-            const paymentDogIds = [...new Set(Array.from(appointmentDogMap.values()))]
-            let dogNamesMap = new Map<string, string>()
-
-            if (paymentDogIds.length > 0) {
-                const { data: dogsData } = await supabase
-                    .from("dogs")
-                    .select("id, name")
-                    .in("id", paymentDogIds)
-
-                dogNamesMap = new Map((dogsData || []).map(d => [d.id, d.name]))
-            }
-
-            const formattedPayments: Payment[] = combinedPayments.map((p: any) => {
-                const dogId = appointmentDogMap.get(p.id)
-                return {
-                    id: p.id,
-                    customer_id: p.customer_id,
-                    dog_id: dogId || null,
-                    amount: p.amount,
-                    currency: p.currency,
-                    status: p.status,
-                    method: p.method,
-                    note: p.note,
-                    created_at: p.created_at,
-                    updated_at: p.updated_at,
-                    dog_name: dogId ? dogNamesMap.get(dogId) : undefined,
-                }
-            })
+            // No dogs in barbershop - only use direct customer payments
+            const formattedPayments: Payment[] = (customerPayments || []).map((p: any) => ({
+                id: p.id,
+                customer_id: p.customer_id,
+                amount: p.amount,
+                currency: p.currency,
+                status: p.status,
+                method: p.method,
+                note: p.note,
+                created_at: p.created_at,
+                updated_at: p.updated_at,
+            }))
 
             setPayments(formattedPayments)
             console.log("✅ [CustomerPaymentsModal] Loaded payments:", formattedPayments.length)
@@ -375,12 +260,6 @@ export const CustomerPaymentsModal: React.FC<CustomerPaymentsModalProps> = ({
                                                     <CalendarIcon className="h-4 w-4" />
                                                     {format(new Date(payment.created_at), 'dd/MM/yyyy HH:mm', { locale: he })}
                                                 </div>
-                                                {payment.dog_name && (
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <Dog className="h-4 w-4" />
-                                                        כלב: {payment.dog_name}
-                                                    </div>
-                                                )}
                                                 {payment.method && (
                                                     <div className="mt-1">אמצעי תשלום: {payment.method}</div>
                                                 )}

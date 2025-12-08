@@ -47,7 +47,6 @@ export default function PaymentsListPage() {
     const [isSelectCustomerDialogOpen, setIsSelectCustomerDialogOpen] = useState(false)
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
     const [selectedCustomerForPayment, setSelectedCustomerForPayment] = useState<Customer | null>(null)
-    const [selectedDogForPayment, setSelectedDogForPayment] = useState<Dog | null>(null)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -85,7 +84,7 @@ export default function PaymentsListPage() {
         try {
             setIsLoading(true)
             console.log("🔍 [PaymentsListPage] Fetching payments...")
-            
+
             let query = supabase
                 .from("payments")
                 .select(`
@@ -97,12 +96,12 @@ export default function PaymentsListPage() {
             const { data, error } = await query
 
             if (error) throw error
-            
+
             const paymentsData = (data || []).map((payment: any) => ({
                 ...payment,
                 customer: payment.customer || null,
             })) as Payment[]
-            
+
             setPayments(paymentsData)
             console.log("✅ [PaymentsListPage] Loaded payments:", paymentsData.length)
         } catch (error) {
@@ -141,7 +140,7 @@ export default function PaymentsListPage() {
         // Search term filter
         if (searchTerm) {
             const searchLower = searchTerm.toLowerCase()
-            const matchesSearch = 
+            const matchesSearch =
                 payment.customer?.full_name?.toLowerCase().includes(searchLower) ||
                 payment.customer?.phone?.includes(searchTerm) ||
                 payment.customer?.email?.toLowerCase().includes(searchLower) ||
@@ -194,9 +193,8 @@ export default function PaymentsListPage() {
         setIsSelectCustomerDialogOpen(true)
     }
 
-    const handleCustomerSelected = (customer: Customer, dog: Dog | null) => {
+    const handleCustomerSelected = (customer: Customer) => {
         setSelectedCustomerForPayment(customer)
-        setSelectedDogForPayment(dog)
         setIsSelectCustomerDialogOpen(false)
         setIsPaymentModalOpen(true)
     }
@@ -263,7 +261,6 @@ export default function PaymentsListPage() {
     const handlePaymentConfirm = (_paymentData: any) => {
         setIsPaymentModalOpen(false)
         setSelectedCustomerForPayment(null)
-        setSelectedDogForPayment(null)
         fetchPayments()
     }
 
@@ -279,7 +276,7 @@ export default function PaymentsListPage() {
         try {
             setIsSaving(true)
             console.log("🗑️ [PaymentsListPage] Deleting payment:", paymentToDelete.id)
-            
+
             const { error } = await supabase
                 .from("payments")
                 .delete()
@@ -584,7 +581,6 @@ export default function PaymentsListPage() {
                     setIsPaymentModalOpen(open)
                     if (!open) {
                         setSelectedCustomerForPayment(null)
-                        setSelectedDogForPayment(null)
                     }
                 }}
                 appointment={null}
@@ -654,7 +650,7 @@ export default function PaymentsListPage() {
                                 <span className="mr-4 text-gray-600">טוען חשבונית...</span>
                             </div>
                         ) : invoiceHtml ? (
-                            <div 
+                            <div
                                 className="invoice-container"
                                 dangerouslySetInnerHTML={{ __html: invoiceHtml }}
                             />

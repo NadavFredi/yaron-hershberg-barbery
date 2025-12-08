@@ -48,7 +48,6 @@ const asSingle = <T>(value: T | T[] | null | undefined): T | null => {
   return value ?? null
 }
 
-
 export interface DogRecord {
   id: string
   name: string
@@ -105,7 +104,6 @@ export interface AvailableDatesResult {
   gardenQuestionnaire?: GardenQuestionnaireStatus
 }
 
-
 export interface ClientProfile {
   id: string
   fullName: string | null
@@ -125,11 +123,10 @@ async function hasDogAppointmentHistory(dogId: string): Promise<boolean> {
     throw new Error("dogId is required")
   }
 
-  // dog_id column doesn't exist - returning 0 count
-  const [{ count: groomingCount, error: groomingError }] =
-    await Promise.all([
-      Promise.resolve({ count: 0, error: null }),
-    ])
+  // dog_id removed - returning 0 count
+  const [{ count: groomingCount, error: groomingError }] = await Promise.all([
+    Promise.resolve({ count: 0, error: null }),
+  ])
 
   if (groomingError) {
     console.error("❌ [hasDogAppointmentHistory] Failed to check grooming appointments", groomingError)
@@ -232,7 +229,7 @@ export async function reserveAppointment(
   date: string,
   stationId: string,
   startTime: string,
-  notes?: string,
+  notes?: string
 ): Promise<{ success: boolean; data?: any; message?: string; error?: string }> {
   const payload = {
     serviceId,
@@ -868,22 +865,7 @@ export async function getManagerSchedule(
     // Process grooming appointments
     for (const apt of groomingAppointments) {
       const station = Array.isArray(apt.stations) ? apt.stations[0] : apt.stations
-      const dog = Array.isArray(apt.dogs) ? apt.dogs[0] : apt.dogs
       const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
-      const breed = dog?.breeds ? (Array.isArray(dog.breeds) ? dog.breeds[0] : dog.breeds) : null
-
-      if (!dog) continue
-
-      const managerDog: ManagerDog = {
-        id: dog.id,
-        name: dog.name || "",
-        breed: breed?.name,
-        ownerId: dog.customer_id,
-        clientClassification: customer?.classification,
-        clientName: customer?.full_name,
-        minGroomingPrice: breed?.min_groom_price ? Number(breed.min_groom_price) : undefined,
-        maxGroomingPrice: breed?.max_groom_price ? Number(breed.max_groom_price) : undefined,
-      }
 
       const hasCrossService = combinedGroomingIds.has(apt.id)
 
@@ -900,7 +882,7 @@ export async function getManagerSchedule(
         internalNotes: apt.internal_notes || undefined,
         groomingNotes: (apt as any).grooming_notes || undefined,
         hasCrossServiceAppointment: hasCrossService,
-        dogs: [managerDog],
+        dogs: [], // Removed dog references - barbery system doesn't use dogs
         clientId: apt.customer_id,
         clientName: customer?.full_name || undefined,
         clientClassification: customer?.classification || undefined,
@@ -923,21 +905,17 @@ export async function getManagerSchedule(
 
     // Process daycare appointments
     for (const apt of daycareAppointments) {
-      const dog = Array.isArray(apt.dogs) ? apt.dogs[0] : apt.dogs
       const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
-      const breed = dog?.breeds ? (Array.isArray(dog.breeds) ? dog.breeds[0] : dog.breeds) : null
-
-      if (!dog) continue
 
       const managerDog: ManagerDog = {
-        id: dog.id,
-        name: dog.name || "",
-        breed: breed?.name,
-        ownerId: dog.customer_id,
+        id: "",
+        name: "",
+        breed: undefined,
+        ownerId: apt.customer_id,
         clientClassification: customer?.classification,
         clientName: customer?.full_name,
-        minGroomingPrice: breed?.min_groom_price ? Number(breed.min_groom_price) : undefined,
-        maxGroomingPrice: breed?.max_groom_price ? Number(breed.max_groom_price) : undefined,
+        minGroomingPrice: undefined,
+        maxGroomingPrice: undefined,
       }
 
       const hasCrossService = combinedDaycareIds.has(apt.id)
@@ -1138,9 +1116,7 @@ export async function moveAppointment(params: {
 }
 
 // Helper function to get or create system customer for private appointments
-async function getOrCreateSystemCustomer(
-  appointmentName: string
-): Promise<{ customerId: string }> {
+async function getOrCreateSystemCustomer(appointmentName: string): Promise<{ customerId: string }> {
   const SYSTEM_CUSTOMER_NAME = "צוות פנימי"
   const SYSTEM_PHONE = "0000000000"
 
@@ -1230,29 +1206,29 @@ export async function createManagerAppointment(params: {
   // For private appointments, use PostgREST directly instead of edge function
   if (params.appointmentType === "private") {
     console.log("🔒 [createManagerAppointment] Creating private appointment via PostgREST")
-    
+
     try {
       // Get or create system customer
       const { customerId } = await getOrCreateSystemCustomer(params.name)
-      
+
       // Generate group ID if multiple stations
-      const finalGroupId = params.groupId || 
-        (params.selectedStations.length > 1 
-          ? `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` 
+      const finalGroupId =
+        params.groupId ||
+        (params.selectedStations.length > 1
+          ? `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
           : undefined)
-      
+
       // Get stations to use
       const stationsToUse = params.selectedStations.length > 0 ? params.selectedStations : [params.stationId]
-      
+
       // Create appointments for each station
       const appointmentIds: string[] = []
-      
+
       for (const stationIdToUse of stationsToUse) {
         const { data: appointment, error: insertError } = await supabase
           .from("grooming_appointments")
           .insert({
             customer_id: customerId,
-            // dog_id column doesn't exist - skipping
             station_id: stationIdToUse,
             start_at: params.startTime,
             end_at: params.endTime,
@@ -1265,20 +1241,22 @@ export async function createManagerAppointment(params: {
           })
           .select("id")
           .single()
-        
+
         if (insertError) {
           console.error(`❌ [createManagerAppointment] Error creating private appointment:`, insertError)
           throw new Error(`Failed to create private appointment: ${insertError.message}`)
         }
-        
+
         if (appointment) {
           appointmentIds.push(appointment.id)
-          console.log(`✅ [createManagerAppointment] Created private appointment ${appointment.id} for station ${stationIdToUse}`)
+          console.log(
+            `✅ [createManagerAppointment] Created private appointment ${appointment.id} for station ${stationIdToUse}`
+          )
         }
       }
-      
+
       console.log("🎉 [createManagerAppointment] Successfully created all private appointments:", appointmentIds)
-      
+
       return {
         success: true,
         appointmentIds,
@@ -1289,13 +1267,17 @@ export async function createManagerAppointment(params: {
     } catch (error) {
       console.error("❌ [createManagerAppointment] Error creating private appointment:", error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      
+
       // Check for auth errors
-      if (errorMessage.includes("JWT") || errorMessage.includes("authentication") || errorMessage.includes("unauthorized")) {
+      if (
+        errorMessage.includes("JWT") ||
+        errorMessage.includes("authentication") ||
+        errorMessage.includes("unauthorized")
+      ) {
         handleInvalidToken()
         throw new HttpError("ההתחברות שלך פגה או לא תקינה. אנא התחבר מחדש כדי להמשיך.", 401, error)
       }
-      
+
       throw new Error(errorMessage || "אירעה שגיאה ביצירת התור הפרטי. אנא נסה שוב.")
     }
   }
@@ -1587,7 +1569,7 @@ export async function getSingleManagerAppointment(
 
     if (error) {
       // Log only if it's a real error, not just "not found"
-      if (error.code !== 'PGRST116') {
+      if (error.code !== "PGRST116") {
         console.error(`❌ [getSingleManagerAppointment] Query error for appointment ${appointmentId}:`, error)
       }
       return {
@@ -1618,27 +1600,18 @@ export async function getSingleManagerAppointment(
     const hasCrossService = !!combinedData
 
     const station = Array.isArray(appointmentData.stations) ? appointmentData.stations[0] : appointmentData.stations
-    const dog = Array.isArray(appointmentData.dogs) ? appointmentData.dogs[0] : appointmentData.dogs
     const customer = Array.isArray(appointmentData.customers) ? appointmentData.customers[0] : appointmentData.customers
-    const breed = dog?.breeds ? (Array.isArray(dog.breeds) ? dog.breeds[0] : dog.breeds) : null
 
-    if (!dog) {
-      console.error(`❌ [getSingleManagerAppointment] Dog information not found for appointment ${appointmentId}`)
-      return {
-        success: false,
-        error: "Dog information not found",
-      }
-    }
-
+    // Removed dog/breed references - barbery system doesn't use dogs
     const managerDog: ManagerDog = {
-      id: dog.id,
-      name: dog.name || "",
-      breed: breed?.name,
-      ownerId: dog.customer_id,
+      id: "",
+      name: "",
+      breed: undefined,
+      ownerId: appointmentData.customer_id,
       clientClassification: customer?.classification,
       clientName: customer?.full_name,
-      minGroomingPrice: breed?.min_groom_price ? Number(breed.min_groom_price) : undefined,
-      maxGroomingPrice: breed?.max_groom_price ? Number(breed.max_groom_price) : undefined,
+      minGroomingPrice: undefined,
+      maxGroomingPrice: undefined,
     }
 
     const appointment: ManagerAppointment = {
@@ -1660,11 +1633,17 @@ export async function getSingleManagerAppointment(
       clientClassification: customer?.classification || undefined,
       clientEmail: customer?.email || undefined,
       clientPhone: customer?.phone || undefined,
-      appointmentType: serviceType === "grooming" && appointmentData.appointment_kind === "personal" ? "private" : "business",
+      appointmentType:
+        serviceType === "grooming" && appointmentData.appointment_kind === "personal" ? "private" : "business",
       isPersonalAppointment: serviceType === "grooming" && appointmentData.appointment_kind === "personal",
-      personalAppointmentDescription: serviceType === "grooming" && (appointmentData as any).appointment_name ? (appointmentData as any).appointment_name : undefined,
+      personalAppointmentDescription:
+        serviceType === "grooming" && (appointmentData as any).appointment_name
+          ? (appointmentData as any).appointment_name
+          : undefined,
       price: appointmentData.amount_due ? Number(appointmentData.amount_due) : undefined,
-      durationMinutes: Math.round((new Date(appointmentData.end_at).getTime() - new Date(appointmentData.start_at).getTime()) / 60000),
+      durationMinutes: Math.round(
+        (new Date(appointmentData.end_at).getTime() - new Date(appointmentData.start_at).getTime()) / 60000
+      ),
       ...(appointmentData.created_at && { created_at: appointmentData.created_at }),
       ...(appointmentData.updated_at && { updated_at: appointmentData.updated_at }),
     } as any
@@ -2196,14 +2175,22 @@ async function syncProposedMeetingInvites(
   }
 
   // Create a map keyed by customerId+dogId for proper matching
-  const plan = new Map<string, { source: "manual" | "category"; sourceCategoryId?: string | null; dogId?: string | null }>()
+  const plan = new Map<
+    string,
+    { source: "manual" | "category"; sourceCategoryId?: string | null; dogId?: string | null }
+  >()
   desiredPlan.forEach((meta, customerId) => {
     const key = `${customerId}:${meta.dogId ?? "null"}`
     plan.set(key, meta)
   })
 
   const invitesToDelete: string[] = []
-  const invitesToUpdate: Array<{ id: string; source: string; source_category_id: string | null; dog_id: string | null }> = []
+  const invitesToUpdate: Array<{
+    id: string
+    source: string
+    source_category_id: string | null
+    dog_id: string | null
+  }> = []
 
   for (const invite of existing ?? []) {
     const inviteKey = `${invite.customer_id}:${invite.dog_id ?? "null"}`
@@ -2216,7 +2203,7 @@ async function syncProposedMeetingInvites(
     const normalizedCategory = desired.sourceCategoryId ?? null
     const normalizedDogId = desired.dogId ?? null
     if (
-      invite.source !== desired.source || 
+      invite.source !== desired.source ||
       (invite.source_category_id ?? null) !== normalizedCategory ||
       (invite.dog_id ?? null) !== normalizedDogId
     ) {
@@ -2269,9 +2256,12 @@ async function buildInvitePlan(
   categoryIds: string[],
   dogIds?: Array<{ customerId: string; dogId: string }>
 ): Promise<Map<string, { source: "manual" | "category"; sourceCategoryId?: string | null; dogId?: string | null }>> {
-  const plan = new Map<string, { source: "manual" | "category"; sourceCategoryId?: string | null; dogId?: string | null }>()
+  const plan = new Map<
+    string,
+    { source: "manual" | "category"; sourceCategoryId?: string | null; dogId?: string | null }
+  >()
   const manualIds = uniqueStrings(manualCustomerIds)
-  
+
   // Create a map of customerId -> dogId from dogIds array
   const dogIdMap = new Map<string, string>()
   if (dogIds) {
@@ -2281,7 +2271,7 @@ async function buildInvitePlan(
   }
 
   manualIds.forEach((customerId) => {
-    plan.set(customerId, { 
+    plan.set(customerId, {
       source: "manual",
       dogId: dogIdMap.get(customerId) ?? null,
     })
@@ -2340,7 +2330,7 @@ export async function getPersonalAppointmentNames(searchTerm?: string): Promise<
 
   try {
     console.log("🔍 [getPersonalAppointmentNames] Fetching personal appointment names", { searchTerm })
-    
+
     // appointment_name column doesn't exist - returning empty array
     console.log("⚠️ [getPersonalAppointmentNames] appointment_name column removed, returning empty array")
     const uniqueNames: string[] = []

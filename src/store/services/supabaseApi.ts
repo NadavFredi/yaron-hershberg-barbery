@@ -499,7 +499,7 @@ export const supabaseApi = createApi({
             .select(
               "id, start_at, end_at, status, late_pickup_requested, late_pickup_notes, garden_trim_nails, garden_brush, garden_bath, customer_notes, internal_notes"
             )
-            // dog_id column doesn't exist - returning empty array
+            // dog_id removed - returning empty array
             .eq("id", "00000000-0000-0000-0000-000000000000") // Always false condition
             .neq("status", "cancelled")
 
@@ -1213,11 +1213,7 @@ export const supabaseApi = createApi({
           // Process grooming appointments
           for (const apt of groomingResult.data || []) {
             const station = Array.isArray(apt.stations) ? apt.stations[0] : apt.stations
-            const dog = Array.isArray(apt.dogs) ? apt.dogs[0] : apt.dogs
             const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
-            const breed = dog?.breeds ? (Array.isArray(dog.breeds) ? dog.breeds[0] : dog.breeds) : null
-
-            if (!dog) continue
 
             appointments.push({
               id: apt.id,
@@ -1232,18 +1228,7 @@ export const supabaseApi = createApi({
               internalNotes: apt.internal_notes || undefined,
               groomingNotes: apt.grooming_notes || undefined,
               hasCrossServiceAppointment: false,
-              dogs: [
-                {
-                  id: dog.id,
-                  name: dog.name || "",
-                  breed: breed?.name,
-                  ownerId: dog.customer_id,
-                  clientClassification: customer?.classification,
-                  clientName: customer?.full_name,
-                  minGroomingPrice: breed?.min_groom_price ? Number(breed.min_groom_price) : undefined,
-                  maxGroomingPrice: breed?.max_groom_price ? Number(breed.max_groom_price) : undefined,
-                },
-              ],
+              dogs: [], // Removed dog references - barbery system doesn't use dogs
               clientId: apt.customer_id,
               clientName: customer?.full_name || undefined,
               clientClassification: customer?.classification || undefined,
@@ -1260,11 +1245,7 @@ export const supabaseApi = createApi({
 
           // Process daycare appointments
           for (const apt of daycareResult.data || []) {
-            const dog = Array.isArray(apt.dogs) ? apt.dogs[0] : apt.dogs
             const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
-            const breed = dog?.breeds ? (Array.isArray(dog.breeds) ? dog.breeds[0] : dog.breeds) : null
-
-            if (!dog) continue
 
             const isTrial = apt.service_type === "trial"
             const serviceType: "full-day" | "hourly" = apt.service_type === "hourly" ? "hourly" : "full-day"
@@ -1281,18 +1262,7 @@ export const supabaseApi = createApi({
               notes: apt.customer_notes || "",
               internalNotes: apt.internal_notes || undefined,
               hasCrossServiceAppointment: false,
-              dogs: [
-                {
-                  id: dog.id,
-                  name: dog.name || "",
-                  breed: breed?.name,
-                  ownerId: dog.customer_id,
-                  clientClassification: customer?.classification,
-                  clientName: customer?.full_name,
-                  minGroomingPrice: breed?.min_groom_price ? Number(breed.min_groom_price) : undefined,
-                  maxGroomingPrice: breed?.max_groom_price ? Number(breed.max_groom_price) : undefined,
-                },
-              ],
+              dogs: [], // Removed dog references - barbery system doesn't use dogs
               clientId: apt.customer_id,
               clientName: customer?.full_name || undefined,
               clientClassification: customer?.classification || undefined,
