@@ -157,7 +157,6 @@ export default function AppointmentsReport() {
                           station_id,
                           amount_due,
                           customer_id,
-                          dog_id,
                           stations (
                               id,
                               name
@@ -196,7 +195,6 @@ export default function AppointmentsReport() {
                           amount_due,
                           service_type,
                           customer_id,
-                          dog_id,
                           stations (
                               id,
                               name

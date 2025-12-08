@@ -253,10 +253,8 @@ export default function CustomersListPage() {
     const [phoneFilter, setPhoneFilter] = useState("")
     const [emailFilter, setEmailFilter] = useState("")
     const [nameFilter, setNameFilter] = useState("")
-    const [dogNameFilter, setDogNameFilter] = useState("")
-    const [breedFilter, setBreedFilter] = useState("")
     const [isWhatsAppBroadcastDialogOpen, setIsWhatsAppBroadcastDialogOpen] = useState(false)
-    
+
     // Appointment filter states - using recursive nested structure
     type AppointmentFilterCondition = {
         id: string
@@ -266,7 +264,7 @@ export default function CustomersListPage() {
         endDate: Date | null
     }
 
-    type AppointmentFilterNode = 
+    type AppointmentFilterNode =
         | { type: "condition"; condition: AppointmentFilterCondition }
         | { type: "group"; id: string; operator: "AND" | "OR"; children: AppointmentFilterNode[] }
 
@@ -420,7 +418,7 @@ export default function CustomersListPage() {
                 .from("customers")
                 .select(`
                     *,
-                    customer_type:customer_types(id, name, priority),
+                    customer_type:customer_types(id, name, priority)
                 `)
                 .order("created_at", { ascending: false })
 
@@ -511,12 +509,12 @@ export default function CustomersListPage() {
 
         // Combine customer IDs
         const customerIds = new Set<string>()
-        ;(groomingResult.data || []).forEach((apt: any) => {
-            if (apt.customer_id) customerIds.add(apt.customer_id)
-        })
-        ;(daycareResult.data || []).forEach((apt: any) => {
-            if (apt.customer_id) customerIds.add(apt.customer_id)
-        })
+            ; (groomingResult.data || []).forEach((apt: any) => {
+                if (apt.customer_id) customerIds.add(apt.customer_id)
+            })
+            ; (daycareResult.data || []).forEach((apt: any) => {
+                if (apt.customer_id) customerIds.add(apt.customer_id)
+            })
 
         return customerIds
     }
@@ -565,7 +563,7 @@ export default function CustomersListPage() {
             const { data: allCustomers } = await supabase
                 .from("customers")
                 .select("id")
-            
+
             const allCustomerIds = new Set<string>((allCustomers || []).map((c: any) => c.id))
 
             // Evaluate the filter tree recursively
@@ -643,29 +641,6 @@ export default function CustomersListPage() {
         return [...new Set((data || []).map(c => c.email).filter(Boolean))] as string[]
     }
 
-    const searchDogNames = async (searchTerm: string): Promise<string[]> => {
-        const trimmedTerm = searchTerm.trim()
-        let query = supabase
-            .from("dogs")
-            .select("name")
-            .not("name", "is", null)
-
-        if (trimmedTerm.length >= 2) {
-            query = query.ilike("name", `%${trimmedTerm}%`).limit(10)
-        } else {
-            query = query.order("name", { ascending: true }).limit(5)
-        }
-
-        const { data, error } = await query
-
-        if (error) throw error
-        return [...new Set((data || []).map(d => d.name).filter(Boolean))] as string[]
-    }
-
-    const searchBreeds = async (searchTerm: string): Promise<string[]> => {
-        // Breeds table doesn't exist in this system - return empty array
-        return []
-    }
 
     // Filter customers based on all criteria
     const filteredCustomers = customers.filter((customer) => {
@@ -673,7 +648,7 @@ export default function CustomersListPage() {
         if (customerTypeFilter.length > 0) {
             const hasNoneType = customerTypeFilter.includes("none")
             const hasMatchingType = customer.customer_type_id && customerTypeFilter.includes(customer.customer_type_id)
-            
+
             // Include if: (none is selected AND customer has no type) OR (customer has matching type)
             if (!((hasNoneType && !customer.customer_type_id) || hasMatchingType)) {
                 return false
@@ -693,22 +668,6 @@ export default function CustomersListPage() {
         // Name filter
         if (nameFilter && !customer.full_name?.toLowerCase().includes(nameFilter.toLowerCase())) {
             return false
-        }
-
-        // Dog name filter
-        if (dogNameFilter) {
-            const hasMatchingDog = customer.dogs?.some((dog: any) =>
-                dog.name?.toLowerCase().includes(dogNameFilter.toLowerCase())
-            )
-            if (!hasMatchingDog) return false
-        }
-
-        // Breed filter
-        if (breedFilter) {
-            const hasMatchingBreed = customer.dogs?.some((dog: any) =>
-                dog.breed?.name?.toLowerCase().includes(breedFilter.toLowerCase())
-            )
-            if (!hasMatchingBreed) return false
         }
 
         // Appointment filter (already combined in customersWithAppointments set)
@@ -1074,7 +1033,7 @@ export default function CustomersListPage() {
             const updatedChildren = node.children
                 .map(child => removeNodeFromTree(child, targetId, node.id))
                 .filter((n): n is AppointmentFilterNode => n !== null)
-            
+
             if (updatedChildren.length === 0 && node.id !== "root") {
                 return null
             }
@@ -1087,13 +1046,13 @@ export default function CustomersListPage() {
     }
 
     // Recursive component to render filter tree
-    const FilterNodeComponent = ({ 
-        node, 
-        depth = 0, 
-        isFirst = true, 
+    const FilterNodeComponent = ({
+        node,
+        depth = 0,
+        isFirst = true,
         parentOperator,
-        parentGroupId 
-    }: { 
+        parentGroupId
+    }: {
         node: AppointmentFilterNode
         depth?: number
         isFirst?: boolean
@@ -1129,8 +1088,8 @@ export default function CustomersListPage() {
                         onValueChange={(value: "before" | "after" | "on" | "range") => {
                             const updated = updateNodeInTree(appointmentFilterRoot, node.condition.id, () => ({
                                 type: "condition",
-                                condition: { 
-                                    ...node.condition, 
+                                condition: {
+                                    ...node.condition,
                                     dateRangeType: value,
                                     endDate: value !== "range" ? null : node.condition.endDate
                                 }
@@ -1305,9 +1264,9 @@ export default function CustomersListPage() {
                         <div>
                             <CardTitle>לקוחות</CardTitle>
                             <CardDescription>
-                                {filteredCustomers.length > 0 
+                                {filteredCustomers.length > 0
                                     ? `נמצאו ${filteredCustomers.length} לקוחות${customers.length !== filteredCustomers.length ? ` מתוך ${customers.length} סה"כ` : ''}`
-                                    : customers.length > 0 
+                                    : customers.length > 0
                                         ? `לא נמצאו תוצאות מתוך ${customers.length} לקוחות`
                                         : "רשימת כל הלקוחות במערכת"}
                             </CardDescription>
@@ -1385,32 +1344,6 @@ export default function CustomersListPage() {
                                     disabled={isLoadingTypes}
                                 />
                             </div>
-                            <div>
-                                <Label className="text-sm mb-2 block">שם כלב</Label>
-                                <AutocompleteFilter
-                                    value={dogNameFilter}
-                                    onChange={setDogNameFilter}
-                                    placeholder="שם כלב..."
-                                    searchFn={searchDogNames}
-                                    minSearchLength={0}
-                                    autoSearchOnFocus
-                                    initialLoadOnMount
-                                    initialResultsLimit={5}
-                                />
-                            </div>
-                            <div>
-                                <Label className="text-sm mb-2 block">גזע</Label>
-                                <AutocompleteFilter
-                                    value={breedFilter}
-                                    onChange={setBreedFilter}
-                                    placeholder="גזע..."
-                                    searchFn={searchBreeds}
-                                    minSearchLength={0}
-                                    autoSearchOnFocus
-                                    initialLoadOnMount
-                                    initialResultsLimit={5}
-                                />
-                            </div>
                         </div>
                         {/* Appointment Filter - Each Group on Its Own Line */}
                         <div className="border rounded-lg p-3 bg-gray-50">
@@ -1420,8 +1353,14 @@ export default function CustomersListPage() {
                                     onCheckedChange={(checked) => {
                                         setAppointmentFilterEnabled(checked === true)
                                         if (!checked) {
-                                            setAppointmentFilterGroups([{ id: "1", type: "had_appointment", dateRangeType: "range", startDate: null, endDate: null }])
-                                            setAppointmentGroupOperators([])
+                                            setAppointmentFilterRoot({
+                                                type: "group",
+                                                id: "root",
+                                                operator: "AND",
+                                                children: [
+                                                    { type: "condition", condition: { id: "1", type: "had_appointment", dateRangeType: "range", startDate: null, endDate: null } }
+                                                ]
+                                            })
                                             setCustomersWithAppointments(new Set())
                                         }
                                     }}
@@ -1443,15 +1382,15 @@ export default function CustomersListPage() {
                             </div>
                             {appointmentFilterEnabled && (
                                 <div className="space-y-2">
-                                    <FilterNodeComponent 
-                                        node={appointmentFilterRoot} 
-                                        depth={0} 
+                                    <FilterNodeComponent
+                                        node={appointmentFilterRoot}
+                                        depth={0}
                                         isFirst={true}
                                     />
                                 </div>
                             )}
                         </div>
-                        {(customerTypeFilter.length > 0 || phoneFilter || emailFilter || nameFilter || dogNameFilter || breedFilter || appointmentFilterEnabled) && (
+                        {(customerTypeFilter.length > 0 || phoneFilter || emailFilter || nameFilter || appointmentFilterEnabled) && (
                             <Button
                                 variant="outline"
                                 onClick={() => {
@@ -1459,8 +1398,6 @@ export default function CustomersListPage() {
                                     setPhoneFilter("")
                                     setEmailFilter("")
                                     setNameFilter("")
-                                    setDogNameFilter("")
-                                    setBreedFilter("")
                                     setAppointmentFilterEnabled(false)
                                     setAppointmentFilterRoot({
                                         type: "group",
@@ -1554,93 +1491,93 @@ export default function CustomersListPage() {
                             <Table containerClassName="[direction:rtl] !overflow-visible">
                                 <TableHeader>
                                     <TableRow className="bg-[hsl(228_36%_95%)] [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-[hsl(228_36%_95%)]">
-                                    <TableHead className="w-12 p-0 text-center align-middle font-medium text-primary font-semibold">
-                                        <div className="flex h-full items-center justify-center" onClick={(event) => event.stopPropagation()}>
-                                            <Checkbox
-                                                checked={isAllSelected}
-                                                indeterminate={isPartiallySelected}
-                                                onPointerDownCapture={handleCheckboxPointerDown}
-                                                onPointerUp={handleCheckboxPointerUpOrLeave}
-                                                onPointerLeave={handleCheckboxPointerUpOrLeave}
-                                                onCheckedChange={handleSelectAllChange}
-                                                aria-label="בחר את כל הלקוחות במסך הנוכחי"
-                                                disabled={filteredCustomers.length === 0 || disableSelection}
-                                            />
-                                        </div>
-                                    </TableHead>
-                                    <TableHead className="text-right align-middle font-medium text-primary font-semibold">שם מלא</TableHead>
-                                    <TableHead className="text-right align-middle font-medium text-primary font-semibold">טלפון</TableHead>
-                                    <TableHead className="text-right align-middle font-medium text-primary font-semibold">אימייל</TableHead>
-                                    <TableHead className="text-right align-middle font-medium text-primary font-semibold">סיווג</TableHead>
-                                    <TableHead className="text-right align-middle font-medium text-primary font-semibold">סוג מותאם</TableHead>
-                                    <TableHead className="text-right align-middle font-medium text-primary font-semibold">כתובת</TableHead>
-                                    <TableHead className="text-right align-middle font-medium text-primary font-semibold">שלח חשבונית</TableHead>
-                                    <TableHead className="text-right align-middle font-medium text-primary font-semibold">פעולות</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {customers.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                                            לא נמצאו לקוחות
-                                        </TableCell>
+                                        <TableHead className="w-12 p-0 text-center align-middle font-medium text-primary font-semibold">
+                                            <div className="flex h-full items-center justify-center" onClick={(event) => event.stopPropagation()}>
+                                                <Checkbox
+                                                    checked={isAllSelected}
+                                                    indeterminate={isPartiallySelected}
+                                                    onPointerDownCapture={handleCheckboxPointerDown}
+                                                    onPointerUp={handleCheckboxPointerUpOrLeave}
+                                                    onPointerLeave={handleCheckboxPointerUpOrLeave}
+                                                    onCheckedChange={handleSelectAllChange}
+                                                    aria-label="בחר את כל הלקוחות במסך הנוכחי"
+                                                    disabled={filteredCustomers.length === 0 || disableSelection}
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-right align-middle font-medium text-primary font-semibold">שם מלא</TableHead>
+                                        <TableHead className="text-right align-middle font-medium text-primary font-semibold">טלפון</TableHead>
+                                        <TableHead className="text-right align-middle font-medium text-primary font-semibold">אימייל</TableHead>
+                                        <TableHead className="text-right align-middle font-medium text-primary font-semibold">סיווג</TableHead>
+                                        <TableHead className="text-right align-middle font-medium text-primary font-semibold">סוג מותאם</TableHead>
+                                        <TableHead className="text-right align-middle font-medium text-primary font-semibold">כתובת</TableHead>
+                                        <TableHead className="text-right align-middle font-medium text-primary font-semibold">שלח חשבונית</TableHead>
+                                        <TableHead className="text-right align-middle font-medium text-primary font-semibold">פעולות</TableHead>
                                     </TableRow>
-                                ) : (
-                                    filteredCustomers.map((customer, index) => (
-                                        <TableRow
-                                            key={customer.id}
-                                            className="cursor-pointer hover:bg-gray-50"
-                                            onClick={() => handleCustomerClick(customer)}
-                                        >
-                                            <TableCell className="w-12 p-0 align-middle text-center" onClick={(event) => event.stopPropagation()}>
-                                                <div className="flex h-full items-center justify-center">
-                                                    <Checkbox
-                                                        checked={selectedCustomerIds.includes(customer.id)}
-                                                        onPointerDownCapture={handleCheckboxPointerDown}
-                                                        onPointerUp={handleCheckboxPointerUpOrLeave}
-                                                        onPointerLeave={handleCheckboxPointerUpOrLeave}
-                                                        onClick={(event) => event.stopPropagation()}
-                                                        onCheckedChange={(value) => handleCustomerSelectionChange(customer.id, value === true, index)}
-                                                        aria-label={`בחר את הלקוח ${customer.full_name || ""}`}
-                                                        disabled={disableSelection}
-                                                    />
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{customer.full_name}</TableCell>
-                                            <TableCell>{customer.phone}</TableCell>
-                                            <TableCell>{customer.email || "-"}</TableCell>
-                                            <TableCell>{getClassificationLabel(customer.classification)}</TableCell>
-                                            <TableCell>{customer.customer_type?.name || "ללא סוג"}</TableCell>
-                                            <TableCell>{customer.address || "-"}</TableCell>
-                                            <TableCell>{customer.send_invoice ? "כן" : "לא"}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            handleEdit(customer)
-                                                        }}
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            setCustomerToDelete(customer)
-                                                            setIsDeleteDialogOpen(true)
-                                                        }}
-                                                    >
-                                                        <Trash2 className="h-4 w-4 text-red-500" />
-                                                    </Button>
-                                                </div>
+                                </TableHeader>
+                                <TableBody>
+                                    {customers.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                                                לא נמצאו לקוחות
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
+                                    ) : (
+                                        filteredCustomers.map((customer, index) => (
+                                            <TableRow
+                                                key={customer.id}
+                                                className="cursor-pointer hover:bg-gray-50"
+                                                onClick={() => handleCustomerClick(customer)}
+                                            >
+                                                <TableCell className="w-12 p-0 align-middle text-center" onClick={(event) => event.stopPropagation()}>
+                                                    <div className="flex h-full items-center justify-center">
+                                                        <Checkbox
+                                                            checked={selectedCustomerIds.includes(customer.id)}
+                                                            onPointerDownCapture={handleCheckboxPointerDown}
+                                                            onPointerUp={handleCheckboxPointerUpOrLeave}
+                                                            onPointerLeave={handleCheckboxPointerUpOrLeave}
+                                                            onClick={(event) => event.stopPropagation()}
+                                                            onCheckedChange={(value) => handleCustomerSelectionChange(customer.id, value === true, index)}
+                                                            aria-label={`בחר את הלקוח ${customer.full_name || ""}`}
+                                                            disabled={disableSelection}
+                                                        />
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>{customer.full_name}</TableCell>
+                                                <TableCell>{customer.phone}</TableCell>
+                                                <TableCell>{customer.email || "-"}</TableCell>
+                                                <TableCell>{getClassificationLabel(customer.classification)}</TableCell>
+                                                <TableCell>{customer.customer_type?.name || "ללא סוג"}</TableCell>
+                                                <TableCell>{customer.address || "-"}</TableCell>
+                                                <TableCell>{customer.send_invoice ? "כן" : "לא"}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleEdit(customer)
+                                                            }}
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                setCustomerToDelete(customer)
+                                                                setIsDeleteDialogOpen(true)
+                                                            }}
+                                                        >
+                                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
                                 </TableBody>
                             </Table>
                         </div>

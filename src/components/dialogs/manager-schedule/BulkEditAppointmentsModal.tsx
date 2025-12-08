@@ -163,10 +163,10 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                     updateData.internal_notes = form.internalNotes.trim() || null
                 }
                 
-                // Update grooming notes only for grooming appointments
-                if (appointment.serviceType === "grooming" && form.groomingNotes !== undefined) {
-                    updateData.grooming_notes = form.groomingNotes.trim() || null
-                }
+                // Note: grooming_notes column doesn't exist - skipping update
+                // if (appointment.serviceType === "grooming" && form.groomingNotes !== undefined) {
+                //     updateData.grooming_notes = form.groomingNotes.trim() || null
+                // }
                 
                 const { error } = await supabase
                     .from(tableName)

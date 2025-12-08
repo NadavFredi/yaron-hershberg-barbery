@@ -499,7 +499,8 @@ export const supabaseApi = createApi({
             .select(
               "id, start_at, end_at, status, late_pickup_requested, late_pickup_notes, garden_trim_nails, garden_brush, garden_bath, customer_notes, internal_notes"
             )
-            .eq("dog_id", dogId)
+            // dog_id column doesn't exist - returning empty array
+            .eq("id", "00000000-0000-0000-0000-000000000000") // Always false condition
             .neq("status", "cancelled")
 
           if (error) {
@@ -1158,16 +1159,12 @@ export const supabaseApi = createApi({
                 end_at,
                 customer_notes,
                 internal_notes,
-                grooming_notes,
                 payment_status,
                 appointment_kind,
-                appointment_name,
                 amount_due,
                 series_id,
-                dog_id,
                 customer_id,
                 stations(id, name),
-                dogs(id, name, breed_id, customer_id, breeds(name, size_class, min_groom_price, max_groom_price)),
                 customers(id, full_name, phone, email, classification)
               `
               )
@@ -1192,10 +1189,8 @@ export const supabaseApi = createApi({
                 garden_brush,
                 garden_bath,
                 series_id,
-                dog_id,
                 customer_id,
                 stations(id, name),
-                dogs(id, name, breed_id, customer_id, breeds(name, size_class, min_groom_price, max_groom_price)),
                 customers(id, full_name, phone, email, classification)
               `
               )

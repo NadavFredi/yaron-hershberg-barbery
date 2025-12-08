@@ -82,7 +82,6 @@ serve(async (req) => {
           internal_notes,
           customer_id,
           station_id,
-          appointment_name,
           customers:customer_id(id, full_name, phone),
           stations:station_id(id, name),
           services:service_id(id, name)
@@ -92,7 +91,6 @@ serve(async (req) => {
           [
             `customer_notes.ilike.${likeValue}`,
             `internal_notes.ilike.${likeValue}`,
-            `appointment_name.ilike.${likeValue}`,
           ].join(","),
         )
         .order("start_at", { ascending: false })
@@ -121,7 +119,7 @@ serve(async (req) => {
         endDateTime: row.end_at ?? "",
         status: row.status ?? "pending",
         paymentStatus: row.payment_status ?? undefined,
-        notes: row.customer_notes ?? row.appointment_name ?? "",
+        notes: row.customer_notes ?? "",
         internalNotes: row.internal_notes ?? undefined,
         treatments: [],
         clientId: row.customers?.id ?? undefined,

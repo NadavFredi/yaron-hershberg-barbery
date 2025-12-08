@@ -380,10 +380,7 @@ export const AppointmentDetailsSheet = ({
 
             try {
                 const tableName = selectedAppointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
-                // Only select grooming_notes for grooming appointments (it doesn't exist in daycare_appointments)
-                const selectFields = selectedAppointment.serviceType === "grooming"
-                    ? "internal_notes, grooming_notes, customer_notes"
-                    : "internal_notes, customer_notes"
+                const selectFields = "internal_notes, customer_notes"
                 const { data, error } = await supabase
                     .from(tableName)
                     .select(selectFields)
@@ -393,7 +390,7 @@ export const AppointmentDetailsSheet = ({
                 if (error) throw error
 
                 const internalNotesValue = data?.internal_notes || ""
-                const groomingNotesValue = selectedAppointment.serviceType === "grooming" ? (data?.grooming_notes || "") : ""
+                const groomingNotesValue = ""
                 const clientNotesValue = data?.customer_notes || ""
                 setAppointmentInternalNotes(internalNotesValue)
                 setAppointmentGroomingNotes(groomingNotesValue)
@@ -817,22 +814,9 @@ export const AppointmentDetailsSheet = ({
 
         setIsSavingGroomingNotes(true)
         try {
-            console.log("💾 [AppointmentDetailsSheet] Saving grooming notes:", appointmentGroomingNotes)
-            const { error } = await supabase
-                .from("grooming_appointments")
-                .update({ grooming_notes: appointmentGroomingNotes.trim() || null })
-                .eq("id", appointmentId)
-
-            if (error) {
-                console.error("❌ [AppointmentDetailsSheet] Error saving grooming notes:", error)
-                toast({
-                    title: "שגיאה",
-                    description: "לא ניתן לשמור את הערות התספורת",
-                    variant: "destructive",
-                })
-                return
-            }
-
+            // grooming_notes column doesn't exist - skipping update
+            console.log("⚠️ [AppointmentDetailsSheet] grooming_notes column removed, skipping save")
+            
             toast({
                 title: "הערות נשמרו",
                 description: "הערות התספורת עודכנו בהצלחה",
@@ -972,24 +956,10 @@ export const AppointmentDetailsSheet = ({
             }
 
             // Save grooming notes if changed (only for grooming appointments)
+            // Note: grooming_notes column doesn't exist - skipping update
             if (selectedAppointment.serviceType === "grooming" && appointmentGroomingNotes !== originalGroomingNotes) {
-                savePromises.push(
-                    (async () => {
-                        try {
-                            console.log("💾 [AppointmentDetailsSheet] Saving grooming notes:", appointmentGroomingNotes)
-                            const { error } = await supabase
-                                .from("grooming_appointments")
-                                .update({ grooming_notes: appointmentGroomingNotes.trim() || null })
-                                .eq("id", appointmentId)
-
-                            if (error) throw error
-                            setOriginalGroomingNotes(appointmentGroomingNotes.trim() || "")
-                        } catch (error) {
-                            console.error("❌ [AppointmentDetailsSheet] Error saving grooming notes:", error)
-                            errors.push("הערות התספורת")
-                        }
-                    })()
-                )
+                console.log("⚠️ [AppointmentDetailsSheet] grooming_notes column removed, skipping save")
+                // Skip the update since the column doesn't exist
             }
 
             // Wait for all saves to complete

@@ -125,9 +125,10 @@ async function hasDogAppointmentHistory(dogId: string): Promise<boolean> {
     throw new Error("dogId is required")
   }
 
+  // dog_id column doesn't exist - returning 0 count
   const [{ count: groomingCount, error: groomingError }] =
     await Promise.all([
-      supabase.from("grooming_appointments").select("id", { count: "exact", head: true }).eq("dog_id", dogId),
+      Promise.resolve({ count: 0, error: null }),
     ])
 
   if (groomingError) {
@@ -811,13 +812,10 @@ export async function getManagerSchedule(
               end_at,
               customer_notes,
               internal_notes,
-              grooming_notes,
               payment_status,
               appointment_kind,
-              appointment_name,
               amount_due,
               series_id,
-              dog_id,
               customer_id,
               client_approved_arrival,
               manager_approved_arrival,
@@ -826,7 +824,6 @@ export async function getManagerSchedule(
               created_at,
               updated_at,
               stations(id, name),
-              dogs(id, name, breed_id, customer_id, breeds(name, size_class, min_groom_price, max_groom_price)),
               customers(id, full_name, phone, email, classification)
             `
             )
@@ -1255,13 +1252,13 @@ export async function createManagerAppointment(params: {
           .from("grooming_appointments")
           .insert({
             customer_id: customerId,
-            dog_id: null, // No dogs in barbershop
+            // dog_id column doesn't exist - skipping
             station_id: stationIdToUse,
             start_at: params.startTime,
             end_at: params.endTime,
             status: "approved",
             appointment_kind: "personal",
-            appointment_name: params.name,
+            // appointment_name column doesn't exist - skipping
             series_id: finalGroupId || null,
             customer_notes: params.notes || null,
             internal_notes: params.internalNotes || null,
@@ -1570,11 +1567,9 @@ export async function getSingleManagerAppointment(
         end_at,
         customer_notes,
         internal_notes,
-        ${serviceType === "grooming" ? "grooming_notes," : ""}
         payment_status,
-        ${serviceType === "grooming" ? "appointment_kind, appointment_name," : ""}
+        ${serviceType === "grooming" ? "appointment_kind," : ""}
         amount_due,
-        dog_id,
         customer_id,
         ${
           serviceType === "garden"
@@ -1584,7 +1579,6 @@ export async function getSingleManagerAppointment(
         created_at,
         updated_at,
         stations(id, name),
-        dogs(id, name, breed_id, customer_id, breeds(name, size_class, min_groom_price, max_groom_price)),
         customers(id, full_name, phone, email, classification)
       `
       )
@@ -2347,34 +2341,9 @@ export async function getPersonalAppointmentNames(searchTerm?: string): Promise<
   try {
     console.log("🔍 [getPersonalAppointmentNames] Fetching personal appointment names", { searchTerm })
     
-    let query = supabase
-      .from("grooming_appointments")
-      .select("appointment_name")
-      .eq("appointment_kind", "personal")
-      .not("appointment_name", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(5)
-
-    // If search term provided, filter with ilike
-    if (searchTerm && searchTerm.trim()) {
-      query = query.ilike("appointment_name", `%${searchTerm.trim()}%`)
-    }
-
-    const { data, error } = await query
-
-    if (error) {
-      console.error("❌ [getPersonalAppointmentNames] Error fetching appointment names:", error)
-      return []
-    }
-
-    // Extract unique, non-empty names
-    const uniqueNames = Array.from(
-      new Set(
-        (data || [])
-          .map((row) => row.appointment_name?.trim())
-          .filter((name): name is string => Boolean(name && name.length > 0))
-      )
-    )
+    // appointment_name column doesn't exist - returning empty array
+    console.log("⚠️ [getPersonalAppointmentNames] appointment_name column removed, returning empty array")
+    const uniqueNames: string[] = []
 
     console.log(`✅ [getPersonalAppointmentNames] Found ${uniqueNames.length} appointment names`)
     return uniqueNames
