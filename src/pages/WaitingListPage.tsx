@@ -133,13 +133,8 @@ export default function WaitingListPage() {
 
     const loadFilterOptions = async () => {
         try {
-            // Load breeds
-            const { data: breedsData } = await supabase
-                .from("breeds")
-                .select("id, name")
-                .order("name")
-
-            if (breedsData) setBreeds(breedsData)
+            // Breeds table doesn't exist in this system - set empty array
+            setBreeds([])
 
             // Load dog categories (dog_types was consolidated into dog_categories)
             const { data: categoriesData } = await supabase

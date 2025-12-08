@@ -30,26 +30,8 @@ export const AddGroomingProductDialog: React.FC<AddGroomingProductDialogProps> =
 
     // Search function for breeds
     const searchBreeds = useCallback(async (searchTerm: string): Promise<string[]> => {
-        try {
-            let query = supabase
-                .from("breeds")
-                .select("name")
-                .order("name")
-                .limit(20)
-
-            // If there's a search term, filter by it; otherwise return first 20
-            if (searchTerm && searchTerm.trim().length > 0) {
-                query = query.ilike("name", `%${searchTerm.trim()}%`)
-            }
-
-            const { data, error } = await query
-
-            if (error) throw error
-            return (data || []).map(b => b.name)
-        } catch (error) {
-            console.error("Error searching breeds:", error)
-            return []
-        }
+        // Breeds table doesn't exist in this system - return empty array
+        return []
     }, [])
 
     // Calculate price when breed changes
@@ -68,11 +50,9 @@ export const AddGroomingProductDialog: React.FC<AddGroomingProductDialogProps> =
 
         setIsLoadingPrice(true)
         try {
-            const { data, error } = await supabase
-                .from('breeds')
-                .select('min_groom_price, max_groom_price, hourly_price')
-                .eq('name', breedName)
-                .maybeSingle()
+            // Breeds table doesn't exist in this system - return null
+            const data = null
+            const error = null
 
             if (error) throw error
 

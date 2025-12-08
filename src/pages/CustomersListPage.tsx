@@ -663,22 +663,8 @@ export default function CustomersListPage() {
     }
 
     const searchBreeds = async (searchTerm: string): Promise<string[]> => {
-        const trimmedTerm = searchTerm.trim()
-        let query = supabase
-            .from("breeds")
-            .select("name")
-            .not("name", "is", null)
-
-        if (trimmedTerm.length >= 2) {
-            query = query.ilike("name", `%${trimmedTerm}%`).limit(10)
-        } else {
-            query = query.order("name", { ascending: true }).limit(5)
-        }
-
-        const { data, error } = await query
-
-        if (error) throw error
-        return [...new Set((data || []).map(b => b.name).filter(Boolean))] as string[]
+        // Breeds table doesn't exist in this system - return empty array
+        return []
     }
 
     // Filter customers based on all criteria

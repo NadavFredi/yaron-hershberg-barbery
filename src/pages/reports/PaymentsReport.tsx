@@ -93,12 +93,10 @@ export default function PaymentsReport() {
 
     const fetchFilterOptions = useCallback(async () => {
         try {
-            const [{ data: customerTypeData }, { data: breedData }] = await Promise.all([
-                supabase.from("customer_types").select("id, name").order("priority", { ascending: true }),
-                supabase.from("breeds").select("id, name").order("name"),
-            ])
+            const { data: customerTypeData } = await supabase.from("customer_types").select("id, name").order("priority", { ascending: true })
             setCustomerTypes(customerTypeData || [])
-            setBreeds(breedData || [])
+            // Breeds table doesn't exist in this system - set empty array
+            setBreeds([])
         } catch (error) {
             console.error("Failed to fetch filter options:", error)
         }

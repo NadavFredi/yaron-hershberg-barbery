@@ -324,14 +324,8 @@ export function SettingsStationsSection() {
 
             setGroomingServiceId(serviceData?.id || null)
 
-            // Load breeds
-            const { data: breedsData, error: breedsError } = await supabase
-                .from("breeds")
-                .select("id, name")
-                .order("name")
-
-            if (breedsError) throw breedsError
-            setBreeds(breedsData || [])
+            // Breeds table doesn't exist in this system - set empty array
+            setBreeds([])
         } catch (error) {
             console.error("Error loading grooming service and breeds:", error)
         }

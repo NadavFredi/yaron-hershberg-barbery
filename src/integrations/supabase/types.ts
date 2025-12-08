@@ -1007,25 +1007,28 @@ export type Database = {
           base_time_minutes: number
           created_at: string
           id: string
-          price: number
+          price_adjustment: number
           service_id: string
           station_id: string
+          updated_at: string
         }
         Insert: {
           base_time_minutes?: number
           created_at?: string
           id?: string
-          price?: number
+          price_adjustment?: number
           service_id: string
           station_id: string
+          updated_at?: string
         }
         Update: {
           base_time_minutes?: number
           created_at?: string
           id?: string
-          price?: number
+          price_adjustment?: number
           service_id?: string
           station_id?: string
+          updated_at?: string
         }
         Relationships: [
           {

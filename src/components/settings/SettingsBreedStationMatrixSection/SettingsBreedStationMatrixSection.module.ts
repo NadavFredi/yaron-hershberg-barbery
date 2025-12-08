@@ -24,7 +24,7 @@ export interface Station {
 export interface MatrixCell {
     supported: boolean
     baseTimeMinutes?: number
-    price?: number
+    priceAdjustment?: number
 }
 
 // Utility functions
@@ -107,7 +107,7 @@ export function useSettingsBreedStationMatrixSection() {
                     matrixMap[service.id][station.id] = {
                         supported: !!matrixEntry,
                         baseTimeMinutes: matrixEntry?.base_time_minutes ?? 60,
-                        price: matrixEntry?.price ?? service.base_price,
+                        priceAdjustment: matrixEntry?.price_adjustment ?? 0,
                     }
                 })
             })
@@ -273,7 +273,7 @@ export function useSettingsBreedStationMatrixSection() {
                 ...cell,
                 supported: newSupported,
                 baseTimeMinutes: newSupported ? (cell.baseTimeMinutes ?? defaultTime) : undefined,
-                price: newSupported ? (cell.price ?? service?.base_price ?? 0) : undefined,
+                priceAdjustment: newSupported ? (cell.priceAdjustment ?? 0) : undefined,
             }
 
             return newMatrix
@@ -306,7 +306,7 @@ export function useSettingsBreedStationMatrixSection() {
                 service_id: string
                 station_id: string
                 base_time_minutes: number
-                price: number
+                price_adjustment: number
             }> = []
             const entriesToDelete: Array<{ service_id: string; station_id: string }> = []
 
@@ -319,7 +319,7 @@ export function useSettingsBreedStationMatrixSection() {
                             service_id: service.id,
                             station_id: stationId,
                             base_time_minutes: cell.baseTimeMinutes ?? 60,
-                            price: cell.price ?? service.base_price,
+                            price_adjustment: cell.priceAdjustment ?? 0,
                         })
                     } else {
                         // Check if it was supported before
@@ -511,11 +511,11 @@ export function useSettingsBreedStationMatrixSection() {
 
             allStations.forEach((station) => {
                 const cell = newMatrix[serviceId][station.id] || { supported: false }
-                newMatrix[serviceId][station.id] = {
-                    supported: true,
-                    baseTimeMinutes: cell.baseTimeMinutes ?? 60,
-                    price: cell.price ?? service?.base_price ?? 0,
-                }
+            newMatrix[serviceId][station.id] = {
+                supported: true,
+                baseTimeMinutes: cell.baseTimeMinutes ?? 60,
+                priceAdjustment: cell.priceAdjustment ?? 0,
+            }
             })
 
             return newMatrix

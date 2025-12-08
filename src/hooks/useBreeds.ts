@@ -15,16 +15,8 @@ export const useBreeds = () => {
     return useQuery({
         queryKey: ["breeds"],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("breeds")
-                .select("*")
-                .order("name")
-
-            if (error) {
-                throw error
-            }
-
-            return data as Breed[]
+            // Breeds table doesn't exist in this system - return empty array
+            return [] as Breed[]
         }
     })
 }

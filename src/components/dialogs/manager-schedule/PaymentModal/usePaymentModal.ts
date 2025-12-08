@@ -321,11 +321,9 @@ export const usePaymentModal = ({
 
     setIsLoadingBreedPrices(true)
     try {
-      const { data, error } = await supabase
-        .from("breeds")
-        .select("min_groom_price, max_groom_price, hourly_price, notes")
-        .eq("name", breedName)
-        .maybeSingle()
+      // Breeds table doesn't exist in this system - return null
+      const data = null
+      const error = null
 
       if (error) throw error
 
