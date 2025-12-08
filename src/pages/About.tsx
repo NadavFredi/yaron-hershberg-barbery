@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "../components/ui/badge.tsx"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card.tsx"
+import { cn } from "../lib/utils.ts"
+import { useBreeds } from "../hooks/useBreeds.ts"
 import { AutocompleteFilter } from "../components/AutocompleteFilter.tsx"
 import { groomingPriceCopy, groomingPriceSections } from "../copy/pricing.ts"
-import { cn } from "../lib/utils.ts"
-// @ts-ignore - Bundler resolves this default export
-import useTreatmentTypes from "../hooks/useTreatmentTypes.ts"
+import { Leaf, Scissors, DollarSign, Sparkles, Dog } from "lucide-react"
 
-type ExperienceId = "barber" | "pricing"
-type ExperienceType = "story" | "pricing"
+type ExperienceId = "garden" | "barber" | "pricing"
+type ExperienceType = "fillout" | "pricing"
 
 interface ExperienceOption {
     id: ExperienceId
@@ -16,42 +16,55 @@ interface ExperienceOption {
     title: string
     subtitle: string
     description: string
-    emoji: string
+    icon: React.ReactNode
     accent: string
+    filloutId?: string
 }
 
+const FILL_OUT_SCRIPT_SRC = "https://server.fillout.com/embed/v1/"
+
 const experienceOptions: Record<ExperienceId, ExperienceOption> = {
+    garden: {
+        id: "garden",
+        type: "fillout",
+        title: "הכירו את גן הכלבים שלנו",
+        subtitle: "שגרה שמלאה באהבה, משחקים ולמידה",
+        description: "קבלו הצצה ליום של כלב בגן B LOVED - התכנית, הצוות והאווירה שאנחנו בונים לכל חבר על ארבע.",
+        icon: <Leaf className="h-6 w-6" />,
+        filloutId: "o4iG1m9JH9us",
+        accent: "from-emerald-50 to-emerald-100"
+    },
     barber: {
         id: "barber",
-        type: "story",
-        title: "מי אנחנו",
-        subtitle: "מספרה יוצאת דופן",
-        description: "הכירו את הבוטיק של ירון הרשברג – מעצב שיער, כימאי וטריקולוג מוסמך שמעניק מענה הוליסטי לקרקפת ולשיער.",
-        emoji: "✂️",
+        type: "fillout",
+        title: "הכירו את המספרה המקצועית שלנו",
+        subtitle: "טיפוח שמרגיש כמו ספא",
+        description: "גלו כיצד אנחנו הופכים כל תספורת לחוויה רגועה ומפנקת - מהשיטות ועד המוצרים המיוחדים.",
+        icon: <Scissors className="h-6 w-6" />,
+        filloutId: "jjExQ3PQZZus",
         accent: "from-sky-50 to-blue-100"
     },
     pricing: {
         id: "pricing",
         type: "pricing",
         title: "השקיפות שלנו בתמחור",
-        subtitle: "בחרו טיפול וקבלו טווח מחיר מיידי",
-        description: "התאימו את חוויית השיער לצרכים שלכם. בחרו טיפול ייחודי, ראו את טווח המחירים המשוער וגלו מה משפיע על העלות.",
-        emoji: "💰",
+        subtitle: "בחרו גזע וקבלו טווח מחיר מיידי",
+        description: "התאימו את חוויית הטיפוח לצרכים של הכלב שלכם. בחרו גזע, ראו את טווח המחירים המשוער וגלו מה משפיע על התמחור.",
+        icon: <DollarSign className="h-6 w-6" />,
         accent: "from-amber-50 to-orange-100"
     }
 }
 
-type PricingTreatmentType = {
+type PricingBreed = {
     id: string
     name: string
-    description?: string | null
-    default_duration_minutes?: number | null
-    default_price?: number | null
-    color_hex?: string | null
+    size_class?: string | null
+    min_groom_price?: number | null
+    max_groom_price?: number | null
 }
 
 export default function About() {
-    const [selectedId, setSelectedId] = useState<ExperienceId>("barber")
+    const [selectedId, setSelectedId] = useState<ExperienceId>("garden")
 
     const selectedExperience = useMemo(
         () => experienceOptions[selectedId],
@@ -69,11 +82,11 @@ export default function About() {
                         רוצים לדעת על מה כולם מדברים?
                     </h1>
                     <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                        בחרו את המסלול שמעניין אתכם – מהחוויה בסלון ועד פירוט הטיפולים המיוחדים. כל אפשרות חושפת שכבה נוספת במספרה יוצאת הדופן של ירון הרשברג.
+                        בחרו אם תרצו לגלות עוד על גן הכלבים שלנו או על המספרה המקצועית. כל בחירה תפתח עבורכם חוויית עומק ממוקדת ומהנה.
                     </p>
                 </header>
 
-                <section className="grid gap-6 md:grid-cols-2">
+                <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {Object.values(experienceOptions).map((option) => {
                         const isActive = option.id === selectedId
                         return (
@@ -91,12 +104,12 @@ export default function About() {
                                 aria-pressed={isActive}
                             >
                                 <div className={cn(
-                                    "flex h-12 w-12 items-center justify-center rounded-full text-2xl transition-transform",
-                                    "bg-gradient-to-br  shadow-inner",
+                                    "flex h-12 w-12 items-center justify-center rounded-full transition-transform",
+                                    "bg-gradient-to-br shadow-inner",
                                     option.accent,
                                     isActive ? "scale-105" : "group-hover:scale-105"
                                 )}>
-                                    <span>{option.emoji}</span>
+                                    {option.icon}
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-sm font-semibold text-blue-500">{option.subtitle}</p>
@@ -129,8 +142,12 @@ export default function About() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="bg-white/90 p-6">
-                            {selectedExperience.type === "story" ? (
-                                <StoryExperience />
+                            {selectedExperience.type === "fillout" && selectedExperience.filloutId ? (
+                                <FilloutEmbed
+                                    key={selectedExperience.id}
+                                    filloutId={selectedExperience.filloutId}
+                                    accent={selectedExperience.accent}
+                                />
                             ) : null}
 
                             {selectedExperience.type === "pricing" ? (
@@ -144,128 +161,113 @@ export default function About() {
     )
 }
 
-function StoryExperience() {
+interface FilloutEmbedProps {
+    filloutId: string
+    accent: string
+}
+
+function FilloutEmbed({ filloutId, accent }: FilloutEmbedProps) {
+    const containerRef = useRef<HTMLDivElement | null>(null)
+
+    useEffect(() => {
+        const container = containerRef.current
+        if (!container) return
+
+        container.innerHTML = ""
+
+        const embedDiv = document.createElement("div")
+        embedDiv.style.width = "100%"
+        embedDiv.style.height = "500px"
+        embedDiv.setAttribute("data-fillout-id", filloutId)
+        embedDiv.setAttribute("data-fillout-embed-type", "standard")
+        embedDiv.setAttribute("data-fillout-inherit-parameters", "")
+        embedDiv.setAttribute("data-fillout-dynamic-resize", "")
+        container.appendChild(embedDiv)
+
+        const script = document.createElement("script")
+        script.src = FILL_OUT_SCRIPT_SRC
+        script.async = true
+        script.setAttribute("data-fillout-script", `about-${filloutId}`)
+        container.appendChild(script)
+
+        return () => {
+            container.innerHTML = ""
+        }
+    }, [filloutId])
+
     return (
-        <div className="space-y-8 text-right">
-            <section className="space-y-4 rounded-2xl bg-gradient-to-br from-blue-50 to-emerald-50 p-6 shadow-inner">
-                <h3 className="text-2xl font-semibold text-gray-900">"מספרה יוצאת דופן" – בוטיק ייחודי לבריאות הקרקפת והשיער</h3>
-                <p className="text-base leading-7 text-gray-700">
-                    ירון הרשברג, מעצב שיער וכימאי מאז 2001 וטריקולוג מוסמך בשנים האחרונות, הקים ברמת גן בית מקצועי שמחבר בין עיצוב שיער מדויק לטיפולי קרקפת טבעיים ולא פולשניים.
-                </p>
-                <p className="text-base leading-7 text-gray-700">
-                    הבוטיק מעניק חוויית טיפוח הוליסטית – טיפול מהשורש ועד הקצוות, עם מעטפת של אבחון, התאמה אישית ומוצרים אורגניים מהשורה הראשונה.
-                </p>
-            </section>
-
-            <section className="space-y-6">
-                <h3 className="text-xl font-bold text-gray-900">למה אנחנו יוצאי דופן</h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
-                        <h4 className="text-lg font-semibold text-blue-700">אבחון מקצועי מדויק</h4>
-                        <p className="mt-2 text-sm leading-6 text-gray-600">
-                            מצלמת קרקפת מתקדמת ותשאול יסודי בתחילת כל טיפול – כדי להבין לעומק מה הקרקפת והשיער שלכם צריכים.
-                        </p>
-                    </div>
-                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
-                        <h4 className="text-lg font-semibold text-blue-700">טיפולים מותאמים אישית</h4>
-                        <p className="mt-2 text-sm leading-6 text-gray-600">
-                            לכל לקוחה ולקוח נבנה פרוטוקול טיפולי ייחודי לפי מצב הקרקפת, השיער ואורח החיים.
-                        </p>
-                    </div>
-                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
-                        <h4 className="text-lg font-semibold text-blue-700">מוצרים אורגניים פרימיום</h4>
-                        <p className="mt-2 text-sm leading-6 text-gray-600">
-                            אנו עובדים עם Philip Martin’s האיטלקיים – ללא SLS, מלחים או חומרים משמרים, ולא נוסו על בעלי חיים.
-                        </p>
-                    </div>
-                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
-                        <h4 className="text-lg font-semibold text-blue-700">זמינות וגמישות</h4>
-                        <p className="mt-2 text-sm leading-6 text-gray-600">
-                            פתוחים עד חצות, כי הבריאות והטיפוח שלכם צריכים להתאים לשגרה ולא להפך.
-                        </p>
-                    </div>
-                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
-                        <h4 className="text-lg font-semibold text-blue-700">מומחיות אמיתית</h4>
-                        <p className="mt-2 text-sm leading-6 text-gray-600">
-                            ניסיון של מעל 20 שנה בעיצוב שיער לצד הסמכה בינלאומית בטריקולוגיה – ידע עמוק שמורגש בכל מפגש.
-                        </p>
-                    </div>
-                    <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm">
-                        <h4 className="text-lg font-semibold text-blue-700">חוויית שירות גבוהה</h4>
-                        <p className="mt-2 text-sm leading-6 text-gray-600">
-                            יחס אישי, אווירה נעימה וליווי צמוד כבר מהפגישה הראשונה ועד לתוצאות המלאות.
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            <section className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-6 text-center shadow-sm">
-                <p className="text-lg font-medium text-emerald-900">
-                    אנחנו מאמינים שלשיער ולקרקפת שלכם מגיעה חוויה יוצאת דופן – ואם נפגשנו, זה בהחלט לא במקרה 🥰
-                </p>
-            </section>
-        </div>
+        <div
+            ref={containerRef}
+            className={cn(
+                "flex min-h-[500px] items-center justify-center rounded-2xl border shadow-inner transition-colors",
+                "border-blue-100 bg-white",
+                accent ? `bg-gradient-to-br ${accent}` : undefined
+            )}
+        />
     )
 }
 
 function PricingExperience() {
-    const { data: treatmentTypes, isLoading, isError, error } = useTreatmentTypes()
-    const [selectedTreatmentTypeId, setSelectedTreatmentTypeId] = useState<string | undefined>(undefined)
+    const { data: breeds, isLoading, isError, error } = useBreeds()
+    const [selectedBreedId, setSelectedBreedId] = useState<string | undefined>(undefined)
     const [inputValue, setInputValue] = useState("")
 
-    const sortedTreatmentTypes = useMemo<PricingTreatmentType[]>(() => {
-        if (!treatmentTypes?.length) {
+    const sortedBreeds = useMemo<PricingBreed[]>(() => {
+        if (!breeds?.length) {
             return []
         }
 
-        const normalized = (treatmentTypes as PricingTreatmentType[]).map((treatmentType) => ({
-            id: treatmentType.id,
-            name: treatmentType.name,
-            description: treatmentType.description,
-            default_duration_minutes: treatmentType.default_duration_minutes,
-            default_price: treatmentType.default_price,
-            color_hex: treatmentType.color_hex
-        }))
+        const normalized = (breeds as unknown[]).map((breed) => {
+            const record = breed as PricingBreed & { [key: string]: unknown }
+            return {
+                id: record.id,
+                name: record.name,
+                size_class: (record.size_class ?? null) as string | null,
+                min_groom_price: typeof record.min_groom_price === "number" ? record.min_groom_price : null,
+                max_groom_price: typeof record.max_groom_price === "number" ? record.max_groom_price : null
+            }
+        })
 
         return normalized.sort((a, b) => a.name.localeCompare(b.name, "he"))
-    }, [treatmentTypes])
+    }, [breeds])
 
     useEffect(() => {
-        if (sortedTreatmentTypes.length) {
-            console.log("✨ [PricingExperience] נטענו", sortedTreatmentTypes.length, "טיפולים להצגת מחירים")
+        if (sortedBreeds.length) {
+            console.log("🐾 [PricingExperience] נטענו", sortedBreeds.length, "גזעים להצגת מחירים")
         }
-    }, [sortedTreatmentTypes])
+    }, [sortedBreeds])
 
-    const selectedTreatmentType = useMemo<PricingTreatmentType | null>(() => {
-        return sortedTreatmentTypes.find((treatmentType) => treatmentType.id === selectedTreatmentTypeId) ?? null
-    }, [selectedTreatmentTypeId, sortedTreatmentTypes])
+    const selectedBreed = useMemo<PricingBreed | null>(() => {
+        return sortedBreeds.find((breed) => breed.id === selectedBreedId) ?? null
+    }, [selectedBreedId, sortedBreeds])
 
     useEffect(() => {
-        if (selectedTreatmentType) {
-            console.log("💡 [PricingExperience] הטיפול שנבחר עבור תמחור:", {
-                id: selectedTreatmentType.id,
-                name: selectedTreatmentType.name,
-                duration: selectedTreatmentType.default_duration_minutes,
-                price: selectedTreatmentType.default_price
+        if (selectedBreed) {
+            console.log("💡 [PricingExperience] הגזע שנבחר עבור תמחור:", {
+                id: selectedBreed.id,
+                name: selectedBreed.name,
+                size: selectedBreed.size_class,
+                minPrice: selectedBreed.min_groom_price,
+                maxPrice: selectedBreed.max_groom_price
             })
         }
-    }, [selectedTreatmentType])
+    }, [selectedBreed])
 
-    const searchTreatmentTypes = (term: string) => {
-        if (!sortedTreatmentTypes.length) {
+    const searchBreeds = (term: string) => {
+        if (!sortedBreeds.length) {
             return Promise.resolve<string[]>([])
         }
 
         const needle = term.trim().toLowerCase()
         if (!needle) {
-            return Promise.resolve(sortedTreatmentTypes.slice(0, 8).map((treatmentType) => treatmentType.name))
+            return Promise.resolve(sortedBreeds.slice(0, 8).map((breed) => breed.name))
         }
 
         return Promise.resolve(
-            sortedTreatmentTypes
-                .filter((treatmentType) => treatmentType.name.toLowerCase().includes(needle))
+            sortedBreeds
+                .filter((breed) => breed.name.toLowerCase().includes(needle))
                 .slice(0, 8)
-                .map((treatmentType) => treatmentType.name)
+                .map((breed) => breed.name)
         )
     }
 
@@ -277,24 +279,32 @@ function PricingExperience() {
         return `₪${price.toLocaleString("he-IL")}`
     }
 
-    const hasPriceData = typeof selectedTreatmentType?.default_price === "number"
+    const translateSize = (size: string | null | undefined) => {
+        if (!size) {
+            return "גודל מותאם אישית"
+        }
 
-    const formatDuration = (minutes?: number | null) => {
-        if (!minutes || minutes <= 0) return "משך מותאם אישית"
-        if (minutes < 60) return `${minutes} דקות`
-        const hours = Math.floor(minutes / 60)
-        const remaining = minutes % 60
-        return remaining
-            ? `${hours} שעות ו-${remaining} דקות`
-            : `${hours} שעות`
+        switch (size.toLowerCase()) {
+            case "small":
+                return "כלבים קטנים"
+            case "medium":
+                return "כלבים בינוניים"
+            case "large":
+                return "כלבים גדולים"
+            default:
+                return "גודל מותאם אישית"
+        }
     }
+
+    const hasPriceData =
+        typeof selectedBreed?.min_groom_price === "number" || typeof selectedBreed?.max_groom_price === "number"
 
     return (
         <div className="space-y-4 text-right" dir="rtl">
 
             {isLoading ? (
                 <div className="rounded-2xl border border-blue-100 bg-white/90 p-4 text-sm text-gray-600">
-                    טוען סוגי טיפולים...
+                    טוען רשימת גזעים...
                 </div>
             ) : null}
 
@@ -305,41 +315,41 @@ function PricingExperience() {
                 </div>
             ) : null}
 
-            {!isLoading && !isError && !sortedTreatmentTypes.length ? (
+            {!isLoading && !isError && !sortedBreeds.length ? (
                 <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
                     עוד לא הזנו מחירים בטבלה – דברו איתנו כדי לקבל הצעת מחיר מותאמת.
                 </div>
             ) : null}
 
-            {!isLoading && !isError && sortedTreatmentTypes.length ? (
+            {!isLoading && !isError && sortedBreeds.length ? (
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <span className="text-sm font-medium text-gray-800">
-                            חפשו טיפול והציגו את טווח המחירים שלנו
+                            חפשו גזע והציגו את טווח המחירים שלנו
                         </span>
                         <AutocompleteFilter
                             value={inputValue}
                             onChange={(value) => {
                                 setInputValue(value)
                                 if (!value.trim()) {
-                                    setSelectedTreatmentTypeId(undefined)
+                                    setSelectedBreedId(undefined)
                                     return
                                 }
                             }}
                             onSelect={(value) => {
                                 setInputValue(value)
-                                const treatmentType = sortedTreatmentTypes.find((option) => option.name === value)
-                                if (treatmentType) {
-                                    setSelectedTreatmentTypeId(treatmentType.id)
-                                    console.log("🎯 [PricingExperience] משתמש בחר טיפול חדש:", {
-                                        id: treatmentType.id,
-                                        name: treatmentType.name
+                                const breed = sortedBreeds.find((option) => option.name === value)
+                                if (breed) {
+                                    setSelectedBreedId(breed.id)
+                                    console.log("🎯 [PricingExperience] משתמש בחר גזע חדש:", {
+                                        id: breed.id,
+                                        name: breed.name
                                     })
                                 }
                             }}
-                            placeholder="הקלידו את שם הטיפול..."
+                            placeholder="הקלידו את שם הגזע..."
                             className="rounded-2xl border border-blue-200 bg-white/90 py-5 text-base font-medium text-gray-900"
-                            searchFn={searchTreatmentTypes}
+                            searchFn={searchBreeds}
                             minSearchLength={1}
                             debounceMs={150}
                             initialLoadOnMount
@@ -355,27 +365,36 @@ function PricingExperience() {
                             >
                                 <h4 className="text-sm font-semibold text-gray-900">{section.title}</h4>
                                 <div className="mt-2 space-y-2 text-xs text-gray-600">
-                                    {section.paragraphs.map((paragraph, index) => (
-                                        <p key={`${section.title}-${index}`}>{paragraph}</p>
-                                    ))}
+                                    {section.paragraphs.map((paragraph, index) => {
+                                        const isLastParagraph = index === section.paragraphs.length - 1
+                                        const needsSparkles = section.title === "מה כולל הטיפול?" && index === 0
+                                        const needsDog = section.title === "כמה זמן זה לוקח?" && isLastParagraph
+                                        return (
+                                            <p key={`${section.title}-${index}`} className="flex items-center gap-1.5">
+                                                {paragraph}
+                                                {needsSparkles && <Sparkles className="h-3 w-3 inline text-blue-500" />}
+                                                {needsDog && <Dog className="h-3 w-3 inline text-blue-500" />}
+                                            </p>
+                                        )
+                                    })}
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    {selectedTreatmentType ? (
+                    {selectedBreed ? (
                         <div className="space-y-3 rounded-2xl border border-blue-200 bg-white/95 p-4">
                             <div className="flex flex-col gap-1">
                                 <span className="text-sm text-gray-500">
-                                    משך טיפוסי: {formatDuration(selectedTreatmentType.default_duration_minutes)}
+                                    טווח המחירים המשוער ל{translateSize(selectedBreed.size_class)}
                                 </span>
                                 {hasPriceData ? (
                                     <div className="text-2xl font-bold text-blue-700">
-                                        {formatPrice(selectedTreatmentType.default_price)}
+                                        {formatPrice(selectedBreed.min_groom_price)} – {formatPrice(selectedBreed.max_groom_price)}
                                     </div>
                                 ) : (
                                     <div className="text-sm text-amber-700">
-                                        עוד לא הזנו טווח מחירים לטיפול {selectedTreatmentType.name}. נשמח להתאים הצעת מחיר אישית.
+                                        עוד לא הזנו טווח מחירים לגזע {selectedBreed.name}. נשמח להתאים הצעת מחיר אישית.
                                     </div>
                                 )}
                             </div>

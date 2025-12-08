@@ -127,27 +127,28 @@
   }
 
   /* Custom scrollbar styling to match primary/10 background */
-  .custom-scrollbar::-webkit-scrollbar,
-  *::-webkit-scrollbar {
+  .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
-    height: 8px;
+    height: 12px; /* Taller for horizontal scrollbar */
   }
 
-  .custom-scrollbar::-webkit-scrollbar-track,
-  *::-webkit-scrollbar-track {
+  .custom-scrollbar::-webkit-scrollbar-track {
     background: hsl(var(--primary) / 0.05);
     border-radius: 4px;
   }
 
-  .custom-scrollbar::-webkit-scrollbar-thumb,
-  *::-webkit-scrollbar-thumb {
+  .custom-scrollbar::-webkit-scrollbar-thumb {
     background: hsl(var(--primary) / 0.3);
     border-radius: 4px;
   }
 
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover,
-  *::-webkit-scrollbar-thumb:hover {
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--primary) / 0.5);
+  }
+
+  /* Horizontal scrollbar specific styling */
+  .custom-scrollbar::-webkit-scrollbar:horizontal {
+    height: 12px;
   }
 
   /* Firefox scrollbar styling */
@@ -155,5 +156,38 @@
   * {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--primary) / 0.3) hsl(var(--primary) / 0.05);
+  }
+
+  /* Hide scrollbar but keep scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+
+  /* Coin flip animation for paid dollar icon - only on hover */
+  @keyframes coin-flip {
+    0% {
+      transform: rotateY(0deg) scale(1);
+    }
+    25% {
+      transform: rotateY(90deg) scale(1.05);
+    }
+    50% {
+      transform: rotateY(180deg) scale(1.1);
+    }
+    75% {
+      transform: rotateY(270deg) scale(1.05);
+    }
+    100% {
+      transform: rotateY(360deg) scale(1);
+    }
+  }
+
+  .animate-coin-flip-hover:hover {
+    animation: coin-flip 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
 }

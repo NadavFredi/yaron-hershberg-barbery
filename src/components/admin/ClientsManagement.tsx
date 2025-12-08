@@ -16,9 +16,9 @@ const mockClients = [
     phone: '050-1234567',
     email: 'israel@example.com',
     status: 'VIP - לקוח ותיק',
-    treatments: [
-      { id: '1', name: 'רקסי', treatmentType: 'גולדן רטריבר' },
-      { id: '2', name: 'בוני', treatmentType: 'לברדור' }
+    dogs: [
+      { id: '1', name: 'רקסי', breed: 'גולדן רטריבר' },
+      { id: '2', name: 'בוני', breed: 'לברדור' }
     ],
     nextAppointment: '2024-01-25 14:00',
     lastAppointment: '2024-01-10 10:30'
@@ -29,8 +29,8 @@ const mockClients = [
     phone: '052-9876543',
     email: 'sarah@example.com',
     status: 'לקוח רגיל',
-    treatments: [
-      { id: '3', name: 'מקס', treatmentType: 'פינצ\'ר' }
+    dogs: [
+      { id: '3', name: 'מקס', breed: 'פינצ\'ר' }
     ],
     nextAppointment: null,
     lastAppointment: '2023-12-15 11:00'
@@ -41,9 +41,9 @@ const mockClients = [
     phone: '054-5555555',
     email: 'david@example.com',
     status: 'מנוי גן',
-    treatments: [
-      { id: '4', name: 'לוסי', treatmentType: 'יורקשייר טרייר' },
-      { id: '5', name: 'צ\'ארלי', treatmentType: 'פודל' }
+    dogs: [
+      { id: '4', name: 'לוסי', breed: 'יורקשייר טרייר' },
+      { id: '5', name: 'צ\'ארלי', breed: 'פודל' }
     ],
     nextAppointment: '2024-01-28 16:30',
     lastAppointment: '2024-01-18 09:00'
@@ -65,7 +65,7 @@ const ClientsManagement = () => {
   const filteredClients = clients.filter(client =>
     client.name.includes(searchTerm) ||
     client.phone.includes(searchTerm) ||
-    client.treatments.some(treatment => treatment.name.includes(searchTerm))
+    client.dogs.some(dog => dog.name.includes(searchTerm))
   );
 
   const handleStatusChange = (clientId: string, newStatus: string) => {
@@ -107,7 +107,7 @@ const ClientsManagement = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">מרכז הלקוחות שלנו</h1>
-          <p className="text-gray-600">כל הלקוחות וההיסטוריה שלהם במקום אחד</p>
+          <p className="text-gray-600">כל הלקוחות, הכלבים וההיסטוריה שלהם במקום אחד</p>
         </div>
 
         {/* Search and Add Client */}
@@ -116,7 +116,7 @@ const ClientsManagement = () => {
             <div className="relative">
               <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <Input
-                placeholder="חפש/י לקוח, שירות או מספר טלפון..."
+                placeholder="חפש/י לקוח, כלב או מספר טלפון..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pr-10 text-lg py-3"
@@ -161,11 +161,11 @@ const ClientsManagement = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Treatments */}
+                      {/* Dogs */}
                       <div className="flex items-center gap-2">
                         <PawPrint className="w-4 h-4 text-blue-600" />
                         <span className="text-gray-700">
-                          פרופילים משויכים: {client.treatments.map(treatment => `[${treatment.name}]`).join(', ')}
+                          שמות הכלבים: {client.dogs.map(dog => `[${dog.name}]`).join(', ')}
                         </span>
                       </div>
 

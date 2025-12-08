@@ -1,7 +1,22 @@
 import React, { useEffect, useRef } from "react"
 import { Link, useLocation, useSearchParams } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { Settings, CalendarClock, Users, LayoutDashboard, ClipboardList, UserCog } from "lucide-react"
+import { useAppSelector, useAppDispatch } from "@/store/hooks"
+import { setIsSubnavHovered, setIsNavbarHovered, setIsNavbarPinned } from "@/store/slices/navbarSlice"
+import {
+  Settings,
+  CalendarClock,
+  Users,
+  Dog,
+  LayoutDashboard,
+  ClipboardList,
+  UserCog,
+  Package,
+  CreditCard,
+  Ticket,
+  BarChart3,
+  Bell
+} from "lucide-react"
 
 interface ManagerSubnavProps {
   isManager: boolean
@@ -11,7 +26,7 @@ export interface ManagerNavChild {
   id: string
   to: string
   label: string
-  icon: React.ReactNode
+  icon: React.ComponentType<{ className?: string }>
   match: (pathname: string, sectionParam?: string | null, modeParam?: string | null) => boolean
 }
 
@@ -19,7 +34,7 @@ export interface ManagerNavSection {
   id: string
   to: string
   label: string
-  icon: React.ReactNode
+  icon: React.ComponentType<{ className?: string }>
   match: (pathname: string, sectionParam?: string | null, modeParam?: string | null) => boolean
   children?: ManagerNavChild[]
 }
@@ -29,14 +44,14 @@ export const APPOINTMENT_CHILD_LINKS: ManagerNavChild[] = [
     id: "dashboard",
     to: "/manager",
     label: "לוח מנהל",
-    icon: <LayoutDashboard className="h-4 w-4" />,
+    icon: LayoutDashboard,
     match: (pathname) => pathname === "/manager"
   },
   {
     id: "waiting-list",
     to: "/manager-screens?section=waiting-list",
     label: "רשימת המתנה",
-    icon: <ClipboardList className="h-4 w-4" />,
+    icon: ClipboardList,
     match: (pathname, sectionParam) =>
       pathname === "/manager-screens" && sectionParam === "waiting-list"
   },
@@ -44,7 +59,7 @@ export const APPOINTMENT_CHILD_LINKS: ManagerNavChild[] = [
     id: "appointments",
     to: "/manager-screens?section=appointments",
     label: "ניהול תורים",
-    icon: <CalendarClock className="h-4 w-4" />,
+    icon: CalendarClock,
     match: (pathname, sectionParam) =>
       pathname === "/manager-screens" && sectionParam === "appointments"
   }
@@ -55,7 +70,7 @@ export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
     id: "appointments",
     to: "/manager",
     label: "תורים",
-    icon: <CalendarClock className="h-4 w-4" />,
+    icon: CalendarClock,
     match: (pathname, sectionParam) =>
       pathname === "/manager" ||
       (pathname === "/manager-screens" &&
@@ -66,23 +81,71 @@ export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
     id: "customers",
     to: "/manager-screens?section=customers",
     label: "לקוחות",
-    icon: <Users className="h-4 w-4" />,
+    icon: Users,
     match: (pathname, sectionParam) =>
       pathname === "/manager-screens" && sectionParam === "customers"
+  },
+  {
+    id: "dogs",
+    to: "/manager-screens?section=dogs",
+    label: "כלבים",
+    icon: Dog,
+    match: (pathname, sectionParam) =>
+      pathname === "/manager-screens" && sectionParam === "dogs"
   },
   {
     id: "workers",
     to: "/manager-screens?section=workers",
     label: "עובדים",
-    icon: <UserCog className="h-4 w-4" />,
+    icon: UserCog,
     match: (pathname, sectionParam) =>
       pathname === "/manager-screens" && sectionParam === "workers"
+  },
+  {
+    id: "products",
+    to: "/manager-screens?section=products",
+    label: "מוצרים",
+    icon: Package,
+    match: (pathname, sectionParam) =>
+      pathname === "/manager-screens" && sectionParam === "products"
+  },
+  {
+    id: "payments",
+    to: "/manager-screens?section=payments",
+    label: "תשלומים",
+    icon: CreditCard,
+    match: (pathname, sectionParam) =>
+      pathname === "/manager-screens" && sectionParam === "payments"
+  },
+  {
+    id: "subscriptions",
+    to: "/manager-screens?section=subscriptions",
+    label: "מנויים",
+    icon: Ticket,
+    match: (pathname, sectionParam) =>
+      pathname === "/manager-screens" && sectionParam === "subscriptions"
+  },
+  {
+    id: "reports",
+    to: "/manager-screens?section=reports&mode=payments",
+    label: "דוחות",
+    icon: BarChart3,
+    match: (pathname, sectionParam) =>
+      pathname === "/manager-screens" && sectionParam === "reports"
+  },
+  {
+    id: "reminders",
+    to: "/manager-screens?section=reminders&mode=settings",
+    label: "תזכורות תורים",
+    icon: Bell,
+    match: (pathname, sectionParam) =>
+      pathname === "/manager-screens" && sectionParam === "reminders"
   },
   {
     id: "settings",
     to: "/manager-screens?section=settings&mode=working-hours",
     label: "הגדרות",
-    icon: <Settings className="h-4 w-4" />,
+    icon: Settings,
     match: (pathname, sectionParam) =>
       pathname === "/manager-screens" && sectionParam === "settings"
   }
@@ -92,9 +155,13 @@ export function ManagerSubnav({ isManager }: ManagerSubnavProps) {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const subnavRef = useRef<HTMLDivElement | null>(null)
+  const dispatch = useAppDispatch()
+  const { isNavbarPinned, isNavbarVisible, isOnManagerBoard, isSubnavHovered } = useAppSelector((state) => state.navbar)
+  const hasInitializedFromUrlRef = useRef(false)
 
   const currentSection = searchParams.get("section")
   const modeParam = searchParams.get("mode")
+  const pinnedParam = searchParams.get("pinned")
 
   const isManagerScreensActive =
     location.pathname.startsWith("/manager-screens") ||
@@ -102,6 +169,34 @@ export function ManagerSubnav({ isManager }: ManagerSubnavProps) {
     location.pathname.startsWith("/manager/")
 
   const shouldShow = isManager && isManagerScreensActive
+
+  // Initialize Redux from URL only once (if not already initialized)
+  // After initialization, Redux is the source of truth
+  // This ensures it's synced even if Navbar hasn't rendered yet
+  useEffect(() => {
+    if (shouldShow && !hasInitializedFromUrlRef.current) {
+      hasInitializedFromUrlRef.current = true
+
+      if (pinnedParam !== null) {
+        // URL has pinned param - initialize Redux from URL
+        const urlPinned = pinnedParam === "true"
+        dispatch(setIsNavbarPinned(urlPinned))
+      } else {
+        // No pinned param in URL - ensure navbar is pinned by default
+        dispatch(setIsNavbarPinned(true))
+      }
+    }
+  }, [shouldShow, pinnedParam, dispatch])
+
+  // Reset initialization flag when leaving manager pages
+  useEffect(() => {
+    if (!shouldShow) {
+      hasInitializedFromUrlRef.current = false
+    }
+  }, [shouldShow])
+
+  // Collapse subnav when navbar is collapsed on any manager page, unless hovered
+  const isCollapsed = isOnManagerBoard && !isNavbarPinned && !isNavbarVisible && !isSubnavHovered
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -142,7 +237,29 @@ export function ManagerSubnav({ isManager }: ManagerSubnavProps) {
   return (
     <div
       ref={subnavRef}
-      className="hidden xl:block xl:z-40 xl:-mb-px xl:bg-gradient-to-r xl:from-blue-50 xl:to-indigo-50 xl:border-b xl:border-blue-200/50 xl:shadow-sm"
+      data-nav-level="2"
+      className={cn(
+        "hidden xl:block xl:z-40 xl:-mb-px xl:bg-gradient-to-r xl:from-blue-50 xl:to-indigo-50 xl:border-b xl:border-blue-200/50 xl:shadow-sm transition-all duration-300",
+        isCollapsed && "xl:opacity-0 xl:max-h-0 xl:overflow-hidden"
+      )}
+      onMouseEnter={() => {
+        if (isOnManagerBoard && !isNavbarPinned) {
+          dispatch(setIsSubnavHovered(true))
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (isOnManagerBoard && !isNavbarPinned) {
+          const relatedTarget = e.relatedTarget as HTMLElement | null
+          // Don't hide if moving to another nav level (1/2/3) or the hover zone
+          const navLevelTarget = relatedTarget?.closest("[data-nav-level]")
+          const isMovingWithinNavLevels = Boolean(navLevelTarget) || !!relatedTarget?.closest('[data-nav-hover-zone="true"]')
+          // If relatedTarget is null (moving to content below) or not moving within nav levels, hide
+          if (!relatedTarget || !isMovingWithinNavLevels) {
+            dispatch(setIsSubnavHovered(false))
+            dispatch(setIsNavbarHovered(false))
+          }
+        }
+      }}
     >
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <nav
@@ -160,10 +277,10 @@ export function ManagerSubnav({ isManager }: ManagerSubnavProps) {
                   "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200",
                   isActive
                     ? "bg-blue-600 text-white shadow-md"
-                    : "text-gray-700 hover:text-blue-600 hover:bg-white/80"
+                    : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-sm"
                 )}
               >
-                {section.icon}
+                <section.icon className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-500"}`} />
                 <span>{section.label}</span>
               </Link>
             )
@@ -187,10 +304,10 @@ export function ManagerSubnav({ isManager }: ManagerSubnavProps) {
                       "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200",
                       isChildActive
                         ? "bg-indigo-600 text-white shadow-md"
-                        : "text-gray-700 hover:text-indigo-600 hover:bg-white/80"
+                        : "text-gray-700 hover:text-indigo-600 hover:bg-white/80 hover:shadow-sm"
                     )}
                   >
-                    {child.icon}
+                    <child.icon className={`h-4 w-4 ${isChildActive ? "text-white" : "text-slate-500"}`} />
                     <span>{child.label}</span>
                   </Link>
                 )

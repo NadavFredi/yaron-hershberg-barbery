@@ -8,6 +8,7 @@ import { CalendarCheck, CreditCard, ShoppingCart, Loader2, RefreshCw, AlertCircl
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
 import { skipToken } from "@reduxjs/toolkit/query"
 import { useGetClientSubscriptionsQuery, useGetCardUsageQuery, useGetSubscriptionTypesQuery } from "@/store/services/supabaseApi"
+import { SubscriptionPurchaseModal } from "@/components/dialogs/subscriptions/SubscriptionPurchaseModal"
 
 interface SubscriptionPlan {
     id: string
@@ -41,18 +42,18 @@ interface SubscriptionUsageResponse {
     id: string
     date: string | null
     createdAt: string | null
-    treatmentName: string | null
+    dogName: string | null
     service: string | null
     planName: string | null
     staffMember: string | null
     status: string | null
 }
 
-// Hardcoded checkout URLs - these should eventually be moved to Airtable as well
+// Hardcoded checkout URLs
 const checkoutUrls: Record<string, string> = {
-    "bundle-6": "https://pay.tranzila.com",
-    "bundle-12": "https://pay.tranzila.com",
-    "monthly-pass": "https://pay.tranzila.com",
+    "bundle-6": "https://pay.tranzila.com/bloved29/ZVFmb29tNGF2VVBrcno4enB4amFQUT09",
+    "bundle-12": "https://pay.tranzila.com/bloved29/a24xT094Y3B6aHU0TDV1b1RBT2NRUT09",
+    "monthly-pass": "https://pay.tranzila.com/bloved29/ZC91L2tHQkNOTnN2N2wyV1FGS0oxUT09",
 }
 
 function formatDate(value?: string | null): string {
@@ -103,9 +104,12 @@ export default function Subscriptions() {
     } = useGetSubscriptionTypesQuery()
 
     const subscriptions: SubscriptionCardResponse[] = subscriptionData?.subscriptions ?? []
-    const subscriptionTypes: SubscriptionType[] = subscriptionTypesData ?? []
+    // Filter to only show active subscription types (already filtered by API, but double-check)
+    const subscriptionTypes: SubscriptionType[] = (subscriptionTypesData ?? []).filter((type) => type.id) // All returned types are active
 
     const [expandedCardId, setExpandedCardId] = useState<string>("")
+    const [purchaseModalOpen, setPurchaseModalOpen] = useState(false)
+    const [selectedSubscriptionType, setSelectedSubscriptionType] = useState<SubscriptionType | null>(null)
 
     const {
         data: expandedUsage,
@@ -163,7 +167,7 @@ export default function Subscriptions() {
                     <h1 className="text-3xl font-bold text-gray-900">ניהול מנויים וכרטיסיות</h1>
                     <p className="text-gray-600 max-w-3xl">
                         כאן תמצאו את כל הכרטיסיות והחבילות שרכשתם, את היתרה שנותרה ואת האפשרות לרכוש בקלות חבילות חדשות.
-                        ניהול פשוט ונוח של טיפולי שיער וקרקפת לכל אחד ואחת מכם.
+                        ניהול פשוט ונוח של טיפוח שגרתי לכלבי הבית.
                     </p>
                 </header>
 
@@ -174,12 +178,17 @@ export default function Subscriptions() {
                                 <ShoppingCart className="h-5 w-5 text-orange-500" />
                                 <div>
                                     <CardTitle className="text-xl">רכישת כרטיסיות חדשות</CardTitle>
-                                    <CardDescription>בחרו את החבילה שמתאימה לשיער ולקרקפת שלכם</CardDescription>
+                                    <CardDescription>בחרו את החבילה שמתאימה לכם ולכלב שלכם</CardDescription>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent>
-                            {subscriptionTypesError ? (
+                        <CardContent className="w-full">
+                            {isSubscriptionTypesLoading ? (
+                                <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-4">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    טוען סוגי כרטיסיות...
+                                </div>
+                            ) : subscriptionTypesError ? (
                                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-right space-y-3">
                                     <div className="flex items-center gap-2 text-red-600">
                                         <AlertCircle className="h-5 w-5" />
@@ -198,18 +207,19 @@ export default function Subscriptions() {
                                         </Button>
                                     </div>
                                 </div>
-                            ) : subscriptionTypes.length === 0 && !isSubscriptionTypesLoading ? (
-                                <div className="text-center text-gray-500 py-6">
-                                    לא נמצאו סוגי כרטיסיות זמינים כרגע.
+                            ) : subscriptionTypes.length === 0 ? (
+                                <div className="text-center text-gray-500 py-8">
+                                    <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                                    <p className="text-lg font-medium text-gray-700 mb-2">לא הוגדרו סוגי כרטיסיות</p>
+                                    <p className="text-sm text-gray-500">כרגע אין סוגי כרטיסיות זמינים לרכישה.</p>
                                 </div>
                             ) : (
-                                <div className="grid gap-4 md:grid-cols-3">
+                                <div className="grid gap-4 w-full" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))' }}>
                                     {subscriptionTypes.map((subscriptionType) => {
-                                        const checkoutUrl = checkoutUrls[subscriptionType.id] || "#"
                                         return (
                                             <div
                                                 key={subscriptionType.id}
-                                                className="flex flex-col rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md"
+                                                className="flex flex-col rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md w-full"
                                             >
                                                 <div className="space-y-3 flex-grow">
                                                     <div className="flex items-center justify-between">
@@ -222,7 +232,10 @@ export default function Subscriptions() {
                                                     <Button
                                                         type="button"
                                                         className="w-full bg-blue-600 hover:bg-blue-700"
-                                                        onClick={() => window.open(checkoutUrl, "_blank", "noopener,noreferrer")}
+                                                        onClick={() => {
+                                                            setSelectedSubscriptionType(subscriptionType)
+                                                            setPurchaseModalOpen(true)
+                                                        }}
                                                     >
                                                         המשך לרכישה
                                                     </Button>
@@ -230,12 +243,6 @@ export default function Subscriptions() {
                                             </div>
                                         )
                                     })}
-                                </div>
-                            )}
-                            {isSubscriptionTypesLoading && (
-                                <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-4">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    טוען סוגי כרטיסיות...
                                 </div>
                             )}
                         </CardContent>
@@ -343,14 +350,14 @@ export default function Subscriptions() {
                                                                 <TableHeader>
                                                                     <TableRow>
                                                                         <TableHead className="text-right">תאריך שימוש</TableHead>
-                                                                        <TableHead className="text-right">שם הטיפול</TableHead>
+                                                                        <TableHead className="text-right">שם הכלב</TableHead>
                                                                     </TableRow>
                                                                 </TableHeader>
                                                                 <TableBody>
                                                                     {usageRecords.map((usageRecord) => (
                                                                         <TableRow key={usageRecord.id}>
                                                                             <TableCell className="text-right text-gray-600">{formatDate(usageRecord.createdAt || usageRecord.date)}</TableCell>
-                                                                            <TableCell className="text-right text-gray-900">{usageRecord.treatmentName ?? ""}</TableCell>
+                                                                            <TableCell className="text-right text-gray-900">{usageRecord.dogName ?? ""}</TableCell>
                                                                         </TableRow>
                                                                     ))}
                                                                 </TableBody>
@@ -378,6 +385,21 @@ export default function Subscriptions() {
                         </CardContent>
                     </Card>
                 </section>
+
+                {/* Subscription Purchase Modal */}
+                {selectedSubscriptionType && (
+                    <SubscriptionPurchaseModal
+                        open={purchaseModalOpen}
+                        onOpenChange={setPurchaseModalOpen}
+                        subscriptionTypeId={selectedSubscriptionType.id}
+                        subscriptionTypeName={selectedSubscriptionType.name}
+                        subscriptionPrice={typeof selectedSubscriptionType.price === 'string' ? parseFloat(selectedSubscriptionType.price) : selectedSubscriptionType.price}
+                        onSuccess={() => {
+                            refetch()
+                            refetchSubscriptionTypes()
+                        }}
+                    />
+                )}
             </div>
         </div>
     )

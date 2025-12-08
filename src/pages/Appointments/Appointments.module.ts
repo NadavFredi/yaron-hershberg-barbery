@@ -5,7 +5,7 @@ import type { WaitingListEntry } from "@/types"
 export interface SupabaseWaitingListEntry {
   id: string
   customer_id: string
-  treatment_id: string | null
+  dog_id: string
   service_scope: "grooming" | "daycare" | "both"
   status: "active" | "fulfilled" | "cancelled"
   start_date: string
@@ -17,8 +17,8 @@ export interface SupabaseWaitingListEntry {
 
 export interface LegacyWaitingListEntry {
   id: string
-  treatmentId?: string
-  treatment_id?: string
+  dogId?: string
+  dog_id?: string
   serviceType?: string
   service_scope?: string
   status?: string
@@ -38,17 +38,17 @@ export interface WaitingListDateRange {
 }
 
 /**
- * Get all waiting list entries for a given customer
+ * Get all waiting list entries for given dog IDs
  */
-export async function getWaitingListEntries(customerId: string): Promise<SupabaseWaitingListEntry[]> {
-  if (!customerId) {
+export async function getWaitingListEntries(dogIds: string[]): Promise<SupabaseWaitingListEntry[]> {
+  if (dogIds.length === 0) {
     return []
   }
 
   const { data, error } = await supabase
-    .from("waitlist")
+    .from("daycare_waitlist")
     .select("*")
-    .eq("customer_id", customerId)
+    .in("dog_id", dogIds)
     .eq("status", "active")
     .order("created_at", { ascending: false })
 
@@ -64,20 +64,27 @@ export async function getWaitingListEntries(customerId: string): Promise<Supabas
  * Register a new waiting list entry
  */
 export async function registerWaitingList(
-  customerId: string,
+  dogId: string,
   serviceType: "grooming" | "daycare" | "both",
   dateRanges: WaitingListDateRange[],
   _userId?: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    if (!customerId) {
-      throw new Error("Customer ID is required")
+    // Get dog and customer info
+    const { data: dog, error: dogError } = await supabase
+      .from("dogs")
+      .select("id, customer_id")
+      .eq("id", dogId)
+      .single()
+
+    if (dogError || !dog) {
+      throw new Error(`Dog not found: ${dogError?.message || "Unknown error"}`)
     }
 
     // Create entries for each date range
     const entries = dateRanges.map((range) => ({
-      treatment_id: null,
-      customer_id: customerId,
+      dog_id: dogId,
+      customer_id: dog.customer_id,
       service_scope: serviceType,
       status: "active" as const,
       start_date: range.startDate,
@@ -85,7 +92,7 @@ export async function registerWaitingList(
     }))
 
     const { error: insertError } = await supabase
-      .from("waitlist")
+      .from("daycare_waitlist")
       .insert(entries)
 
     if (insertError) {
@@ -110,6 +117,7 @@ export async function registerWaitingList(
  */
 export async function updateWaitingListEntry(
   entryId: string,
+  dogId: string,
   serviceType: "grooming" | "daycare" | "both",
   dateRanges: WaitingListDateRange[]
 ): Promise<{ success: boolean; message?: string; error?: string }> {
@@ -120,7 +128,7 @@ export async function updateWaitingListEntry(
 
     // Update the first date range to the existing entry
     const { error: updateError } = await supabase
-      .from("waitlist")
+      .from("daycare_waitlist")
       .update({
         service_scope: serviceType,
         start_date: dateRanges[0].startDate,
@@ -135,14 +143,14 @@ export async function updateWaitingListEntry(
     // If there are additional date ranges, create new entries for them
     if (dateRanges.length > 1) {
       const { data: existingEntry } = await supabase
-        .from("waitlist")
+        .from("daycare_waitlist")
         .select("customer_id")
         .eq("id", entryId)
         .single()
 
       if (existingEntry) {
         const newEntries = dateRanges.slice(1).map((range) => ({
-          treatment_id: treatmentId,
+          dog_id: dogId,
           customer_id: existingEntry.customer_id,
           service_scope: serviceType,
           status: "active" as const,
@@ -151,7 +159,7 @@ export async function updateWaitingListEntry(
         }))
 
         const { error: insertError } = await supabase
-          .from("waitlist")
+          .from("daycare_waitlist")
           .insert(newEntries)
 
         if (insertError) {
@@ -182,7 +190,7 @@ export async function deleteWaitingListEntry(
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
     const { error } = await supabase
-      .from("waitlist")
+      .from("daycare_waitlist")
       .update({ status: "cancelled" })
       .eq("id", entryId)
 
@@ -332,7 +340,7 @@ export async function cancelAppointmentWithValidation(params: {
   appointmentId: string
   appointmentTime?: string
   serviceType?: "grooming" | "garden" | "both"
-  treatmentId?: string
+  dogId?: string
   stationId?: string
 }): Promise<{
   success: boolean
@@ -460,6 +468,7 @@ export async function approveAppointment(
 
 /**
  * Approve a grooming appointment (update status to approved - no webhook)
+ * NOTE: This function is for MANAGER approval only - it changes the status field
  */
 export async function approveGroomingAppointment(
   appointmentId: string,
@@ -489,12 +498,166 @@ export async function approveGroomingAppointment(
 }
 
 /**
+ * Client confirmation of arrival (separate from manager approval)
+ * Updates client_confirmed_arrival field (not status field)
+ * Can only be called if appointment is already approved by manager
+ * Uses simple PostgREST API - no RPC needed
+ */
+export async function confirmClientArrival(
+  appointmentId: string,
+  serviceHint: "grooming" | "garden" | "daycare" | null
+): Promise<{
+  success: boolean
+  message?: string
+  appointmentId?: string
+  clientConfirmedArrival?: boolean
+  error?: string
+}> {
+  try {
+    console.log("[confirmClientArrival] Updating client_confirmed_arrival via PostgREST", {
+      appointmentId,
+      serviceHint,
+    })
+
+    // Determine which table to update based on service hint
+    const tableName = serviceHint === "garden" || serviceHint === "daycare" ? "daycare_appointments" : "grooming_appointments"
+
+    // First check if appointment exists and is in a valid status
+    const { data: appointmentData, error: fetchError } = await supabase
+      .from(tableName)
+      .select("id, status, customer_id")
+      .eq("id", appointmentId)
+      .single()
+
+    if (fetchError || !appointmentData) {
+      // Try the other table if first attempt failed
+      const otherTableName = tableName === "grooming_appointments" ? "daycare_appointments" : "grooming_appointments"
+      const { data: altAppointmentData, error: altFetchError } = await supabase
+        .from(otherTableName)
+        .select("id, status, customer_id")
+        .eq("id", appointmentId)
+        .single()
+
+      if (altFetchError || !altAppointmentData) {
+        console.error("[confirmClientArrival] Appointment not found:", altFetchError)
+        return {
+          success: false,
+          error: "התור לא נמצא",
+        }
+      }
+
+      // Check status before updating
+      if (altAppointmentData.status === "pending") {
+        return {
+          success: false,
+          error: "לא ניתן לאשר הגעה בזמן שהתור ממתין לאישור מנהל",
+        }
+      }
+
+      if (altAppointmentData.status === "cancelled") {
+        return {
+          success: false,
+          error: "לא ניתן לאשר הגעה לתור מבוטל",
+        }
+      }
+
+      // Update client_confirmed_arrival
+      const { data: updateData, error: updateError } = await supabase
+        .from(otherTableName)
+        .update({ client_confirmed_arrival: true })
+        .eq("id", appointmentId)
+        .select("id, client_confirmed_arrival")
+        .single()
+
+      if (updateError) {
+        console.error("[confirmClientArrival] Update error:", updateError)
+        return {
+          success: false,
+          error: updateError.message || "לא ניתן לאשר את ההגעה",
+        }
+      }
+
+      console.log("[confirmClientArrival] Client arrival confirmed successfully")
+      return {
+        success: true,
+        message: "ההגעה אושרה בהצלחה",
+        appointmentId: updateData.id,
+        clientConfirmedArrival: updateData.client_confirmed_arrival ?? true,
+      }
+    }
+
+    // Check status before updating
+    if (appointmentData.status === "pending") {
+      return {
+        success: false,
+        error: "לא ניתן לאשר הגעה בזמן שהתור ממתין לאישור מנהל",
+      }
+    }
+
+    if (appointmentData.status === "cancelled") {
+      return {
+        success: false,
+        error: "לא ניתן לאשר הגעה לתור מבוטל",
+      }
+    }
+
+    // Update client_confirmed_arrival
+    console.log(`[confirmClientArrival] Updating ${tableName} appointment ${appointmentId} - setting client_confirmed_arrival to true`)
+    const { data: updateData, error: updateError } = await supabase
+      .from(tableName)
+      .update({ client_confirmed_arrival: true })
+      .eq("id", appointmentId)
+      .select("id, client_confirmed_arrival")
+      .single()
+
+    if (updateError) {
+      console.error("[confirmClientArrival] Update error:", updateError)
+      console.error("[confirmClientArrival] Error details:", {
+        code: updateError.code,
+        message: updateError.message,
+        details: updateError.details,
+        hint: updateError.hint,
+      })
+      return {
+        success: false,
+        error: updateError.message || "לא ניתן לאשר את ההגעה",
+      }
+    }
+
+    if (!updateData) {
+      console.error("[confirmClientArrival] Update succeeded but no data returned")
+      return {
+        success: false,
+        error: "לא ניתן לאשר את ההגעה - לא התקבלו נתונים",
+      }
+    }
+
+    console.log("[confirmClientArrival] Client arrival confirmed successfully", {
+      appointmentId: updateData.id,
+      clientConfirmedArrival: updateData.client_confirmed_arrival,
+    })
+    return {
+      success: true,
+      message: "ההגעה אושרה בהצלחה",
+      appointmentId: updateData.id,
+      clientConfirmedArrival: updateData.client_confirmed_arrival ?? true,
+    }
+  } catch (error) {
+    console.error("[confirmClientArrival] Unexpected error:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to confirm arrival",
+    }
+  }
+}
+
+/**
  * Transform waiting list data from API format to component format
  * Handles both new Supabase format and legacy format
  */
 export function transformWaitingListEntries(
   waitingListData: SupabaseWaitingListEntry[] | LegacyWaitingListEntry[] | { entries?: LegacyWaitingListEntry[] } | undefined,
-  treatmentIds?: string[]
+  dogIds: string[]
 ): WaitingListEntry[] {
   // Handle both old format ({ entries: [...] }) and new format (array directly)
   let entries: LegacyWaitingListEntry[] = []
@@ -507,14 +670,11 @@ export function transformWaitingListEntries(
   // Transform from Supabase format to component format
   return entries
     .filter((entry) => {
-      if (!treatmentIds || treatmentIds.length === 0) {
-        return true
-      }
-      const treatmentId = entry.treatment_id || entry.treatmentId
-      return !treatmentId || treatmentIds.includes(treatmentId)
+      const dogId = entry.dog_id || entry.dogId
+      return dogId && dogIds.includes(dogId)
     })
     .map((entry) => {
-      const treatmentId = entry.treatment_id || entry.treatmentId || null
+      const dogId = entry.dog_id || entry.dogId
       const serviceType = entry.service_scope || entry.serviceType || "grooming"
       const status = entry.status || "pending"
 
@@ -531,8 +691,7 @@ export function transformWaitingListEntries(
 
       return {
         id: entry.id,
-        treatmentId,
-        treatmentName: (entry as any)?.treatment_name || (entry as any)?.treatmentName || null,
+        dogId: dogId!,
         serviceType: serviceType === "daycare" ? "garden" : serviceType, // Map daycare to garden for compatibility
         status: status,
         dateRanges,
@@ -548,7 +707,7 @@ export function transformWaitingListEntries(
  */
 export function useWaitingListEntries(
   waitingListData: SupabaseWaitingListEntry[] | LegacyWaitingListEntry[] | { entries?: LegacyWaitingListEntry[] } | undefined,
-  treatmentIds?: string[]
+  dogIds: string[]
 ): WaitingListEntry[] {
-  return useMemo(() => transformWaitingListEntries(waitingListData, treatmentIds), [waitingListData, treatmentIds])
+  return useMemo(() => transformWaitingListEntries(waitingListData, dogIds), [waitingListData, dogIds])
 }

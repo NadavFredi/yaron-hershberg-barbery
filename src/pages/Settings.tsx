@@ -4,12 +4,14 @@ import { Loader2 } from "lucide-react"
 import { useManagerRole } from "@/hooks/useManagerRole"
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth"
 import AdminLayout from "@/components/layout/AdminLayout"
+import { SettingsBreedsSection } from "@/components/settings/SettingsBreedsSection/SettingsBreedsSection"
 import { SettingsWorkingHoursSection } from "@/components/settings/SettingsWorkingHoursSection/SettingsWorkingHoursSection"
 import { SettingsStationsSection } from "@/components/settings/SettingsStationsSection/SettingsStationsSection"
+import { SettingsStationsPerDaySection } from "@/components/settings/SettingsStationsPerDaySection/SettingsStationsPerDaySection"
 import { SettingsConstraintsSection } from "@/components/settings/SettingsConstraintsSection/SettingsConstraintsSection"
-import { SettingsSubnav } from "@/components/navigation/SettingsSubnav"
+import { SettingsBreedStationMatrixSection } from "@/components/settings/SettingsBreedStationMatrixSection/SettingsBreedStationMatrixSection"
 
-const VALID_SECTIONS = ["working-hours", "stations", "constraints"] as const
+const VALID_SECTIONS = ["breeds", "working-hours", "stations", "stations-per-day", "constraints", "matrix"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function Settings() {
@@ -22,6 +24,8 @@ export default function Settings() {
     // Also check if constraintId is present, which means we should open constraints section
     const constraintId = searchParams.get("constraintId")
     const sectionFromUrl = searchParams.get("mode")
+    const defaultDogTypeId = searchParams.get("category1Id")
+    const defaultDogCategoryId = searchParams.get("category2Id")
     const initialSection = (constraintId ? "constraints" : (sectionFromUrl && VALID_SECTIONS.includes(sectionFromUrl as SectionId)
         ? sectionFromUrl
         : "working-hours"))
@@ -45,7 +49,7 @@ export default function Settings() {
         }
     }, [searchParams, activeSection])
 
-    // Handle section change from URL (when SettingsSubnav changes it)
+    // Handle section change from URL (when ThirdLevelSubnav changes it)
     useEffect(() => {
         const urlSection = searchParams.get("mode")
         if (urlSection && VALID_SECTIONS.includes(urlSection as SectionId)) {
@@ -81,13 +85,20 @@ export default function Settings() {
 
     return (
         <AdminLayout>
-            <SettingsSubnav />
             <div className="min-h-screen bg-background py-6" dir="rtl">
-                <div className="mx-auto w-full px-1 sm:px-2 lg:px-3">
+                <div className="mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-12">
                     {/* Active Section Content - Only render the active section to avoid unnecessary API calls */}
+                    {activeSection === "breeds" && (
+                        <SettingsBreedsSection
+                            defaultDogTypeId={defaultDogTypeId}
+                            defaultDogCategoryId={defaultDogCategoryId}
+                        />
+                    )}
                     {activeSection === "working-hours" && <SettingsWorkingHoursSection />}
                     {activeSection === "stations" && <SettingsStationsSection />}
+                    {activeSection === "stations-per-day" && <SettingsStationsPerDaySection />}
                     {activeSection === "constraints" && <SettingsConstraintsSection />}
+                    {activeSection === "matrix" && <SettingsBreedStationMatrixSection />}
                 </div>
             </div>
         </AdminLayout>

@@ -7,21 +7,20 @@ export interface User {
   role: 'לקוח' | 'מנהל';
 }
 
-export interface Treatment {
+export interface Dog {
   id: string;
   name: string;
-  treatmentTypeId: string;
+  breedId: string;
   ownerId: string;
   specialNotes?: string;
   groomingMinPrice?: number | null;
   groomingMaxPrice?: number | null;
 }
 
-export interface TreatmentType {
+export interface Breed {
   id: string;
   name: string;
   created_at?: string;
-  airtable_id?: string | null;
   size_class?: string | null;
   min_groom_price?: number | null;
   max_groom_price?: number | null;
@@ -49,9 +48,9 @@ export interface ServiceStationMatrix {
   price: number;
 }
 
-export interface TreatmentTypeModifier {
+export interface BreedModifier {
   id: string;
-  treatmentTypeId: string;
+  breedId: string;
   serviceId: string;
   timeModifierMinutes: number; // יכול להיות חיובי או שלילי
 }
@@ -60,13 +59,13 @@ export interface ClientProfile {
   id: string;
   userId: string;
   clientNotes: string;
-  treatmentNotes: string;
+  dogNotes: string;
 }
 
 export interface RecurringAppointment {
   id: string;
   customerId: string;
-  treatmentId: string;
+  dogId: string;
   serviceId: string;
   frequency: 'שבועי' | 'דו-שבועי' | 'חודשי';
   startDate: Date;
@@ -76,7 +75,7 @@ export interface RecurringAppointment {
 export interface TimeMatrix {
   id: string;
   serviceId: string;
-  treatmentTypeId: string;
+  breedId: string;
   stationId: string;
   durationMinutes: number;
 }
@@ -84,7 +83,7 @@ export interface TimeMatrix {
 export interface Appointment {
   id: string;
   customerId: string;
-  treatmentId: string;
+  dogId: string;
   serviceId: string;
   stationId: string;
   startTime: Date;
@@ -93,7 +92,7 @@ export interface Appointment {
   status: 'מאושר' | 'ממתין' | 'בוטל' | 'הושלם';
   customerName: string;
   customerPhone: string;
-  treatmentName: string;
+  dogName: string;
   serviceName: string;
   stationName: string;
   internalNotes?: string;
@@ -110,24 +109,10 @@ export interface AdminAvailability {
 
 export interface BookingStep {
   serviceId: string;
-  treatmentTypeId: string;
+  breedId: string;
   selectedDate?: Date;
   selectedTime?: string;
   customerName?: string;
   customerPhone?: string;
-  treatmentName?: string;
-}
-
-export interface WaitingListEntry {
-  id: string;
-  treatmentId: string | null;
-  treatmentName: string | null;
-  serviceType: string | null;
-  status: string | null;
-  notes?: string | null;
-  startDate?: string | null;
-  endDate?: string | null;
-  dateRanges: Array<{ startDate: string; endDate: string }>;
-  createdAt: string;
-  updatedAt?: string;
+  dogName?: string;
 }

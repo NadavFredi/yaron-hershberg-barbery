@@ -7,6 +7,7 @@ import { Loader2, Plus, X, Trash2, Calendar as CalendarIcon } from "lucide-react
 import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerSearchInput, type Customer } from "@/components/CustomerSearchInput"
+import { DogSelectInput, type Dog } from "@/components/DogSelectInput"
 import { supabase } from "@/integrations/supabase/client"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -38,6 +39,7 @@ interface WaitlistSubmissionEntry {
 
 interface WaitlistSubmissionData {
     customer: Customer
+    dog: Dog
     entries: WaitlistSubmissionEntry[]
     serviceScope: ServiceScopeValue
     notes: string
@@ -55,7 +57,9 @@ interface AddWaitlistEntryModalProps {
     onOpenChange: (open: boolean) => void
     onSuccess?: () => void
     defaultCustomer?: Customer | null
+    defaultDog?: Dog | null
     disableCustomerSelection?: boolean
+    disableDogSelection?: boolean
     title?: string
     description?: string
     submitLabel?: string
@@ -72,10 +76,12 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
     onOpenChange,
     onSuccess,
     defaultCustomer = null,
+    defaultDog = null,
     disableCustomerSelection = false,
-    title = "הוסף לקוח לרשימת ההמתנה",
-    description = "בחר לקוח ותאריכים להמתנה",
-    submitLabel = "הוסף לרשימת ההמתנה",
+    disableDogSelection = false,
+    title = "הוסף כלב לרשימת ההמתנה",
+    description = "בחר לקוח, כלב, ותאריכים להמתנה",
+    submitLabel = "הוסף לרשימת המתנה",
     serviceScopeOptions,
     initialServiceScope,
     initialDateRanges,
@@ -93,6 +99,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
     const [dateSelectionMode, setDateSelectionMode] = useState<DateEntryMode>('single')
     const [dateEntries, setDateEntries] = useState<DateEntry[]>([createDateEntry('single')])
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(defaultCustomer)
+    const [selectedDog, setSelectedDog] = useState<Dog | null>(defaultDog)
     const [notes, setNotes] = useState(initialNotes || "")
     const [serviceScope, setServiceScope] = useState<ServiceScopeValue>(
         initialServiceScope ??
@@ -147,19 +154,21 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
         setDateEntries([createDateEntry('single')])
         setDateSelectionMode('single')
         setSelectedCustomer(defaultCustomer ?? null)
+        setSelectedDog(defaultDog ?? null)
         setNotes(initialNotes || "")
         setServiceScope(
             initialServiceScope ??
             serviceScopeOptions?.[0]?.value ??
             'grooming'
         )
-    }, [defaultCustomer, initialNotes, initialServiceScope, serviceScopeOptions])
+    }, [defaultCustomer, defaultDog, initialNotes, initialServiceScope, serviceScopeOptions])
 
     const initializeFormState = useCallback(() => {
         const entries = buildEntriesFromRanges(initialDateRanges)
         setDateEntries(entries)
         setDateSelectionMode(determineInitialMode(entries))
         setSelectedCustomer(defaultCustomer ?? null)
+        setSelectedDog(defaultDog ?? null)
         setNotes(initialNotes || "")
         setServiceScope(
             initialServiceScope ??
@@ -170,6 +179,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
         buildEntriesFromRanges,
         determineInitialMode,
         defaultCustomer,
+        defaultDog,
         initialDateRanges,
         initialNotes,
         initialServiceScope,
@@ -187,6 +197,11 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
     const handleCustomerSelect = (customer: Customer) => {
         setSelectedCustomer(customer)
+        setSelectedDog(null) // Reset dog when customer changes
+    }
+
+    const handleDogSelect = (dog: Dog) => {
+        setSelectedDog(dog)
     }
 
     const addDateEntry = () => {
@@ -224,6 +239,15 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
             return
         }
 
+        if (!selectedDog) {
+            toast({
+                title: "שגיאה",
+                description: "יש לבחור כלב",
+                variant: "destructive"
+            })
+            return
+        }
+
         if (dateEntries.length === 0) {
             toast({
                 title: "שגיאה",
@@ -235,6 +259,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
         const supabaseEntries: {
             customer_id: string
+            dog_id: string
             service_scope: NormalizedServiceScope
             status: 'active'
             start_date: string
@@ -258,6 +283,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
                 entry.singleDates.forEach(date => {
                     supabaseEntries.push({
                         customer_id: selectedCustomer.id,
+                        dog_id: selectedDog.id,
                         service_scope: normalizeServiceScope(serviceScope),
                         status: 'active',
                         start_date: format(date, 'yyyy-MM-dd'),
@@ -288,6 +314,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
                 supabaseEntries.push({
                     customer_id: selectedCustomer.id,
+                    dog_id: selectedDog.id,
                     service_scope: normalizeServiceScope(serviceScope),
                     status: 'active',
                     start_date: format(startDate, 'yyyy-MM-dd'),
@@ -308,6 +335,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
 
                 await onSubmit({
                     customer: selectedCustomer,
+                    dog: selectedDog,
                     entries: submissionEntries,
                     serviceScope: serviceScope,
                     notes: notes.trim(),
@@ -316,7 +344,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
                 })
             } else {
                 const { error } = await supabase
-                    .from('waitlist')
+                    .from('daycare_waitlist')
                     .insert(supabaseEntries)
 
                 if (error) throw error
@@ -368,11 +396,27 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
                                 onCustomerClear={() => {
                                     if (disableCustomerSelection) return
                                     setSelectedCustomer(null)
+                                    setSelectedDog(null)
                                 }}
                                 placeholder="חיפוש לקוח..."
                                 disabled={disableCustomerSelection}
                             />
                         </div>
+
+                        {/* Dog Selection - only shown when customer is selected */}
+                        {selectedCustomer && (
+                            <div className="space-y-2">
+                                <Label>כלב <span className="text-red-500">*</span></Label>
+                                <DogSelectInput
+                                    selectedCustomer={selectedCustomer}
+                                    selectedDog={selectedDog}
+                                    onDogSelect={handleDogSelect}
+                                    onDogClear={() => setSelectedDog(null)}
+                                    placeholder="בחר כלב..."
+                                    disabled={disableDogSelection}
+                                />
+                            </div>
+                        )}
 
                         {serviceScopeOptions && serviceScopeOptions.length > 0 && (
                             <div className="space-y-2">

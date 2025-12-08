@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Pencil } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { DatePickerInput } from "@/components/DatePickerInput"
@@ -90,6 +88,11 @@ interface AppointmentDetailsSectionProps {
     onManualOverrideChange?: (isManualOverride: boolean) => void
     isManualOverride?: boolean
     hideStation?: boolean
+    hideSaveCancelButtons?: boolean
+    disableEndTime?: boolean
+    children?: React.ReactNode
+    sendWhatsApp?: boolean
+    onSendWhatsAppChange?: (sendWhatsApp: boolean) => void
 }
 
 export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps> = ({
@@ -104,16 +107,29 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
     autoDurationMinutes = null,
     onManualOverrideChange,
     isManualOverride = false,
-    hideStation = false
+    hideStation = false,
+    hideSaveCancelButtons = false,
+    disableEndTime = false,
+    children,
+    sendWhatsApp: controlledSendWhatsApp,
+    onSendWhatsAppChange
 }) => {
-    const [isEditing, setIsEditing] = useState(false)
+    const [isEditing, setIsEditing] = useState(true)
     const [editableTimes, setEditableTimes] = useState<AppointmentTimes | null>(cloneTimes(finalizedTimes))
+    const [sendWhatsApp, setSendWhatsApp] = useState(true) // Default to checked
     const datePickerRef = useRef<HTMLInputElement>(null)
     const isAutoEndTime = endTimeMode === "auto"
+    
+    // Use controlled value if provided, otherwise use internal state
+    const actualSendWhatsApp = controlledSendWhatsApp !== undefined ? controlledSendWhatsApp : sendWhatsApp
 
     useEffect(() => {
         setEditableTimes(cloneTimes(finalizedTimes))
-    }, [finalizedTimes])
+        // Always start in edit mode when modal opens
+        if (isOpen) {
+            setIsEditing(true)
+        }
+    }, [finalizedTimes, isOpen])
 
     useEffect(() => {
         if (isOpen) {
@@ -125,9 +141,35 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
         }
     }, [isOpen])
 
-    const filteredStations = useMemo(() => (
-        stationFilter ? stations.filter(stationFilter) : stations
-    ), [stations, stationFilter])
+    // Call onTimesChange immediately when times change (for real-time updates)
+    useEffect(() => {
+        if (editableTimes && onTimesChange) {
+            onTimesChange(cloneTimes(editableTimes)!)
+        }
+    }, [editableTimes?.startTime, editableTimes?.endTime, editableTimes?.stationId])
+
+    const filteredStations = useMemo(() => {
+        // Always show all stations - don't filter them out
+        // The stationFilter is only used for display/hinting purposes, but all stations should be selectable
+        const allStations = stations
+        // Ensure current station is always in the list if it exists
+        if (editableTimes?.stationId) {
+            const currentStation = allStations.find(s => s.id === editableTimes.stationId)
+            if (currentStation) {
+                // If current station is not in the list, add it at the beginning
+                const hasCurrent = allStations.some(s => s.id === currentStation.id)
+                if (!hasCurrent) {
+                    return [currentStation, ...allStations]
+                }
+            }
+        }
+        return allStations
+    }, [stations, editableTimes?.stationId])
+
+    const currentStation = useMemo(() => {
+        if (!editableTimes?.stationId) return null
+        return stations.find(s => s.id === editableTimes.stationId) || null
+    }, [stations, editableTimes?.stationId])
 
     const handleDateChange = (newDate: Date | null) => {
         if (!editableTimes || !newDate) return
@@ -180,23 +222,73 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
             current.setFullYear(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
         }
 
-        setEditableTimes(prev => prev ? { ...prev, [field]: current } : null)
+        // If start time changed and end time is disabled, update end time accordingly
+        if (field === 'startTime' && disableEndTime && editableTimes.startTime && editableTimes.endTime) {
+            const prevStartTime = editableTimes.startTime
+            // Calculate the delta (how much the start time changed)
+            const delta = current.getTime() - prevStartTime.getTime()
+            // Move end time by the same delta
+            let newEndTime = new Date(editableTimes.endTime.getTime() + delta)
+
+            // Ensure end time is always after start time
+            // If we have autoDurationMinutes, use it to ensure minimum duration
+            if (autoDurationMinutes != null) {
+                const minEndTime = new Date(current.getTime() + autoDurationMinutes * 60 * 1000)
+                if (newEndTime.getTime() < minEndTime.getTime()) {
+                    newEndTime = minEndTime
+                }
+            } else {
+                // Otherwise, ensure at least 15 minutes duration
+                const minEndTime = new Date(current.getTime() + 15 * 60 * 1000)
+                if (newEndTime.getTime() < minEndTime.getTime()) {
+                    newEndTime = minEndTime
+                }
+            }
+
+            const updated: AppointmentTimes = {
+                ...editableTimes,
+                startTime: current,
+                endTime: newEndTime,
+                stationId: editableTimes.stationId
+            }
+
+            setEditableTimes(updated)
+            // Call onTimesChange immediately with updated values
+            if (onTimesChange) {
+                onTimesChange(cloneTimes(updated)!)
+            }
+        } else {
+            const updated: AppointmentTimes | null = editableTimes ? { ...editableTimes, [field]: current } : null
+            setEditableTimes(updated)
+            // Call onTimesChange immediately with updated values
+            if (updated && onTimesChange) {
+                onTimesChange(cloneTimes(updated)!)
+            }
+        }
     }
 
     const handleStationChange = (stationId: string) => {
         setEditableTimes(prev => prev ? { ...prev, stationId } : prev)
     }
 
+    const handleSendWhatsAppChange = (checked: boolean) => {
+        if (onSendWhatsAppChange) {
+            onSendWhatsAppChange(checked)
+        } else {
+            setSendWhatsApp(checked)
+        }
+    }
+
     const handleSaveTimes = () => {
         if (editableTimes) {
             onTimesChange?.(cloneTimes(editableTimes)!)
         }
-        setIsEditing(false)
+        // Keep editing mode active - don't exit edit mode
     }
 
     const handleCancelEdit = () => {
         setEditableTimes(cloneTimes(finalizedTimes))
-        setIsEditing(false)
+        // Keep editing mode active - don't exit edit mode
     }
 
     if (!finalizedTimes) {
@@ -208,20 +300,10 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
     return (
         <div className={cn("rounded-lg p-3 mb-4", themeCfg.container, className)}>
             <div className="flex items-center gap-2 mb-2" dir="rtl">
-                {!isEditing && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsEditing(true)}
-                        className={cn("h-6 w-6 p-0", themeCfg.editButton)}
-                    >
-                        <Pencil className="h-3 w-3" />
-                    </Button>
-                )}
                 <h3 className={cn("text-sm font-medium", themeCfg.title)}>פרטי התור</h3>
             </div>
 
-            {isEditing ? (
+            {isEditing && (
                 <div className="space-y-3">
                     <div className={cn("grid gap-2", hideStation ? "grid-cols-1" : "grid-cols-2")}>
                         <div>
@@ -232,19 +314,20 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
                                 onChange={handleDateChange}
                                 displayFormat="dd/MM/yyyy"
                                 className={cn("w-full px-2 py-1 text-xs rounded", themeCfg.input)}
+                                autoOpenOnFocus={false}
                             />
                         </div>
                         {!hideStation && (
                             <div>
                                 <label className={cn("block text-xs font-medium mb-1", themeCfg.label)}>עמדה</label>
                                 <Select
-                                    value={editableTimes?.stationId || ''}
+                                    value={editableTimes?.stationId || undefined}
                                     onValueChange={handleStationChange}
                                 >
-                                    <SelectTrigger className={cn("w-full px-2 py-1 text-xs rounded", themeCfg.input)}>
+                                    <SelectTrigger className={cn("w-full px-2 py-1 text-xs rounded text-right [&>span]:text-right", themeCfg.input)} dir="rtl">
                                         <SelectValue placeholder="בחר עמדה" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent dir="rtl">
                                         {filteredStations.map(station => (
                                             <SelectItem key={station.id} value={station.id}>
                                                 {station.name}
@@ -282,6 +365,7 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
                                     onChange={(timeString) => handleTimeChange('endTime', timeString)}
                                     intervalMinutes={15}
                                     className={cn("w-full px-2 py-1 text-xs rounded", themeCfg.input)}
+                                    disabled={disableEndTime}
                                 />
                             )}
                         </div>
@@ -291,55 +375,12 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
                             משך משוער: <span className="font-medium">{autoDurationMinutes} דקות</span>
                         </div>
                     )}
-                    {isAutoEndTime && (
-                        <div className="flex items-center space-x-2 space-x-reverse">
-                            <Checkbox
-                                id="manual-override"
-                                checked={isManualOverride}
-                                onCheckedChange={(checked) => onManualOverrideChange?.(checked === true)}
-                            />
-                            <label
-                                htmlFor="manual-override"
-                                className={cn("text-xs font-medium cursor-pointer", themeCfg.label)}
-                            >
-                                אני יודע שאני משנה את שעת הסיום ידנית וזה לא לפי הגדרות המערכת
-                            </label>
+                    {children && (
+                        <div className="mt-3">
+                            {children}
                         </div>
                     )}
-                    <div className="flex gap-2">
-                        <Button
-                            size="sm"
-                            onClick={handleSaveTimes}
-                            className={cn(themeCfg.saveButton, themeCfg.saveButtonText)}
-                        >
-                            שמור
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleCancelEdit}
-                            className={themeCfg.cancelButton}
-                        >
-                            ביטול
-                        </Button>
-                    </div>
-                </div>
-            ) : (
-                <div className={cn("space-y-1 text-sm text-right", themeCfg.viewText)}>
-                    <div>תאריך: <span className="font-medium">{finalizedTimes.startTime ? format(finalizedTimes.startTime, 'dd.MM.yyyy') : '-'}</span></div>
-                    <div>זמן: <span className="font-medium">
-                        {finalizedTimes.startTime ? format(finalizedTimes.startTime, 'HH:mm') : '--:--'}
-                        {" - "}
-                        {finalizedTimes.endTime ? format(finalizedTimes.endTime, 'HH:mm') : '--:--'}
-                    </span></div>
-                    {!hideStation && (
-                        <div>עמדה: <span className="font-medium">
-                            {filteredStations.find(station => station.id === finalizedTimes.stationId)?.name || 'לא נבחרה עמדה'}
-                        </span></div>
-                    )}
-                    {isAutoEndTime && autoDurationMinutes != null && (
-                        <div>משך: <span className="font-medium">{autoDurationMinutes} דקות</span></div>
-                    )}
+
                 </div>
             )}
         </div>

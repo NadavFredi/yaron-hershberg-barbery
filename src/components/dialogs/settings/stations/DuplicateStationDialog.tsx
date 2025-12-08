@@ -242,7 +242,7 @@ interface DuplicateStationDialogProps {
         name?: string // Only for "new" mode
         targetStationIds?: string[] // Only for "existing" mode - multiple stations
         copyDetails: boolean
-        copyTreatmentTypeRelations: boolean
+        copyBreedRelations: boolean
     }) => Promise<void>
     isDuplicating?: boolean
 }
@@ -259,7 +259,7 @@ export function DuplicateStationDialog({
     const [duplicateStationName, setDuplicateStationName] = useState("")
     const [targetStationIds, setTargetStationIds] = useState<string[]>([])
     const [copyDetails, setCopyDetails] = useState(true)
-    const [copyTreatmentTypeRelations, setCopyTreatmentTypeRelations] = useState(true)
+    const [copyBreedRelations, setCopyBreedRelations] = useState(true)
 
     // Filter out the station being duplicated from the list
     const availableStations = stations.filter(s => s.id !== station?.id).map(s => ({ id: s.id, name: s.name }))
@@ -270,7 +270,7 @@ export function DuplicateStationDialog({
             setMode("new")
             setTargetStationIds([])
             setCopyDetails(true)
-            setCopyTreatmentTypeRelations(true)
+            setCopyBreedRelations(true)
         }
     }, [open, station])
 
@@ -279,7 +279,7 @@ export function DuplicateStationDialog({
             setDuplicateStationName("")
             setTargetStationIds([])
             setCopyDetails(true)
-            setCopyTreatmentTypeRelations(true)
+            setCopyBreedRelations(true)
             setMode("new")
             onOpenChange(false)
         }
@@ -298,13 +298,13 @@ export function DuplicateStationDialog({
             name: mode === "new" ? duplicateStationName.trim() : undefined,
             targetStationIds: mode === "existing" ? targetStationIds : undefined,
             copyDetails,
-            copyTreatmentTypeRelations,
+            copyBreedRelations,
         })
         
         setDuplicateStationName("")
         setTargetStationIds([])
         setCopyDetails(true)
-        setCopyTreatmentTypeRelations(true)
+        setCopyBreedRelations(true)
         setMode("new")
     }
 
@@ -386,26 +386,26 @@ export function DuplicateStationDialog({
                             </div>
                             <div className="flex items-center space-x-2 space-x-reverse">
                                 <Checkbox
-                                    id="copy-treatmentType-relations"
-                                    checked={copyTreatmentTypeRelations}
-                                    onCheckedChange={(checked) => setCopyTreatmentTypeRelations(checked === true)}
+                                    id="copy-breed-relations"
+                                    checked={copyBreedRelations}
+                                    onCheckedChange={(checked) => setCopyBreedRelations(checked === true)}
                                 />
-                                <Label htmlFor="copy-treatmentType-relations" className="cursor-pointer text-sm">
+                                <Label htmlFor="copy-breed-relations" className="cursor-pointer text-sm">
                                     העתק גם קשרים עם גזעים
                                 </Label>
                             </div>
                         </div>
                     )}
 
-                    {/* TreatmentType Relations Checkbox (only for "new" mode) */}
+                    {/* Breed Relations Checkbox (only for "new" mode) */}
                     {mode === "new" && (
                         <div className="flex items-center space-x-2 space-x-reverse">
                             <Checkbox
-                                id="duplicate-treatmentType-relations"
-                                checked={copyTreatmentTypeRelations}
-                                onCheckedChange={(checked) => setCopyTreatmentTypeRelations(checked === true)}
+                                id="duplicate-breed-relations"
+                                checked={copyBreedRelations}
+                                onCheckedChange={(checked) => setCopyBreedRelations(checked === true)}
                             />
-                            <Label htmlFor="duplicate-treatmentType-relations" className="cursor-pointer text-sm">
+                            <Label htmlFor="duplicate-breed-relations" className="cursor-pointer text-sm">
                                 אני רוצה לשכפל גם את הקשרים עם הגזעים
                             </Label>
                         </div>

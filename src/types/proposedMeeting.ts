@@ -27,7 +27,7 @@ export interface ProposedMeetingPublicDetails {
   categories: ProposedMeetingPublicCategory[]
   rescheduleAppointmentId?: string | null
   rescheduleCustomerId?: string | null
-  rescheduleTreatmentId?: string | null
+  rescheduleDogId?: string | null
   rescheduleOriginalStartAt?: string | null
   rescheduleOriginalEndAt?: string | null
 }

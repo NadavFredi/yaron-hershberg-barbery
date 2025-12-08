@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom"
 import { addDays, endOfDay, format, startOfDay, subDays } from "date-fns"
 import { Loader2, RefreshCw, Search, MoreHorizontal, CalendarClock, CheckCircle2, XCircle, Calendar as CalendarIcon } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
-import type { ManagerAppointment, ManagerTreatment } from "@/types/managerSchedule"
+import type { ManagerAppointment, ManagerDog } from "./ManagerSchedule/types"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import type { DateRange } from "react-day-picker"
@@ -27,7 +27,13 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { AppointmentDetailsSheet, ClientDetailsSheet, TreatmentDetailsSheet } from "@/pages/ManagerSchedule/sheets"
+import { AppointmentDetailsSheet, ClientDetailsSheet, DogDetailsSheet } from "@/pages/ManagerSchedule/sheets"
+import { useAppDispatch } from "@/store/hooks"
+import { setSelectedClient, setIsClientDetailsOpen, setSelectedDog, setIsDogDetailsOpen, type ClientDetails, type DogDetails } from "@/store/slices/managerScheduleSlice"
+import { SettingsStationsPerDaySection } from "@/components/settings/SettingsStationsPerDaySection/SettingsStationsPerDaySection"
+import { useStations } from "@/hooks/useStations"
+import { MultiSelectDropdown } from "@/components/settings/SettingsBreedStationMatrixSection/components/MultiSelectDropdown"
+import { formatDurationFromMinutes } from "@/lib/duration-utils"
 
 type AppointmentStatus = "pending" | "approved" | "cancelled" | "matched"
 type ServiceFilter = "all" | "grooming" | "garden"
@@ -41,15 +47,15 @@ type EnrichedAppointment = ManagerAppointment & {
 type ClientDetailsSheetProps = ComponentProps<typeof ClientDetailsSheet>
 type ClientDetailsPayload = ClientDetailsSheetProps["selectedClient"]
 
-type TreatmentDetailsSheetProps = ComponentProps<typeof TreatmentDetailsSheet>
-type TreatmentDetailsPayload = TreatmentDetailsSheetProps["selectedTreatment"]
+type DogDetailsSheetProps = ComponentProps<typeof DogDetailsSheet>
+type DogDetailsPayload = DogDetailsSheetProps["selectedDog"]
 
 interface OptionItem {
     id: string
     name: string
 }
 
-type CategorizedTreatment = ManagerTreatment & {
+type CategorizedDog = ManagerDog & {
     category1Ids?: string[]
     category1Names?: string[]
     category2Ids?: string[]
@@ -57,17 +63,17 @@ type CategorizedTreatment = ManagerTreatment & {
     customerTypeName?: string
 }
 
-interface RawTreatmentTypeRecord {
+interface RawBreedRecord {
     id?: string
     name?: string | null
 }
 
-interface RawTreatmentRecord {
+interface RawDogRecord {
     id: string
     name?: string | null
     customer_id?: string | null
-    treatment_type_id?: string | null
-    treatmentTypes?: RawTreatmentTypeRecord | RawTreatmentTypeRecord[] | null
+    breed_id?: string | null
+    breeds?: RawBreedRecord | RawBreedRecord[] | null
 }
 
 interface RawCustomerRecord {
@@ -105,7 +111,7 @@ interface GroomingAppointmentRow {
     internal_notes?: string | null
     station_id?: string | null
     customer_id: string
-    treatments?: RawTreatmentRecord | RawTreatmentRecord[] | null
+    dogs?: RawDogRecord | RawDogRecord[] | null
     customers?: RawCustomerRecord | RawCustomerRecord[] | null
     stations?: RawStationRecord | RawStationRecord[] | null
     services?: RawServiceRecord | RawServiceRecord[] | null
@@ -128,19 +134,14 @@ interface DaycareAppointmentRow {
     garden_bath?: boolean | null
     station_id?: string | null
     customer_id: string
-    treatments?: RawTreatmentRecord | RawTreatmentRecord[] | null
+    dogs?: RawDogRecord | RawDogRecord[] | null
     customers?: RawCustomerRecord | RawCustomerRecord[] | null
     stations?: RawStationRecord | RawStationRecord[] | null
 }
 
-interface TreatmentTypeTreatmentTypeRow {
-    treatment_type_id: string
-    treatment_type?: { id?: string | null; name?: string | null } | null
-}
-
-interface TreatmentTypeTreatmentCategoryRow {
-    treatment_type_id: string
-    treatment_category?: { id?: string | null; name?: string | null } | null
+interface BreedDogCategoryRow {
+    breed_id: string
+    dog_category?: { id?: string | null; name?: string | null } | null
 }
 
 const getFirst = <T,>(value: T | T[] | null | undefined): T | null => {
@@ -204,8 +205,16 @@ const formatDate = (value?: string, pattern = "dd/MM/yyyy HH:mm") => {
 }
 
 export default function AppointmentsSection() {
+    const dispatch = useAppDispatch()
     const { toast } = useToast()
     const [searchParams] = useSearchParams()
+    const modeParam = searchParams.get("mode")
+    
+    // Handle stations-per-day mode
+    if (modeParam === "stations-per-day") {
+        return <SettingsStationsPerDaySection />
+    }
+    
     const [appointments, setAppointments] = useState<EnrichedAppointment[]>([])
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [error, setError] = useState<string | null>(null)
@@ -224,18 +233,17 @@ export default function AppointmentsSection() {
     const [rowActionLoading, setRowActionLoading] = useState<string | null>(null)
     const [selectedAppointment, setSelectedAppointment] = useState<EnrichedAppointment | null>(null)
     const [customerTypes, setCustomerTypes] = useState<OptionItem[]>([])
-    const [treatmentCategory1Options, setTreatmentCategory1Options] = useState<OptionItem[]>([])
-    const [treatmentCategory2Options, setTreatmentCategory2Options] = useState<OptionItem[]>([])
+    const [dogCategory1Options, setDogCategory1Options] = useState<OptionItem[]>([])
+    const [dogCategory2Options, setDogCategory2Options] = useState<OptionItem[]>([])
     const [customerCategoryFilter, setCustomerCategoryFilter] = useState<string>("all")
-    const [treatmentCategory1Filter, setTreatmentCategory1Filter] = useState<string>("all")
-    const [treatmentCategory2Filter, setTreatmentCategory2Filter] = useState<string>("all")
+    const [dogCategory1Filter, setDogCategory1Filter] = useState<string>("all")
+    const [dogCategory2Filter, setDogCategory2Filter] = useState<string>("all")
+    const [selectedStationIds, setSelectedStationIds] = useState<string[]>([])
     const [isAppointmentSheetOpen, setIsAppointmentSheetOpen] = useState(false)
-    const [isClientSheetOpen, setIsClientSheetOpen] = useState(false)
-    const [isTreatmentSheetOpen, setIsTreatmentSheetOpen] = useState(false)
-    const [selectedClient, setSelectedClient] = useState<ClientDetailsPayload>(null)
-    const [selectedTreatment, setSelectedTreatment] = useState<TreatmentDetailsPayload>(null)
-    const [showAllTreatmentAppointments, setShowAllTreatmentAppointments] = useState(false)
+    const [showAllDogAppointments, setShowAllDogAppointments] = useState(false)
     const appliedModeRef = useRef<string | null>(null)
+    
+    const { data: stations = [], isLoading: isLoadingStations } = useStations()
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -276,20 +284,19 @@ export default function AppointmentsSection() {
 
     const fetchFilterOptions = useCallback(async () => {
         try {
-            const [{ data: customerTypeData, error: customerTypeError }, { data: treatmentTypeData, error: treatmentTypeError }, { data: treatmentCategoryData, error: treatmentCategoryError }] =
+            const [{ data: customerTypeData, error: customerTypeError }, { data: dogCategoryData, error: dogCategoryError }] =
                 await Promise.all([
                     supabase.from("customer_types").select("id, name").order("priority", { ascending: true }),
-                    supabase.from("treatment_types").select("id, name").order("name"),
-                    supabase.from("treatment_categories").select("id, name").order("name"),
+                    supabase.from("dog_categories").select("id, name").order("name"),
                 ])
 
-            if (customerTypeError || treatmentTypeError || treatmentCategoryError) {
-                throw customerTypeError || treatmentTypeError || treatmentCategoryError
+            if (customerTypeError || dogCategoryError) {
+                throw customerTypeError || dogCategoryError
             }
 
             setCustomerTypes(customerTypeData || [])
-            setTreatmentCategory1Options(treatmentTypeData || [])
-            setTreatmentCategory2Options(treatmentCategoryData || [])
+            setDogCategory1Options([]) // dog_types was consolidated into dog_categories
+            setDogCategory2Options(dogCategoryData || [])
         } catch (fetchError) {
             console.error("Failed to fetch filter options:", fetchError)
             toast({
@@ -330,18 +337,14 @@ export default function AppointmentsSection() {
                         internal_notes,
                         station_id,
                         customer_id,
-                        treatments (
+                        dogs (
                             id,
                             name,
                             customer_id,
-                            treatment_type_id,
-                            treatmentTypes:treatment_types (
+                            breed_id,
+                            breeds (
                                 id,
-                                name,
-                                size_class:default_duration_minutes,
-                                min_groom_price:default_price,
-                                max_groom_price:default_price,
-                                color_hex
+                                name
                             )
                         ),
                         customers (
@@ -407,18 +410,14 @@ export default function AppointmentsSection() {
                         garden_bath,
                         station_id,
                         customer_id,
-                        treatments (
+                        dogs (
                             id,
                             name,
                             customer_id,
-                            treatment_type_id,
-                            treatmentTypes:treatment_types (
+                            breed_id,
+                            breeds (
                                 id,
-                                name,
-                                size_class:default_duration_minutes,
-                                min_groom_price:default_price,
-                                max_groom_price:default_price,
-                                color_hex
+                                name
                             )
                         ),
                         customers (
@@ -460,111 +459,86 @@ export default function AppointmentsSection() {
 
             const [groomingData, daycareData] = await Promise.all([groomingPromise(), daycarePromise()])
 
-            const treatmentTypeIdSet = new Set<string>()
-            const collectTreatmentTypeIds = (rows: Array<{ treatments?: RawTreatmentRecord | RawTreatmentRecord[] | null }>) => {
+            const breedIdSet = new Set<string>()
+            const collectBreedIds = (rows: Array<{ dogs?: RawDogRecord | RawDogRecord[] | null }>) => {
                 rows.forEach((row) => {
-                    const treatment = getFirst<RawTreatmentRecord>(row.treatments)
-                    const treatmentType = getFirst<RawTreatmentTypeRecord>(treatment?.treatmentTypes)
-                    const treatmentTypeId = treatment?.treatment_type_id ?? treatmentType?.id
-                    if (treatmentTypeId) {
-                        treatmentTypeIdSet.add(treatmentTypeId)
+                    const dog = getFirst<RawDogRecord>(row.dogs)
+                    const breed = getFirst<RawBreedRecord>(dog?.breeds)
+                    const breedId = dog?.breed_id ?? breed?.id
+                    if (breedId) {
+                        breedIdSet.add(breedId)
                     }
                 })
             }
 
-            collectTreatmentTypeIds(groomingData)
-            collectTreatmentTypeIds(daycareData)
+            collectBreedIds(groomingData)
+            collectBreedIds(daycareData)
 
-            const treatmentTypeIdList = Array.from(treatmentTypeIdSet)
-            const typesByTreatmentType = new Map<string, OptionItem[]>()
-            const categoriesByTreatmentType = new Map<string, OptionItem[]>()
+            const breedIdList = Array.from(breedIdSet)
+            const typesByBreed = new Map<string, OptionItem[]>()
+            const categoriesByBreed = new Map<string, OptionItem[]>()
 
-            if (treatmentTypeIdList.length > 0) {
-                const [{ data: typesData, error: typesError }, { data: categoriesData, error: categoriesError }] = await Promise.all([
-                    supabase
-                        .from("treatmentType_treatment_types")
-                        .select(
-                            `
-                            treatment_type_id,
-                            treatment_type:treatment_types (
-                                id,
-                                name
-                            )
+            if (breedIdList.length > 0) {
+                const { data: categoriesData, error: categoriesError } = await supabase
+                    .from("breed_dog_categories")
+                    .select(
                         `
+                        breed_id,
+                        dog_category:dog_categories (
+                            id,
+                            name
                         )
-                        .in("treatment_type_id", treatmentTypeIdList),
-                    supabase
-                        .from("treatmentType_treatment_categories")
-                        .select(
-                            `
-                            treatment_type_id,
-                            treatment_category:treatment_categories (
-                                id,
-                                name
-                            )
-                        `
-                        )
-                        .in("treatment_type_id", treatmentTypeIdList),
-                ])
+                    `
+                    )
+                    .in("breed_id", breedIdList)
 
-                if (typesError || categoriesError) {
-                    console.error("Failed to fetch treatmentType categories", { typesError, categoriesError })
+                if (categoriesError) {
+                    console.error("Failed to fetch breed categories", { categoriesError })
                 } else {
-                    const typedTypesData = (typesData ?? []) as TreatmentTypeTreatmentTypeRow[]
-                    typedTypesData.forEach((row) => {
-                        if (!row?.treatment_type_id) return
-                        const normalizedType = normalizeOption(row.treatment_type)
-                        if (!normalizedType) return
-                        if (!typesByTreatmentType.has(row.treatment_type_id)) {
-                            typesByTreatmentType.set(row.treatment_type_id, [])
-                        }
-                        typesByTreatmentType.get(row.treatment_type_id)!.push(normalizedType)
-                    })
-
-                    const typedCategoriesData = (categoriesData ?? []) as TreatmentTypeTreatmentCategoryRow[]
+                    const typedCategoriesData = (categoriesData ?? []) as BreedDogCategoryRow[]
                     typedCategoriesData.forEach((row) => {
-                        if (!row?.treatment_type_id) return
-                        const normalizedCategory = normalizeOption(row.treatment_category)
+                        if (!row?.breed_id) return
+                        const normalizedCategory = normalizeOption(row.dog_category)
                         if (!normalizedCategory) return
-                        if (!categoriesByTreatmentType.has(row.treatment_type_id)) {
-                            categoriesByTreatmentType.set(row.treatment_type_id, [])
+                        if (!categoriesByBreed.has(row.breed_id)) {
+                            categoriesByBreed.set(row.breed_id, [])
                         }
-                        categoriesByTreatmentType.get(row.treatment_type_id)!.push(normalizedCategory)
+                        categoriesByBreed.get(row.breed_id)!.push(normalizedCategory)
                     })
                 }
             }
 
-            const enhanceTreatment = (treatmentRecord: RawTreatmentRecord | null, customerRecord: RawCustomerRecord | null) => {
-                if (!treatmentRecord) return null
-                const treatmentType = getFirst<RawTreatmentTypeRecord>(treatmentRecord.treatmentTypes)
-                const treatmentTypeId = treatmentRecord.treatment_type_id ?? treatmentType?.id
-                const typeEntries = treatmentTypeId ? typesByTreatmentType.get(treatmentTypeId) ?? [] : []
-                const categoryEntries = treatmentTypeId ? categoriesByTreatmentType.get(treatmentTypeId) ?? [] : []
+            const enhanceDog = (dogRecord: RawDogRecord | null, customerRecord: RawCustomerRecord | null) => {
+                if (!dogRecord) return null
+                const breed = getFirst<RawBreedRecord>(dogRecord.breeds)
+                const breedId = dogRecord.breed_id ?? breed?.id
+                const typeEntries = breedId ? typesByBreed.get(breedId) ?? [] : []
+                const categoryEntries = breedId ? categoriesByBreed.get(breedId) ?? [] : []
 
-                const managerTreatment: CategorizedTreatment = {
-                    id: treatmentRecord.id,
-                    name: treatmentRecord.name || "",
-                    ownerId: treatmentRecord.customer_id || undefined,
-                    treatmentType: treatmentType?.name ?? undefined,
+                const managerDog: CategorizedDog = {
+                    id: dogRecord.id,
+                    name: dogRecord.name || "",
+                    ownerId: dogRecord.customer_id || undefined,
+                    breed: breed?.name ?? undefined,
                     clientClassification: customerRecord?.classification || undefined,
                     clientName: customerRecord?.full_name || undefined,
                 }
 
-                managerTreatment.category1Ids = typeEntries.map((item) => item.id)
-                managerTreatment.category1Names = typeEntries.map((item) => item.name)
-                managerTreatment.category2Ids = categoryEntries.map((item) => item.id)
-                managerTreatment.category2Names = categoryEntries.map((item) => item.name)
-                managerTreatment.customerTypeName = customerRecord?.customer_type?.name ?? undefined
+                managerDog.category1Ids = typeEntries.map((item) => item.id)
+                managerDog.category1Names = typeEntries.map((item) => item.name)
+                managerDog.category2Ids = categoryEntries.map((item) => item.id)
+                managerDog.category2Names = categoryEntries.map((item) => item.name)
+                managerDog.customerTypeName = customerRecord?.customer_type?.name ?? undefined
 
-                return managerTreatment
+                return managerDog
             }
 
             const mappedGrooming: EnrichedAppointment[] = groomingData.map((apt) => {
-                const treatment = getFirst<RawTreatmentRecord>(apt.treatments)
+                const dog = getFirst<RawDogRecord>(apt.dogs)
                 const customer = getFirst<RawCustomerRecord>(apt.customers)
                 const station = getFirst<RawStationRecord>(apt.stations)
                 const service = getFirst<RawServiceRecord>(apt.services)
-                const managerTreatment = enhanceTreatment(treatment, customer)
+                const managerDog = enhanceDog(dog, customer)
 
                 return {
                     id: apt.id,
@@ -580,7 +554,7 @@ export default function AppointmentsSection() {
                     internalNotes: apt.internal_notes || undefined,
                     appointmentType: apt.appointment_kind === "personal" ? "private" : "business",
                     price: apt.amount_due ? Number(apt.amount_due) : undefined,
-                    treatments: managerTreatment ? [managerTreatment] : [],
+                    dogs: managerDog ? [managerDog] : [],
                     clientId: apt.customer_id,
                     clientName: customer?.full_name || undefined,
                     clientClassification: customer?.classification || undefined,
@@ -593,10 +567,10 @@ export default function AppointmentsSection() {
             })
 
             const mappedDaycare: EnrichedAppointment[] = daycareData.map((apt) => {
-                const treatment = getFirst<RawTreatmentRecord>(apt.treatments)
+                const dog = getFirst<RawDogRecord>(apt.dogs)
                 const customer = getFirst<RawCustomerRecord>(apt.customers)
                 const station = getFirst<RawStationRecord>(apt.stations)
-                const managerTreatment = enhanceTreatment(treatment, customer)
+                const managerDog = enhanceDog(dog, customer)
 
                 const serviceLabel = (() => {
                     switch (apt.service_type) {
@@ -614,7 +588,7 @@ export default function AppointmentsSection() {
                     sourceTable: "daycare_appointments",
                     serviceType: "garden",
                     stationId: apt.station_id || station?.id || "garden",
-                    stationName: station?.name || "חלל המספרה",
+                    stationName: station?.name || "גן הכלבים",
                     startDateTime: apt.start_at,
                     endDateTime: apt.end_at,
                     status: apt.status || "pending",
@@ -630,7 +604,7 @@ export default function AppointmentsSection() {
                     gardenTrimNails: apt.garden_trim_nails ?? undefined,
                     gardenBrush: apt.garden_brush ?? undefined,
                     gardenBath: apt.garden_bath ?? undefined,
-                    treatments: managerTreatment ? [managerTreatment] : [],
+                    dogs: managerDog ? [managerDog] : [],
                     clientId: apt.customer_id,
                     clientName: customer?.full_name || undefined,
                     clientClassification: customer?.classification || undefined,
@@ -676,21 +650,27 @@ export default function AppointmentsSection() {
                 }
             }
 
-            const matchesTreatmentCategory = (selectedId: string, key: "category1Ids" | "category2Ids") => {
+            const matchesDogCategory = (selectedId: string, key: "category1Ids" | "category2Ids") => {
                 if (selectedId === "all") return true
-                return appointment.treatments?.some((treatment) => {
-                    const typedTreatment = treatment as CategorizedTreatment
-                    const ids = key === "category1Ids" ? typedTreatment.category1Ids : typedTreatment.category2Ids
+                return appointment.dogs?.some((dog) => {
+                    const typedDog = dog as CategorizedDog
+                    const ids = key === "category1Ids" ? typedDog.category1Ids : typedDog.category2Ids
                     return Array.isArray(ids) && ids.includes(selectedId)
                 })
             }
 
-            if (treatmentCategory1Filter !== "all" && !matchesTreatmentCategory(treatmentCategory1Filter, "category1Ids")) {
+            if (dogCategory1Filter !== "all" && !matchesDogCategory(dogCategory1Filter, "category1Ids")) {
                 return false
             }
 
-            if (treatmentCategory2Filter !== "all" && !matchesTreatmentCategory(treatmentCategory2Filter, "category2Ids")) {
+            if (dogCategory2Filter !== "all" && !matchesDogCategory(dogCategory2Filter, "category2Ids")) {
                 return false
+            }
+
+            if (selectedStationIds.length > 0) {
+                if (!appointment.stationId || !selectedStationIds.includes(appointment.stationId)) {
+                    return false
+                }
             }
 
             if (!normalized) {
@@ -704,8 +684,8 @@ export default function AppointmentsSection() {
                 appointment.stationName,
                 appointment.notes,
                 appointment.internalNotes,
-                appointment.treatments?.[0]?.name,
-                appointment.treatments?.[0]?.treatmentType,
+                appointment.dogs?.[0]?.name,
+                appointment.dogs?.[0]?.breed,
             ]
                 .filter(Boolean)
                 .join(" ")
@@ -713,7 +693,7 @@ export default function AppointmentsSection() {
 
             return haystack.includes(normalized)
         })
-    }, [appointments, searchTerm, showOnlyFuture, customerCategoryFilter, treatmentCategory1Filter, treatmentCategory2Filter])
+    }, [appointments, searchTerm, showOnlyFuture, customerCategoryFilter, dogCategory1Filter, dogCategory2Filter, selectedStationIds])
 
     const stats = useMemo(() => {
         return filteredAppointments.reduce(
@@ -722,17 +702,46 @@ export default function AppointmentsSection() {
                 if (appointment.status in acc.byStatus) {
                     acc.byStatus[appointment.status as AppointmentStatus] += 1
                 }
-                if (appointment.serviceType === "grooming") {
-                    acc.grooming += 1
-                } else {
-                    acc.garden += 1
+                
+                // Calculate duration in minutes
+                let durationMinutes = 0
+                try {
+                    const start = new Date(appointment.startDateTime)
+                    const end = new Date(appointment.endDateTime)
+                    if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end > start) {
+                        durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000)
+                    }
+                } catch (e) {
+                    // Ignore invalid dates
                 }
+                
+                // Calculate payment
+                const payment = appointment.price != null && appointment.price > 0 ? appointment.price : 0
+                
+                if (appointment.serviceType === "grooming") {
+                    acc.grooming.count += 1
+                    acc.grooming.payments += payment
+                    acc.grooming.durationMinutes += durationMinutes
+                } else {
+                    acc.garden.count += 1
+                    acc.garden.payments += payment
+                    acc.garden.durationMinutes += durationMinutes
+                }
+                
                 return acc
             },
             {
                 total: 0,
-                grooming: 0,
-                garden: 0,
+                grooming: {
+                    count: 0,
+                    payments: 0,
+                    durationMinutes: 0,
+                },
+                garden: {
+                    count: 0,
+                    payments: 0,
+                    durationMinutes: 0,
+                },
                 byStatus: {
                     pending: 0,
                     approved: 0,
@@ -789,49 +798,56 @@ export default function AppointmentsSection() {
         })
         setShowOnlyFuture(true)
         setCustomerCategoryFilter("all")
-        setTreatmentCategory1Filter("all")
-        setTreatmentCategory2Filter("all")
+        setDogCategory1Filter("all")
+        setDogCategory2Filter("all")
+        setSelectedStationIds([])
     }
 
-    const buildClientDetailsFromAppointment = (appointment: EnrichedAppointment): ClientDetailsPayload => ({
+    const buildClientDetailsFromAppointment = (appointment: EnrichedAppointment): ClientDetails => ({
         name: appointment.clientName || "ללא שם",
         classification: appointment.clientClassification || undefined,
         customerTypeName: appointment.clientCustomerTypeName || undefined,
         phone: appointment.clientPhone || undefined,
         email: appointment.clientEmail || undefined,
+        clientId: appointment.clientId,
+        recordId: appointment.clientId,
     })
 
-    const openClientSheet = (client: ClientDetailsPayload) => {
-        setSelectedClient(client)
-        setIsClientSheetOpen(true)
+    const openClientSheet = (client: ClientDetails) => {
+        dispatch(setSelectedClient(client))
+        dispatch(setIsClientDetailsOpen(true))
     }
 
-    const buildTreatmentDetailsPayload = (treatment: ManagerTreatment, appointment?: EnrichedAppointment): TreatmentDetailsPayload => {
-        const typedTreatment = treatment as CategorizedTreatment
-        const ownerName = appointment?.clientName || typedTreatment.clientName || ""
+    const buildDogDetailsPayload = (dog: ManagerDog, appointment?: EnrichedAppointment): DogDetails => {
+        const typedDog = dog as CategorizedDog
+        const ownerName = appointment?.clientName || typedDog.clientName || ""
+        const clientId = appointment?.clientId || typedDog.ownerId
         return {
-            id: typedTreatment.id,
-            name: typedTreatment.name || "לקוח ללא שם",
-            treatmentType: typedTreatment.treatmentType,
-            clientClassification: typedTreatment.clientClassification || appointment?.clientClassification,
+            id: typedDog.id,
+            name: typedDog.name || "כלב ללא שם",
+            breed: typedDog.breed,
+            clientClassification: typedDog.clientClassification || appointment?.clientClassification,
             owner: ownerName
                 ? {
                       name: ownerName,
-                      classification: appointment?.clientClassification || typedTreatment.clientClassification,
-                      customerTypeName: appointment?.clientCustomerTypeName || typedTreatment.customerTypeName,
+                      classification: appointment?.clientClassification || typedDog.clientClassification,
+                      customerTypeName: appointment?.clientCustomerTypeName || typedDog.customerTypeName,
                       phone: appointment?.clientPhone,
                       email: appointment?.clientEmail,
+                      clientId: clientId,
+                      recordId: clientId, // Also set recordId for compatibility
                   }
                 : undefined,
             notes: appointment?.notes,
             internalNotes: appointment?.internalNotes,
+            customer_id: clientId,
         }
     }
 
-    const openTreatmentSheet = (treatment: ManagerTreatment, appointment?: EnrichedAppointment) => {
-        const payload = buildTreatmentDetailsPayload(treatment, appointment)
-        setSelectedTreatment(payload)
-        setIsTreatmentSheetOpen(true)
+    const openDogSheet = (dog: ManagerDog, appointment?: EnrichedAppointment) => {
+        const payload = buildDogDetailsPayload(dog, appointment)
+        dispatch(setSelectedDog(payload))
+        dispatch(setIsDogDetailsOpen(true))
     }
 
     const openAppointmentSheet = (appointment: EnrichedAppointment) => {
@@ -844,19 +860,19 @@ export default function AppointmentsSection() {
         openClientSheet(buildClientDetailsFromAppointment(appointment))
     }
 
-    const handleTreatmentCellClick = (event: MouseEvent<HTMLButtonElement>, appointment: EnrichedAppointment) => {
+    const handleDogCellClick = (event: MouseEvent<HTMLButtonElement>, appointment: EnrichedAppointment) => {
         event.stopPropagation()
-        const treatment = appointment.treatments?.[0]
-        if (treatment) {
-            openTreatmentSheet(treatment as ManagerTreatment, appointment)
+        const dog = appointment.dogs?.[0]
+        if (dog) {
+            openDogSheet(dog as ManagerDog, appointment)
         }
     }
 
-    const handleAppointmentTreatmentClick = (treatment: ManagerTreatment) => {
+    const handleAppointmentDogClick = (dog: ManagerDog) => {
         if (selectedAppointment) {
-            openTreatmentSheet(treatment, selectedAppointment)
+            openDogSheet(dog, selectedAppointment)
         } else {
-            openTreatmentSheet(treatment)
+            openDogSheet(dog)
         }
     }
 
@@ -873,23 +889,101 @@ export default function AppointmentsSection() {
         }
     }
 
-    const handleTreatmentSheetAppointmentClick = (appointment: ManagerAppointment) => {
+    const handleDogSheetAppointmentClick = (appointment: ManagerAppointment) => {
         const fullAppointment = appointments.find((item) => item.id === appointment.id)
         if (fullAppointment) {
             openAppointmentSheet(fullAppointment)
         }
     }
 
-    const handleShowTreatmentAppointments = (treatmentId: string, treatmentName: string) => {
-        setIsTreatmentSheetOpen(false)
-        setSearchTerm(treatmentName)
+    const handleShowDogAppointments = (dogId: string, dogName: string) => {
+        setIsDogSheetOpen(false)
+        setSearchTerm(dogName)
         toast({
-            title: "סינון לפי לקוח",
-            description: `מציג נתונים עבור ${treatmentName}`,
+            title: "סינון לפי כלב",
+            description: `מציג נתונים עבור ${dogName}`,
         })
     }
 
-    const statCards = [
+    const groomingCards = [
+        {
+            id: "grooming-count",
+            label: "מספרה - כמות",
+            value: stats.grooming.count,
+            accent: "text-blue-600",
+            border: "border-blue-300",
+            hoverBg: "hover:bg-blue-50",
+            activeContainer: "bg-blue-500 border-blue-500 shadow-lg",
+            activeText: "text-white",
+            isActive: serviceFilter === "grooming",
+            onClick: () => handleToggleServiceCard("grooming"),
+        },
+        {
+            id: "grooming-hours",
+            label: "מספרה - שעות",
+            value: formatDurationFromMinutes(stats.grooming.durationMinutes),
+            accent: "text-blue-600",
+            border: "border-blue-300",
+            hoverBg: "hover:bg-blue-50",
+            activeContainer: "bg-blue-500 border-blue-500 shadow-lg",
+            activeText: "text-white",
+            isActive: false,
+            onClick: () => {},
+        },
+        {
+            id: "grooming-payments",
+            label: "מספרה - תשלומים",
+            value: `₪${stats.grooming.payments.toLocaleString("he-IL")}`,
+            accent: "text-blue-600",
+            border: "border-blue-300",
+            hoverBg: "hover:bg-blue-50",
+            activeContainer: "bg-blue-500 border-blue-500 shadow-lg",
+            activeText: "text-white",
+            isActive: false,
+            onClick: () => {},
+        },
+    ]
+
+    const gardenCards = [
+        {
+            id: "garden-count",
+            label: "גן - כמות",
+            value: stats.garden.count,
+            accent: "text-emerald-600",
+            border: "border-emerald-300",
+            hoverBg: "hover:bg-emerald-50",
+            activeContainer: "bg-emerald-500 border-emerald-500 shadow-lg",
+            activeText: "text-white",
+            isActive: serviceFilter === "garden",
+            onClick: () => handleToggleServiceCard("garden"),
+        },
+        {
+            id: "garden-hours",
+            label: "גן - שעות",
+            value: formatDurationFromMinutes(stats.garden.durationMinutes),
+            accent: "text-emerald-600",
+            border: "border-emerald-300",
+            hoverBg: "hover:bg-emerald-50",
+            activeContainer: "bg-emerald-500 border-emerald-500 shadow-lg",
+            activeText: "text-white",
+            isActive: false,
+            onClick: () => {},
+        },
+        {
+            id: "garden-payments",
+            label: "גן - תשלומים",
+            value: `₪${stats.garden.payments.toLocaleString("he-IL")}`,
+            accent: "text-emerald-600",
+            border: "border-emerald-300",
+            hoverBg: "hover:bg-emerald-50",
+            activeContainer: "bg-emerald-500 border-emerald-500 shadow-lg",
+            activeText: "text-white",
+            isActive: false,
+            onClick: () => {},
+        },
+    ]
+
+    const statusCards = [
         {
             id: "pending",
             label: "ממתינים",
@@ -903,28 +997,40 @@ export default function AppointmentsSection() {
             onClick: () => handleToggleStatusCard("pending"),
         },
         {
-            id: "garden",
-            label: "גן",
-            value: stats.garden,
+            id: "approved",
+            label: "מאושרים",
+            value: stats.byStatus.approved,
             accent: "text-emerald-600",
             border: "border-emerald-300",
             hoverBg: "hover:bg-emerald-50",
             activeContainer: "bg-emerald-500 border-emerald-500 shadow-lg",
             activeText: "text-white",
-            isActive: serviceFilter === "garden",
-            onClick: () => handleToggleServiceCard("garden"),
+            isActive: statusFilter === "approved",
+            onClick: () => handleToggleStatusCard("approved"),
         },
         {
-            id: "grooming",
-            label: "מספרה",
-            value: stats.grooming,
-            accent: "text-blue-600",
-            border: "border-blue-300",
-            hoverBg: "hover:bg-blue-50",
-            activeContainer: "bg-blue-500 border-blue-500 shadow-lg",
+            id: "matched",
+            label: "משובצים",
+            value: stats.byStatus.matched,
+            accent: "text-indigo-600",
+            border: "border-indigo-300",
+            hoverBg: "hover:bg-indigo-50",
+            activeContainer: "bg-indigo-500 border-indigo-500 shadow-lg",
             activeText: "text-white",
-            isActive: serviceFilter === "grooming",
-            onClick: () => handleToggleServiceCard("grooming"),
+            isActive: statusFilter === "matched",
+            onClick: () => handleToggleStatusCard("matched"),
+        },
+        {
+            id: "cancelled",
+            label: "בוטלו",
+            value: stats.byStatus.cancelled,
+            accent: "text-rose-600",
+            border: "border-rose-300",
+            hoverBg: "hover:bg-rose-50",
+            activeContainer: "bg-rose-500 border-rose-500 shadow-lg",
+            activeText: "text-white",
+            isActive: statusFilter === "cancelled",
+            onClick: () => handleToggleStatusCard("cancelled"),
         },
         {
             id: "total",
@@ -1094,7 +1200,7 @@ export default function AppointmentsSection() {
                                         id="search"
                                         value={searchTerm}
                                         onChange={(event) => setSearchTerm(event.target.value)}
-                                        placeholder="חיפוש לפי שם לקוח, שירות, תחנה או הערות"
+                                        placeholder="חיפוש לפי שם כלב, לקוח, תחנה או הערות"
                                         className="pl-10"
                                     />
                                 </div>
@@ -1115,7 +1221,7 @@ export default function AppointmentsSection() {
                             </div>
                         </div>
 
-                        <div className="grid gap-4 md:grid-cols-3">
+                        <div className="grid gap-4 md:grid-cols-4">
                             <div className="space-y-2">
                                 <Label htmlFor="customer-category">קטגוריית לקוח</Label>
                                 <Select
@@ -1136,14 +1242,14 @@ export default function AppointmentsSection() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="treatment-cat1">קטגוריית לקוח 1</Label>
-                                <Select value={treatmentCategory1Filter} onValueChange={setTreatmentCategory1Filter}>
-                                    <SelectTrigger id="treatment-cat1">
+                                <Label htmlFor="dog-cat1">קטגוריית כלב 1</Label>
+                                <Select value={dogCategory1Filter} onValueChange={setDogCategory1Filter}>
+                                    <SelectTrigger id="dog-cat1">
                                         <SelectValue placeholder="כל הקטגוריות" />
                                     </SelectTrigger>
                                     <SelectContent dir="rtl">
                                         <SelectItem value="all">כל הקטגוריות</SelectItem>
-                                        {treatmentCategory1Options.map((item) => (
+                                        {dogCategory1Options.map((item) => (
                                             <SelectItem key={item.id} value={item.id}>
                                                 {item.name}
                                             </SelectItem>
@@ -1152,20 +1258,35 @@ export default function AppointmentsSection() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="treatment-cat2">קטגוריית לקוח 2</Label>
-                                <Select value={treatmentCategory2Filter} onValueChange={setTreatmentCategory2Filter}>
-                                    <SelectTrigger id="treatment-cat2">
+                                <Label htmlFor="dog-cat2">קטגוריית כלב 2</Label>
+                                <Select value={dogCategory2Filter} onValueChange={setDogCategory2Filter}>
+                                    <SelectTrigger id="dog-cat2">
                                         <SelectValue placeholder="כל הקטגוריות" />
                                     </SelectTrigger>
                                     <SelectContent dir="rtl">
                                         <SelectItem value="all">כל הקטגוריות</SelectItem>
-                                        {treatmentCategory2Options.map((item) => (
+                                        {dogCategory2Options.map((item) => (
                                             <SelectItem key={item.id} value={item.id}>
                                                 {item.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="station-filter">תחנות</Label>
+                                {isLoadingStations ? (
+                                    <div className="flex items-center justify-center h-10 text-sm text-slate-500">
+                                        טוען תחנות...
+                                    </div>
+                                ) : (
+                                    <MultiSelectDropdown
+                                        options={stations.map(s => ({ id: s.id, name: s.name }))}
+                                        selectedIds={selectedStationIds}
+                                        onSelectionChange={setSelectedStationIds}
+                                        placeholder="בחר תחנות..."
+                                    />
+                                )}
                             </div>
                         </div>
                     </CardContent>
@@ -1178,37 +1299,121 @@ export default function AppointmentsSection() {
                     </Alert>
                 )}
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {statCards.map((card) => (
-                        <button
-                            key={card.id}
-                            type="button"
-                            onClick={card.onClick}
-                            className={cn(
-                                "rounded-2xl px-4 py-3 text-right transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
-                                card.isActive
-                                    ? cn("border-2 text-white", card.activeContainer)
-                                    : cn("border-2 bg-white opacity-95", card.border, card.hoverBg)
-                            )}
-                        >
-                            <p
-                                className={cn(
-                                    "text-sm font-medium transition-colors duration-200",
-                                    card.isActive ? card.activeText : card.accent,
-                                )}
-                            >
-                                {card.label}
-                            </p>
-                            <p
-                                className={cn(
-                                    "text-2xl font-bold transition-colors duration-200",
-                                    card.isActive ? card.activeText : card.accent,
-                                )}
-                            >
-                                {card.value}
-                            </p>
-                        </button>
-                    ))}
+                <div className="space-y-4">
+                    {/* Grooming Stats */}
+                    {(serviceFilter === "all" || serviceFilter === "grooming") && (
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-700 mb-2">מספרה</h3>
+                            <div className="grid gap-3 sm:grid-cols-3">
+                                {groomingCards.map((card) => (
+                                    <button
+                                        key={card.id}
+                                        type="button"
+                                        onClick={card.onClick}
+                                        className={cn(
+                                            "rounded-2xl px-4 py-3 text-right transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+                                            card.isActive
+                                                ? cn("border-2 text-white", card.activeContainer)
+                                                : cn("border-2 bg-white opacity-95", card.border, card.hoverBg)
+                                        )}
+                                    >
+                                        <p
+                                            className={cn(
+                                                "text-sm font-medium transition-colors duration-200",
+                                                card.isActive ? card.activeText : card.accent,
+                                            )}
+                                        >
+                                            {card.label}
+                                        </p>
+                                        <p
+                                            className={cn(
+                                                "text-2xl font-bold transition-colors duration-200",
+                                                card.isActive ? card.activeText : card.accent,
+                                            )}
+                                        >
+                                            {card.value}
+                                        </p>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Garden Stats */}
+                    {(serviceFilter === "all" || serviceFilter === "garden") && (
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-700 mb-2">גן</h3>
+                            <div className="grid gap-3 sm:grid-cols-3">
+                                {gardenCards.map((card) => (
+                                    <button
+                                        key={card.id}
+                                        type="button"
+                                        onClick={card.onClick}
+                                        className={cn(
+                                            "rounded-2xl px-4 py-3 text-right transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+                                            card.isActive
+                                                ? cn("border-2 text-white", card.activeContainer)
+                                                : cn("border-2 bg-white opacity-95", card.border, card.hoverBg)
+                                        )}
+                                    >
+                                        <p
+                                            className={cn(
+                                                "text-sm font-medium transition-colors duration-200",
+                                                card.isActive ? card.activeText : card.accent,
+                                            )}
+                                        >
+                                            {card.label}
+                                        </p>
+                                        <p
+                                            className={cn(
+                                                "text-2xl font-bold transition-colors duration-200",
+                                                card.isActive ? card.activeText : card.accent,
+                                            )}
+                                        >
+                                            {card.value}
+                                        </p>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Status Stats */}
+                    <div>
+                        <h3 className="text-sm font-semibold text-slate-700 mb-2">סטטוסים</h3>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                            {statusCards.map((card) => (
+                                <button
+                                    key={card.id}
+                                    type="button"
+                                    onClick={card.onClick}
+                                    className={cn(
+                                        "rounded-2xl px-4 py-3 text-right transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+                                        card.isActive
+                                            ? cn("border-2 text-white", card.activeContainer)
+                                            : cn("border-2 bg-white opacity-95", card.border, card.hoverBg)
+                                    )}
+                                >
+                                    <p
+                                        className={cn(
+                                            "text-sm font-medium transition-colors duration-200",
+                                            card.isActive ? card.activeText : card.accent,
+                                        )}
+                                    >
+                                        {card.label}
+                                    </p>
+                                    <p
+                                        className={cn(
+                                            "text-2xl font-bold transition-colors duration-200",
+                                            card.isActive ? card.activeText : card.accent,
+                                        )}
+                                    >
+                                        {card.value}
+                                    </p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -1236,7 +1441,7 @@ export default function AppointmentsSection() {
                                         <TableHead className="text-right text-slate-600 font-semibold">תאריך ושעה</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold">סוג שירות</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold">לקוח</TableHead>
-                                        <TableHead className="text-right text-slate-600 font-semibold">לקוח</TableHead>
+                                        <TableHead className="text-right text-slate-600 font-semibold">כלב</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold">סטטוס</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold hidden lg:table-cell">תחנה / הערות</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold w-[60px]">פעולות</TableHead>
@@ -1244,7 +1449,7 @@ export default function AppointmentsSection() {
                                 </TableHeader>
                                 <TableBody>
                                     {filteredAppointments.map((appointment) => {
-                                        const primaryTreatment = appointment.treatments?.[0] as ManagerTreatment | undefined
+                                        const primaryDog = appointment.dogs?.[0] as ManagerDog | undefined
                                         return (
                                             <TableRow
                                                 key={`${appointment.sourceTable}-${appointment.id}`}
@@ -1281,19 +1486,19 @@ export default function AppointmentsSection() {
                                                     <div className="text-xs text-slate-500">{appointment.clientPhone || appointment.clientEmail || "—"}</div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {primaryTreatment ? (
+                                                    {primaryDog ? (
                                                         <button
                                                             type="button"
-                                                            onClick={(event) => handleTreatmentCellClick(event, appointment)}
+                                                            onClick={(event) => handleDogCellClick(event, appointment)}
                                                             className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
                                                         >
-                                                            {primaryTreatment.name || "—"}
+                                                            {primaryDog.name || "—"}
                                                         </button>
                                                     ) : (
                                                         <div className="font-medium text-slate-500">—</div>
                                                     )}
                                                     <div className="text-xs text-slate-500">
-                                                        {primaryTreatment?.treatmentType || "ללא ציון"}
+                                                        {primaryDog?.breed || "ללא ציון"}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -1336,7 +1541,7 @@ export default function AppointmentsSection() {
                     open={isAppointmentSheetOpen}
                     onOpenChange={setIsAppointmentSheetOpen}
                     selectedAppointment={selectedAppointment}
-                    onTreatmentClick={handleAppointmentTreatmentClick}
+                    onDogClick={handleAppointmentDogClick}
                     onClientClick={handleAppointmentClientClick}
                     onEditAppointment={(appointment) =>
                         toast({ title: "עריכת תור", description: `עריכת תורים תתאפשר בקרוב עבור ${appointment?.clientName ?? "לקוח"}.` })
@@ -1347,23 +1552,11 @@ export default function AppointmentsSection() {
                 />
 
                 <ClientDetailsSheet
-                    open={isClientSheetOpen}
-                    onOpenChange={setIsClientSheetOpen}
-                    selectedClient={selectedClient}
                     data={{ appointments }}
-                    onTreatmentClick={(treatment) => openTreatmentSheet(treatment)}
                 />
 
-                <TreatmentDetailsSheet
-                    open={isTreatmentSheetOpen}
-                    onOpenChange={setIsTreatmentSheetOpen}
-                    selectedTreatment={selectedTreatment}
-                    showAllPastAppointments={showAllTreatmentAppointments}
-                    setShowAllPastAppointments={setShowAllTreatmentAppointments}
-                    data={{ appointments }}
-                    onClientClick={(client) => openClientSheet(client)}
-                    onAppointmentClick={handleTreatmentSheetAppointmentClick}
-                    onShowTreatmentAppointments={handleShowTreatmentAppointments}
+                <DogDetailsSheet
+                    onShowDogAppointments={handleShowDogAppointments}
                 />
             </div>
         </div>

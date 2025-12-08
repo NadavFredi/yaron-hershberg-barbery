@@ -19,6 +19,16 @@ import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } 
 import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Filter, X } from "lucide-react"
+import { BreedMultiSelect } from "./BreedMultiSelect"
+import { ShiftRestrictionsPopover } from "@/components/dialogs/settings/stations/ShiftRestrictionsPopover"
+import { useCreateCustomerType } from "@/hooks/useCreateCustomerType"
+import { useCreateDogCategory } from "@/hooks/useCreateDogCategory"
+import type { CustomerTypeOption } from "@/components/customer-types/CustomerTypeMultiSelect"
+import type { DogCategoryOption } from "@/components/dog-categories/DogCategoryMultiSelect"
 
 interface Station {
     id: string
@@ -233,7 +243,23 @@ export function SettingsStationsSection() {
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
     const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false)
     const [groomingServiceId, setGroomingServiceId] = useState<string | null>(null)
-    const [treatmentTypes, setTreatmentTypes] = useState<Array<{ id: string; name: string }>>([])
+    const [breeds, setBreeds] = useState<Array<{ id: string; name: string }>>([])
+    const [stationBreedRules, setStationBreedRules] = useState<Record<string, Array<{
+        breed_id: string
+        remote_booking_allowed: boolean
+        requires_staff_approval: boolean
+    }>>>({})
+
+    // Filter state
+    const [filters, setFilters] = useState({
+        isActive: null as boolean | null,
+        workingDays: [] as string[],
+        breedIds: [] as string[],
+        intervalMin: null as number | null,
+        intervalMax: null as number | null,
+        approvalFilter: null as "all" | "all_breeds" | "some" | "none" | null,
+        remoteFilter: null as "all" | "all_breeds" | "some" | "none" | null,
+    })
 
     // Station form data
     const [formData, setFormData] = useState({
@@ -246,6 +272,23 @@ export function SettingsStationsSection() {
     const [dayShifts, setDayShifts] = useState<DayShifts[]>([])
     const [stationAllowedCustomerTypes, setStationAllowedCustomerTypes] = useState<Record<string, CustomerTypeOption[]>>({})
     const [viewingAllowedCustomerTypes, setViewingAllowedCustomerTypes] = useState<CustomerTypeOption[]>([])
+    const [viewingCustomerTypes, setViewingCustomerTypes] = useState<CustomerTypeOption[]>([])
+    const [viewingDogCategories, setViewingDogCategories] = useState<DogCategoryOption[]>([])
+    const [isLoadingViewingCustomerTypes, setIsLoadingViewingCustomerTypes] = useState(false)
+    const [isLoadingViewingDogCategories, setIsLoadingViewingDogCategories] = useState(false)
+
+    const { createCustomerType } = useCreateCustomerType({
+        onSuccess: (id, name) => {
+            const newCustomerType: CustomerTypeOption = { id, name }
+            setViewingCustomerTypes((prev) => [...prev, newCustomerType])
+        },
+    })
+    const { createDogCategory } = useCreateDogCategory({
+        onSuccess: (id, name) => {
+            const newDogCategory: DogCategoryOption = { id, name }
+            setViewingDogCategories((prev) => [...prev, newDogCategory])
+        },
+    })
 
     const [unavailabilityFormData, setUnavailabilityFormData] = useState({
         reason: "",
@@ -257,10 +300,16 @@ export function SettingsStationsSection() {
     useEffect(() => {
         fetchStations()
         fetchUnavailabilities()
-        loadGroomingServiceAndTreatmentTypes()
+        loadGroomingServiceAndBreeds()
     }, [])
 
-    const loadGroomingServiceAndTreatmentTypes = async () => {
+    useEffect(() => {
+        if (stations.length > 0) {
+            fetchStationBreedRules()
+        }
+    }, [stations])
+
+    const loadGroomingServiceAndBreeds = async () => {
         try {
             // Get grooming service ID - try to find it first, if not found, create it
             let { data: serviceData, error: serviceError } = await supabase
@@ -285,16 +334,52 @@ export function SettingsStationsSection() {
 
             setGroomingServiceId(serviceData?.id || null)
 
-            // Load treatmentTypes
-            const { data: treatmentTypesData, error: treatmentTypesError } = await supabase
-                .from("treatment_types")
+            // Load breeds
+            const { data: breedsData, error: breedsError } = await supabase
+                .from("breeds")
                 .select("id, name")
                 .order("name")
 
-            if (treatmentTypesError) throw treatmentTypesError
-            setTreatmentTypes(treatmentTypesData || [])
+            if (breedsError) throw breedsError
+            setBreeds(breedsData || [])
         } catch (error) {
-            console.error("Error loading grooming service and treatmentTypes:", error)
+            console.error("Error loading grooming service and breeds:", error)
+        }
+    }
+
+    const fetchStationBreedRules = async () => {
+        try {
+            const stationIds = stations.map(s => s.id)
+            if (stationIds.length === 0) return
+
+            const { data, error } = await supabase
+                .from("station_breed_rules")
+                .select("station_id, breed_id, remote_booking_allowed, requires_staff_approval")
+                .in("station_id", stationIds)
+
+            if (error) throw error
+
+            const grouped: Record<string, Array<{
+                breed_id: string
+                remote_booking_allowed: boolean
+                requires_staff_approval: boolean
+            }>> = {}
+
+            ;(data || []).forEach((rule) => {
+                if (!rule.station_id || !rule.breed_id) return
+                if (!grouped[rule.station_id]) {
+                    grouped[rule.station_id] = []
+                }
+                grouped[rule.station_id].push({
+                    breed_id: rule.breed_id,
+                    remote_booking_allowed: rule.remote_booking_allowed || false,
+                    requires_staff_approval: rule.requires_staff_approval || false,
+                })
+            })
+
+            setStationBreedRules(grouped)
+        } catch (error) {
+            console.error("Error fetching station breed rules:", error)
         }
     }
 
@@ -395,11 +480,93 @@ export function SettingsStationsSection() {
                 .order("shift_order")
 
             if (error) throw error
-            return (data || []).map((h) => ({
+
+            const shifts = (data || []).map((h) => ({
                 ...h,
                 open_time: h.open_time?.substring(0, 5) || "",
                 close_time: h.close_time?.substring(0, 5) || "",
+                allowedCustomerTypeIds: [] as string[],
+                allowedDogCategoryIds: [] as string[],
+                blockedCustomerTypeIds: [] as string[],
+                blockedDogCategoryIds: [] as string[],
             }))
+
+            // Fetch shift restrictions
+            if (shifts.length > 0) {
+                const shiftIds = shifts.map((s) => s.id).filter((id): id is string => Boolean(id))
+
+                if (shiftIds.length > 0) {
+                    // Fetch allowed customer type restrictions
+                    const { data: customerTypeRestrictions } = await supabase
+                        .from("shift_allowed_customer_types")
+                        .select("shift_id, customer_type_id")
+                        .in("shift_id", shiftIds)
+
+                    // Fetch allowed dog category restrictions
+                    const { data: dogCategoryRestrictions } = await supabase
+                        .from("shift_allowed_dog_categories")
+                        .select("shift_id, dog_category_id")
+                        .in("shift_id", shiftIds)
+
+                    // Fetch blocked customer type restrictions
+                    const { data: blockedCustomerTypeRestrictions } = await supabase
+                        .from("shift_blocked_customer_types")
+                        .select("shift_id, customer_type_id")
+                        .in("shift_id", shiftIds)
+
+                    // Fetch blocked dog category restrictions
+                    const { data: blockedDogCategoryRestrictions } = await supabase
+                        .from("shift_blocked_dog_categories")
+                        .select("shift_id, dog_category_id")
+                        .in("shift_id", shiftIds)
+
+                    // Group restrictions by shift_id
+                    const customerTypeMap = new Map<string, string[]>()
+                    const dogCategoryMap = new Map<string, string[]>()
+                    const blockedCustomerTypeMap = new Map<string, string[]>()
+                    const blockedDogCategoryMap = new Map<string, string[]>()
+
+                    customerTypeRestrictions?.forEach((r) => {
+                        if (r.shift_id) {
+                            const existing = customerTypeMap.get(r.shift_id) || []
+                            customerTypeMap.set(r.shift_id, [...existing, r.customer_type_id])
+                        }
+                    })
+
+                    dogCategoryRestrictions?.forEach((r) => {
+                        if (r.shift_id) {
+                            const existing = dogCategoryMap.get(r.shift_id) || []
+                            dogCategoryMap.set(r.shift_id, [...existing, r.dog_category_id])
+                        }
+                    })
+
+                    blockedCustomerTypeRestrictions?.forEach((r) => {
+                        if (r.shift_id) {
+                            const existing = blockedCustomerTypeMap.get(r.shift_id) || []
+                            blockedCustomerTypeMap.set(r.shift_id, [...existing, r.customer_type_id])
+                        }
+                    })
+
+                    blockedDogCategoryRestrictions?.forEach((r) => {
+                        if (r.shift_id) {
+                            const existing = blockedDogCategoryMap.get(r.shift_id) || []
+                            blockedDogCategoryMap.set(r.shift_id, [...existing, r.dog_category_id])
+                        }
+                    })
+
+                    // Apply restrictions to shifts
+                    shifts.forEach((shift) => {
+                        if (shift.id) {
+                            shift.allowedCustomerTypeIds = customerTypeMap.get(shift.id) || []
+                            shift.allowedDogCategoryIds = dogCategoryMap.get(shift.id) || []
+                            shift.blockedCustomerTypeIds = blockedCustomerTypeMap.get(shift.id) || []
+                            shift.blockedDogCategoryIds = blockedDogCategoryMap.get(shift.id) || []
+                        }
+                    })
+                }
+            }
+
+            return shifts
         } catch (error) {
             console.error("Error fetching station working hours:", error)
             return []
@@ -555,6 +722,49 @@ export function SettingsStationsSection() {
         setIsDialogOpen(true)
     }
 
+    const fetchViewingCustomerTypes = async () => {
+        setIsLoadingViewingCustomerTypes(true)
+        try {
+            const { data, error } = await supabase
+                .from("customer_types")
+                .select("id, name")
+                .order("priority", { ascending: true })
+                .order("name", { ascending: true })
+
+            if (error) throw error
+            const transformed = (data || []).map((item) => ({
+                id: item.id,
+                name: item.name,
+            }))
+            setViewingCustomerTypes(transformed)
+        } catch (error) {
+            console.error("❌ [SettingsStationsSection] Failed to load customer types:", error)
+        } finally {
+            setIsLoadingViewingCustomerTypes(false)
+        }
+    }
+
+    const fetchViewingDogCategories = async () => {
+        setIsLoadingViewingDogCategories(true)
+        try {
+            const { data, error } = await supabase
+                .from("dog_categories")
+                .select("id, name")
+                .order("name", { ascending: true })
+
+            if (error) throw error
+            const transformed = (data || []).map((item) => ({
+                id: item.id,
+                name: item.name,
+            }))
+            setViewingDogCategories(transformed)
+        } catch (error) {
+            console.error("❌ [SettingsStationsSection] Failed to load dog categories:", error)
+        } finally {
+            setIsLoadingViewingDogCategories(false)
+        }
+    }
+
     const handleView = async (station: Station) => {
         setViewingStation(station)
         setFormData({
@@ -585,6 +795,9 @@ export function SettingsStationsSection() {
                 ...prev,
                 [station.id]: allowedTypes,
             }))
+
+            // Load customer types and dog categories for the restrictions popover
+            await Promise.all([fetchViewingCustomerTypes(), fetchViewingDogCategories()])
         } finally {
             setIsViewDialogOpen(true)
         }
@@ -615,6 +828,8 @@ export function SettingsStationsSection() {
             })
             setStationWorkingHours(hoursMap)
             await loadAllowedCustomerTypes(normalized.map((station) => station.id))
+            // Refresh breed rules for filtering
+            await fetchStationBreedRules()
         }
     }
 
@@ -705,7 +920,7 @@ export function SettingsStationsSection() {
         name?: string
         targetStationIds?: string[]
         copyDetails: boolean
-        copyTreatmentTypeRelations: boolean
+        copyBreedRelations: boolean
     }) => {
         if (!stationToDuplicate) return
 
@@ -838,8 +1053,8 @@ export function SettingsStationsSection() {
                         }
                     }
 
-                    // Copy treatmentType relations if requested
-                    if (groomingServiceId && params.copyTreatmentTypeRelations) {
+                    // Copy breed relations if requested
+                    if (groomingServiceId && params.copyBreedRelations) {
                         // Get the original station's base_time_minutes from service_station_matrix
                         const { data: originalMatrixData } = await supabase
                             .from("service_station_matrix")
@@ -865,19 +1080,19 @@ export function SettingsStationsSection() {
 
                         if (baseTimeError) throw baseTimeError
 
-                        // Get all station_treatmentType_rules for the original station
+                        // Get all station_breed_rules for the original station
                         const { data: originalRules, error: rulesError } = await supabase
-                            .from("station_treatmentType_rules")
+                            .from("station_breed_rules")
                             .select("*")
                             .eq("station_id", sourceStationId)
 
                         if (rulesError) throw rulesError
 
-                        // Copy all station_treatmentType_rules with ALL values
+                        // Copy all station_breed_rules with ALL values
                         console.log(
                             "[SettingsStationsSection] Copying",
                             originalRules?.length ?? 0,
-                            "station_treatmentType_rules records from",
+                            "station_breed_rules records from",
                             sourceStationId,
                             "to",
                             targetId
@@ -885,43 +1100,43 @@ export function SettingsStationsSection() {
 
                         if (originalRules && originalRules.length > 0) {
                             for (const rule of originalRules) {
-                                // Get default time from treatmentType_modifiers if exists
-                                const { data: treatmentTypeModifier } = await supabase
-                                    .from("treatmentType_modifiers")
+                                // Get default time from breed_modifiers if exists
+                                const { data: breedModifier } = await supabase
+                                    .from("breed_modifiers")
                                     .select("time_modifier_minutes")
                                     .eq("service_id", groomingServiceId)
-                                    .eq("treatment_type_id", rule.treatment_type_id)
+                                    .eq("breed_id", rule.breed_id)
                                     .maybeSingle()
 
-                                const defaultTime = treatmentTypeModifier?.time_modifier_minutes || 60
+                                const defaultTime = breedModifier?.time_modifier_minutes || 60
                                 const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
 
-                                // Copy station_treatmentType_rules with ALL values
+                                // Copy station_breed_rules with ALL values
                                 await supabase
-                                    .from("station_treatmentType_rules")
+                                    .from("station_breed_rules")
                                     .upsert(
                                         {
                                             station_id: targetId,
-                                            treatment_type_id: rule.treatment_type_id,
+                                            breed_id: rule.breed_id,
                                             is_active: rule.is_active ?? true,
                                             remote_booking_allowed: rule.remote_booking_allowed ?? false,
                                             requires_staff_approval: rule.requires_staff_approval ?? false,
                                             duration_modifier_minutes: durationMinutes,
                                         },
-                                        { onConflict: "station_id,treatment_type_id" }
+                                        { onConflict: "station_id,breed_id" }
                                     )
 
-                                // Ensure treatmentType_modifier exists with the same default time if it exists for original
-                                if (treatmentTypeModifier) {
+                                // Ensure breed_modifier exists with the same default time if it exists for original
+                                if (breedModifier) {
                                     await supabase
-                                        .from("treatmentType_modifiers")
+                                        .from("breed_modifiers")
                                         .upsert(
                                             {
                                                 service_id: groomingServiceId,
-                                                treatment_type_id: rule.treatment_type_id,
-                                                time_modifier_minutes: treatmentTypeModifier.time_modifier_minutes,
+                                                breed_id: rule.breed_id,
+                                                time_modifier_minutes: breedModifier.time_modifier_minutes,
                                             },
-                                            { onConflict: "service_id,treatment_type_id" }
+                                            { onConflict: "service_id,breed_id" }
                                         )
                                 }
                             }
@@ -951,7 +1166,7 @@ export function SettingsStationsSection() {
             }
 
             // Copy all matrix values for this station (only if checkbox is checked and mode is "new")
-            if (params.mode === "new" && groomingServiceId && params.copyTreatmentTypeRelations) {
+            if (params.mode === "new" && groomingServiceId && params.copyBreedRelations) {
                 // Get the original station's base_time_minutes from service_station_matrix
                 const { data: originalMatrixData } = await supabase
                     .from("service_station_matrix")
@@ -977,19 +1192,19 @@ export function SettingsStationsSection() {
 
                 if (baseTimeError) throw baseTimeError
 
-                // Get all station_treatmentType_rules for the original station
+                // Get all station_breed_rules for the original station
                 const { data: originalRules, error: rulesError } = await supabase
-                    .from("station_treatmentType_rules")
+                    .from("station_breed_rules")
                     .select("*")
                     .eq("station_id", sourceStationId)
 
                 if (rulesError) throw rulesError
 
-                // Copy all station_treatmentType_rules with ALL values
+                // Copy all station_breed_rules with ALL values
                 console.log(
                     "[SettingsStationsSection] Copying",
                     originalRules?.length ?? 0,
-                    "station_treatmentType_rules records from",
+                    "station_breed_rules records from",
                     sourceStationId,
                     "to new station",
                     targetStationId
@@ -997,43 +1212,43 @@ export function SettingsStationsSection() {
 
                 if (originalRules && originalRules.length > 0) {
                     for (const rule of originalRules) {
-                        // Get default time from treatmentType_modifiers if exists
-                        const { data: treatmentTypeModifier } = await supabase
-                            .from("treatmentType_modifiers")
+                        // Get default time from breed_modifiers if exists
+                        const { data: breedModifier } = await supabase
+                            .from("breed_modifiers")
                             .select("time_modifier_minutes")
                             .eq("service_id", groomingServiceId)
-                            .eq("treatment_type_id", rule.treatment_type_id)
+                            .eq("breed_id", rule.breed_id)
                             .maybeSingle()
 
-                        const defaultTime = treatmentTypeModifier?.time_modifier_minutes || 60
+                        const defaultTime = breedModifier?.time_modifier_minutes || 60
                         const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
 
-                        // Copy station_treatmentType_rules with ALL values
+                        // Copy station_breed_rules with ALL values
                         await supabase
-                            .from("station_treatmentType_rules")
+                            .from("station_breed_rules")
                             .upsert(
                                 {
                                     station_id: targetStationId,
-                                    treatment_type_id: rule.treatment_type_id,
+                                    breed_id: rule.breed_id,
                                     is_active: rule.is_active ?? true,
                                     remote_booking_allowed: rule.remote_booking_allowed ?? false,
                                     requires_staff_approval: rule.requires_staff_approval ?? false,
                                     duration_modifier_minutes: durationMinutes,
                                 },
-                                { onConflict: "station_id,treatment_type_id" }
+                                { onConflict: "station_id,breed_id" }
                             )
 
-                        // Ensure treatmentType_modifier exists with the same default time if it exists for original
-                        if (treatmentTypeModifier) {
+                        // Ensure breed_modifier exists with the same default time if it exists for original
+                        if (breedModifier) {
                             await supabase
-                                .from("treatmentType_modifiers")
+                                .from("breed_modifiers")
                                 .upsert(
                                     {
                                         service_id: groomingServiceId,
-                                        treatment_type_id: rule.treatment_type_id,
-                                        time_modifier_minutes: treatmentTypeModifier.time_modifier_minutes,
+                                        breed_id: rule.breed_id,
+                                        time_modifier_minutes: breedModifier.time_modifier_minutes,
                                     },
-                                    { onConflict: "service_id,treatment_type_id" }
+                                    { onConflict: "service_id,breed_id" }
                                 )
                         }
                     }
@@ -1153,10 +1368,82 @@ export function SettingsStationsSection() {
         }
     }
 
+    const filteredStations = useMemo(() => {
+        let filtered = [...stations]
+
+        // Filter by is_active
+        if (filters.isActive !== null) {
+            filtered = filtered.filter(s => s.is_active === filters.isActive)
+        }
+
+        // Filter by working days
+        if (filters.workingDays.length > 0) {
+            filtered = filtered.filter(station => {
+                const hours = stationWorkingHours[station.id] || []
+                const stationDays = new Set(hours.map(h => h.weekday))
+                return filters.workingDays.some(day => stationDays.has(day))
+            })
+        }
+
+        // Filter by breed
+        if (filters.breedIds.length > 0) {
+            filtered = filtered.filter(station => {
+                const rules = stationBreedRules[station.id] || []
+                return filters.breedIds.some(breedId => 
+                    rules.some(rule => rule.breed_id === breedId)
+                )
+            })
+        }
+
+        // Filter by interval
+        if (filters.intervalMin !== null) {
+            filtered = filtered.filter(s => (s.slot_interval_minutes ?? 60) >= filters.intervalMin!)
+        }
+        if (filters.intervalMax !== null) {
+            filtered = filtered.filter(s => (s.slot_interval_minutes ?? 60) <= filters.intervalMax!)
+        }
+
+        // Filter by approval requirement
+        if (filters.approvalFilter !== null) {
+            filtered = filtered.filter(station => {
+                const rules = stationBreedRules[station.id] || []
+                if (rules.length === 0) {
+                    return filters.approvalFilter === "none"
+                }
+                const hasApproval = rules.some(r => r.requires_staff_approval)
+                const allHaveApproval = rules.length > 0 && rules.every(r => r.requires_staff_approval)
+                
+                if (filters.approvalFilter === "all_breeds") return allHaveApproval
+                if (filters.approvalFilter === "some") return hasApproval && !allHaveApproval
+                if (filters.approvalFilter === "none") return !hasApproval
+                return true
+            })
+        }
+
+        // Filter by remote booking
+        if (filters.remoteFilter !== null) {
+            filtered = filtered.filter(station => {
+                const rules = stationBreedRules[station.id] || []
+                if (rules.length === 0) {
+                    return filters.remoteFilter === "none"
+                }
+                const hasRemote = rules.some(r => r.remote_booking_allowed)
+                const allHaveRemote = rules.length > 0 && rules.every(r => r.remote_booking_allowed)
+                
+                if (filters.remoteFilter === "all_breeds") return allHaveRemote
+                if (filters.remoteFilter === "some") return hasRemote && !allHaveRemote
+                if (filters.remoteFilter === "none") return !hasRemote
+                return true
+            })
+        }
+
+        return filtered
+    }, [stations, filters, stationWorkingHours, stationBreedRules])
+
     const orderedStations = useMemo(() => {
-        if (!stations.length) return []
+        if (!filteredStations.length) return []
         if (!stationOrderIds.length) {
-            return [...stations].sort((a, b) => {
+            return [...filteredStations].sort((a, b) => {
                 const orderCompare = (a.display_order ?? 0) - (b.display_order ?? 0)
                 if (orderCompare !== 0) return orderCompare
                 return a.name.localeCompare(b.name, "he")
@@ -1164,7 +1451,7 @@ export function SettingsStationsSection() {
         }
         const positions = new Map(stationOrderIds.map((id, index) => [id, index]))
         const fallback = stationOrderIds.length
-        return [...stations].sort((a, b) => {
+        return [...filteredStations].sort((a, b) => {
             const posA = positions.get(a.id) ?? fallback
             const posB = positions.get(b.id) ?? fallback
             if (posA !== posB) return posA - posB
@@ -1172,7 +1459,7 @@ export function SettingsStationsSection() {
             if (orderCompare !== 0) return orderCompare
             return a.name.localeCompare(b.name, "he")
         })
-    }, [stations, stationOrderIds])
+    }, [filteredStations, stationOrderIds])
 
     const persistStationOrder = async (orderedIds: string[]) => {
         const payload = orderedIds
@@ -1269,6 +1556,27 @@ export function SettingsStationsSection() {
         )
     }
 
+    const hasActiveFilters = filters.isActive !== null ||
+        filters.workingDays.length > 0 ||
+        filters.breedIds.length > 0 ||
+        filters.intervalMin !== null ||
+        filters.intervalMax !== null ||
+        filters.approvalFilter !== null ||
+        filters.remoteFilter !== null
+
+    const clearFilters = () => {
+        setFilters({
+            isActive: null,
+            workingDays: [],
+            breedIds: [],
+            intervalMin: null,
+            intervalMax: null,
+            approvalFilter: null,
+            remoteFilter: null,
+        })
+        setCurrentPage(1)
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -1290,42 +1598,241 @@ export function SettingsStationsSection() {
                 </div>
             </div>
 
+            {/* Filters Section */}
+            <Card>
+                <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Filter className="h-4 w-4" />
+                            סינון עמדות
+                        </CardTitle>
+                        {hasActiveFilters && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={clearFilters}
+                                className="text-xs"
+                            >
+                                <X className="h-3 w-3 ml-1" />
+                                נקה סינון
+                            </Button>
+                        )}
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-wrap gap-4 items-end">
+                        {/* Is Active Filter */}
+                        <div className="space-y-2 min-w-[150px]">
+                            <Label className="text-sm">סטטוס פעילות</Label>
+                            <Select
+                                value={filters.isActive === null ? "all" : filters.isActive ? "active" : "inactive"}
+                                onValueChange={(value) => {
+                                    setFilters(prev => ({
+                                        ...prev,
+                                        isActive: value === "all" ? null : value === "active"
+                                    }))
+                                    setCurrentPage(1)
+                                }}
+                            >
+                                <SelectTrigger className="text-right" dir="rtl">
+                                    <SelectValue placeholder="הכל" />
+                                </SelectTrigger>
+                                <SelectContent dir="rtl">
+                                    <SelectItem value="all">הכל</SelectItem>
+                                    <SelectItem value="active">פעילות בלבד</SelectItem>
+                                    <SelectItem value="inactive">מושבתות בלבד</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Working Days Filter */}
+                        <div className="space-y-2 min-w-[180px]">
+                            <Label className="text-sm">ימי פעילות</Label>
+                            <Select
+                                value=""
+                                onValueChange={(value) => {
+                                    if (value && !filters.workingDays.includes(value)) {
+                                        setFilters(prev => ({
+                                            ...prev,
+                                            workingDays: [...prev.workingDays, value]
+                                        }))
+                                        setCurrentPage(1)
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className="text-right" dir="rtl">
+                                    <SelectValue placeholder="בחר ימים..." />
+                                </SelectTrigger>
+                                <SelectContent dir="rtl">
+                                    {WEEKDAYS.map(day => (
+                                        <SelectItem key={day.value} value={day.value}>
+                                            {day.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {filters.workingDays.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                    {filters.workingDays.map(day => {
+                                        const dayLabel = WEEKDAYS.find(d => d.value === day)?.label || day
+                                        return (
+                                            <Badge key={day} variant="secondary" className="text-xs">
+                                                {dayLabel}
+                                                <button
+                                                    onClick={() => {
+                                                        setFilters(prev => ({
+                                                            ...prev,
+                                                            workingDays: prev.workingDays.filter(d => d !== day)
+                                                        }))
+                                                        setCurrentPage(1)
+                                                    }}
+                                                    className="mr-1 hover:text-destructive"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </Badge>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Breed Filter */}
+                        <div className="space-y-2 min-w-[200px] flex-1">
+                            <Label className="text-sm">גזע</Label>
+                            <BreedMultiSelect
+                                options={breeds.map(b => ({ id: b.id, name: b.name }))}
+                                selectedIds={filters.breedIds}
+                                onSelectionChange={(ids) => {
+                                    setFilters(prev => ({ ...prev, breedIds: ids }))
+                                    setCurrentPage(1)
+                                }}
+                                placeholder="בחר גזעים..."
+                            />
+                        </div>
+
+                        {/* Interval Filter */}
+                        <div className="space-y-2 min-w-[200px]">
+                            <Label className="text-sm">מרווח תורים (דקות)</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    type="number"
+                                    placeholder="מ-"
+                                    value={filters.intervalMin ?? ""}
+                                    onChange={(e) => {
+                                        const value = e.target.value === "" ? null : parseInt(e.target.value)
+                                        setFilters(prev => ({ ...prev, intervalMin: value }))
+                                        setCurrentPage(1)
+                                    }}
+                                    className="text-right"
+                                    dir="rtl"
+                                />
+                                <Input
+                                    type="number"
+                                    placeholder="עד"
+                                    value={filters.intervalMax ?? ""}
+                                    onChange={(e) => {
+                                        const value = e.target.value === "" ? null : parseInt(e.target.value)
+                                        setFilters(prev => ({ ...prev, intervalMax: value }))
+                                        setCurrentPage(1)
+                                    }}
+                                    className="text-right"
+                                    dir="rtl"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Approval Filter */}
+                        <div className="space-y-2 min-w-[180px]">
+                            <Label className="text-sm">דרישת אישור</Label>
+                            <Select
+                                value={filters.approvalFilter === null ? "all" : filters.approvalFilter}
+                                onValueChange={(value) => {
+                                    setFilters(prev => ({
+                                        ...prev,
+                                        approvalFilter: value === "all" ? null : value as "all" | "all_breeds" | "some" | "none"
+                                    }))
+                                    setCurrentPage(1)
+                                }}
+                            >
+                                <SelectTrigger className="text-right" dir="rtl">
+                                    <SelectValue placeholder="הכל" />
+                                </SelectTrigger>
+                                <SelectContent dir="rtl">
+                                    <SelectItem value="all">הכל</SelectItem>
+                                    <SelectItem value="all_breeds">כל הגזעים דורשים אישור</SelectItem>
+                                    <SelectItem value="some">חלק מהגזעים דורשים אישור</SelectItem>
+                                    <SelectItem value="none">אין דרישת אישור</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Remote Booking Filter */}
+                        <div className="space-y-2 min-w-[180px]">
+                            <Label className="text-sm">תור מרחוק</Label>
+                            <Select
+                                value={filters.remoteFilter === null ? "all" : filters.remoteFilter}
+                                onValueChange={(value) => {
+                                    setFilters(prev => ({
+                                        ...prev,
+                                        remoteFilter: value === "all" ? null : value as "all" | "all_breeds" | "some" | "none"
+                                    }))
+                                    setCurrentPage(1)
+                                }}
+                            >
+                                <SelectTrigger className="text-right" dir="rtl">
+                                    <SelectValue placeholder="הכל" />
+                                </SelectTrigger>
+                                <SelectContent dir="rtl">
+                                    <SelectItem value="all">הכל</SelectItem>
+                                    <SelectItem value="all_breeds">כל הגזעים מאפשרים תור מרחוק</SelectItem>
+                                    <SelectItem value="some">חלק מהגזעים מאפשרים תור מרחוק</SelectItem>
+                                    <SelectItem value="none">אין אפשרות תור מרחוק</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    {hasActiveFilters && (
+                        <div className="mt-4 text-sm text-gray-600">
+                            מציג {orderedStations.length} מתוך {stations.length} עמדות
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             <div className="border rounded-lg">
                 <div className="overflow-x-auto overflow-y-auto max-h-[600px] [direction:ltr] custom-scrollbar">
                     <div className="[direction:rtl]">
-                        <Table>
-                            <TableHeader className="sticky top-0 z-20 bg-background">
-                                <TableRow className="bg-[hsl(228_36%_95%)]">
-                                    <TableHead className="h-12 w-12 bg-[hsl(228_36%_95%)]"></TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">שם העמדה</TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold w-24 bg-[hsl(228_36%_95%)]">פעילה</TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">מרווח תורים (דקות)</TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">תיאור שעות פעילות</TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">הגבלת סוגי לקוחות</TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold w-32 bg-[hsl(228_36%_95%)]">פעולות</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <DndContext sensors={stationDragSensors} onDragEnd={handleStationOrderEnd}>
-                                <SortableContext items={orderedStations.slice((currentPage - 1) * ITEMS_PER_PAGE, Math.min(stations.length, currentPage * ITEMS_PER_PAGE)).map((station) => station.id)} strategy={verticalListSortingStrategy}>
-                                    <TableBody>
-                                        {(() => {
-                                            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-                                            const endIndex = startIndex + ITEMS_PER_PAGE
-                                            const paginatedStations = orderedStations.slice(startIndex, endIndex)
+                        <DndContext sensors={stationDragSensors} onDragEnd={handleStationOrderEnd}>
+                            {(() => {
+                                const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+                                const endIndex = startIndex + ITEMS_PER_PAGE
+                                const paginatedStations = orderedStations.slice(startIndex, endIndex)
+                                const paginatedIds = paginatedStations.map((station) => station.id)
 
-                                            if (stations.length === 0) {
-                                                return (
+                                return (
+                                    <SortableContext items={paginatedIds} strategy={verticalListSortingStrategy}>
+                                        <Table>
+                                            <TableHeader className="sticky top-0 z-20 bg-background">
+                                                <TableRow className="bg-[hsl(228_36%_95%)]">
+                                                    <TableHead className="h-12 w-12 bg-[hsl(228_36%_95%)]"></TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">שם העמדה</TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold w-24 bg-[hsl(228_36%_95%)]">פעילה</TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">מרווח תורים (דקות)</TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">תיאור שעות פעילות</TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">הגבלת סוגי לקוחות</TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold w-32 bg-[hsl(228_36%_95%)]">פעולות</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {stations.length === 0 ? (
                                                     <TableRow>
                                                         <TableCell colSpan={7} className="px-4 py-1 align-middle [&:has([role=checkbox])]:pr-0 text-center text-gray-500 py-8">
                                                             אין עמדות במערכת. הוסף עמדה חדשה כדי להתחיל.
                                                         </TableCell>
                                                     </TableRow>
-                                                )
-                                            }
-
-                                            return (
-                                                <>
-                                                    {paginatedStations.map((station) => (
+                                                ) : (
+                                                    paginatedStations.map((station) => (
                                                         <SortableStationRow
                                                             key={station.id}
                                                             station={station}
@@ -1339,14 +1846,14 @@ export function SettingsStationsSection() {
                                                             onDuplicate={handleDuplicate}
                                                             onDelete={handleDeleteStation}
                                                         />
-                                                    ))}
-                                                </>
-                                            )
-                                        })()}
-                                    </TableBody>
-                                </SortableContext>
-                            </DndContext>
-                        </Table>
+                                                    ))
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </SortableContext>
+                                )
+                            })()}
+                        </DndContext>
                     </div>
                 </div>
 
@@ -1481,11 +1988,27 @@ export function SettingsStationsSection() {
                                                                 {dayShift.shifts.map((shift, shiftIndex) => (
                                                                     <div
                                                                         key={shiftIndex}
-                                                                        className="flex items-center gap-3 p-2 border border-gray-200 rounded bg-gray-50 text-sm"
+                                                                        className="flex items-center gap-2 flex-nowrap p-2 border border-gray-200 rounded bg-gray-50 text-sm"
                                                                     >
-                                                                        <span className="text-gray-600">
+                                                                        <span className="text-gray-600 whitespace-nowrap flex-shrink-0">
                                                                             {shift.open_time.substring(0, 5)} - {shift.close_time.substring(0, 5)}
                                                                         </span>
+                                                                        <div className="flex-shrink-0">
+                                                                            <ShiftRestrictionsPopover
+                                                                                shift={shift}
+                                                                                customerTypes={viewingCustomerTypes}
+                                                                                dogCategories={viewingDogCategories}
+                                                                                isLoadingCustomerTypes={isLoadingViewingCustomerTypes}
+                                                                                isLoadingDogCategories={isLoadingViewingDogCategories}
+                                                                                onCreateCustomerType={createCustomerType}
+                                                                                onCreateDogCategory={createDogCategory}
+                                                                                onRefreshCustomerTypes={fetchViewingCustomerTypes}
+                                                                                onRefreshDogCategories={fetchViewingDogCategories}
+                                                                                onRestrictionChange={() => {
+                                                                                    // Read-only in view mode, so this is a no-op
+                                                                                }}
+                                                                            />
+                                                                        </div>
                                                                     </div>
                                                                 ))}
                                                             </div>

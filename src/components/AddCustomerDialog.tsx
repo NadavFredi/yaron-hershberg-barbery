@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { useCreateCustomerMutation } from "@/store/services/supabaseApi"
 import { normalizePhone } from "@/utils/phone"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { supabase } from "@/integrations/supabase/client"
 
 interface Customer {
@@ -23,9 +24,10 @@ interface AddCustomerDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     onSuccess?: (customer: Customer) => void
+    initialName?: string
 }
 
-export function AddCustomerDialog({ open, onOpenChange, onSuccess }: AddCustomerDialogProps) {
+export function AddCustomerDialog({ open, onOpenChange, onSuccess, initialName }: AddCustomerDialogProps) {
     const { toast } = useToast()
     const [createCustomer, { isLoading: isCreatingCustomer }] = useCreateCustomerMutation()
 
@@ -92,6 +94,16 @@ export function AddCustomerDialog({ open, onOpenChange, onSuccess }: AddCustomer
 
         loadCustomerTypes()
     }, [open, toast])
+
+    // Pre-fill the name field when dialog opens with initialName
+    useEffect(() => {
+        if (open && initialName) {
+            setCustomerData(prev => ({
+                ...prev,
+                full_name: initialName
+            }))
+        }
+    }, [open, initialName])
 
     const handleCreateCustomer = useCallback(async () => {
         if (!customerData.full_name.trim()) {
@@ -232,14 +244,11 @@ export function AddCustomerDialog({ open, onOpenChange, onSuccess }: AddCustomer
                             <Phone className="h-4 w-4 text-gray-400" />
                             מספר טלפון <span className="text-red-500">*</span>
                         </Label>
-                        <Input
+                        <PhoneInput
                             id="add-customer-phone"
-                            type="tel"
                             placeholder="050-1234567"
                             value={customerData.phone_number}
-                            onChange={(e) => setCustomerData({ ...customerData, phone_number: e.target.value })}
-                            className="text-right"
-                            dir="rtl"
+                            onChange={(value) => setCustomerData({ ...customerData, phone_number: value })}
                             disabled={isCreatingCustomer}
                         />
                     </div>

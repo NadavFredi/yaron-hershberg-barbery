@@ -4,11 +4,13 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react"
-import type { InputHTMLAttributes } from "react"
+import type { CSSProperties, InputHTMLAttributes } from "react"
+import { createPortal } from "react-dom"
 
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
@@ -19,6 +21,8 @@ interface TimePickerInputProps
   onChange: (value: string) => void
   intervalMinutes?: number
   wrapperClassName?: string
+  usePortal?: boolean
+  portalContainer?: HTMLElement | null
 }
 
 const formatTime = (totalMinutes: number): string => {
@@ -46,39 +50,99 @@ export const TimePickerInput = forwardRef<HTMLInputElement, TimePickerInputProps
       wrapperClassName,
       onFocus,
       onBlur,
+      usePortal = true,
+      portalContainer,
       ...rest
     },
     ref,
   ) => {
     const [open, setOpen] = useState(false)
+    const [selectionMode, setSelectionMode] = useState<'hour' | 'minute'>('hour')
+    const [selectedHour, setSelectedHour] = useState<number | null>(null)
+    const [isTypingMode, setIsTypingMode] = useState(false)
+    const [draftValue, setDraftValue] = useState(value)
     const containerRef = useRef<HTMLDivElement | null>(null)
     const inputRef = useRef<HTMLInputElement | null>(null)
     const listRef = useRef<HTMLDivElement | null>(null)
+    const wasOpenRef = useRef(false)
+    const isManualModeChangeRef = useRef(false)
+    const [portalStyles, setPortalStyles] = useState<CSSProperties>()
 
     useImperativeHandle(ref, () => inputRef.current as HTMLInputElement)
 
-    const timeOptions = useMemo(() => {
+    // Generate hour options (0-23)
+    const hourOptions = useMemo(() => {
+      return Array.from({ length: 24 }, (_, i) => i)
+    }, [])
+
+    // Generate minute options for selected hour (always use 5-minute intervals for minutes view)
+    const minuteOptions = useMemo(() => {
+      if (selectedHour === null) return []
       const options: string[] = []
-      const step = Math.max(1, intervalMinutes)
-      for (let minutes = 0; minutes < 24 * 60; minutes += step) {
-        options.push(formatTime(minutes))
+      const step = 5 // Always use 5-minute intervals for minutes selection
+      for (let minutes = 0; minutes < 60; minutes += step) {
+        options.push(formatTime(selectedHour * 60 + minutes))
       }
       return options
-    }, [intervalMinutes])
+    }, [selectedHour])
+
+    // Reset selection mode when opening/closing - always start with hours
+    useEffect(() => {
+      // Skip if we're manually changing the mode
+      if (isManualModeChangeRef.current) {
+        isManualModeChangeRef.current = false
+        return
+      }
+
+      if (open) {
+        const justOpened = !wasOpenRef.current
+        wasOpenRef.current = true
+
+        // Always start with hour selection mode
+        if (justOpened) {
+          setSelectionMode('hour')
+          // Extract hour from current value if exists to highlight it
+          const parsed = parseTimeToMinutes(value)
+          if (parsed !== null) {
+            const hour = Math.floor(parsed / 60)
+            setSelectedHour(hour)
+          } else {
+            setSelectedHour(null)
+          }
+        }
+      } else {
+        wasOpenRef.current = false
+        setSelectionMode('hour')
+        setSelectedHour(null)
+      }
+    }, [open, value])
 
     // Close the dropdown when clicking outside
     useEffect(() => {
       const handleClickOutside = (event: MouseEvent) => {
-        if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-          setOpen(false)
+        const target = event.target as Node
+        if (
+          containerRef.current?.contains(target) ||
+          listRef.current?.contains(target)
+        ) {
+          return
         }
+        setOpen(false)
       }
 
       document.addEventListener("mousedown", handleClickOutside)
       return () => document.removeEventListener("mousedown", handleClickOutside)
     }, [])
 
-    const handleOptionSelect = useCallback(
+    const handleHourSelect = useCallback(
+      (hour: number) => {
+        setSelectedHour(hour)
+        setSelectionMode('minute')
+      },
+      [],
+    )
+
+    const handleMinuteSelect = useCallback(
       (time: string) => {
         onChange(time)
         setOpen(false)
@@ -123,77 +187,233 @@ export const TimePickerInput = forwardRef<HTMLInputElement, TimePickerInputProps
       return time
     }, [])
 
-    const isValidTimeFormat = (time: string) =>
-      time === "" || /^\d{0,2}:?\d{0,2}$/.test(time) || /^\d{3,4}$/.test(time) || /^\d{2}:\d{2}$/.test(time)
+    // Sync draft value when external value changes (but not during typing)
+    useEffect(() => {
+      if (!isTypingMode) {
+        setDraftValue(value)
+      }
+    }, [value, isTypingMode])
+
+    // Filter input to only allow numbers and colons
+    const filterInput = useCallback((input: string): string => {
+      return input.replace(/[^\d:]/g, '')
+    }, [])
+
+    const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+      // Enter typing mode on any printable key press (except special navigation keys)
+      const isPrintableKey = event.key.length === 1 || ['Backspace', 'Delete'].includes(event.key)
+      const isNavigationKey = ['Tab', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter'].includes(event.key)
+
+      if (!isTypingMode && isPrintableKey && !isNavigationKey) {
+        setIsTypingMode(true)
+        // Select all text when entering typing mode
+        requestAnimationFrame(() => {
+          inputRef.current?.select()
+        })
+      }
+    }, [isTypingMode])
+
+    const updatePortalPosition = useCallback(() => {
+      if (!usePortal || !open) return
+      const anchor = containerRef.current
+      if (!anchor) return
+
+      const rect = anchor.getBoundingClientRect()
+      const dropdownWidth = listRef.current?.offsetWidth || 280
+      const viewportWidth = window.innerWidth
+      const gutter = 8
+
+      let left = rect.right - dropdownWidth
+      left = Math.max(gutter, Math.min(left, viewportWidth - dropdownWidth - gutter))
+      const top = rect.bottom + gutter
+
+      setPortalStyles({
+        position: "fixed",
+        top,
+        left,
+        zIndex: 10000, // Higher than dialog z-50 (which is 50)
+      })
+    }, [open, usePortal])
+
+    useLayoutEffect(() => {
+      if (!usePortal || !open) return
+
+      updatePortalPosition()
+      const handleReposition = () => updatePortalPosition()
+
+      window.addEventListener("resize", handleReposition)
+      window.addEventListener("scroll", handleReposition, true)
+
+      return () => {
+        window.removeEventListener("resize", handleReposition)
+        window.removeEventListener("scroll", handleReposition, true)
+      }
+    }, [open, usePortal, updatePortalPosition])
 
     useEffect(() => {
-      if (!open || !listRef.current) {
-        return
+      if (open && usePortal) {
+        requestAnimationFrame(() => updatePortalPosition())
       }
+    }, [open, usePortal, updatePortalPosition])
 
-      const listEl = listRef.current
-
-      const scrollToOption = (targetTime: string) => {
-        const optionEl = listEl.querySelector<HTMLButtonElement>(`[data-time="${targetTime}"]`)
-        if (optionEl) {
-          const offsetTop = optionEl.offsetTop
-          const optionHeight = optionEl.offsetHeight || 32
-          const containerHeight = listEl.clientHeight
-          listEl.scrollTop = Math.max(0, offsetTop - containerHeight / 2 + optionHeight / 2)
-        }
-      }
-
-      const normalizedValue = normalizeTime(value)
-      if (normalizedValue) {
-        const match = timeOptions.find((time) => time === normalizedValue)
-        if (match) {
-          scrollToOption(match)
-          return
-        }
-
-        const minutes = parseTimeToMinutes(normalizedValue)
-        if (minutes != null) {
-          const step = Math.max(1, intervalMinutes)
-          const nearestIndex = Math.round(minutes / step)
-          const clampedIndex = Math.min(timeOptions.length - 1, Math.max(0, nearestIndex))
-          scrollToOption(timeOptions[clampedIndex])
-          return
-        }
-      }
-
-      const now = new Date()
-      const minutesSinceMidnight = now.getHours() * 60 + now.getMinutes()
-      const step = Math.max(1, intervalMinutes)
-      const nearestIndex = Math.round(minutesSinceMidnight / step)
-      const targetIndex = Math.min(timeOptions.length - 1, Math.max(0, nearestIndex))
-      scrollToOption(timeOptions[targetIndex])
-    }, [open, normalizeTime, value, timeOptions, intervalMinutes])
+    const dropdownNode = (
+      <div
+        ref={listRef}
+        data-time-picker-portal
+        className={cn(
+          "w-64 sm:w-72 min-w-[240px] max-w-[320px] max-h-[18rem] overflow-auto rounded-md border border-gray-200 bg-white shadow-lg",
+          usePortal ? "" : "absolute mt-2 z-50"
+        )}
+        style={usePortal ? { ...portalStyles, pointerEvents: 'auto' } : undefined}
+      >
+        {selectionMode === 'hour' ? (
+          <div className="p-2">
+            <div className="grid grid-cols-3 lg:grid-cols-4 gap-1">
+              {hourOptions.map((hour) => {
+                const hourStr = hour.toString().padStart(2, "0")
+                const isSelected = selectedHour === hour
+                return (
+                  <button
+                    key={hour}
+                    type="button"
+                    className={cn(
+                      "px-2 py-2 text-sm rounded hover:bg-gray-100 text-right",
+                      isSelected && "bg-gray-100 font-medium text-gray-900"
+                    )}
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                    }}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      handleHourSelect(hour)
+                    }}
+                  >
+                    {hourStr}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between z-10">
+              <button
+                type="button"
+                className="text-sm text-gray-600 hover:text-gray-900 cursor-pointer"
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                }}
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  isManualModeChangeRef.current = true
+                  setSelectionMode('hour')
+                  // Keep the selected hour so it's highlighted when going back
+                  const parsed = parseTimeToMinutes(value)
+                  if (parsed !== null) {
+                    const hour = Math.floor(parsed / 60)
+                    setSelectedHour(hour)
+                  } else {
+                    setSelectedHour(null)
+                  }
+                }}
+              >
+                ← חזור
+              </button>
+              <span className="text-sm font-medium text-gray-900">
+                {selectedHour !== null ? `${selectedHour.toString().padStart(2, "0")}:XX` : ''}
+              </span>
+            </div>
+            <div className="p-2">
+              <div className="grid grid-cols-3 lg:grid-cols-4 gap-1">
+                {minuteOptions.map((time) => {
+                  const isSelected = time === value
+                  return (
+                    <button
+                      key={time}
+                      type="button"
+                      className={cn(
+                        "px-2 py-2 text-sm rounded hover:bg-gray-100 text-right",
+                        isSelected && "bg-gray-100 font-medium text-gray-900"
+                      )}
+                      onMouseDown={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                      }}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        handleMinuteSelect(time)
+                      }}
+                    >
+                      {time}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
 
     return (
       <div ref={containerRef} className={cn("relative", wrapperClassName)}>
         <div className="relative flex items-center">
           <Input
             ref={inputRef}
-            value={value}
+            value={isTypingMode ? draftValue : value}
             onChange={(event) => {
-              const nextValue = event.target.value
-              if (nextValue === "" || isValidTimeFormat(nextValue)) {
-                onChange(nextValue)
+              // If not in typing mode, enter it
+              if (!isTypingMode) {
+                setIsTypingMode(true)
+                requestAnimationFrame(() => {
+                  inputRef.current?.select()
+                })
               }
+
+              // Filter to only allow numbers and colons
+              const filtered = filterInput(event.target.value)
+              setDraftValue(filtered)
             }}
+            onKeyDown={handleKeyDown}
             onFocus={(event) => {
               setOpen(true)
+              setIsTypingMode(false) // Reset typing mode on focus
+              setDraftValue(value) // Reset draft to current value
               onFocus?.(event)
             }}
             onBlur={(event) => {
-              const normalized = normalizeTime(value)
-              if (normalized !== value) {
-                onChange(normalized)
+              // Exit typing mode and validate/normalize
+              setIsTypingMode(false)
+
+              // Normalize the draft value
+              const normalized = normalizeTime(draftValue)
+
+              // Update the actual value
+              onChange(normalized)
+
+              // Update selected hour based on normalized value
+              const parsed = parseTimeToMinutes(normalized)
+              if (parsed !== null) {
+                const hour = Math.floor(parsed / 60)
+                setSelectedHour(hour)
               }
+
               setOpen(false)
               onBlur?.(event)
             }}
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              setOpen(true)
+              // Select all text on click if not in typing mode
+              if (!isTypingMode) {
+                requestAnimationFrame(() => {
+                  inputRef.current?.select()
+                })
+              }
+            }}
             placeholder="hh:mm"
             inputMode="numeric"
             className={cn("text-right", className, "pr-10 pl-3")}
@@ -215,32 +435,7 @@ export const TimePickerInput = forwardRef<HTMLInputElement, TimePickerInputProps
           </button>
         </div>
 
-        {open && (
-          <div
-            ref={listRef}
-            className="absolute z-50 mt-2 max-h-60 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
-          >
-            <ul className="py-1 text-right text-sm text-gray-700">
-              {timeOptions.map((time) => (
-                <li key={time}>
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex w-full  items-center  gap-2 px-3 py-2 text-right hover:bg-gray-100",
-                      value === time && "bg-gray-100 font-medium text-gray-900",
-                    )}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => handleOptionSelect(time)}
-                    data-time={time}
-                  >
-                    <span className="text-right">{time}</span>
-                    {value === time && <Clock className="h-4 w-4 text-gray-500" />}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {open && (usePortal ? createPortal(dropdownNode, portalContainer ?? document.body) : dropdownNode)}
       </div>
     )
   },

@@ -6,9 +6,9 @@ export interface ServiceStationConfig {
   price: number;
 }
 
-export interface ServiceTreatmentTypeModifier {
+export interface ServiceBreedModifier {
   serviceId: string;
-  treatmentTypeId: string;
+  breedId: string;
   timeModifierMinutes: number;
 }
 
@@ -17,7 +17,6 @@ export interface ServiceWithStats {
   name: string;
   description?: string;
   averageTime: number;
-  baseTime: number;
   configuredStationsCount: number;
   totalStationsCount: number;
 }

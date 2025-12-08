@@ -72,7 +72,7 @@ const generateGoogleCalendarLink = (appointment: CombinedAppointment) => {
         parseDateTime(appointment.endDateTime) ??
         new Date(appointmentStart.getTime() + 60 * 60 * 1000)
 
-    const title = `${getServiceName(appointment.service)} - ${appointment.treatmentName || "לקוח"}`
+    const title = `${getServiceName(appointment.service)} - ${appointment.dogName || "כלב"}`
     const details = appointment.notes ? `הערות: ${appointment.notes}` : ""
 
     const formattedStart = formatForGoogleCalendar(appointmentStart)
@@ -83,7 +83,7 @@ const generateGoogleCalendarLink = (appointment: CombinedAppointment) => {
         text: title,
         dates: `${formattedStart}/${formattedEnd}`,
         details,
-        location: 'WagTime - מספרת בוטיק',
+        location: 'WagTime - מרכז טיפוח כלבים',
         trp: 'false',
     })
 
@@ -92,8 +92,8 @@ const generateGoogleCalendarLink = (appointment: CombinedAppointment) => {
 
 interface CombinedAppointment {
     id: string
-    treatmentId: string
-    treatmentName: string
+    dogId: string
+    dogName: string
     date: string
     time: string
     status: string
@@ -539,7 +539,7 @@ export function BothAppointmentCard({
                                         <div className="space-y-2 text-right mr-2 ml-6">
                                             {/* Name and status badge row */}
                                             <div className="flex items-center gap-2">
-                                                <h3 className="text-lg font-semibold">תספורת וגן - {appointment.treatmentName}</h3>
+                                                <h3 className="text-lg font-semibold">תספורת וגן - {appointment.dogName}</h3>
                                                 {renderStatusBadge()}
                                                 {renderLatePickupBadge()}
                                             </div>

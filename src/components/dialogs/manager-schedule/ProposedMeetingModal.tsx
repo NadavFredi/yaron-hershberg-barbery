@@ -4,20 +4,96 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, UserPlus, Users, Search, X, Sparkles, Copy, LinkIcon } from "lucide-react"
+import { Loader2, UserPlus, Users, Search, X, Sparkles, Copy, LinkIcon, Dog } from "lucide-react"
 
 import { AppointmentDetailsSection, type AppointmentTimes, type AppointmentStation } from "@/pages/ManagerSchedule/components/AppointmentDetailsSection"
-import { useSearchCustomersQuery, useSendManualProposedMeetingWebhookMutation } from "@/store/services/supabaseApi"
+import { useSearchCustomersQuery, useSendManualProposedMeetingWebhookMutation, useListOwnerDogsQuery } from "@/store/services/supabaseApi"
 import { useDebounce } from "@/hooks/useDebounce"
 import type { Customer } from "@/components/CustomerSearchInput"
+import type { DogRecord } from "@/integrations/supabase/supabaseService"
 import { supabase } from "@/integrations/supabase/client"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
+import { CustomerTypeMultiSelect, type CustomerTypeOption } from "@/components/customer-types/CustomerTypeMultiSelect"
+import { useCreateCustomerType } from "@/hooks/useCreateCustomerType"
+import { DogCategoryMultiSelect, type DogCategoryOption } from "@/components/dog-categories/DogCategoryMultiSelect"
+import { useCreateDogCategory } from "@/hooks/useCreateDogCategory"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { skipToken } from "@reduxjs/toolkit/query"
 
 type ManagerStation = AppointmentStation & { serviceType: "grooming" | "garden" }
+
+// Component to select a dog for a specific customer
+function CustomerDogSelector({
+  customer,
+  selectedDogId,
+  onDogSelect,
+  onRemove,
+}: {
+  customer: Customer
+  selectedDogId: string
+  onDogSelect: (dogId: string | null) => void
+  onRemove: () => void
+}) {
+  const { data: dogsData, isLoading: isLoadingDogs } = useListOwnerDogsQuery(
+    customer.id || skipToken,
+    { skip: !customer.id }
+  )
+
+  const dogs = useMemo<DogRecord[]>(() => dogsData?.dogs ?? [], [dogsData])
+
+  return (
+    <div className="rounded-md border border-slate-200 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="flex items-center gap-2">
+            <span>{customer.fullName || "לקוח ללא שם"}</span>
+            <button
+              type="button"
+              onClick={onRemove}
+              className="text-slate-500 hover:text-slate-700"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        </div>
+      </div>
+      {isLoadingDogs ? (
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          טוען כלבים...
+        </div>
+      ) : dogs.length > 0 ? (
+        <div className="space-y-1">
+          <Label className="text-xs text-slate-600 text-right block">בחר כלב (אופציונלי)</Label>
+          <Select
+            value={selectedDogId || "__all__"}
+            onValueChange={(value) => onDogSelect(value === "__all__" ? null : value)}
+            dir="rtl"
+          >
+            <SelectTrigger className="w-full text-right">
+              <SelectValue placeholder="כל הכלבים" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">כל הכלבים</SelectItem>
+              {dogs.map((dog) => (
+                <SelectItem key={dog.id} value={dog.id}>
+                  {dog.name || "כלב ללא שם"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : (
+        <div className="text-xs text-slate-500 text-right">
+          ללקוח זה אין כלבים רשומים
+        </div>
+      )}
+    </div>
+  )
+}
 
 export interface ProposedMeetingModalSubmission {
   title: string
@@ -29,6 +105,8 @@ export interface ProposedMeetingModalSubmission {
   serviceType: "grooming" | "garden"
   customerIds: string[]
   customerTypeIds: string[]
+  dogCategoryIds: string[]
+  dogIds?: Array<{ customerId: string; dogId: string }>
   meetingId?: string
 }
 
@@ -41,8 +119,9 @@ export interface ProposedMeetingInitialData {
   serviceType: "grooming" | "garden"
   startDateTime: string
   endDateTime: string
-  manualInvites?: Array<{ id: string; fullName?: string | null; phone?: string | null; email?: string | null }>
+  manualInvites?: Array<{ id: string; fullName?: string | null; phone?: string | null; email?: string | null; dogId?: string | null }>
   customerTypeIds?: string[]
+  dogCategoryIds?: string[]
   code?: string
 }
 
@@ -57,7 +136,6 @@ interface ProposedMeetingModalProps {
   onSubmit: (payload: ProposedMeetingModalSubmission) => Promise<void> | void
 }
 
-type CustomerTypeOption = { id: string; name: string }
 
 export const ProposedMeetingModal = ({
   open,
@@ -78,8 +156,34 @@ export const ProposedMeetingModal = ({
   const [selectedCustomerTypeIds, setSelectedCustomerTypeIds] = useState<string[]>([])
   const [customerTypeOptions, setCustomerTypeOptions] = useState<CustomerTypeOption[]>([])
   const [isLoadingCustomerTypes, setIsLoadingCustomerTypes] = useState(false)
+  const [selectedDogCategoryIds, setSelectedDogCategoryIds] = useState<string[]>([])
+  const [dogCategoryOptions, setDogCategoryOptions] = useState<DogCategoryOption[]>([])
+  const [isLoadingDogCategories, setIsLoadingDogCategories] = useState(false)
+  const [selectedDogIds, setSelectedDogIds] = useState<Map<string, string>>(new Map()) // customerId -> dogId
+
+  const { createCustomerType } = useCreateCustomerType({
+    onSuccess: (id, name) => {
+      // Add to local state immediately
+      const newCustomerType: CustomerTypeOption = {
+        id,
+        name,
+      }
+      setCustomerTypeOptions((prev) => [...prev, newCustomerType])
+    },
+  })
+  const { createDogCategory } = useCreateDogCategory({
+    onSuccess: (id, name) => {
+      // Add to local state immediately
+      const newDogCategory: DogCategoryOption = {
+        id,
+        name,
+      }
+      setDogCategoryOptions((prev) => [...prev, newDogCategory])
+    },
+  })
   const [customerSearchTerm, setCustomerSearchTerm] = useState("")
   const [customerHighlightIndex, setCustomerHighlightIndex] = useState(-1)
+  const [isCustomerInputFocused, setIsCustomerInputFocused] = useState(false)
   const customerSuggestionRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [manualContact, setManualContact] = useState({ name: "", phone: "", email: "" })
   const [manualSending, setManualSending] = useState(false)
@@ -90,7 +194,8 @@ export const ProposedMeetingModal = ({
   const [sendManualWebhook] = useSendManualProposedMeetingWebhookMutation()
 
   const debouncedSearchTerm = useDebounce(customerSearchTerm.trim(), 300)
-  const shouldSearchCustomers = debouncedSearchTerm.length >= 2
+  // Show results when focused (even with empty search) or when search term is 2+ chars
+  const shouldSearchCustomers = isCustomerInputFocused && (debouncedSearchTerm.length === 0 || debouncedSearchTerm.length >= 2)
   const { data: customerSearchData, isFetching: isSearchingCustomers } = useSearchCustomersQuery(
     { searchTerm: debouncedSearchTerm },
     { skip: !shouldSearchCustomers }
@@ -244,6 +349,7 @@ export const ProposedMeetingModal = ({
 
     if (initialData?.manualInvites?.length) {
       const uniqueCustomers = new Map<string, Customer>()
+      const dogIdsMap = new Map<string, string>()
       initialData.manualInvites.forEach((invite) => {
         if (invite.id) {
           uniqueCustomers.set(invite.id, {
@@ -252,14 +358,20 @@ export const ProposedMeetingModal = ({
             phone: invite.phone ?? undefined,
             email: invite.email ?? undefined,
           })
+          if (invite.dogId) {
+            dogIdsMap.set(invite.id, invite.dogId)
+          }
         }
       })
       setSelectedCustomers(Array.from(uniqueCustomers.values()))
+      setSelectedDogIds(dogIdsMap)
     } else {
       setSelectedCustomers([])
+      setSelectedDogIds(new Map())
     }
 
     setSelectedCustomerTypeIds(initialData?.customerTypeIds ?? [])
+    setSelectedDogCategoryIds(initialData?.dogCategoryIds ?? [])
     setCustomerSearchTerm("")
     setCopyLinkSuccess(false)
     setCopyCodeSuccess(false)
@@ -277,6 +389,7 @@ export const ProposedMeetingModal = ({
       return
     }
     let isMounted = true
+
     setIsLoadingCustomerTypes(true)
     supabase
       .from("customer_types")
@@ -305,6 +418,40 @@ export const ProposedMeetingModal = ({
     }
   }, [open])
 
+  // Load dog category options when modal opens
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    let isMounted = true
+
+    setIsLoadingDogCategories(true)
+    supabase
+      .from("dog_categories")
+      .select("id, name")
+      .order("name", { ascending: true })
+      .then(({ data, error }) => {
+        if (!isMounted) {
+          return
+        }
+        if (error) {
+          console.error("❌ [ProposedMeetingModal] Failed to load dog categories:", error)
+          setDogCategoryOptions([])
+        } else {
+          setDogCategoryOptions(data ?? [])
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingDogCategories(false)
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [open])
+
   const handleAddCustomer = (customer: Customer) => {
     if (!customer?.id) {
       return
@@ -321,15 +468,6 @@ export const ProposedMeetingModal = ({
 
   const handleRemoveCustomer = (customerId: string) => {
     setSelectedCustomers((prev) => prev.filter((customer) => customer.id !== customerId))
-  }
-
-  const handleToggleCustomerType = (typeId: string) => {
-    setSelectedCustomerTypeIds((prev) => {
-      if (prev.includes(typeId)) {
-        return prev.filter((id) => id !== typeId)
-      }
-      return [...prev, typeId]
-    })
   }
 
   const handleCustomerSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -393,6 +531,14 @@ export const ProposedMeetingModal = ({
       return
     }
 
+    // Build dogIds array from selectedDogIds map
+    const dogIds: Array<{ customerId: string; dogId: string }> = []
+    selectedDogIds.forEach((dogId, customerId) => {
+      if (dogId) {
+        dogIds.push({ customerId, dogId })
+      }
+    })
+
     await onSubmit({
       title: title.trim(),
       summary: summary.trim(),
@@ -403,6 +549,8 @@ export const ProposedMeetingModal = ({
       serviceType: resolvedServiceType,
       customerIds: selectedCustomers.map((customer) => customer.id),
       customerTypeIds: selectedCustomerTypeIds,
+      dogCategoryIds: selectedDogCategoryIds,
+      dogIds: dogIds.length > 0 ? dogIds : undefined,
       meetingId: initialData?.meetingId,
     })
   }
@@ -485,130 +633,198 @@ export const ProposedMeetingModal = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2" dir="rtl">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-right font-semibold flex items-center gap-2">
-                    <Users className="h-4 w-4 text-lime-600" />
-                    קטגוריות לקוחות
-                  </Label>
-                  <Badge variant="outline" className="text-[11px]">
-                    {selectedCustomerTypeIds.length} נבחרו
-                  </Badge>
-                </div>
-                <div className="rounded-md border border-slate-200">
-                  <ScrollArea className="max-h-48 px-3 py-2">
-                    {isLoadingCustomerTypes ? (
-                      <div className="flex items-center justify-center py-6 text-sm text-slate-500">
-                        <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                        טוען קטגוריות...
-                      </div>
-                    ) : customerTypeOptions.length ? (
-                      <div className="space-y-2" dir="rtl">
-                        {customerTypeOptions.map((option) => (
-                          <label key={option.id} className="flex items-center gap-2 cursor-pointer">
-                            <Checkbox
-                              checked={selectedCustomerTypeIds.includes(option.id)}
-                              onCheckedChange={() => handleToggleCustomerType(option.id)}
-                            />
-                            <span className="text-sm text-gray-700">{option.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center text-sm text-slate-500 py-4">
-                        אין קטגוריות פעילות. ניתן להגדיר אותן במסך ההגדרות.
-                      </div>
-                    )}
-                  </ScrollArea>
-                </div>
+            <div className="space-y-6 border-t pt-6" dir="rtl">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <Users className="h-5 w-5 text-lime-600" />
+                  בחירת קהל היעד
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  בחרו את הקהל שיוזמן למפגש זה - ניתן לבחור לפי קטגוריות לקוחות, קטגוריות כלבים, או לקוחות ספציפיים
+                </p>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-right font-semibold flex items-center gap-2">
-                    <UserPlus className="h-4 w-4 text-lime-600" />
-                    לקוחות ספציפיים
-                  </Label>
-                  <Badge variant="outline" className="text-[11px]">
-                    {selectedCustomers.length} נבחרו
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Input
-                      value={customerSearchTerm}
-                      onChange={(event) => setCustomerSearchTerm(event.target.value)}
-                      onKeyDown={handleCustomerSearchKeyDown}
-                      placeholder="חיפוש לפי שם, טלפון או אימייל..."
-                      className="pr-9 text-right"
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2" dir="rtl">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-right font-semibold flex items-center gap-2">
+                        <Users className="h-4 w-4 text-lime-600" />
+                        קטגוריות לקוחות
+                      </Label>
+                      <Badge variant="outline" className="text-[11px]">
+                        {selectedCustomerTypeIds.length} נבחרו
+                      </Badge>
+                    </div>
+                    <CustomerTypeMultiSelect
+                      options={customerTypeOptions}
+                      selectedIds={selectedCustomerTypeIds}
+                      onSelectionChange={setSelectedCustomerTypeIds}
+                      placeholder="בחר קטגוריות לקוחות..."
+                      isLoading={isLoadingCustomerTypes}
+                      onCreateCustomerType={createCustomerType}
+                      onRefreshOptions={async () => {
+                        setIsLoadingCustomerTypes(true)
+                        try {
+                          const { data, error } = await supabase
+                            .from("customer_types")
+                            .select("id, name")
+                            .order("priority", { ascending: true })
+                            .order("name", { ascending: true })
+
+                          if (error) {
+                            console.error("❌ [ProposedMeetingModal] Failed to refresh customer types:", error)
+                          } else {
+                            setCustomerTypeOptions(data ?? [])
+                          }
+                        } finally {
+                          setIsLoadingCustomerTypes(false)
+                        }
+                      }}
                     />
-                    <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   </div>
-                  {customerSearchTerm && customerSearchTerm.length < 2 && (
-                    <p className="text-xs text-slate-500 text-right">הקלידו לפחות שתי אותיות כדי לחפש לקוחות.</p>
-                  )}
-                  {shouldSearchCustomers && (
-                    <div className="rounded-md border border-slate-200">
-                      <ScrollArea className="max-h-48">
-                        {isSearchingCustomers ? (
-                          <div className="flex items-center justify-center py-4 text-sm text-slate-500">
-                            <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                            מחפש לקוחות...
-                          </div>
-                        ) : visibleCustomerResults.length ? (
-                          <div className="divide-y divide-slate-100">
-                            {visibleCustomerResults.map((customer, index) => (
-                              <button
-                                type="button"
-                                key={customer.id}
-                                ref={(el) => (customerSuggestionRefs.current[index] = el)}
-                                className={cn(
-                                  "w-full px-3 py-2 text-right text-sm hover:bg-slate-50",
-                                  customerHighlightIndex === index && "bg-lime-50"
-                                )}
-                                onClick={() =>
-                                  handleAddCustomer({
-                                    id: customer.id,
-                                    fullName: customer.fullName,
-                                    phone: customer.phone,
-                                    email: customer.email,
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-right font-semibold flex items-center gap-2">
+                        <UserPlus className="h-4 w-4 text-lime-600" />
+                        לקוחות ספציפיים
+                      </Label>
+                      <Badge variant="outline" className="text-[11px]">
+                        {selectedCustomers.length} נבחרו
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Input
+                          value={customerSearchTerm}
+                          onChange={(event) => setCustomerSearchTerm(event.target.value)}
+                          onKeyDown={handleCustomerSearchKeyDown}
+                          onFocus={() => setIsCustomerInputFocused(true)}
+                          onBlur={() => {
+                            // Delay to allow click on customer item
+                            setTimeout(() => setIsCustomerInputFocused(false), 200)
+                          }}
+                          placeholder="חיפוש לפי שם, טלפון או אימייל..."
+                          className="pr-9 text-right"
+                        />
+                        <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      </div>
+                      {isCustomerInputFocused && customerSearchTerm && customerSearchTerm.length > 0 && customerSearchTerm.length < 2 && (
+                        <p className="text-xs text-slate-500 text-right">הקלידו לפחות שתי אותיות כדי לחפש לקוחות.</p>
+                      )}
+                      {shouldSearchCustomers && (
+                        <div className="rounded-md border border-slate-200">
+                          <ScrollArea className="max-h-48">
+                            {isSearchingCustomers ? (
+                              <div className="flex items-center justify-center py-4 text-sm text-slate-500">
+                                <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                                מחפש לקוחות...
+                              </div>
+                            ) : visibleCustomerResults.length ? (
+                              <div className="divide-y divide-slate-100">
+                                {visibleCustomerResults.map((customer, index) => (
+                                  <button
+                                    type="button"
+                                    key={customer.id}
+                                    ref={(el) => (customerSuggestionRefs.current[index] = el)}
+                                    className={cn(
+                                      "w-full px-3 py-2 text-right text-sm hover:bg-slate-50",
+                                      customerHighlightIndex === index && "bg-lime-50"
+                                    )}
+                                    onClick={() =>
+                                      handleAddCustomer({
+                                        id: customer.id,
+                                        fullName: customer.fullName,
+                                        phone: customer.phone,
+                                        email: customer.email,
+                                      })
+                                    }
+                                  >
+                                    <div className="font-medium text-gray-800">{customer.fullName || "לקוח ללא שם"}</div>
+                                    <div className="text-xs text-gray-500">
+                                      {customer.phone || customer.email ? `${customer.phone ?? ""} ${customer.email ?? ""}` : "ללא פרטי קשר"}
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="py-4 text-center text-sm text-slate-500">
+                                לא נמצאו לקוחות מתאימים לחיפוש זה.
+                              </div>
+                            )}
+                          </ScrollArea>
+                        </div>
+                      )}
+                      {selectedCustomers.length > 0 && (
+                        <div className="space-y-3">
+                          {selectedCustomers.map((customer) => (
+                            <CustomerDogSelector
+                              key={customer.id}
+                              customer={customer}
+                              selectedDogId={selectedDogIds.get(customer.id) || ""}
+                              onDogSelect={(dogId) => {
+                                if (dogId) {
+                                  setSelectedDogIds(prev => new Map(prev).set(customer.id, dogId))
+                                } else {
+                                  setSelectedDogIds(prev => {
+                                    const next = new Map(prev)
+                                    next.delete(customer.id)
+                                    return next
                                   })
                                 }
-                              >
-                                <div className="font-medium text-gray-800">{customer.fullName || "לקוח ללא שם"}</div>
-                                <div className="text-xs text-gray-500">
-                                  {customer.phone || customer.email ? `${customer.phone ?? ""} ${customer.email ?? ""}` : "ללא פרטי קשר"}
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="py-4 text-center text-sm text-slate-500">
-                            לא נמצאו לקוחות מתאימים לחיפוש זה.
-                          </div>
-                        )}
-                      </ScrollArea>
+                              }}
+                              onRemove={() => {
+                                handleRemoveCustomer(customer.id)
+                                setSelectedDogIds(prev => {
+                                  const next = new Map(prev)
+                                  next.delete(customer.id)
+                                  return next
+                                })
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {selectedCustomers.length > 0 && (
-                    <div className="rounded-md border border-slate-200 p-2">
-                      <div className="flex flex-wrap gap-2">
-                        {selectedCustomers.map((customer) => (
-                          <Badge key={customer.id} variant="secondary" className="flex items-center gap-2">
-                            <span>{customer.fullName || "לקוח ללא שם"}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveCustomer(customer.id)}
-                              className="text-slate-500 hover:text-slate-700"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  </div>
+                </div>
+
+                <div className="space-y-3 border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-right font-semibold flex items-center gap-2">
+                      <Dog className="h-4 w-4 text-lime-600" />
+                      קטגוריות כלבים
+                    </Label>
+                    <Badge variant="outline" className="text-[11px]">
+                      {selectedDogCategoryIds.length} נבחרו
+                    </Badge>
+                  </div>
+                  <DogCategoryMultiSelect
+                    options={dogCategoryOptions}
+                    selectedIds={selectedDogCategoryIds}
+                    onSelectionChange={setSelectedDogCategoryIds}
+                    placeholder="בחר קטגוריות כלבים..."
+                    isLoading={isLoadingDogCategories}
+                    onCreateDogCategory={createDogCategory}
+                    onRefreshOptions={async () => {
+                      setIsLoadingDogCategories(true)
+                      try {
+                        const { data, error } = await supabase
+                          .from("dog_categories")
+                          .select("id, name")
+                          .order("name", { ascending: true })
+
+                        if (error) {
+                          console.error("❌ [ProposedMeetingModal] Failed to refresh dog categories:", error)
+                        } else {
+                          setDogCategoryOptions(data ?? [])
+                        }
+                      } finally {
+                        setIsLoadingDogCategories(false)
+                      }
+                    }}
+                  />
                 </div>
               </div>
             </div>

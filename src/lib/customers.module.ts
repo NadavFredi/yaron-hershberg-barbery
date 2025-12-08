@@ -5,8 +5,7 @@ export interface CustomerSearchResult {
   fullName?: string
   phone?: string
   email?: string
-  treatmentNames?: string
-  recordId?: string
+  dogNames?: string
 }
 
 /**
@@ -39,32 +38,47 @@ export async function searchCustomers(searchTerm: string): Promise<{
 
   console.log(`Found ${customersData?.length || 0} customers matching "${searchTerm}"`)
 
-  // For each customer, get their treatments' names
-  const customersWithTreatments: CustomerSearchResult[] = []
+  // For each customer, get their dogs' names
+  const customersWithDogs: CustomerSearchResult[] = []
 
   if (customersData && customersData.length > 0) {
     // Get all customer IDs
     const customerIds = customersData.map((c) => c.id)
 
-    // Treatments table no longer exists - services are global, not per-customer
-    // So we just use empty treatments for all customers
-    const treatmentsByCustomer: Record<string, string[]> = {}
+    // Fetch dogs for all customers at once
+    const { data: dogsData, error: dogsError } = await supabase
+      .from("dogs")
+      .select("id, name, customer_id")
+      .in("customer_id", customerIds)
+
+    if (dogsError) {
+      console.warn("Error fetching dogs for customers:", dogsError)
+    }
+
+    // Group dogs by customer_id
+    const dogsByCustomer: Record<string, string[]> = {}
+    dogsData?.forEach((dog) => {
+      if (!dogsByCustomer[dog.customer_id]) {
+        dogsByCustomer[dog.customer_id] = []
+      }
+      dogsByCustomer[dog.customer_id].push(dog.name)
+    })
 
     // Build result array
     customersData.forEach((customer) => {
-      customersWithTreatments.push({
+      customersWithDogs.push({
         id: customer.id,
         fullName: customer.full_name || undefined,
         phone: customer.phone || undefined,
         email: customer.email || undefined,
-        treatmentNames: treatmentsByCustomer[customer.id]?.join(", ") || undefined,
+        dogNames: dogsByCustomer[customer.id]?.join(", ") || undefined,
       })
     })
   }
 
   return {
-    customers: customersWithTreatments,
-    count: customersWithTreatments.length,
+    customers: customersWithDogs,
+    count: customersWithDogs.length,
     searchTerm,
   }
 }
