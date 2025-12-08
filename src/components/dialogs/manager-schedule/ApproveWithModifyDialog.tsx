@@ -140,7 +140,7 @@ export function ApproveWithModifyDialog() {
                     appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
                 }
 
-                const approvalResult = await approveAppointmentByManager(appointmentId, appointmentType, "approved")
+                const approvalResult = await approveAppointmentByManager(appointmentId, appointmentType, "scheduled")
 
                 if (!approvalResult.success) {
                     throw new Error(approvalResult.error || "לא ניתן לאשר את התור")

@@ -124,7 +124,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
   const primaryDog = appointment.dogs[0]
   const dogName = primaryDog?.name ?? "ללא שיוך לכלב"
   const rawBreedName = primaryDog?.breed ?? appointment.serviceName ?? ""
-  
+
   // Check if same dog has the other service type appointment on the same day
   const hasOtherServiceAppointment = useMemo(() => {
     if (!data?.appointments || !primaryDog?.id || appointment.isProposedMeeting) {
@@ -145,12 +145,12 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
 
   // Get base breed name and separate indicator
   const breedName = rawBreedName?.trim() ? rawBreedName.trim() : undefined
-  
+
   const crossServiceIndicator = useMemo(() => {
     if (!hasOtherServiceAppointment) {
       return undefined
     }
-    
+
     if (appointment.serviceType === "grooming") {
       return "+ גן"
     } else if (appointment.serviceType === "garden") {
@@ -269,9 +269,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
   // Check if appointment is cancelled
   const isCancelled = useMemo(() => {
     const status = appointment.status?.toLowerCase() || ""
-    return (
-      status.includes("cancel") || status.includes("בוטל") || status.includes("מבוטל")
-    )
+    return status.includes("cancel") || status.includes("בוטל") || status.includes("מבוטל")
   }, [appointment.status])
 
   // Check if appointment is waiting for manager approval (status is "pending")
@@ -281,12 +279,12 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
     if (appointment.isProposedMeeting) {
       return false
     }
-    
+
     // Don't show if cancelled
     if (isCancelled) {
       return false
     }
-    
+
     // Only show "waiting for approval" if status is "pending" (waiting for manager approval)
     // This means the appointment was created with status "pending" because it needs manager approval
     // based on the approval matrix/rules. Client cannot approve this - only managers can.
@@ -367,28 +365,27 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
   const handleClientClick = useCallback(
     (client: ClientDetails) => {
       // Open client sheet when clicking on client name directly
-      dispatch(setSelectedClient({
-        name: client.name,
-        classification: client.classification,
-        phone: client.phone,
-        email: client.email,
-        recordId: client.recordId,
-        recordNumber: client.recordNumber,
-        clientId: client.clientId || client.id,
-      }))
+      dispatch(
+        setSelectedClient({
+          name: client.name,
+          classification: client.classification,
+          phone: client.phone,
+          email: client.email,
+          recordId: client.recordId,
+          recordNumber: client.recordNumber,
+          clientId: client.clientId || client.id,
+        })
+      )
       dispatch(setIsClientDetailsOpen(true))
     },
     [dispatch]
   )
 
-  const handleOpenClientCommunication = useCallback(
-    () => {
-      // Open customer communication modal when explicitly clicking on communication button
-      dispatch(setCustomerCommunicationAppointment(appointment))
-      dispatch(setShowCustomerCommunicationModal(true))
-    },
-    [dispatch, appointment]
-  )
+  const handleOpenClientCommunication = useCallback(() => {
+    // Open customer communication modal when explicitly clicking on communication button
+    dispatch(setCustomerCommunicationAppointment(appointment))
+    dispatch(setShowCustomerCommunicationModal(true))
+  }, [dispatch, appointment])
 
   const handleCancelAppointment = useCallback(() => {
     if (appointment.isProposedMeeting) {
@@ -761,15 +758,15 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
     try {
       let appointmentId: string
       const appointmentType = appointment.serviceType === "grooming" ? "grooming" : "garden"
-      
+
       if (appointment.serviceType === "grooming") {
         appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       } else {
         appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
       }
-      
-      const result = await approveAppointmentByManager(appointmentId, appointmentType, "approved")
-      
+
+      const result = await approveAppointmentByManager(appointmentId, appointmentType, "scheduled")
+
       if (result.success) {
         toast({
           title: "הצלחה",
@@ -777,11 +774,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
         })
         // Invalidate cache to refresh the schedule
         dispatch(
-          supabaseApi.util.invalidateTags([
-            { type: 'ManagerSchedule', id: 'LIST' },
-            'Appointment',
-            'GardenAppointment'
-          ])
+          supabaseApi.util.invalidateTags([{ type: "ManagerSchedule", id: "LIST" }, "Appointment", "GardenAppointment"])
         )
       } else {
         toast({
@@ -803,24 +796,22 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
   const handleDeclineAppointment = useCallback(async () => {
     try {
       let appointmentId: string
-      
+
       if (appointment.serviceType === "grooming") {
         appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       } else {
         appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
       }
-      
+
       const result = await cancelAppointment(appointmentId)
-      
+
       if (result.success) {
         toast({
           title: "הצלחה",
           description: "התור בוטל בהצלחה",
         })
         // Invalidate cache to refresh the schedule
-        dispatch(
-          supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"])
-        )
+        dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"]))
       } else {
         toast({
           title: "שגיאה",

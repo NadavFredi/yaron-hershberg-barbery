@@ -456,12 +456,13 @@ export async function cancelAppointmentWebhook(
 
 /**
  * Manager approval of appointment (simple PostgREST update)
- * This is for MANAGERS only - changes the status field from "pending" to "approved"
+ * This is for MANAGERS only - changes the status field from "pending" to "scheduled"
+ * Valid enum values: 'pending', 'scheduled', 'completed', 'cancelled', 'no_show'
  */
 export const approveAppointmentByManager = async (
   appointmentId: string,
   appointmentType: "grooming" | "garden",
-  status: "approved" | "cancelled" = "approved"
+  status: "scheduled" | "cancelled" = "scheduled"
 ): Promise<{
   success: boolean
   message?: string
@@ -508,7 +509,7 @@ export const approveAppointmentByManager = async (
 
     return {
       success: true,
-      message: status === "approved" ? "התור אושר בהצלחה" : "התור בוטל בהצלחה",
+      message: status === "scheduled" ? "התור אושר בהצלחה" : "התור בוטל בהצלחה",
       appointment: data,
     }
   } catch (error) {
@@ -1192,7 +1193,7 @@ export async function createManagerAppointment(params: {
             station_id: stationIdToUse,
             start_at: params.startTime,
             end_at: params.endTime,
-            status: "approved",
+            status: "scheduled", // Valid enum values: 'pending', 'scheduled', 'completed', 'cancelled', 'no_show'
             appointment_kind: "personal",
             // appointment_name column doesn't exist - skipping
             series_id: finalGroupId || null,
