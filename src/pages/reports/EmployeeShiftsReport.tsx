@@ -36,7 +36,7 @@ interface RawShift {
     worker_id: string
     clock_in: string
     clock_out: string
-    worker?: {
+    profiles?: {
         id: string
         full_name: string
     }
@@ -101,7 +101,7 @@ export default function EmployeeShiftsReport() {
                     .select("id")
                     .eq("role", "worker")
                     .eq("worker_is_active", workerStatusFilter === "active")
-                
+
                 if (workersData) {
                     workerIdsByStatus = workersData.map((w: any) => w.id)
                     // If no workers match the status, return empty result
@@ -142,6 +142,7 @@ export default function EmployeeShiftsReport() {
             }
 
             // Build worker filter query
+            // Join with profiles table (workers are stored in profiles with role="worker")
             let shiftsQuery = supabase
                 .from("worker_attendance_logs")
                 .select(`
@@ -149,7 +150,7 @@ export default function EmployeeShiftsReport() {
                     worker_id,
                     clock_in,
                     clock_out,
-                    worker:worker_id!inner (
+                    profiles (
                         id,
                         full_name,
                         worker_is_active
@@ -175,8 +176,8 @@ export default function EmployeeShiftsReport() {
 
             shifts?.forEach((shift: any) => {
                 const employeeId = shift.worker_id
-                const employeeName = shift.worker?.full_name || "עובד לא מזוהה"
-                
+                const employeeName = shift.profiles?.full_name || "עובד לא מזוהה"
+
                 // Calculate duration from clock_in and clock_out
                 let duration = 0
                 if (shift.clock_in && shift.clock_out) {
@@ -320,7 +321,7 @@ export default function EmployeeShiftsReport() {
         const roundedHours = Math.round(hours * 100) / 100
         const hoursInt = Math.floor(roundedHours)
         const minutesRemainder = Math.round((roundedHours - hoursInt) * 60)
-        
+
         if (minutesRemainder === 0) {
             return `${hoursInt} שעות`
         }
@@ -329,7 +330,7 @@ export default function EmployeeShiftsReport() {
 
     const handleEmployeeClick = (employeeName: string) => {
         if (!rawShifts) return
-        const filtered = rawShifts.filter((shift) => shift.worker?.full_name === employeeName)
+        const filtered = rawShifts.filter((shift) => shift.profiles?.full_name === employeeName)
         setDetailModalTitle(`פרטי משמרות - ${employeeName}`)
         setDetailModalDescription(`סה"כ ${filtered.length} משמרות`)
         setDetailModalData(filtered)
@@ -340,10 +341,10 @@ export default function EmployeeShiftsReport() {
         if (!rawShifts) return
         // Convert dd/MM to match format used in shifts
         const dateLabel = date // Already in dd/MM format
-        
+
         const filtered = rawShifts.filter((shift) => {
             const shiftDateLabel = format(new Date(shift.clock_in), "dd/MM")
-            return shift.worker?.full_name === employeeName && shiftDateLabel === dateLabel
+            return shift.profiles?.full_name === employeeName && shiftDateLabel === dateLabel
         })
         setDetailModalTitle(`פרטי משמרות - ${employeeName} - ${date}`)
         setDetailModalDescription(`סה"כ ${filtered.length} משמרות`)
@@ -442,7 +443,7 @@ export default function EmployeeShiftsReport() {
                 <>
                     {/* Stats Cards */}
                     <div className="grid gap-4 md:grid-cols-2">
-                        <Card 
+                        <Card
                             className="cursor-pointer hover:shadow-md transition-shadow"
                             onClick={() => {
                                 setDetailModalTitle("כל המשמרות")
@@ -459,7 +460,7 @@ export default function EmployeeShiftsReport() {
                             </CardContent>
                         </Card>
 
-                        <Card 
+                        <Card
                             className="cursor-pointer hover:shadow-md transition-shadow"
                             onClick={() => {
                                 setDetailModalTitle("כל המשמרות")
@@ -608,7 +609,7 @@ export default function EmployeeShiftsReport() {
                                         highcharts={Highcharts}
                                         options={(() => {
                                             const yAxisTitle = lineChartViewMode === "shifts" ? "כמות משמרות" : "משך משמרת"
-                                            
+
                                             // Generate colors for employees
                                             const colors = [
                                                 "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
@@ -619,7 +620,7 @@ export default function EmployeeShiftsReport() {
                                                 const data = shiftsData.uniqueDates.map((date) => {
                                                     const dateEntry = employee.shiftsByDate.find((d) => d.date === date)
                                                     if (!dateEntry) return 0
-                                                    
+
                                                     if (lineChartViewMode === "shifts") {
                                                         return dateEntry.shifts
                                                     } else {
@@ -627,7 +628,7 @@ export default function EmployeeShiftsReport() {
                                                         return formatDurationForChart(dateEntry.totalDuration)
                                                     }
                                                 })
-                                                
+
                                                 return {
                                                     name: employee.employeeName,
                                                     data,
@@ -755,7 +756,7 @@ export default function EmployeeShiftsReport() {
                         render: (value) => value ? format(new Date(value), "dd/MM/yyyy HH:mm") : "לא יצא",
                     },
                     {
-                        key: "worker",
+                        key: "profiles",
                         label: "עובד",
                         render: (value) => value?.full_name || "עובד לא מזוהה",
                     },

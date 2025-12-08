@@ -1,10 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Info, AlertTriangle } from "lucide-react"
-import { addMinutes } from "date-fns"
-import { useCreateManagerAppointmentMutation, useLazyGetBreedStationDurationQuery } from "@/store/services/supabaseApi"
+import { Loader2 } from "lucide-react"
+import { useCreateManagerAppointmentMutation } from "@/store/services/supabaseApi"
 import {
     AppointmentDetailsSection,
     type AppointmentStation,
@@ -17,7 +15,7 @@ type ManagerStation = AppointmentStation
 
 type FinalizedDragTimes = AppointmentTimes
 
-type DurationStatus = 'idle' | 'checking' | 'supported' | 'unsupported' | 'error'
+// Removed DurationStatus type - barbery system doesn't use breed duration
 
 
 interface BusinessAppointmentModalProps {
@@ -45,14 +43,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         endTime: finalizedDragTimes.endTime ? new Date(finalizedDragTimes.endTime) : null,
         stationId: finalizedDragTimes.stationId ?? null
     } : null)
-    const [durationStatus, setDurationStatus] = useState<DurationStatus>('idle')
-    const [durationMinutes, setDurationMinutes] = useState<number | null>(null)
-    const [durationMessage, setDurationMessage] = useState<string | null>(null)
-    const [syncMeetingsTimes, setSyncMeetingsTimes] = useState<boolean>(true)
-    const hasSetSyncDefaultRef = useRef(false)
-
-    const [triggerBreedDuration, breedDurationResult] = useLazyGetBreedStationDurationQuery()
-    const { data: breedDurationData, isError: isBreedDurationError, error: breedDurationError } = breedDurationResult
+    // Removed breed duration functionality - barbery system doesn't use dogs/breeds
     const [createManagerAppointment, { isLoading: isCreatingAppointment }] = useCreateManagerAppointmentMutation()
     const { toast } = useToast()
 
@@ -62,8 +53,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     useEffect(() => {
         if (!open) {
             setSelectedCustomer(null)
-            setSyncMeetingsTimes(true)
-            hasSetSyncDefaultRef.current = false
         }
     }, [open])
 
@@ -87,71 +76,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         }
     }, [finalizedDragTimes])
 
-    // Set syncMeetingsTimes based on duration when modal opens
-    useEffect(() => {
-        if (open && appointmentTimes?.startTime && appointmentTimes?.endTime && !hasSetSyncDefaultRef.current) {
-            const startTime = appointmentTimes.startTime.getTime()
-            const endTime = appointmentTimes.endTime.getTime()
-            const durationMinutes = (endTime - startTime) / (1000 * 60)
-
-            // If duration is less than 15 minutes, check sync meetings by default
-            // If duration is 15 minutes or longer, uncheck sync meetings by default
-            setSyncMeetingsTimes(durationMinutes < 15)
-            hasSetSyncDefaultRef.current = true
-        }
-    }, [open, appointmentTimes?.startTime, appointmentTimes?.endTime])
-
-
-    useEffect(() => {
-        if (!isBreedDurationError) {
-            return
-        }
-
-        const rawMessage = typeof breedDurationError === 'object' && breedDurationError !== null
-            ? (breedDurationError as { data?: unknown }).data
-            : null
-
-        let message: string | null = null
-        if (typeof rawMessage === 'string') {
-            message = rawMessage
-        } else if (rawMessage && typeof rawMessage === 'object' && 'error' in rawMessage && typeof (rawMessage as { error?: unknown }).error === 'string') {
-            message = (rawMessage as { error?: string }).error ?? null
-        }
-
-        setDurationStatus('error')
-        setDurationMinutes(null)
-        setDurationMessage(message ?? 'לא ניתן לבדוק את משך התספורת בשלב זה.')
-    }, [isBreedDurationError, breedDurationError])
-
-    const startTimeKey = appointmentTimes?.startTime ? appointmentTimes.startTime.getTime() : null
-
-    useEffect(() => {
-        if (!syncMeetingsTimes) {
-            return
-        }
-
-        if (durationStatus !== 'supported' || durationMinutes == null || startTimeKey == null) {
-            return
-        }
-
-        setAppointmentTimes((prev) => {
-            if (!prev?.startTime) {
-                return prev
-            }
-
-            const expectedEnd = addMinutes(prev.startTime, durationMinutes)
-            const prevEnd = prev.endTime?.getTime()
-
-            if (prevEnd === expectedEnd.getTime()) {
-                return prev
-            }
-
-            return {
-                ...prev,
-                endTime: expectedEnd
-            }
-        })
-    }, [durationStatus, durationMinutes, startTimeKey, syncMeetingsTimes])
+    // Removed breed duration sync logic - barbery system doesn't use dogs/breeds
 
 
 
@@ -171,17 +96,11 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 stationId: times.stationId ?? prev?.stationId ?? null
             }
 
-            // If sync is enabled, update end time based on start time change
-            if (syncMeetingsTimes && next.startTime) {
-                // If we have a breed duration, use it
-                if (durationStatus === 'supported' && durationMinutes != null) {
-                    next.endTime = addMinutes(next.startTime, durationMinutes)
-                }
-                // Otherwise, maintain the current duration from previous times
-                else if (prev?.startTime && prev?.endTime && next.startTime.getTime() !== prev.startTime.getTime()) {
-                    const currentDuration = prev.endTime.getTime() - prev.startTime.getTime()
-                    next.endTime = new Date(next.startTime.getTime() + currentDuration)
-                }
+            // Removed breed duration sync - barbery system doesn't use dogs/breeds
+            // Maintain current duration when start time changes
+            if (prev?.startTime && prev?.endTime && next.startTime && next.startTime.getTime() !== prev.startTime.getTime()) {
+                const currentDuration = prev.endTime.getTime() - prev.startTime.getTime()
+                next.endTime = new Date(next.startTime.getTime() + currentDuration)
             }
 
             return next
@@ -191,13 +110,12 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
 
     const canCreateAppointment = Boolean(
         selectedCustomer &&
-        selectedDog &&
         appointmentTimes?.startTime &&
         appointmentTimes?.endTime
     )
 
     const handleCreateBusinessAppointment = async () => {
-        if (!canCreateAppointment || !appointmentTimes?.startTime || !appointmentTimes?.endTime || !selectedCustomer || !selectedDog) {
+        if (!canCreateAppointment || !appointmentTimes?.startTime || !appointmentTimes?.endTime || !selectedCustomer) {
             return
         }
 
@@ -210,7 +128,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 endTime: appointmentTimes.endTime.toISOString(),
                 appointmentType: "business",
                 customerId: selectedCustomer.id,
-                dogId: selectedDog.id,
+                // Removed dogId - barbery system doesn't use dogs
                 isManualOverride: true
             }).unwrap()
 
@@ -241,7 +159,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 <DialogHeader>
                     <DialogTitle className="text-right">יצירת תור עסקי</DialogTitle>
                     <DialogDescription className="text-right">
-                        צור תור עסקי עם לקוח וכלב
+                        צור תור עסקי עם לקוח
                     </DialogDescription>
                 </DialogHeader>
 
@@ -254,59 +172,10 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                             onTimesChange={handleTimesUpdate}
                             theme="blue"
                             endTimeMode="editable"
-                            autoDurationMinutes={syncMeetingsTimes && durationStatus === 'supported' && durationMinutes != null ? durationMinutes : null}
                             hideSaveCancelButtons={true}
-                            disableEndTime={syncMeetingsTimes}
+                            disableEndTime={false}
                         >
-                            {/* Sync Meetings Times Checkbox */}
-                            <div className="mb-3 flex items-center justify-between gap-2">
-                                <label htmlFor="sync-meetings-times" className="text-sm text-right cursor-pointer flex items-center gap-2">
-                                    <Checkbox
-                                        id="sync-meetings-times"
-                                        checked={syncMeetingsTimes}
-                                        onCheckedChange={(checked) => setSyncMeetingsTimes(checked === true)}
-                                    />
-                                    <span>סנכרן זמני פגישות</span>
-                                </label>
-                                {/* Show duration when supported */}
-                                {syncMeetingsTimes && durationStatus === 'supported' && durationMinutes != null && (
-                                    <span className="text-xs text-green-800">
-                                        משך התור: {Math.floor(durationMinutes / 60)}:{String(durationMinutes % 60).padStart(2, '0')}
-                                    </span>
-                                )}
-                            </div>
-
-                            {/* Info message when checkbox is checked but dog not selected */}
-                            {syncMeetingsTimes && !selectedDog && (
-                                <div className="mb-3 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-100 px-3 py-2 text-right text-xs text-blue-800">
-                                    <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                                    <span>זמן הסיום יתעדכן אוטומטית לאחר בחירת כלב</span>
-                                </div>
-                            )}
-
-                            {/* Loading state */}
-                            {syncMeetingsTimes && durationStatus === 'checking' && (
-                                <div className="mb-3 flex items-center justify-end gap-2 text-xs text-blue-700">
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                    <span>בודק משך התספורת עבור הגזע והעמדה שנבחרו...</span>
-                                </div>
-                            )}
-
-                            {/* Warning when station doesn't support breed */}
-                            {syncMeetingsTimes && durationStatus === 'unsupported' && durationMessage && (
-                                <div className="mb-3 flex items-start gap-2 rounded-lg border border-yellow-300 bg-yellow-100 px-3 py-2 text-right text-xs text-yellow-900">
-                                    <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                                    <span>{durationMessage}</span>
-                                </div>
-                            )}
-
-                            {/* Error state */}
-                            {syncMeetingsTimes && durationStatus === 'error' && durationMessage && (
-                                <div className="mb-3 flex items-start gap-2 rounded-lg border border-red-300 bg-red-100 px-3 py-2 text-right text-xs text-red-900">
-                                    <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                                    <span>{durationMessage}</span>
-                                </div>
-                            )}
+                            {/* Removed breed duration sync UI - barbery system doesn't use dogs/breeds */}
                         </AppointmentDetailsSection>
 
                         <div className="space-y-4">
