@@ -10,6 +10,9 @@ import {
 } from "@/pages/ManagerSchedule/components/AppointmentDetailsSection"
 import { useToast } from "@/hooks/use-toast"
 import { type Customer, CustomerSearchInput } from "@/components/CustomerSearchInput"
+import { useServices } from "@/hooks/useServices"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 
 type ManagerStation = AppointmentStation
 
@@ -38,6 +41,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     prefillCustomer = null,
 }) => {
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+    const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
     const [appointmentTimes, setAppointmentTimes] = useState<FinalizedDragTimes | null>(() => finalizedDragTimes ? {
         startTime: finalizedDragTimes.startTime ? new Date(finalizedDragTimes.startTime) : null,
         endTime: finalizedDragTimes.endTime ? new Date(finalizedDragTimes.endTime) : null,
@@ -46,6 +50,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     // Removed breed duration functionality - barbery system doesn't use dogs/breeds
     const [createManagerAppointment, { isLoading: isCreatingAppointment }] = useCreateManagerAppointmentMutation()
     const { toast } = useToast()
+    const { data: services = [], isLoading: isLoadingServices } = useServices()
 
 
 
@@ -53,6 +58,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     useEffect(() => {
         if (!open) {
             setSelectedCustomer(null)
+            setSelectedServiceId(null)
         }
     }, [open])
 
@@ -110,12 +116,13 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
 
     const canCreateAppointment = Boolean(
         selectedCustomer &&
+        selectedServiceId &&
         appointmentTimes?.startTime &&
         appointmentTimes?.endTime
     )
 
     const handleCreateBusinessAppointment = async () => {
-        if (!canCreateAppointment || !appointmentTimes?.startTime || !appointmentTimes?.endTime || !selectedCustomer) {
+        if (!canCreateAppointment || !appointmentTimes?.startTime || !appointmentTimes?.endTime || !selectedCustomer || !selectedServiceId) {
             return
         }
 
@@ -128,6 +135,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 endTime: appointmentTimes.endTime.toISOString(),
                 appointmentType: "business",
                 customerId: selectedCustomer.id,
+                serviceId: selectedServiceId,
                 // Removed dogId - barbery system doesn't use dogs
                 isManualOverride: true
             }).unwrap()
@@ -135,6 +143,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
             // Close the modal and reset form
             onOpenChange(false)
             setSelectedCustomer(null)
+            setSelectedServiceId(null)
             setAppointmentTimes(null)
             onSuccess?.()
 
@@ -185,6 +194,25 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                                 onCustomerClear={handleClearCustomer}
                             />
 
+                            <div className="space-y-2">
+                                <Label htmlFor="service-select">שירות</Label>
+                                <Select
+                                    value={selectedServiceId || ""}
+                                    onValueChange={(value) => setSelectedServiceId(value || null)}
+                                    disabled={isLoadingServices}
+                                >
+                                    <SelectTrigger id="service-select" dir="rtl">
+                                        <SelectValue placeholder={isLoadingServices ? "טוען שירותים..." : "בחר שירות"} />
+                                    </SelectTrigger>
+                                    <SelectContent dir="rtl">
+                                        {services.map((service) => (
+                                            <SelectItem key={service.id} value={service.id}>
+                                                {service.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
                 )}

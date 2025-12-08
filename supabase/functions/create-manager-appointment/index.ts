@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
-type ManagerAppointmentType = "private" | "business" | "garden"
+type ManagerAppointmentType = "private" | "business"
 
 interface CreateManagerAppointmentRequest {
   name: string
@@ -19,14 +19,7 @@ interface CreateManagerAppointmentRequest {
   customerId?: string
   serviceId?: string
   isManualOverride?: boolean
-  gardenAppointmentType?: "full-day" | "hourly" | "trial"
-  services?: {
-    gardenTrimNails?: boolean
-    gardenBrush?: boolean
-    gardenBath?: boolean
-  }
-  latePickupRequested?: boolean
-  latePickupNotes?: string
+  // Removed garden-specific fields - barbery system only has grooming appointments
   notes?: string
   internalNotes?: string
 }
@@ -111,17 +104,15 @@ serve(async (req) => {
       groupId,
       customerId,
       isManualOverride: _isManualOverride, // Reserved for future use
-      gardenAppointmentType,
-      services,
-      latePickupRequested,
-      latePickupNotes,
+      // Removed garden-specific fields - barbery system only has grooming appointments
       notes,
       internalNotes,
       serviceId,
     }: CreateManagerAppointmentRequest = await req.json()
 
+    // Removed garden - barbery system only has grooming appointments
     const normalizedAppointmentType: ManagerAppointmentType =
-      appointmentType === "business" ? "business" : appointmentType === "garden" ? "garden" : "private"
+      appointmentType === "business" ? "business" : "private"
 
     console.log("📋 [create-manager-appointment] Request data:", {
       name,
@@ -130,7 +121,7 @@ serve(async (req) => {
       startTime,
       endTime,
       appointmentType: normalizedAppointmentType,
-      gardenAppointmentType,
+      // Removed gardenAppointmentType - barbery system only has grooming appointments
       groupId,
       customerId,
       serviceId,
@@ -208,20 +199,9 @@ serve(async (req) => {
       }
     }
 
-    // Validate customer and service IDs for business/garden appointments
-    if (normalizedAppointmentType === "garden") {
-      if (!resolvedCustomerId) {
-        return new Response(
-          JSON.stringify({
-            error: "Missing required fields: customerId is required for garden appointments",
-          }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        )
-      }
-    } else if (normalizedAppointmentType === "business") {
+    // Validate customer and service IDs for business appointments
+    // Removed garden - barbery system only has grooming appointments
+    if (normalizedAppointmentType === "business") {
       if (!resolvedCustomerId || !resolvedServiceId) {
         return new Response(
           JSON.stringify({
@@ -236,91 +216,29 @@ serve(async (req) => {
     }
 
     // Create appointments for each station
-    if (normalizedAppointmentType === "garden") {
-      // Create daycare appointments
-      console.log("🌳 [create-manager-appointment] Creating daycare appointments")
+    // Removed garden appointments - barbery system only has grooming appointments
+    console.log("✂️ [create-manager-appointment] Creating grooming appointments")
 
-      // Determine service type based on gardenAppointmentType
-      // Normalize the input to handle any whitespace or case issues
-      const normalizedGardenType = gardenAppointmentType?.toString().trim().toLowerCase()
-
-      let serviceType: "full_day" | "trial" | "hourly" = "full_day"
-      console.log(
-        "🔍 [create-manager-appointment] gardenAppointmentType received:",
-        gardenAppointmentType,
-        "normalized:",
-        normalizedGardenType,
-        "type:",
-        typeof gardenAppointmentType
-      )
-
-      if (normalizedGardenType === "trial") {
-        serviceType = "trial"
-        console.log("✅ [create-manager-appointment] Set serviceType to: trial")
-      } else if (normalizedGardenType === "hourly") {
-        serviceType = "hourly"
-        console.log("✅ [create-manager-appointment] Set serviceType to: hourly")
-      } else if (
-        normalizedGardenType === "full-day" ||
-        normalizedGardenType === "fullday" ||
-        normalizedGardenType === "full_day"
-      ) {
-        serviceType = "full_day"
-        console.log("✅ [create-manager-appointment] Set serviceType to: full_day")
-      } else if (!gardenAppointmentType || normalizedGardenType === "") {
-        // If no type specified, default to full_day (not trial!)
-        console.log("⚠️ [create-manager-appointment] No gardenAppointmentType provided, defaulting to full_day")
-        serviceType = "full_day"
-      } else {
-        console.log(
-          "⚠️ [create-manager-appointment] Unknown gardenAppointmentType, defaulting to full_day. Received:",
-          gardenAppointmentType,
-          "normalized:",
-          normalizedGardenType
-        )
-        serviceType = "full_day"
-      }
-
-      console.log("📝 [create-manager-appointment] Final serviceType:", serviceType)
-
-      // For garden appointments, station_id should be NULL (garden doesn't use physical stations)
-      // Filter out the pseudo "garden-station" ID if present
-      const actualStationIds = stationsToUse.filter((id) => id !== "garden-station")
-
-      // Use the first valid UUID station ID if available, otherwise use null
-      // This allows flexibility for future garden stations with actual UUIDs
-      const stationIdToUse =
-        actualStationIds.length > 0 &&
-        actualStationIds[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
-          ? actualStationIds[0]
-          : null
-
-      // Note: service_type and questionnaire_result columns no longer exist
-      // Note: treatment_id column no longer exists (redundant with services)
+    for (const stationIdToUse of stationsToUse) {
       const insertPayload = {
         customer_id: resolvedCustomerId!,
+        service_id: resolvedServiceId ?? null,
         station_id: stationIdToUse,
         start_at: startTime,
         end_at: endTime,
         status: "pending" as const,
+        appointment_kind: normalizedAppointmentType === "private" ? ("personal" as const) : ("business" as const),
         customer_notes: notes || null,
         internal_notes: internalNotes || null,
-        late_pickup_requested: latePickupRequested || null,
-        late_pickup_notes: latePickupNotes || null,
-        garden_trim_nails: services?.gardenTrimNails || null,
-        garden_brush: services?.gardenBrush || null,
-        garden_bath: services?.gardenBath || null,
       }
 
       console.log(
-        `🔵 [create-manager-appointment] Inserting appointment${
-          stationIdToUse ? ` for station ${stationIdToUse}` : " (no station)"
-        }:`,
-        JSON.stringify(insertPayload, null, 2)
+        `🔵 [create-manager-appointment] Inserting grooming appointment for station ${stationIdToUse}:`,
+        insertPayload
       )
 
       const { data, error } = await supabaseClient
-        .from("appointments")
+        .from("grooming_appointments")
         .insert(insertPayload)
         .select("id")
         .single()
@@ -331,49 +249,9 @@ serve(async (req) => {
       }
 
       console.log(
-        `✅ [create-manager-appointment] Created daycare appointment ${data.id}${
-          stationIdToUse ? ` for station ${stationIdToUse}` : ""
-        }`
+        `✅ [create-manager-appointment] Created grooming appointment ${data.id} for station ${stationIdToUse}`
       )
       appointmentIds.push(data.id)
-    } else {
-      // Create grooming appointments
-      console.log("✂️ [create-manager-appointment] Creating grooming appointments")
-
-      for (const stationIdToUse of stationsToUse) {
-        const insertPayload = {
-          customer_id: resolvedCustomerId!,
-          service_id: resolvedServiceId ?? null,
-          station_id: stationIdToUse,
-          start_at: startTime,
-          end_at: endTime,
-          status: "pending" as const,
-          appointment_kind: normalizedAppointmentType === "private" ? ("personal" as const) : ("business" as const),
-          customer_notes: notes || null,
-          internal_notes: internalNotes || null,
-        }
-
-        console.log(
-          `🔵 [create-manager-appointment] Inserting grooming appointment for station ${stationIdToUse}:`,
-          insertPayload
-        )
-
-        const { data, error } = await supabaseClient
-          .from("appointments")
-          .insert(insertPayload)
-          .select("id")
-          .single()
-
-        if (error) {
-          console.error(`❌ [create-manager-appointment] Error inserting appointment:`, error)
-          throw new Error(`Failed to create appointment: ${error.message}`)
-        }
-
-        console.log(
-          `✅ [create-manager-appointment] Created grooming appointment ${data.id} for station ${stationIdToUse}`
-        )
-        appointmentIds.push(data.id)
-      }
     }
 
     console.log("🎉 [create-manager-appointment] Successfully created all appointments:", appointmentIds)
@@ -387,8 +265,6 @@ serve(async (req) => {
         message: `${
           normalizedAppointmentType === "business"
             ? "Business"
-            : normalizedAppointmentType === "garden"
-            ? "Garden"
             : "Private"
         } appointment(s) created successfully`,
       }),
