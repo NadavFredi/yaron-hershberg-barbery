@@ -3158,8 +3158,9 @@ export const supabaseApi = createApi({
       Record<
         string,
         {
-          allowedDogCategories: string[]
-          allowedCustomerTypes: string[]
+          // Removed allowedDogCategories - barbery system doesn't use dogs
+          allowedCustomerTypes?: string[]
+          blockedCustomerTypes?: string[]
         }
       >,
       { shiftIds: string[] }
@@ -3183,17 +3184,29 @@ export const supabaseApi = createApi({
             console.error("Error fetching shift allowed customer types:", customerTypesError)
           }
 
+          // Fetch blocked customer types for shifts
+          const { data: blockedCustomerTypesData, error: blockedCustomerTypesError } = await supabase
+            .from("shift_blocked_customer_types")
+            .select("shift_id, customer_type_id")
+            .in("shift_id", shiftIds)
+
+          if (blockedCustomerTypesError) {
+            console.error("Error fetching shift blocked customer types:", blockedCustomerTypesError)
+          }
+
           // Group restrictions by shift_id
           const restrictionsMap: Record<
             string,
             {
               allowedCustomerTypes: string[]
+              blockedCustomerTypes: string[]
             }
           > = {}
 
           shiftIds.forEach((shiftId) => {
             restrictionsMap[shiftId] = {
               allowedCustomerTypes: [],
+              blockedCustomerTypes: [],
             }
           })
 
@@ -3204,9 +3217,22 @@ export const supabaseApi = createApi({
               if (!restrictionsMap[item.shift_id]) {
                 restrictionsMap[item.shift_id] = {
                   allowedCustomerTypes: [],
+                  blockedCustomerTypes: [],
                 }
               }
               restrictionsMap[item.shift_id].allowedCustomerTypes.push(item.customer_type_id)
+            })
+          }
+
+          if (blockedCustomerTypesData) {
+            blockedCustomerTypesData.forEach((item) => {
+              if (!restrictionsMap[item.shift_id]) {
+                restrictionsMap[item.shift_id] = {
+                  allowedCustomerTypes: [],
+                  blockedCustomerTypes: [],
+                }
+              }
+              restrictionsMap[item.shift_id].blockedCustomerTypes.push(item.customer_type_id)
             })
           }
 

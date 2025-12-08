@@ -258,7 +258,7 @@ export function useManagerScheduleContent() {
     if (!container) return
 
     const saved = savedScrollPositionRef.current
-    
+
     // Restore multiple times to ensure it sticks
     const restore = () => {
       if (container && saved) {
@@ -266,7 +266,7 @@ export function useManagerScheduleContent() {
         container.scrollTop = saved.scrollTop
       }
     }
-    
+
     restore()
     requestAnimationFrame(restore)
     setTimeout(restore, 0)
@@ -671,9 +671,10 @@ export function useManagerScheduleContent() {
     const shiftRestriction = shiftRestrictions[matchingShift.id]
     if (!shiftRestriction) return false
 
+    // Removed allowedDogCategories - barbery system doesn't use dogs
     const hasRestrictions =
-      (shiftRestriction.allowedDogCategories.length > 0) ||
-      (shiftRestriction.allowedCustomerTypes.length > 0)
+      (shiftRestriction.allowedCustomerTypes?.length > 0) ||
+      (shiftRestriction.blockedCustomerTypes?.length > 0)
     if (!hasRestrictions) return false
 
     const slotEnd = addMinutes(slotTime, intervalMinutes)
@@ -1619,10 +1620,10 @@ export function useManagerScheduleContent() {
 
     if (draggedPinnedAppointment.pin && draggedPinnedAppointment.appointment) {
       // Check if dropping on pinned appointments column - cancel if so
-      const isPinnedColumn = 
-        over.data?.current?.type === 'pinned-appointments-column' || 
+      const isPinnedColumn =
+        over.data?.current?.type === 'pinned-appointments-column' ||
         over.id === 'pinned-appointments-column'
-      
+
       if (isPinnedColumn) {
         return
       }
@@ -1630,7 +1631,7 @@ export function useManagerScheduleContent() {
       // Allow drop on stations or garden columns
       const targetStationId = over.id as string
       const targetStation = stations.find(station => station.id === targetStationId)
-      
+
       // Also check for garden columns
       if (over.data?.current?.type === 'garden-column') {
         return
@@ -1646,11 +1647,11 @@ export function useManagerScheduleContent() {
     if (draggedAppointment.appointment) {
       // Check if dropping on pinned appointments column - allow all appointment types
       // Check multiple ways to detect the pinned column
-      const isPinnedColumn = 
-        over.data?.current?.type === 'pinned-appointments-column' || 
+      const isPinnedColumn =
+        over.data?.current?.type === 'pinned-appointments-column' ||
         over.id === 'pinned-appointments-column' ||
         (typeof over.id === 'string' && over.id.includes('pinned-appointments'))
-      
+
       if (isPinnedColumn) {
         // Allow drop on pinned column for all appointment types
         console.log('[handleDragOver] Over pinned column, allowing drop')
@@ -1696,10 +1697,10 @@ export function useManagerScheduleContent() {
       }
 
       // Check if dropping on a station or garden column (not on pinned column)
-      const isDroppingOnPinnedColumn = 
-        over?.data?.current?.type === 'pinned-appointments-column' || 
+      const isDroppingOnPinnedColumn =
+        over?.data?.current?.type === 'pinned-appointments-column' ||
         over?.id === 'pinned-appointments-column'
-      
+
       if (isDroppingOnPinnedColumn) {
         // Dropping back on pinned column - just cancel
         dispatch(setDraggedPinnedAppointment({ pin: null, appointment: null, cancelled: false }))
@@ -1710,7 +1711,7 @@ export function useManagerScheduleContent() {
       if (over?.data?.current?.type === 'garden-column') {
         const targetColumnId = over.data.current.columnId as string
         const appointment = draggedPinnedAppointment.appointment
-        
+
         // Only allow garden appointments to be dropped on garden columns
         if (appointment.serviceType !== 'garden') {
           dispatch(setDraggedPinnedAppointment({ pin: null, appointment: null, cancelled: false }))
@@ -1931,10 +1932,10 @@ export function useManagerScheduleContent() {
 
     // Check if dropping on pinned appointments column
     // Check both the data type and the ID to be more robust
-    const isPinnedColumn = 
-      over?.data?.current?.type === 'pinned-appointments-column' || 
+    const isPinnedColumn =
+      over?.data?.current?.type === 'pinned-appointments-column' ||
       over?.id === 'pinned-appointments-column'
-    
+
     console.log('[Drag End] Checking pinned column:', {
       isPinnedColumn,
       overId: over?.id,
@@ -1942,19 +1943,19 @@ export function useManagerScheduleContent() {
       overDataCurrent: over?.data?.current,
       hasAppointment: !!draggedAppointment.appointment,
     })
-    
+
     if (isPinnedColumn && draggedAppointment.appointment) {
       const appointment = draggedAppointment.appointment
-      
+
       console.log('[Drag to Pin] Dropping appointment on pinned column:', {
         appointmentId: appointment.id,
         appointmentType: appointment.serviceType,
         clientName: appointment.clientName,
-        dogNames: appointment.dogs.map(d => d.name),
+        // Removed dogNames - barbery system doesn't use dogs
         overId: over?.id,
         overDataType: over?.data?.current?.type,
       })
-      
+
       // Check if already pinned
       if (pinnedAppointmentsHook.isAppointmentPinned(appointment)) {
         console.log('[Drag to Pin] Appointment already pinned, skipping')
@@ -2229,7 +2230,7 @@ export function useManagerScheduleContent() {
       } else {
         // Create new proposed meeting with pre-filled data from pinned appointment
         dispatch(setProposedMeetingMode("create"))
-        
+
         // Pre-fill with appointment data
         const preFilledAppointment: ManagerAppointment = {
           ...appointment,
@@ -2237,15 +2238,12 @@ export function useManagerScheduleContent() {
           endDateTime: targetEnd.toISOString(),
           stationId: targetStationId,
           // Add proposed meeting metadata for pre-filling
-          proposedTitle: appointment.dogs.length > 0 
-            ? `תור עבור ${appointment.dogs.map(d => d.name).join(", ")} - ${appointment.clientName}`
-            : `תור עבור ${appointment.clientName}`,
-          proposedSummary: appointment.dogs.length > 0
-            ? `תור ${appointment.serviceType === "grooming" ? "תספורת" : "גן"} עבור ${appointment.dogs.map(d => d.name).join(", ")} של ${appointment.clientName}`
-            : `תור ${appointment.serviceType === "grooming" ? "תספורת" : "גן"} עבור ${appointment.clientName}`,
+          // Removed dog references - barbery system doesn't use dogs
+          proposedTitle: `תור עבור ${appointment.clientName}`,
+          proposedSummary: `תור ${appointment.serviceType === "grooming" ? "תספורת" : "גן"} עבור ${appointment.clientName}`,
           proposedNotes: appointment.internalNotes || appointment.customerNotes || "",
         }
-        
+
         dispatch(setEditingProposedMeeting(preFilledAppointment))
         dispatch(setProposedMeetingTimes({
           startTime: targetStart,
@@ -2267,14 +2265,14 @@ export function useManagerScheduleContent() {
       } else {
         const targetStation = stations.find(s => s.id === targetStationId)
         const currentStation = stations.find(s => s.id === appointment.stationId)
-        
+
         if (targetStation && currentStation) {
           if (appointment.serviceType === "garden") {
             // For garden appointments, open garden edit modal with new times
             // Determine the target appointment type from targetStationId
             let gardenAppointmentType: 'full-day' | 'hourly' = 'hourly'
             let gardenIsTrial = false
-            
+
             if (targetStationId === 'garden-full-day') {
               gardenAppointmentType = 'full-day'
               gardenIsTrial = false
@@ -2285,7 +2283,7 @@ export function useManagerScheduleContent() {
               gardenAppointmentType = 'hourly'
               gardenIsTrial = false
             }
-            
+
             // We need to update the appointment with new times and type
             const updatedAppointment = {
               ...appointment,
@@ -2324,7 +2322,7 @@ export function useManagerScheduleContent() {
         } else if (targetStationId === "garden-trial") {
           appointmentType = "trial"
         }
-        
+
         dispatch(setNewGardenAppointmentType(appointmentType))
         dispatch(setFinalizedDragTimes({
           startTime: targetStart,
@@ -2339,21 +2337,14 @@ export function useManagerScheduleContent() {
           endTime: targetEnd,
           stationId: targetStationId,
         }))
-        // Prefill with customer and dog from the pinned appointment
-        if (appointment.clientId && appointment.dogs.length > 0) {
+        // Prefill with customer from the pinned appointment
+        // Removed dog prefill - barbery system doesn't use dogs
+        if (appointment.clientId) {
           dispatch(setPrefillBusinessCustomer({
             id: appointment.clientId,
             fullName: appointment.clientName,
             phone: appointment.clientPhone,
             email: appointment.clientEmail,
-          }))
-          dispatch(setPrefillBusinessDog({
-            id: appointment.dogs[0].id,
-            name: appointment.dogs[0].name || "",
-            breed: appointment.dogs[0].breed || "",
-            size: "",
-            isSmall: false,
-            ownerId: appointment.clientId,
           }))
         }
         dispatch(setShowBusinessAppointmentModal(true))
@@ -2510,7 +2501,7 @@ export function useManagerScheduleContent() {
     isSlotGenerallyUnavailable,
     isSlotWithinWorkingHours,
     isSlotEmptyButRestricted,
-    
+
     // Loading states
     isScheduleLoading,
     isScheduleFetching,
