@@ -403,7 +403,8 @@ export const supabaseApi = createApi({
     >({
       async queryFn({ appointmentId, serviceType }) {
         try {
-          const column = serviceType === "grooming" ? "grooming_appointment_id" : "daycare_appointment_id"
+          // Removed daycare - barbery system only has grooming appointments
+          const column = "grooming_appointment_id"
           const { data, error } = await supabase.from("orders").select("id, status, total").eq(column, appointmentId)
 
           if (error) {
@@ -440,40 +441,23 @@ export const supabaseApi = createApi({
     >({
       async queryFn({ clientId }) {
         try {
-          const [groomingResult, daycareResult] = await Promise.all([
-            supabase
-              .from("grooming_appointments")
-              .select("id, start_at, status")
-              .eq("customer_id", clientId)
-              .order("start_at", { ascending: true }),
-            supabase
-              .from("daycare_appointments")
-              .select("id, start_at, status")
-              .eq("customer_id", clientId)
-              .order("start_at", { ascending: true }),
-          ])
+          // Removed daycare - barbery system only has grooming appointments
+          const groomingResult = await supabase
+            .from("grooming_appointments")
+            .select("id, start_at, status")
+            .eq("customer_id", clientId)
+            .order("start_at", { ascending: true })
 
           if (groomingResult.error) {
             throw new Error(groomingResult.error.message)
           }
-          if (daycareResult.error) {
-            throw new Error(daycareResult.error.message)
-          }
 
-          const appointments = [
-            ...(groomingResult.data || []).map((apt) => ({
-              id: apt.id as string,
-              startAt: apt.start_at as string,
-              status: (apt as { status?: string }).status ?? null,
-              serviceType: "grooming" as const,
-            })),
-            ...(daycareResult.data || []).map((apt) => ({
-              id: apt.id as string,
-              startAt: apt.start_at as string,
-              status: (apt as { status?: string }).status ?? null,
-              serviceType: "garden" as const,
-            })),
-          ].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
+          const appointments = (groomingResult.data || []).map((apt) => ({
+            id: apt.id as string,
+            startAt: apt.start_at as string,
+            status: (apt as { status?: string }).status ?? null,
+            serviceType: "grooming" as const,
+          }))
 
           return { data: { appointments } }
         } catch (error) {
@@ -491,17 +475,12 @@ export const supabaseApi = createApi({
     }),
 
     getDogGardenAppointments: builder.query({
-      async queryFn(dogId: string) {
+      async queryFn(_dogId: string) {
         try {
-          // Query daycare_appointments directly from Supabase
-          const { data, error } = await supabase
-            .from("daycare_appointments")
-            .select(
-              "id, start_at, end_at, status, late_pickup_requested, late_pickup_notes, garden_trim_nails, garden_brush, garden_bath, customer_notes, internal_notes"
-            )
-            // dog_id removed - returning empty array
-            .eq("id", "00000000-0000-0000-0000-000000000000") // Always false condition
-            .neq("status", "cancelled")
+          // Removed daycare - barbery system doesn't have daycare appointments
+          // Return empty array
+          const data: never[] = []
+          const error = null
 
           if (error) {
             return { error: { status: "SUPABASE_ERROR", data: error.message } }
@@ -1143,12 +1122,11 @@ export const supabaseApi = createApi({
             }
           }
 
-          // Fetch appointments from both grooming and daycare tables with the same series_id
-          const [groomingResult, daycareResult] = await Promise.all([
-            supabase
-              .from("grooming_appointments")
-              .select(
-                `
+          // Removed daycare - barbery system only has grooming appointments
+          const groomingResult = await supabase
+            .from("grooming_appointments")
+            .select(
+              `
                 id,
                 status,
                 station_id,
@@ -1164,42 +1142,12 @@ export const supabaseApi = createApi({
                 stations(id, name),
                 customers(id, full_name, phone, email, classification)
               `
-              )
-              .eq("series_id", seriesId)
-              .order("start_at", { ascending: true }),
-            supabase
-              .from("daycare_appointments")
-              .select(
-                `
-                id,
-                status,
-                station_id,
-                start_at,
-                end_at,
-                customer_notes,
-                internal_notes,
-                payment_status,
-                service_type,
-                late_pickup_requested,
-                late_pickup_notes,
-                garden_trim_nails,
-                garden_brush,
-                garden_bath,
-                series_id,
-                customer_id,
-                stations(id, name),
-                customers(id, full_name, phone, email, classification)
-              `
-              )
-              .eq("series_id", seriesId)
-              .order("start_at", { ascending: true }),
-          ])
+            )
+            .eq("series_id", seriesId)
+            .order("start_at", { ascending: true })
 
           if (groomingResult.error) {
             throw new Error(`Failed to fetch grooming appointments: ${groomingResult.error.message}`)
-          }
-          if (daycareResult.error) {
-            throw new Error(`Failed to fetch daycare appointments: ${daycareResult.error.message}`)
           }
 
           const { getManagerSchedule } = await import("@/integrations/supabase/supabaseService")
@@ -1240,43 +1188,7 @@ export const supabaseApi = createApi({
             } as ManagerAppointment)
           }
 
-          // Process daycare appointments
-          for (const apt of daycareResult.data || []) {
-            const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
-
-            const isTrial = apt.service_type === "trial"
-            const serviceType: "full-day" | "hourly" = apt.service_type === "hourly" ? "hourly" : "full-day"
-
-            appointments.push({
-              id: apt.id,
-              serviceType: "garden",
-              stationId: "garden-station",
-              stationName: "גן הכלבים",
-              startDateTime: apt.start_at,
-              endDateTime: apt.end_at,
-              status: apt.status || "pending",
-              paymentStatus: apt.payment_status || undefined,
-              notes: apt.customer_notes || "",
-              internalNotes: apt.internal_notes || undefined,
-              hasCrossServiceAppointment: false,
-              dogs: [], // Removed dog references - barbery system doesn't use dogs
-              clientId: apt.customer_id,
-              clientName: customer?.full_name || undefined,
-              clientClassification: customer?.classification || undefined,
-              clientEmail: customer?.email || undefined,
-              clientPhone: customer?.phone || undefined,
-              appointmentType: "business",
-              gardenAppointmentType: serviceType,
-              gardenIsTrial: isTrial,
-              latePickupRequested: apt.late_pickup_requested || false,
-              latePickupNotes: apt.late_pickup_notes || undefined,
-              gardenTrimNails: apt.garden_trim_nails || false,
-              gardenBrush: apt.garden_brush || false,
-              gardenBath: apt.garden_bath || false,
-              seriesId: apt.series_id || undefined,
-              durationMinutes: Math.round((new Date(apt.end_at).getTime() - new Date(apt.start_at).getTime()) / 60000),
-            } as ManagerAppointment)
-          }
+          // Removed daycare appointments processing - barbery system only has grooming appointments
 
           // Sort by start time
           appointments.sort((a, b) => a.startDateTime.localeCompare(b.startDateTime))

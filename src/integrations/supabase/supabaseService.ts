@@ -99,7 +99,7 @@ export interface GardenQuestionnaireStatus {
 
 export interface AvailableDatesResult {
   availableDates: AvailableDate[]
-  gardenQuestionnaire?: GardenQuestionnaireStatus
+  // Removed gardenQuestionnaire - barbery system only has grooming appointments
 }
 
 export interface ClientProfile {
@@ -314,8 +314,8 @@ export async function updateAppointmentNotes(
   note: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Determine which table to update based on serviceType
-    const tableName = serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
+    // Removed daycare - barbery system only has grooming appointments
+    const tableName = "grooming_appointments"
 
     // Update customer_notes field using PostgREST
     const { error } = await supabase
@@ -418,7 +418,7 @@ export async function cancelAppointment(appointmentId: string): Promise<{
 
 // 10. Cancel appointment via webhook (with 24-hour validation)
 export interface CancelAppointmentOptions {
-  serviceType?: "grooming" | "garden" | "both"
+  serviceType?: "grooming" | "both"
   appointmentTime?: string
   // Removed dogId - barbery system doesn't use dogs
   stationId?: string
@@ -461,7 +461,7 @@ export async function cancelAppointmentWebhook(
  */
 export const approveAppointmentByManager = async (
   appointmentId: string,
-  appointmentType: "grooming" | "garden",
+  appointmentType: "grooming",
   status: "scheduled" | "cancelled" = "scheduled"
 ): Promise<{
   success: boolean
@@ -481,7 +481,8 @@ export const approveAppointmentByManager = async (
       status,
     })
 
-    const tableName = appointmentType === "grooming" ? "grooming_appointments" : "daycare_appointments"
+    // Removed daycare - barbery system only has grooming appointments
+    const tableName = "grooming_appointments"
 
     const { data, error } = await supabase
       .from(tableName)
@@ -552,9 +553,10 @@ export const approveGroomingAppointment = async (appointmentId: string, approval
 
 type CombinedAppointmentAction = "approve" | "cancel"
 
+// Removed CombinedAppointmentActionParams - barbery system only has grooming appointments
 interface CombinedAppointmentActionParams {
   groomingAppointmentId: string
-  gardenAppointmentId: string
+  // Removed gardenAppointmentId - barbery system only has grooming appointments
 }
 
 interface CombinedAppointmentActionResult {
@@ -570,10 +572,10 @@ async function callCombinedAppointmentAction(
   action: CombinedAppointmentAction,
   params: CombinedAppointmentActionParams
 ): Promise<CombinedAppointmentActionResult> {
+  // Removed gardenAppointmentId - barbery system only has grooming appointments
   const payload = {
     action,
     groomingAppointmentId: params.groomingAppointmentId,
-    gardenAppointmentId: params.gardenAppointmentId,
   }
 
   const rawResult = await callSupabaseFunction(combinedAppointmentFunctionName, payload)
@@ -596,8 +598,9 @@ async function callCombinedAppointmentAction(
 }
 
 function ensureCombinedIds(params: CombinedAppointmentActionParams) {
-  if (!params.groomingAppointmentId || !params.gardenAppointmentId) {
-    throw new Error("Both groomingAppointmentId and gardenAppointmentId are required")
+  // Removed gardenAppointmentId check - barbery system only has grooming appointments
+  if (!params.groomingAppointmentId) {
+    throw new Error("groomingAppointmentId is required")
   }
 }
 
@@ -609,22 +612,20 @@ export async function approveCombinedAppointments(
   try {
     return await callCombinedAppointmentAction("approve", params)
   } catch (error) {
-    console.warn("Falling back to individual approval calls:", error)
-    const [groomingResult, gardenResult] = await Promise.all([
-      approveGroomingAppointment(params.groomingAppointmentId, "approved"),
-      approveAppointment(params.gardenAppointmentId, "approved"),
-    ])
+    console.warn("Falling back to individual approval call:", error)
+    // Removed garden appointment approval - barbery system only has grooming appointments
+    const groomingResult = await approveGroomingAppointment(params.groomingAppointmentId, "approved")
 
-    if (groomingResult.success && gardenResult.success) {
+    if (groomingResult.success) {
       return {
         success: true,
-        message: groomingResult.message || gardenResult.message || "התורים (תספורת וגן) אושרו בהצלחה",
+        message: groomingResult.message || "התור אושר בהצלחה",
       }
     }
 
     return {
       success: false,
-      error: (!groomingResult.success ? groomingResult.error : gardenResult.error) || "שגיאה באישור התורים",
+      error: groomingResult.error || "שגיאה באישור התור",
     }
   }
 }
@@ -691,7 +692,7 @@ const mapProposedMeetingRowToAppointment = (row: ProposedMeetingRow | null): Man
 
   return {
     id: `proposed-${row.id}`,
-    serviceType: (row.service_type as "grooming" | "garden") || "grooming",
+    serviceType: "grooming",
     stationId: row.station_id || station?.id || `proposed-station-${row.id}`,
     stationName: station?.name || "מפגש מוצע",
     startDateTime: row.start_at,
@@ -759,72 +760,46 @@ export async function getManagerSchedule(
       displayOrder: station.display_order ?? undefined,
     }))
 
-    // Add a virtual garden station
-    const gardenStation: ManagerStation = {
-      id: "garden-station",
-      name: "גן הכלבים",
-      serviceType: "garden",
-      isActive: true,
-      displayOrder: Number.MAX_SAFE_INTEGER,
-    }
-
-    if (serviceType === "garden" || serviceType === "both") {
-      stations.push(gardenStation)
-    }
-
+    // Removed garden station - barbery system only has grooming appointments
     // Fetch grooming appointments
-    const groomingPromise =
-      serviceType === "garden"
-        ? Promise.resolve([])
-        : supabase
-            .from("grooming_appointments")
-            .select(
-              `
-              id,
-              status,
-              station_id,
-              start_at,
-              end_at,
-              customer_notes,
-              internal_notes,
-              payment_status,
-              appointment_kind,
-              amount_due,
-              series_id,
-              customer_id,
-              client_approved_arrival,
-              manager_approved_arrival,
-              treatment_started_at,
-              treatment_ended_at,
-              created_at,
-              updated_at,
-              stations(id, name),
-              customers(id, full_name, phone, email, classification)
-            `
-            )
-            .gte("start_at", dayStart.toISOString())
-            .lte("start_at", dayEnd.toISOString())
-            .order("start_at")
-
-    // Fetch daycare appointments
-    // Daycare appointments don't exist in this system - return empty result
-    const daycarePromise = Promise.resolve({ data: [], error: null })
-
-    const [groomingResult, daycareResult] = await Promise.all([groomingPromise, daycarePromise])
+    const groomingResult = await supabase
+      .from("grooming_appointments")
+      .select(
+        `
+        id,
+        status,
+        station_id,
+        start_at,
+        end_at,
+        customer_notes,
+        internal_notes,
+        payment_status,
+        appointment_kind,
+        amount_due,
+        series_id,
+        customer_id,
+        client_approved_arrival,
+        manager_approved_arrival,
+        treatment_started_at,
+        treatment_ended_at,
+        created_at,
+        updated_at,
+        stations(id, name),
+        customers(id, full_name, phone, email, classification)
+      `
+      )
+      .gte("start_at", dayStart.toISOString())
+      .lte("start_at", dayEnd.toISOString())
+      .order("start_at")
 
     if (groomingResult.error) {
       throw new Error(`Failed to fetch grooming appointments: ${groomingResult.error.message}`)
     }
-    // Daycare appointments don't exist in this system - daycareResult is always empty
 
     const groomingAppointments = (groomingResult.data || []) as any[]
-    const daycareAppointments = (daycareResult.data || []) as any[]
 
-    // Fetch combined appointments to check for cross-service links
-    // Get all combined appointments and filter to only those relevant to today's appointments
-    // Removed combined_appointments - barbery system only uses grooming appointments
+    // Removed combined appointments - barbery system only uses grooming appointments
     const combinedGroomingIds = new Set<string>()
-    const combinedDaycareIds = new Set<string>()
 
     // Transform appointments to ManagerAppointment format
     const appointments: ManagerAppointment[] = []
@@ -870,77 +845,11 @@ export async function getManagerSchedule(
       } as any)
     }
 
-    // Process daycare appointments
-    for (const apt of daycareAppointments) {
-      const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
-
-      const managerDog: ManagerDog = {
-        id: "",
-        name: "",
-        breed: undefined,
-        ownerId: apt.customer_id,
-        clientClassification: customer?.classification,
-        clientName: customer?.full_name,
-        minGroomingPrice: undefined,
-        maxGroomingPrice: undefined,
-      }
-
-      const hasCrossService = combinedDaycareIds.has(apt.id)
-      // Determine trial status based on service_type (primary source of truth)
-      // If service_type is explicitly set, use it; otherwise fall back to questionnaire_result for backward compatibility
-      const isTrial =
-        apt.service_type === "trial" ||
-        (apt.service_type == null && (apt.questionnaire_result === "pending" || apt.questionnaire_result === "trial"))
-
-      // Determine service type from service_type enum value
-      let serviceType: "full-day" | "hourly"
-      if (apt.service_type === "hourly") {
-        serviceType = "hourly"
-      } else {
-        // Both "full_day" and "trial" are displayed as "full-day" format
-        serviceType = "full-day"
-      }
-
-      appointments.push({
-        id: apt.id,
-        serviceType: "garden",
-        stationId: "garden-station",
-        stationName: "גן הכלבים",
-        startDateTime: apt.start_at,
-        endDateTime: apt.end_at,
-        status: apt.status || "pending",
-        paymentStatus: apt.payment_status || undefined,
-        notes: apt.customer_notes || "",
-        internalNotes: apt.internal_notes || undefined,
-        hasCrossServiceAppointment: hasCrossService,
-        dogs: [managerDog],
-        clientId: apt.customer_id,
-        clientName: customer?.full_name || undefined,
-        clientClassification: customer?.classification || undefined,
-        clientEmail: customer?.email || undefined,
-        clientPhone: customer?.phone || undefined,
-        appointmentType: "business",
-        gardenAppointmentType: serviceType,
-        gardenIsTrial: isTrial,
-        latePickupRequested: apt.late_pickup_requested || false,
-        latePickupNotes: apt.late_pickup_notes || undefined,
-        gardenTrimNails: apt.garden_trim_nails || false,
-        gardenBrush: apt.garden_brush || false,
-        gardenBath: apt.garden_bath || false,
-        seriesId: apt.series_id || undefined,
-        durationMinutes: Math.round((new Date(apt.end_at).getTime() - new Date(apt.start_at).getTime()) / 60000),
-        clientApprovedArrival: apt.client_approved_arrival || null,
-        managerApprovedArrival: apt.manager_approved_arrival || null,
-        treatmentStartedAt: apt.treatment_started_at || null,
-        treatmentEndedAt: apt.treatment_ended_at || null,
-        ...(apt.created_at && { created_at: apt.created_at }),
-        ...(apt.updated_at && { updated_at: apt.updated_at }),
-      } as any)
-    }
+    // Removed daycare appointments processing - barbery system only has grooming appointments
 
     // Include proposed meetings for the day so managers can see held slots
-    const proposedServiceTypes: Array<"grooming" | "garden"> =
-      serviceType === "both" ? ["grooming", "garden"] : serviceType === "garden" ? ["garden"] : ["grooming"]
+    // Removed garden - barbery system only has grooming appointments
+    const proposedServiceTypes: Array<"grooming"> = ["grooming"]
 
     if (proposedServiceTypes.length > 0) {
       const { data: proposedMeetings, error: proposedMeetingsError } = await supabase
@@ -1032,11 +941,7 @@ export async function moveAppointment(params: {
   newGardenAppointmentType?: "full-day" | "hourly" | "trial"
   newGardenIsTrial?: boolean
   selectedHours?: { start: string; end: string }
-  gardenTrimNails?: boolean
-  gardenBrush?: boolean
-  gardenBath?: boolean
-  latePickupRequested?: boolean
-  latePickupNotes?: string
+  // Removed garden-specific fields - barbery system only has grooming appointments
   internalNotes?: string
   customerNotes?: string
   groomingNotes?: string
@@ -1137,19 +1042,12 @@ export async function createManagerAppointment(params: {
   selectedStations: string[]
   startTime: string
   endTime: string
-  appointmentType: "private" | "business" | "garden"
+  appointmentType: "private" | "business"
   groupId?: string
   customerId?: string
   // Removed dogId - barbery system doesn't use dogs
   isManualOverride?: boolean
-  gardenAppointmentType?: "full-day" | "hourly" | "trial"
-  services?: {
-    gardenTrimNails?: boolean
-    gardenBrush?: boolean
-    gardenBath?: boolean
-  }
-  latePickupRequested?: boolean
-  latePickupNotes?: string
+  // Removed garden-specific fields - barbery system only has grooming appointments
   notes?: string
   internalNotes?: string
 }): Promise<{
@@ -1243,7 +1141,7 @@ export async function createManagerAppointment(params: {
     }
   }
 
-  // For business and garden appointments, use edge function
+  // For business appointments, use edge function
   console.log(`📋 [createManagerAppointment] Creating ${params.appointmentType} appointment via edge function`)
   const { data, error } = await supabase.functions.invoke("create-manager-appointment", {
     body: params,
@@ -1405,7 +1303,7 @@ export async function createManagerAppointment(params: {
 export async function managerCancelAppointment(params: {
   appointmentId: string
   appointmentTime: string
-  serviceType: "grooming" | "garden"
+  serviceType: "grooming"
   // Removed dogId - barbery system doesn't use dogs
   stationId?: string
   updateCustomer?: boolean
@@ -1415,7 +1313,8 @@ export async function managerCancelAppointment(params: {
   groupId?: string
 }): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    const tableName = params.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
+    // Removed daycare - barbery system only has grooming appointments
+    const tableName = "grooming_appointments"
 
     // Update appointment status to cancelled
     const { error } = await supabase.from(tableName).update({ status: "cancelled" }).eq("id", params.appointmentId)
@@ -1450,7 +1349,7 @@ export async function managerCancelAppointment(params: {
 export async function managerDeleteAppointment(params: {
   appointmentId: string
   appointmentTime: string
-  serviceType: "grooming" | "garden"
+  serviceType: "grooming"
   // Removed dogId - barbery system doesn't use dogs
   stationId?: string
   updateCustomer?: boolean
@@ -1460,7 +1359,8 @@ export async function managerDeleteAppointment(params: {
   groupId?: string
 }): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    const tableName = params.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
+    // Removed daycare - barbery system only has grooming appointments
+    const tableName = "grooming_appointments"
 
     // Actually delete the appointment record
     const { error } = await supabase.from(tableName).delete().eq("id", params.appointmentId)
@@ -1494,10 +1394,11 @@ export async function managerDeleteAppointment(params: {
 // Get single appointment from Supabase (for manager schedule)
 export async function getSingleManagerAppointment(
   appointmentId: string,
-  serviceType: "grooming" | "garden"
+  serviceType: "grooming"
 ): Promise<{ success: boolean; appointment?: ManagerAppointment; error?: string }> {
   try {
-    const tableName = serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
+    // Removed garden - barbery system only has grooming appointments
+    const tableName = "grooming_appointments"
 
     const { data, error } = await supabase
       .from(tableName)
@@ -1514,11 +1415,7 @@ export async function getSingleManagerAppointment(
         ${serviceType === "grooming" ? "appointment_kind," : ""}
         amount_due,
         customer_id,
-        ${
-          serviceType === "garden"
-            ? "service_type, late_pickup_requested, late_pickup_notes, garden_trim_nails, garden_brush, garden_bath, questionnaire_result,"
-            : ""
-        }
+        // Removed garden-specific fields - barbery system only has grooming appointments
         created_at,
         updated_at,
         stations(id, name),
@@ -1572,8 +1469,8 @@ export async function getSingleManagerAppointment(
     const appointment: ManagerAppointment = {
       id: appointmentData.id,
       serviceType,
-      stationId: appointmentData.station_id || (serviceType === "garden" ? "garden-station" : station?.id || ""),
-      stationName: serviceType === "garden" ? "גן הכלבים" : station?.name || "לא ידוע",
+      stationId: appointmentData.station_id || station?.id || "",
+      stationName: station?.name || "לא ידוע",
       startDateTime: appointmentData.start_at,
       endDateTime: appointmentData.end_at,
       status: appointmentData.status || "pending",
@@ -1603,33 +1500,7 @@ export async function getSingleManagerAppointment(
       ...(appointmentData.updated_at && { updated_at: appointmentData.updated_at }),
     } as any
 
-    if (serviceType === "garden") {
-      const gardenData = appointmentData as any
-      // Set gardenAppointmentType based on service_type
-      if (gardenData.service_type === "trial") {
-        appointment.gardenAppointmentType = "full-day" // Trials are displayed as full-day format
-        appointment.gardenIsTrial = true
-      } else if (gardenData.service_type === "hourly") {
-        appointment.gardenAppointmentType = "hourly"
-        appointment.gardenIsTrial = false
-      } else {
-        // service_type === "full_day"
-        appointment.gardenAppointmentType = "full-day"
-        appointment.gardenIsTrial = false
-      }
-
-      // Legacy fallback: also check questionnaire_result for backward compatibility
-      // But prioritize service_type over questionnaire_result
-      if (appointment.gardenIsTrial === undefined) {
-        appointment.gardenIsTrial =
-          gardenData.questionnaire_result === "pending" || gardenData.questionnaire_result === "trial"
-      }
-      appointment.latePickupRequested = gardenData.late_pickup_requested || false
-      appointment.latePickupNotes = gardenData.late_pickup_notes || undefined
-      appointment.gardenTrimNails = gardenData.garden_trim_nails || false
-      appointment.gardenBrush = gardenData.garden_brush || false
-      appointment.gardenBath = gardenData.garden_bath || false
-    }
+    // Removed garden-specific logic - barbery system only has grooming appointments
 
     return { success: true, appointment }
   } catch (error) {
@@ -1752,7 +1623,7 @@ export interface ProposedMeetingInput {
   stationId: string
   startTime: string
   endTime: string
-  serviceType: "grooming" | "garden"
+  serviceType: "grooming"
   title?: string
   summary?: string
   notes?: string

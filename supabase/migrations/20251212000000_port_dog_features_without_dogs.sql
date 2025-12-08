@@ -91,16 +91,24 @@ CREATE TABLE IF NOT EXISTS public.cart_items (
 CREATE TABLE IF NOT EXISTS public.cart_appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cart_id UUID NOT NULL REFERENCES public.carts(id) ON DELETE CASCADE,
-  appointment_id UUID NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE,
+  grooming_appointment_id UUID,
+  -- Removed daycare_appointment_id - no daycare in barbery system
+  -- Foreign key to grooming_appointments will be added in a later migration
   appointment_price NUMERIC(10,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  CONSTRAINT cart_appointments_unique UNIQUE (cart_id, appointment_id)
+  CONSTRAINT cart_appointments_check CHECK (
+    (grooming_appointment_id IS NOT NULL)
+    -- Removed daycare_appointment_id check - no daycare in barbery system
+  ),
+  CONSTRAINT cart_appointments_unique UNIQUE (cart_id, grooming_appointment_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
-  appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
+  grooming_appointment_id UUID,
+  -- Removed daycare_appointment_id - no daycare in barbery system
+  -- Foreign key to grooming_appointments will be added in a later migration
   status TEXT,
   subtotal NUMERIC(10,2),
   total NUMERIC(10,2),
@@ -153,9 +161,15 @@ CREATE TABLE IF NOT EXISTS public.payments (
 CREATE TABLE IF NOT EXISTS public.appointment_payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   payment_id UUID NOT NULL REFERENCES public.payments(id) ON DELETE CASCADE,
-  appointment_id UUID NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE,
+  grooming_appointment_id UUID,
+  -- Removed daycare_appointment_id - no daycare in barbery system
+  -- Foreign key to grooming_appointments will be added in a later migration
   amount NUMERIC(10,2) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  CONSTRAINT appointment_payments_check CHECK (
+    (grooming_appointment_id IS NOT NULL)
+    -- Removed daycare_appointment_id check - no daycare in barbery system
+  )
 );
 
 -- Tickets / subscriptions ----------------------------------------------------
@@ -220,7 +234,9 @@ CREATE TABLE IF NOT EXISTS public.appointment_reminder_settings (
 
 CREATE TABLE IF NOT EXISTS public.appointment_reminder_sent (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  appointment_id UUID NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE,
+  appointment_id UUID NOT NULL,
+  appointment_type TEXT NOT NULL DEFAULT 'grooming' CHECK (appointment_type = 'grooming'::text),
+  -- Removed 'daycare' and 'garden' from appointment_type - barbery system only has grooming appointments
   reminder_id UUID NOT NULL REFERENCES public.appointment_reminders(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
   sent_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -232,7 +248,9 @@ CREATE TABLE IF NOT EXISTS public.appointment_reminder_sent (
 
 CREATE TABLE IF NOT EXISTS public.appointment_session_images (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  appointment_id UUID REFERENCES public.appointments(id) ON DELETE CASCADE,
+  grooming_appointment_id UUID,
+  -- Removed daycare_appointment_id - no daycare in barbery system
+  -- Foreign key to grooming_appointments will be added in a later migration
   image_url TEXT NOT NULL,
   storage_path TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),

@@ -23,7 +23,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Filter, X } from "lucide-react"
-import { BreedMultiSelect } from "./BreedMultiSelect"
 import { ShiftRestrictionsPopover } from "@/components/dialogs/settings/stations/ShiftRestrictionsPopover"
 import { useCreateCustomerType } from "@/hooks/useCreateCustomerType"
 import type { CustomerTypeOption } from "@/components/customer-types/CustomerTypeMultiSelect"
@@ -241,22 +240,13 @@ export function SettingsStationsSection() {
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
     const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false)
     const [groomingServiceId, setGroomingServiceId] = useState<string | null>(null)
-    const [breeds, setBreeds] = useState<Array<{ id: string; name: string }>>([])
-    const [stationBreedRules, setStationBreedRules] = useState<Record<string, Array<{
-        breed_id: string
-        remote_booking_allowed: boolean
-        requires_staff_approval: boolean
-    }>>>({})
 
     // Filter state
     const [filters, setFilters] = useState({
         isActive: null as boolean | null,
         workingDays: [] as string[],
-        breedIds: [] as string[],
         intervalMin: null as number | null,
         intervalMax: null as number | null,
-        approvalFilter: null as "all" | "all_breeds" | "some" | "none" | null,
-        remoteFilter: null as "all" | "all_breeds" | "some" | "none" | null,
     })
 
     // Station form data
@@ -293,12 +283,6 @@ export function SettingsStationsSection() {
         loadGroomingServiceAndBreeds()
     }, [])
 
-    useEffect(() => {
-        if (stations.length > 0) {
-            fetchStationBreedRules()
-        }
-    }, [stations])
-
     const loadGroomingServiceAndBreeds = async () => {
         try {
             // Get grooming service ID - try to find it first, if not found, create it
@@ -323,47 +307,8 @@ export function SettingsStationsSection() {
             }
 
             setGroomingServiceId(serviceData?.id || null)
-
-            // Breeds table doesn't exist in this system - set empty array
-            setBreeds([])
         } catch (error) {
-            console.error("Error loading grooming service and breeds:", error)
-        }
-    }
-
-    const fetchStationBreedRules = async () => {
-        try {
-            const stationIds = stations.map(s => s.id)
-            if (stationIds.length === 0) return
-
-            const { data, error } = await supabase
-                .from("station_breed_rules")
-                .select("station_id, breed_id, remote_booking_allowed, requires_staff_approval")
-                .in("station_id", stationIds)
-
-            if (error) throw error
-
-            const grouped: Record<string, Array<{
-                breed_id: string
-                remote_booking_allowed: boolean
-                requires_staff_approval: boolean
-            }>> = {}
-
-                ; (data || []).forEach((rule) => {
-                    if (!rule.station_id || !rule.breed_id) return
-                    if (!grouped[rule.station_id]) {
-                        grouped[rule.station_id] = []
-                    }
-                    grouped[rule.station_id].push({
-                        breed_id: rule.breed_id,
-                        remote_booking_allowed: rule.remote_booking_allowed || false,
-                        requires_staff_approval: rule.requires_staff_approval || false,
-                    })
-                })
-
-            setStationBreedRules(grouped)
-        } catch (error) {
-            console.error("Error fetching station breed rules:", error)
+            console.error("Error loading grooming service:", error)
         }
     }
 
@@ -769,8 +714,6 @@ export function SettingsStationsSection() {
             })
             setStationWorkingHours(hoursMap)
             await loadAllowedCustomerTypes(normalized.map((station) => station.id))
-            // Refresh breed rules for filtering
-            await fetchStationBreedRules()
         }
     }
 
@@ -1020,68 +963,6 @@ export function SettingsStationsSection() {
                             )
 
                         if (baseTimeError) throw baseTimeError
-
-                        // Get all station_breed_rules for the original station
-                        const { data: originalRules, error: rulesError } = await supabase
-                            .from("station_breed_rules")
-                            .select("*")
-                            .eq("station_id", sourceStationId)
-
-                        if (rulesError) throw rulesError
-
-                        // Copy all station_breed_rules with ALL values
-                        console.log(
-                            "[SettingsStationsSection] Copying",
-                            originalRules?.length ?? 0,
-                            "station_breed_rules records from",
-                            sourceStationId,
-                            "to",
-                            targetId
-                        )
-
-                        if (originalRules && originalRules.length > 0) {
-                            for (const rule of originalRules) {
-                                // Get default time from breed_modifiers if exists
-                                const { data: breedModifier } = await supabase
-                                    .from("breed_modifiers")
-                                    .select("time_modifier_minutes")
-                                    .eq("service_id", groomingServiceId)
-                                    .eq("breed_id", rule.breed_id)
-                                    .maybeSingle()
-
-                                const defaultTime = breedModifier?.time_modifier_minutes || 60
-                                const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
-
-                                // Copy station_breed_rules with ALL values
-                                await supabase
-                                    .from("station_breed_rules")
-                                    .upsert(
-                                        {
-                                            station_id: targetId,
-                                            breed_id: rule.breed_id,
-                                            is_active: rule.is_active ?? true,
-                                            remote_booking_allowed: rule.remote_booking_allowed ?? false,
-                                            requires_staff_approval: rule.requires_staff_approval ?? false,
-                                            duration_modifier_minutes: durationMinutes,
-                                        },
-                                        { onConflict: "station_id,breed_id" }
-                                    )
-
-                                // Ensure breed_modifier exists with the same default time if it exists for original
-                                if (breedModifier) {
-                                    await supabase
-                                        .from("breed_modifiers")
-                                        .upsert(
-                                            {
-                                                service_id: groomingServiceId,
-                                                breed_id: rule.breed_id,
-                                                time_modifier_minutes: breedModifier.time_modifier_minutes,
-                                            },
-                                            { onConflict: "service_id,breed_id" }
-                                        )
-                                }
-                            }
-                        }
                     }
                 }
 
@@ -1106,95 +987,6 @@ export function SettingsStationsSection() {
                 return
             }
 
-            // Copy all matrix values for this station (only if checkbox is checked and mode is "new")
-            if (params.mode === "new" && groomingServiceId && params.copyBreedRelations) {
-                // Get the original station's base_time_minutes from service_station_matrix
-                const { data: originalMatrixData } = await supabase
-                    .from("service_station_matrix")
-                    .select("base_time_minutes")
-                    .eq("service_id", groomingServiceId)
-                    .eq("station_id", sourceStationId)
-                    .maybeSingle()
-
-                const originalBaseTime = originalMatrixData?.base_time_minutes || 0
-
-                // Copy the base_time_minutes to the target station first
-                const { error: baseTimeError } = await supabase
-                    .from("service_station_matrix")
-                    .upsert(
-                        {
-                            service_id: groomingServiceId,
-                            station_id: targetStationId,
-                            base_time_minutes: originalBaseTime,
-                            price: 0,
-                        },
-                        { onConflict: "service_id,station_id" }
-                    )
-
-                if (baseTimeError) throw baseTimeError
-
-                // Get all station_breed_rules for the original station
-                const { data: originalRules, error: rulesError } = await supabase
-                    .from("station_breed_rules")
-                    .select("*")
-                    .eq("station_id", sourceStationId)
-
-                if (rulesError) throw rulesError
-
-                // Copy all station_breed_rules with ALL values
-                console.log(
-                    "[SettingsStationsSection] Copying",
-                    originalRules?.length ?? 0,
-                    "station_breed_rules records from",
-                    sourceStationId,
-                    "to new station",
-                    targetStationId
-                )
-
-                if (originalRules && originalRules.length > 0) {
-                    for (const rule of originalRules) {
-                        // Get default time from breed_modifiers if exists
-                        const { data: breedModifier } = await supabase
-                            .from("breed_modifiers")
-                            .select("time_modifier_minutes")
-                            .eq("service_id", groomingServiceId)
-                            .eq("breed_id", rule.breed_id)
-                            .maybeSingle()
-
-                        const defaultTime = breedModifier?.time_modifier_minutes || 60
-                        const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
-
-                        // Copy station_breed_rules with ALL values
-                        await supabase
-                            .from("station_breed_rules")
-                            .upsert(
-                                {
-                                    station_id: targetStationId,
-                                    breed_id: rule.breed_id,
-                                    is_active: rule.is_active ?? true,
-                                    remote_booking_allowed: rule.remote_booking_allowed ?? false,
-                                    requires_staff_approval: rule.requires_staff_approval ?? false,
-                                    duration_modifier_minutes: durationMinutes,
-                                },
-                                { onConflict: "station_id,breed_id" }
-                            )
-
-                        // Ensure breed_modifier exists with the same default time if it exists for original
-                        if (breedModifier) {
-                            await supabase
-                                .from("breed_modifiers")
-                                .upsert(
-                                    {
-                                        service_id: groomingServiceId,
-                                        breed_id: rule.breed_id,
-                                        time_modifier_minutes: breedModifier.time_modifier_minutes,
-                                    },
-                                    { onConflict: "service_id,breed_id" }
-                                )
-                        }
-                    }
-                }
-            }
 
             toast({
                 title: "הצלחה",
@@ -1326,16 +1118,6 @@ export function SettingsStationsSection() {
             })
         }
 
-        // Filter by breed
-        if (filters.breedIds.length > 0) {
-            filtered = filtered.filter(station => {
-                const rules = stationBreedRules[station.id] || []
-                return filters.breedIds.some(breedId =>
-                    rules.some(rule => rule.breed_id === breedId)
-                )
-            })
-        }
-
         // Filter by interval
         if (filters.intervalMin !== null) {
             filtered = filtered.filter(s => (s.slot_interval_minutes ?? 60) >= filters.intervalMin!)
@@ -1344,42 +1126,8 @@ export function SettingsStationsSection() {
             filtered = filtered.filter(s => (s.slot_interval_minutes ?? 60) <= filters.intervalMax!)
         }
 
-        // Filter by approval requirement
-        if (filters.approvalFilter !== null) {
-            filtered = filtered.filter(station => {
-                const rules = stationBreedRules[station.id] || []
-                if (rules.length === 0) {
-                    return filters.approvalFilter === "none"
-                }
-                const hasApproval = rules.some(r => r.requires_staff_approval)
-                const allHaveApproval = rules.length > 0 && rules.every(r => r.requires_staff_approval)
-
-                if (filters.approvalFilter === "all_breeds") return allHaveApproval
-                if (filters.approvalFilter === "some") return hasApproval && !allHaveApproval
-                if (filters.approvalFilter === "none") return !hasApproval
-                return true
-            })
-        }
-
-        // Filter by remote booking
-        if (filters.remoteFilter !== null) {
-            filtered = filtered.filter(station => {
-                const rules = stationBreedRules[station.id] || []
-                if (rules.length === 0) {
-                    return filters.remoteFilter === "none"
-                }
-                const hasRemote = rules.some(r => r.remote_booking_allowed)
-                const allHaveRemote = rules.length > 0 && rules.every(r => r.remote_booking_allowed)
-
-                if (filters.remoteFilter === "all_breeds") return allHaveRemote
-                if (filters.remoteFilter === "some") return hasRemote && !allHaveRemote
-                if (filters.remoteFilter === "none") return !hasRemote
-                return true
-            })
-        }
-
         return filtered
-    }, [stations, filters, stationWorkingHours, stationBreedRules])
+    }, [stations, filters, stationWorkingHours])
 
     const orderedStations = useMemo(() => {
         if (!filteredStations.length) return []
@@ -1499,21 +1247,15 @@ export function SettingsStationsSection() {
 
     const hasActiveFilters = filters.isActive !== null ||
         filters.workingDays.length > 0 ||
-        filters.breedIds.length > 0 ||
         filters.intervalMin !== null ||
-        filters.intervalMax !== null ||
-        filters.approvalFilter !== null ||
-        filters.remoteFilter !== null
+        filters.intervalMax !== null
 
     const clearFilters = () => {
         setFilters({
             isActive: null,
             workingDays: [],
-            breedIds: [],
             intervalMin: null,
             intervalMax: null,
-            approvalFilter: null,
-            remoteFilter: null,
         })
         setCurrentPage(1)
     }
@@ -1638,20 +1380,6 @@ export function SettingsStationsSection() {
                             )}
                         </div>
 
-                        {/* Breed Filter */}
-                        <div className="space-y-2 min-w-[200px] flex-1">
-                            <Label className="text-sm">גזע</Label>
-                            <BreedMultiSelect
-                                options={breeds.map(b => ({ id: b.id, name: b.name }))}
-                                selectedIds={filters.breedIds}
-                                onSelectionChange={(ids) => {
-                                    setFilters(prev => ({ ...prev, breedIds: ids }))
-                                    setCurrentPage(1)
-                                }}
-                                placeholder="בחר גזעים..."
-                            />
-                        </div>
-
                         {/* Interval Filter */}
                         <div className="space-y-2 min-w-[200px]">
                             <Label className="text-sm">מרווח תורים (דקות)</Label>
@@ -1683,55 +1411,6 @@ export function SettingsStationsSection() {
                             </div>
                         </div>
 
-                        {/* Approval Filter */}
-                        <div className="space-y-2 min-w-[180px]">
-                            <Label className="text-sm">דרישת אישור</Label>
-                            <Select
-                                value={filters.approvalFilter === null ? "all" : filters.approvalFilter}
-                                onValueChange={(value) => {
-                                    setFilters(prev => ({
-                                        ...prev,
-                                        approvalFilter: value === "all" ? null : value as "all" | "all_breeds" | "some" | "none"
-                                    }))
-                                    setCurrentPage(1)
-                                }}
-                            >
-                                <SelectTrigger className="text-right" dir="rtl">
-                                    <SelectValue placeholder="הכל" />
-                                </SelectTrigger>
-                                <SelectContent dir="rtl">
-                                    <SelectItem value="all">הכל</SelectItem>
-                                    <SelectItem value="all_breeds">כל הגזעים דורשים אישור</SelectItem>
-                                    <SelectItem value="some">חלק מהגזעים דורשים אישור</SelectItem>
-                                    <SelectItem value="none">אין דרישת אישור</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Remote Booking Filter */}
-                        <div className="space-y-2 min-w-[180px]">
-                            <Label className="text-sm">תור מרחוק</Label>
-                            <Select
-                                value={filters.remoteFilter === null ? "all" : filters.remoteFilter}
-                                onValueChange={(value) => {
-                                    setFilters(prev => ({
-                                        ...prev,
-                                        remoteFilter: value === "all" ? null : value as "all" | "all_breeds" | "some" | "none"
-                                    }))
-                                    setCurrentPage(1)
-                                }}
-                            >
-                                <SelectTrigger className="text-right" dir="rtl">
-                                    <SelectValue placeholder="הכל" />
-                                </SelectTrigger>
-                                <SelectContent dir="rtl">
-                                    <SelectItem value="all">הכל</SelectItem>
-                                    <SelectItem value="all_breeds">כל הגזעים מאפשרים תור מרחוק</SelectItem>
-                                    <SelectItem value="some">חלק מהגזעים מאפשרים תור מרחוק</SelectItem>
-                                    <SelectItem value="none">אין אפשרות תור מרחוק</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
                     </div>
                     {hasActiveFilters && (
                         <div className="mt-4 text-sm text-gray-600">
