@@ -5,9 +5,6 @@ import {
   checkUserExists as checkCustomerExists,
   getClientProfile as fetchClientProfile,
   updateClientProfile as saveClientProfile,
-  createDog as createDogRecord,
-  updateDog as updateDogRecord,
-  getMergedAppointments as fetchMergedAppointments,
   getManagerSchedule as fetchManagerSchedule,
   searchManagerSchedule as executeManagerScheduleSearch,
   moveAppointment as moveAppointmentRecord,
@@ -539,30 +536,7 @@ export const supabaseApi = createApi({
       providesTags: ["GardenAppointment"],
     }),
 
-    getMergedAppointments: builder.query<MergedAppointment[], string>({
-      async queryFn(dogId: string) {
-        try {
-          const result = await fetchMergedAppointments(dogId)
-          // Return the appointments array directly for backward compatibility
-          return { data: result.appointments || [] }
-        } catch (error) {
-          console.error(`❌ [supabaseApi] getMergedAppointments error:`, error)
-          const message = error instanceof Error ? error.message : String(error)
-          return {
-            error: {
-              status: "SUPABASE_ERROR",
-              data: message,
-            },
-          }
-        }
-      },
-      providesTags: (result, error, dogId) => [
-        "Appointment",
-        "GardenAppointment",
-        { type: "Appointment", id: dogId },
-        { type: "Appointment", id: `getMergedAppointments-${dogId}` },
-      ],
-    }),
+    // getMergedAppointments removed - no dogs in barbershop
 
     getAvailableDates: builder.query({
       query: (params) => ({
@@ -1045,7 +1019,7 @@ export const supabaseApi = createApi({
 
     bookProposedMeeting: builder.mutation<
       { success: boolean; appointmentId?: string },
-      { meetingId: string; dogId: string; code?: string }
+      { meetingId: string; code?: string }
     >({
       async queryFn(params) {
         try {
@@ -2934,268 +2908,7 @@ export const supabaseApi = createApi({
       invalidatesTags: ["Worker", "WorkerAttendance"],
     }),
 
-    // Dogs
-    listOwnerDogs: builder.query({
-      async queryFn(ownerId: string) {
-        try {
-          if (!ownerId) {
-            console.warn("⚠️ [listOwnerDogs RTK Query] No ownerId provided, returning empty array")
-            return { data: { dogs: [] } }
-          }
-
-          // First get the customer_id from profiles or customers table
-          const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("id, email")
-            .eq("id", ownerId)
-            .maybeSingle()
-
-          if (profileError) {
-            console.error("❌ [listOwnerDogs] Profile error:", profileError)
-          }
-
-          let customerId = ownerId
-
-          // If this is a customer, try to get their customer_id from the customers table
-          if (profile?.email) {
-            const { data: customer } = await supabase
-              .from("customers")
-              .select("id")
-              .eq("auth_user_id", ownerId)
-              .maybeSingle()
-
-            if (customer?.id) {
-              customerId = customer.id
-            }
-          }
-
-          // Query dogs with breed information
-          const { data: dogsData, error: dogsError } = await supabase
-            .from("dogs")
-            .select(
-              `
-              id,
-              name,
-              gender,
-              is_small,
-              customer_id,
-              image_url,
-              breeds:breed_id (
-                id,
-                name,
-                size_class,
-                min_groom_price,
-                max_groom_price
-              )
-            `
-            )
-            .eq("customer_id", customerId)
-
-          if (dogsError) {
-            console.error("❌ [listOwnerDogs] Dogs error:", dogsError)
-            return { error: { status: "SUPABASE_ERROR", data: dogsError.message } }
-          }
-
-          // Transform dogs to match expected structure
-          interface DogWithBreed {
-            id: string
-            name: string | null
-            gender: "male" | "female" | null
-            is_small: boolean | null
-            customer_id: string
-            image_url: string | null
-            breeds: {
-              id: string
-              name: string
-              size_class: string | null
-              min_groom_price: number | null
-              max_groom_price: number | null
-            } | null
-          }
-
-          const dogIds = (dogsData || []).map((dog: DogWithBreed) => dog.id).filter(Boolean)
-          let appointmentHistoryByDog: Record<string, boolean> = {}
-
-          if (dogIds.length > 0) {
-            const [{ data: daycareRows, error: daycareError }, { data: groomingRows, error: groomingError }] =
-              await Promise.all([
-                supabase.from("daycare_appointments").select("dog_id").in("dog_id", dogIds),
-                supabase.from("grooming_appointments").select("dog_id").in("dog_id", dogIds),
-              ])
-
-            if (daycareError) {
-              console.error("❌ [listOwnerDogs] Daycare history query failed:", daycareError)
-              return { error: { status: "SUPABASE_ERROR", data: daycareError.message } }
-            }
-
-            if (groomingError) {
-              console.error("❌ [listOwnerDogs] Grooming history query failed:", groomingError)
-              return { error: { status: "SUPABASE_ERROR", data: groomingError.message } }
-            }
-
-            ;(daycareRows ?? []).forEach((row) => {
-              if (row?.dog_id) {
-                appointmentHistoryByDog[row.dog_id] = true
-              }
-            })
-            ;(groomingRows ?? []).forEach((row) => {
-              if (row?.dog_id) {
-                appointmentHistoryByDog[row.dog_id] = true
-              }
-            })
-          }
-
-          // Get all unique breed IDs from the dogs
-          const breedIds = [
-            ...new Set((dogsData || []).map((dog: DogWithBreed) => dog.breeds?.id).filter(Boolean) as string[]),
-          ]
-
-          // Fetch station_breed_rules for all breeds to calculate requires_staff_approval
-          let breedRequiresApproval: Record<string, boolean> = {}
-          if (breedIds.length > 0) {
-            const { data: stationBreedRules, error: rulesError } = await supabase
-              .from("station_breed_rules")
-              .select("breed_id, is_active, requires_staff_approval")
-              .in("breed_id", breedIds)
-              .eq("is_active", true)
-              .eq("requires_staff_approval", true)
-
-            if (!rulesError && stationBreedRules) {
-              // If any active station requires approval for a breed, mark that breed as requiring approval
-              const breedsWithApproval = new Set(
-                stationBreedRules.map((rule) => rule.breed_id).filter(Boolean) as string[]
-              )
-              breedIds.forEach((breedId) => {
-                breedRequiresApproval[breedId] = breedsWithApproval.has(breedId)
-              })
-            }
-          }
-
-          const dogs = (dogsData || []).map((dog: DogWithBreed) => {
-            const breed = dog.breeds || null
-
-            return {
-              id: dog.id,
-              name: dog.name || "",
-              gender: dog.gender,
-              breed: breed?.name || "",
-              size: breed?.size_class || "",
-              isSmall: breed?.size_class === "small" || dog.is_small === true,
-              ownerId: dog.customer_id,
-              image_url: dog.image_url || null,
-              hasAppointmentHistory: Boolean(appointmentHistoryByDog[dog.id]),
-              requiresSpecialApproval: Boolean(breed?.id && breedRequiresApproval[breed.id]),
-              groomingMinPrice: breed?.min_groom_price ? Number(breed.min_groom_price) : null,
-              groomingMaxPrice: breed?.max_groom_price ? Number(breed.max_groom_price) : null,
-              hasBeenToGarden: undefined,
-              questionnaireSuitableForGarden: undefined,
-              staffApprovedForGarden: undefined,
-              hasRegisteredToGardenBefore: undefined,
-            }
-          })
-
-          return { data: { dogs } }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          console.error("❌ [listOwnerDogs RTK Query] Error fetching dogs:", error)
-          return { error: { status: "SUPABASE_ERROR", data: message } }
-        }
-      },
-      providesTags: ["Dog"],
-    }),
-
-    checkDogRegistration: builder.query({
-      query: (dogId: string) => ({
-        functionName: "check-dog-registration",
-        body: { dogId },
-      }),
-      transformResponse: (response) => unwrapResponse(response),
-      providesTags: ["Dog"],
-    }),
-
-    createDog: builder.mutation({
-      async queryFn({
-        customerId,
-        ...dogData
-      }: {
-        customerId: string
-        name: string
-        breed_id?: string | null
-        gender?: "male" | "female"
-        birth_date?: string | null
-        is_small?: boolean | null
-        health_notes?: string | null
-        vet_name?: string | null
-        vet_phone?: string | null
-        aggression_risk?: boolean | null
-        people_anxious?: boolean | null
-      }) {
-        try {
-          const result = await createDogRecord(customerId, dogData)
-          if (!result.success) {
-            return {
-              error: {
-                status: "SUPABASE_ERROR",
-                data: result.error || "Failed to create dog",
-              },
-            }
-          }
-          return { data: result }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          console.error("❌ [createDog RTK Query] Error:", error)
-          return {
-            error: {
-              status: "SUPABASE_ERROR",
-              data: message,
-            },
-          }
-        }
-      },
-      invalidatesTags: ["Dog"],
-    }),
-
-    updateDog: builder.mutation({
-      async queryFn({
-        dogId,
-        ...dogData
-      }: {
-        dogId: string
-        name?: string
-        breed_id?: string | null
-        gender?: "male" | "female"
-        birth_date?: string | null
-        is_small?: boolean | null
-        health_notes?: string | null
-        vet_name?: string | null
-        vet_phone?: string | null
-        aggression_risk?: boolean | null
-        people_anxious?: boolean | null
-      }) {
-        try {
-          const result = await updateDogRecord(dogId, dogData)
-          if (!result.success) {
-            return {
-              error: {
-                status: "SUPABASE_ERROR",
-                data: result.error || "Failed to update dog",
-              },
-            }
-          }
-          return { data: result }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          console.error("❌ [updateDog RTK Query] Error:", error)
-          return {
-            error: {
-              status: "SUPABASE_ERROR",
-              data: message,
-            },
-          }
-        }
-      },
-      invalidatesTags: ["Dog"],
-    }),
+    // Dogs removed - no dogs in barbershop
 
     // Customer Search - using edge function with service_role to bypass RLS
     // This allows managers to see all customers while regular customers remain restricted to their own
@@ -3629,11 +3342,7 @@ export const {
   useManagerUpdateShiftMutation,
   useManagerDeleteShiftMutation,
 
-  // Dogs
-  useListOwnerDogsQuery,
-  useCheckDogRegistrationQuery,
-  useCreateDogMutation,
-  useUpdateDogMutation,
+  // Dogs removed - no dogs in barbershop
 
   // Customer Search
   useSearchCustomersQuery,

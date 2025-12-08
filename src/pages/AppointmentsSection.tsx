@@ -386,72 +386,8 @@ export default function AppointmentsSection() {
             }
 
             const daycarePromise = async (): Promise<DaycareAppointmentRow[]> => {
-                if (!shouldFetchGarden) return []
-                let query = supabase
-                    .from("daycare_appointments")
-                    .select(
-                        `
-                        id,
-                        status,
-                        start_at,
-                        end_at,
-                        payment_status,
-                        amount_due,
-                        customer_notes,
-                        internal_notes,
-                        service_type,
-                        late_pickup_requested,
-                        late_pickup_notes,
-                        garden_trim_nails,
-                        garden_brush,
-                        garden_bath,
-                        station_id,
-                        customer_id,
-                        dogs (
-                            id,
-                            name,
-                            customer_id,
-                            breed_id,
-                            breeds (
-                                id,
-                                name
-                            )
-                        ),
-                        customers (
-                            id,
-                            full_name,
-                            phone,
-                            email,
-                            classification,
-                            customer_type_id,
-                            customer_type:customer_types (
-                                id,
-                                name
-                            )
-                        ),
-                        stations (
-                            id,
-                            name
-                        )
-                    `
-                    )
-                    .order("start_at", { ascending: false })
-
-                if (fromIso) {
-                    query = query.gte("start_at", fromIso)
-                }
-                if (toIso) {
-                    query = query.lte("start_at", toIso)
-                }
-                if (statusFilter !== "all") {
-                    query = query.eq("status", statusFilter)
-                }
-
-                const { data, error: daycareError } = await query
-                if (daycareError) {
-                    throw daycareError
-                }
-                return (data ?? []) as DaycareAppointmentRow[]
+                // Daycare appointments don't exist in this system - return empty array
+                return []
             }
 
             const [groomingData, daycareData] = await Promise.all([groomingPromise(), daycarePromise()])

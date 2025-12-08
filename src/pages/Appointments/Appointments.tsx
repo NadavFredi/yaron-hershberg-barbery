@@ -31,10 +31,7 @@ import {
     approveGroomingAppointment,
     approveCombinedAppointments,
     cancelCombinedAppointments,
-    registerWaitingList,
-    updateWaitingListEntry,
     updateAppointmentNotes as updateAppointmentNotesRequest,
-    updateLatePickup,
 } from "@/integrations/supabase/supabaseService"
 import { skipToken } from "@reduxjs/toolkit/query"
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query"
@@ -43,7 +40,6 @@ import {
     supabaseApi,
     useDeleteWaitingListEntryMutation,
     useGetWaitingListEntriesQuery,
-    useListOwnerDogsQuery,
 } from "@/store/services/supabaseApi"
 import { extractErrorMessage } from "@/utils/api"
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
@@ -419,15 +415,9 @@ export default function Appointments() {
         const trimmedNotes = latePickupDialogNotes.trim()
 
         try {
-            const result = await updateLatePickup(
-                latePickupDialogState.appointmentId,
-                latePickupDialogRequested,
-                trimmedNotes || undefined
-            )
-
-            if (!result.success) {
-                throw new Error(result.error || "שגיאה בעדכון האיסוף המאוחר")
-            }
+            // updateLatePickup removed - no dogs in barbershop
+            // TODO: Implement late pickup for people if needed
+            throw new Error("Late pickup functionality not available for barbershop")
 
             dispatch(
                 supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
@@ -1586,25 +1576,9 @@ export default function Appointments() {
     const handleWaitlistSubmit = useCallback(
         async (submission: WaitlistModalSubmission) => {
             const dogId = submission.dog.id
-            if (!dogId) {
-                throw new Error("יש לבחור כלב עבור בקשת ההמתנה")
-            }
-
-            const dateRanges = submission.entries.map(({ startDate, endDate }) => ({
-                startDate,
-                endDate: endDate ?? startDate,
-            }))
-
-            const serviceScope = mapServiceScopeToApi(submission.serviceScope)
-
-            const apiResult =
-                submission.mode === 'edit' && submission.entryId
-                    ? await updateWaitingListEntry(submission.entryId, dogId, serviceScope, dateRanges)
-                    : await registerWaitingList(dogId, serviceScope, dateRanges, user?.id)
-
-            if (!apiResult?.success) {
-                throw new Error(apiResult?.error || "שגיאה בשמירת בקשת ההמתנה")
-            }
+            // Waiting list functionality removed - no dogs in barbershop
+            // TODO: Reimplement waiting list for people if needed
+            throw new Error("Waiting list functionality not available - no dogs in barbershop")
 
             dispatch(supabaseApi.util.invalidateTags(["WaitingList"]))
         },

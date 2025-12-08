@@ -15,17 +15,6 @@ import type {
 } from "@/pages/ManagerSchedule/types"
 import type { ProposedMeetingPublicDetails } from "@/types/proposedMeeting"
 
-type DogTableRow = Database["public"]["Tables"]["dogs"]["Row"]
-type BreedSummary = Pick<
-  Database["public"]["Tables"]["breeds"]["Row"],
-  "name" | "size_class" | "min_groom_price" | "max_groom_price"
->
-type DogRowWithBreed = DogTableRow & { breeds: BreedSummary | null }
-type DaycareAppointmentSummary = Pick<Database["public"]["Tables"]["daycare_appointments"]["Row"], "dog_id" | "status">
-type GroomingAppointmentSummary = Pick<
-  Database["public"]["Tables"]["grooming_appointments"]["Row"],
-  "dog_id" | "status"
->
 type CustomerRow = Database["public"]["Tables"]["customers"]["Row"]
 type CustomerTypeRow = Database["public"]["Tables"]["customer_types"]["Row"]
 type ProposedMeetingRow = Database["public"]["Tables"]["proposed_meetings"]["Row"] & {
@@ -58,6 +47,7 @@ const asSingle = <T>(value: T | T[] | null | undefined): T | null => {
   }
   return value ?? null
 }
+
 
 export interface DogRecord {
   id: string
@@ -115,37 +105,6 @@ export interface AvailableDatesResult {
   gardenQuestionnaire?: GardenQuestionnaireStatus
 }
 
-export interface DogRegistrationStatus {
-  isRegistered: boolean
-  registrationDate: string
-  dogId: string
-}
-
-export interface MergedAppointment {
-  id: string
-  dogId: string
-  dogName?: string
-  date: string
-  time: string
-  service: "grooming" | "garden" | "both"
-  status: string
-  stationId?: string
-  notes?: string
-  groomingNotes?: string
-  gardenNotes?: string
-  groomingStatus?: string
-  gardenStatus?: string
-  startDateTime: string
-  endDateTime: string
-  groomingAppointmentId?: string
-  gardenAppointmentId?: string
-  latePickupRequested?: boolean
-  latePickupNotes?: string
-  gardenTrimNails?: boolean
-  gardenBrush?: boolean
-  gardenBath?: boolean
-  clientConfirmedArrival?: boolean // Client confirmation of arrival (separate from manager approval status)
-}
 
 export interface ClientProfile {
   id: string
@@ -166,10 +125,9 @@ async function hasDogAppointmentHistory(dogId: string): Promise<boolean> {
     throw new Error("dogId is required")
   }
 
-  const [{ count: groomingCount, error: groomingError }, { count: daycareCount, error: daycareError }] =
+  const [{ count: groomingCount, error: groomingError }] =
     await Promise.all([
       supabase.from("grooming_appointments").select("id", { count: "exact", head: true }).eq("dog_id", dogId),
-      supabase.from("daycare_appointments").select("id", { count: "exact", head: true }).eq("dog_id", dogId),
     ])
 
   if (groomingError) {
@@ -177,10 +135,8 @@ async function hasDogAppointmentHistory(dogId: string): Promise<boolean> {
     throw groomingError
   }
 
-  if (daycareError) {
-    console.error("❌ [hasDogAppointmentHistory] Failed to check daycare appointments", daycareError)
-    throw daycareError
-  }
+  // Daycare appointments don't exist in this system - set count to 0
+  const daycareCount = 0
 
   const totalAppointments = (groomingCount ?? 0) + (daycareCount ?? 0)
   return totalAppointments > 0
@@ -269,777 +225,23 @@ async function callProductionFunction(functionName: string, params: Record<strin
   }
 }
 
-// 1. List all dogs of owner
-export async function listOwnerDogs(ownerId: string): Promise<{ dogs: DogRecord[] }> {
-  // verbose log removed
-  if (!ownerId) {
-    console.error("❌ [listOwnerDogs] ownerId is required")
-    throw new Error("ownerId is required")
-  }
-
-  if (!supabase) {
-    console.error("❌ [listOwnerDogs] Supabase client not initialized")
-    throw new Error("Supabase client not initialized")
-  }
-
-  const { data: dogRows, error } = await supabase
-    .from("dogs")
-    .select(
-      `
-      id,
-      name,
-      is_small,
-      customer_id,
-      questionnaire_result,
-      image_url,
-      gender,
-      breeds (
-        name,
-        size_class,
-        min_groom_price,
-        max_groom_price
-      )
-    `
-    )
-    .eq("customer_id", ownerId)
-    .order("name", { ascending: true })
-
-  if (error) {
-    console.error("❌ [listOwnerDogs] Failed to load owner dogs:", {
-      error,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-      ownerId,
-    })
-    throw error
-  }
-
-  const typedDogRows = (dogRows ?? []) as DogRowWithBreed[]
-  const dogIds = typedDogRows.map((dog) => dog.id)
-
-  // Get all unique breed IDs from the dogs
-  const breedIds = [...new Set(typedDogRows.map((dog) => dog.breed_id).filter(Boolean) as string[])]
-
-  // Fetch station_breed_rules for all breeds to calculate requires_staff_approval
-  let breedRequiresApproval: Record<string, boolean> = {}
-  if (breedIds.length > 0) {
-    // verbose log removed
-    const { data: stationBreedRules, error: rulesError } = await supabase
-      .from("station_breed_rules")
-      .select("breed_id, is_active, requires_staff_approval")
-      .in("breed_id", breedIds)
-      .eq("is_active", true)
-      .eq("requires_staff_approval", true)
-
-    if (rulesError) {
-      console.error("❌ [listOwnerDogs] Failed to load station_breed_rules:", {
-        error: rulesError,
-        message: rulesError.message,
-        breedIds,
-      })
-      // Don't throw - just continue with false values
-    } else {
-      // verbose log removed
-
-      // If any active station requires approval for a breed, mark that breed as requiring approval
-      const breedsWithApproval = new Set(
-        (stationBreedRules ?? []).map((rule) => rule.breed_id).filter(Boolean) as string[]
-      )
-      breedIds.forEach((breedId) => {
-        breedRequiresApproval[breedId] = breedsWithApproval.has(breedId)
-      })
-    }
-  }
-
-  let daycareVisitsByDog: Record<string, boolean> = {}
-  let appointmentHistoryByDog: Record<string, boolean> = {}
-  if (dogIds.length > 0) {
-    const { data: daycareRows, error: daycareError } = await supabase
-      .from("daycare_appointments")
-      .select("dog_id, status")
-      .in("dog_id", dogIds)
-
-    if (daycareError) {
-      console.error("❌ [listOwnerDogs] Failed to load daycare appointments for dogs:", {
-        error: daycareError,
-        message: daycareError.message,
-        details: daycareError.details,
-        hint: daycareError.hint,
-        code: daycareError.code,
-        dogIds,
-      })
-      throw daycareError
-    }
-
-    const typedDaycareRows = (daycareRows ?? []) as DaycareAppointmentSummary[]
-    daycareVisitsByDog = typedDaycareRows.reduce<Record<string, boolean>>((acc, row) => {
-      if (!row?.dog_id) {
-        return acc
-      }
-
-      appointmentHistoryByDog[row.dog_id] = true
-
-      const isCompletedAppointment = row.status === "approved" || row.status === "matched" || row.status === "pending"
-
-      if (isCompletedAppointment) {
-        acc[row.dog_id] = true
-      }
-
-      return acc
-    }, {})
-  }
-
-  if (dogIds.length > 0) {
-    // verbose log removed
-    const { data: groomingRows, error: groomingError } = await supabase
-      .from("grooming_appointments")
-      .select("dog_id, status")
-      .in("dog_id", dogIds)
-
-    if (groomingError) {
-      console.error("❌ [listOwnerDogs] Failed to load grooming appointments for dogs:", {
-        error: groomingError,
-        message: groomingError.message,
-        details: groomingError.details,
-        hint: groomingError.hint,
-        code: groomingError.code,
-        dogIds,
-      })
-      throw groomingError
-    }
-
-    const typedGroomingRows = (groomingRows ?? []) as GroomingAppointmentSummary[]
-    typedGroomingRows.forEach((row) => {
-      if (row?.dog_id) {
-        appointmentHistoryByDog[row.dog_id] = true
-      }
-    })
-
-    // verbose log removed
-  }
-
-  const dogs: DogRecord[] = typedDogRows.map((dog) => {
-    const breedInfo = dog.breeds
-
-    let questionnaireSuitableForGarden: boolean | undefined
-    let staffApprovedForGarden = ""
-
-    switch (dog.questionnaire_result) {
-      case "approved":
-        questionnaireSuitableForGarden = true
-        staffApprovedForGarden = "נמצא מתאים"
-        break
-      case "rejected":
-        questionnaireSuitableForGarden = false
-        staffApprovedForGarden = "נמצא לא מתאים"
-        break
-      default:
-        questionnaireSuitableForGarden = undefined
-        staffApprovedForGarden = ""
-    }
-
-    const hasGardenHistory = Boolean(daycareVisitsByDog[dog.id])
-    const hasAppointmentHistory = Boolean(appointmentHistoryByDog[dog.id])
-
-    // Determine size: prefer breed size_class, fallback to is_small field
-    let sizeDisplay = breedInfo?.size_class ?? ""
-    if (!sizeDisplay && dog.is_small !== null && dog.is_small !== undefined) {
-      sizeDisplay = dog.is_small ? "קטן" : "גדול"
-    }
-    if (!sizeDisplay) {
-      sizeDisplay = "לא צוין"
-    }
-
-    return {
-      id: dog.id,
-      name: dog.name ?? "",
-      breed: breedInfo?.name ?? "",
-      size: sizeDisplay,
-      isSmall: Boolean(dog.is_small),
-      ownerId: dog.customer_id,
-      image_url: dog.image_url || null,
-      gender: dog.gender || null,
-      hasAppointmentHistory,
-      hasBeenToGarden: hasGardenHistory,
-      questionnaireSuitableForGarden,
-      staffApprovedForGarden,
-      hasRegisteredToGardenBefore: hasGardenHistory,
-      requiresSpecialApproval: Boolean(dog.breed_id && breedRequiresApproval[dog.breed_id]),
-      groomingMinPrice: typeof breedInfo?.min_groom_price === "number" ? Number(breedInfo.min_groom_price) : null,
-      groomingMaxPrice: typeof breedInfo?.max_groom_price === "number" ? Number(breedInfo.max_groom_price) : null,
-    }
-  })
-
-  return { dogs }
-}
-
-// Create a new dog
-export async function createDog(
-  customerId: string,
-  dogData: {
-    name: string
-    breed_id: string
-    gender?: "male" | "female"
-    birth_date?: string | null
-    health_notes?: string | null
-    vet_name?: string | null
-    vet_phone?: string | null
-    aggression_risk?: boolean | null
-    people_anxious?: boolean | null
-  }
-): Promise<{ success: boolean; dogId?: string; error?: string }> {
-  // verbose log removed
-
-  if (!supabase) {
-    console.error("❌ [createDog] Supabase client not initialized")
-    throw new Error("Supabase client not initialized")
-  }
-
-  if (!customerId) {
-    console.error("❌ [createDog] customerId is required")
-    throw new Error("customerId is required")
-  }
-
-  if (!dogData.name || dogData.name.trim().length === 0) {
-    console.error("❌ [createDog] Dog name is required")
-    throw new Error("Dog name is required")
-  }
-
-  const insertPayload: Database["public"]["Tables"]["dogs"]["Insert"] = {
-    customer_id: customerId,
-    name: dogData.name.trim(),
-    breed_id: dogData.breed_id,
-    ...(dogData.gender && { gender: dogData.gender }),
-    ...(dogData.birth_date && { birth_date: dogData.birth_date }),
-    ...(dogData.health_notes && { health_notes: dogData.health_notes.trim() }),
-    ...(dogData.vet_name && { vet_name: dogData.vet_name.trim() }),
-    ...(dogData.vet_phone && { vet_phone: dogData.vet_phone.trim() }),
-    ...(dogData.aggression_risk !== undefined && { aggression_risk: dogData.aggression_risk }),
-    ...(dogData.people_anxious !== undefined && { people_anxious: dogData.people_anxious }),
-    questionnaire_result: "pending",
-  }
-
-  // verbose log removed
-
-  const { data: newDog, error } = await supabase.from("dogs").insert(insertPayload).select("id").single()
-
-  if (error) {
-    console.error("❌ [createDog] Failed to create dog:", {
-      error,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    })
-
-    // Check if this is an authentication/authorization error
-    if (isAuthError(error)) {
-      console.warn("🔒 [createDog] Auth error detected, logging out...", error)
-      handleInvalidToken()
-      return {
-        success: false,
-        error: "Session expired. Please log in again.",
-      }
-    }
-
-    return {
-      success: false,
-      error: error.message || "Failed to create dog",
-    }
-  }
-
-  // verbose log removed
-
-  return {
-    success: true,
-    dogId: newDog.id,
-  }
-}
-
-// Get a single dog by ID with all fields
-export async function getDogById(dogId: string): Promise<{
-  success: boolean
-  dog?: {
-    id: string
-    name: string
-    breed_id: string | null
-    gender: "male" | "female"
-    birth_date: string | null
-    is_small: boolean | null
-    health_notes: string | null
-    vet_name: string | null
-    vet_phone: string | null
-    aggression_risk: boolean | null
-    people_anxious: boolean | null
-    customer_id: string
-    notes: string | null
-    staff_notes: string | null
-    grooming_notes: string | null
-    image_url: string | null
-  }
-  error?: string
-}> {
-  // verbose log removed
-
-  if (!supabase) {
-    console.error("❌ [getDogById] Supabase client not initialized")
-    throw new Error("Supabase client not initialized")
-  }
-
-  if (!dogId) {
-    console.error("❌ [getDogById] dogId is required")
-    throw new Error("dogId is required")
-  }
-
-  const { data: dog, error } = await supabase.from("dogs").select("*").eq("id", dogId).single()
-
-  if (error) {
-    console.error("❌ [getDogById] Failed to fetch dog:", {
-      error,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-      dogId,
-    })
-    return {
-      success: false,
-      error: error.message || "Failed to fetch dog",
-    }
-  }
-
-  if (!dog) {
-    return {
-      success: false,
-      error: "Dog not found",
-    }
-  }
-
-  // verbose log removed
-
-  return {
-    success: true,
-    dog: {
-      id: dog.id,
-      name: dog.name,
-      breed_id: dog.breed_id,
-      gender: dog.gender,
-      birth_date: dog.birth_date,
-      is_small: dog.is_small,
-      health_notes: dog.health_notes,
-      vet_name: dog.vet_name,
-      vet_phone: dog.vet_phone,
-      aggression_risk: dog.aggression_risk,
-      people_anxious: dog.people_anxious,
-      customer_id: dog.customer_id,
-      notes: dog.notes || null,
-      staff_notes: dog.staff_notes || null,
-      grooming_notes: dog.grooming_notes || null,
-      image_url: dog.image_url || null,
-    },
-  }
-}
-
-// Update an existing dog
-export async function updateDog(
-  dogId: string,
-  dogData: {
-    name?: string
-    breed_id?: string
-    gender?: "male" | "female"
-    birth_date?: string | null
-    health_notes?: string | null
-    vet_name?: string | null
-    vet_phone?: string | null
-    aggression_risk?: boolean | null
-    people_anxious?: boolean | null
-  }
-): Promise<{ success: boolean; error?: string }> {
-  // verbose log removed
-
-  if (!supabase) {
-    console.error("❌ [updateDog] Supabase client not initialized")
-    throw new Error("Supabase client not initialized")
-  }
-
-  if (!dogId) {
-    console.error("❌ [updateDog] dogId is required")
-    throw new Error("dogId is required")
-  }
-
-  const { data: existingDog, error: existingDogError } = await supabase
-    .from("dogs")
-    .select("breed_id")
-    .eq("id", dogId)
-    .maybeSingle()
-
-  if (existingDogError) {
-    console.error("❌ [updateDog] Failed to load current dog state:", existingDogError)
-    throw existingDogError
-  }
-
-  const updatePayload: Database["public"]["Tables"]["dogs"]["Update"] = {}
-
-  if (dogData.name !== undefined) {
-    if (!dogData.name || dogData.name.trim().length === 0) {
-      throw new Error("Dog name cannot be empty")
-    }
-    updatePayload.name = dogData.name.trim()
-  }
-
-  if (dogData.breed_id !== undefined) {
-    const normalizedBreedId = dogData.breed_id || null
-    const existingBreedId = existingDog?.breed_id ?? null
-    const isBreedChanging = normalizedBreedId !== existingBreedId
-
-    if (isBreedChanging) {
-      const hasHistory = await hasDogAppointmentHistory(dogId)
-      if (hasHistory) {
-        throw new Error("לא ניתן לשנות גזע לכלב שכבר הוזמנו לו תורים")
-      }
-    }
-
-    updatePayload.breed_id = normalizedBreedId
-  }
-  if (dogData.gender !== undefined) {
-    updatePayload.gender = dogData.gender
-  }
-  if (dogData.birth_date !== undefined) {
-    updatePayload.birth_date = dogData.birth_date || null
-  }
-  if (dogData.health_notes !== undefined) {
-    updatePayload.health_notes = dogData.health_notes?.trim() || null
-  }
-  if (dogData.vet_name !== undefined) {
-    updatePayload.vet_name = dogData.vet_name?.trim() || null
-  }
-  if (dogData.vet_phone !== undefined) {
-    updatePayload.vet_phone = dogData.vet_phone?.trim() || null
-  }
-  if (dogData.aggression_risk !== undefined) {
-    updatePayload.aggression_risk = dogData.aggression_risk
-  }
-  if (dogData.people_anxious !== undefined) {
-    updatePayload.people_anxious = dogData.people_anxious
-  }
-
-  if (Object.keys(updatePayload).length === 0) {
-    console.warn("⚠️ [updateDog] No fields to update")
-    return { success: true }
-  }
-
-  const { error } = await supabase.from("dogs").update(updatePayload).eq("id", dogId)
-
-  if (error) {
-    console.error("❌ [updateDog] Failed to update dog:", {
-      error,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    })
-    return {
-      success: false,
-      error: error.message || "Failed to update dog",
-    }
-  }
-
-  return {
-    success: true,
-  }
-}
-
-// 2. Check if dog is already registered
-export async function checkDogRegistration(dogId: string): Promise<DogRegistrationStatus> {
-  const result = await callSupabaseFunction("check-dog-registration", { dogId })
-  return result.data || result
-}
-
-// 3. Show all appointments for dog ID
-export async function getDogAppointments(dogId: string): Promise<{ appointments: AppointmentRecord[] }> {
-  const result = await callSupabaseFunction("get-dog-appointments", { dogId })
-  return result.data || result
-}
-
-// Get merged appointments directly from Supabase (grooming + garden combined)
-export async function getMergedAppointments(dogId: string): Promise<{ appointments: MergedAppointment[] }> {
-  try {
-    // Get dog name for the appointments
-    const { data: dog, error: dogError } = await supabase.from("dogs").select("name").eq("id", dogId).single()
-
-    if (dogError || !dog) {
-      throw new Error(`Dog with ID ${dogId} not found: ${dogError?.message || "Unknown error"}`)
-    }
-
-    const dogName = dog.name
-
-    // Fetch grooming and daycare appointments for this dog
-    const [groomingResult, daycareResult, combinedResult] = await Promise.all([
-      supabase
-        .from("grooming_appointments")
-        .select("id, status, station_id, start_at, end_at, customer_notes, internal_notes, grooming_notes, client_confirmed_arrival")
-        .eq("dog_id", dogId),
-      supabase
-        .from("daycare_appointments")
-        .select(
-          "id, status, station_id, start_at, end_at, customer_notes, internal_notes, late_pickup_requested, late_pickup_notes, garden_trim_nails, garden_brush, garden_bath, client_confirmed_arrival"
-        )
-        .eq("dog_id", dogId),
-      supabase.from("combined_appointments").select("grooming_appointment_id, daycare_appointment_id"),
-    ])
-
-    if (groomingResult.error) {
-      throw new Error(`Failed to fetch grooming appointments: ${groomingResult.error.message}`)
-    }
-    if (daycareResult.error) {
-      throw new Error(`Failed to fetch daycare appointments: ${daycareResult.error.message}`)
-    }
-    if (combinedResult.error) {
-      throw new Error(`Failed to fetch combined appointments: ${combinedResult.error.message}`)
-    }
-
-    const groomingAppointments = groomingResult.data || []
-    const daycareAppointments = daycareResult.data || []
-    const combinedAppointments = combinedResult.data || []
-
-    // Create map to track combined appointments
-    const combinedMap = new Map<string, string>() // Maps grooming_id -> daycare_id
-    combinedAppointments.forEach((ca) => {
-      if (ca.grooming_appointment_id && ca.daycare_appointment_id) {
-        combinedMap.set(ca.grooming_appointment_id, ca.daycare_appointment_id)
-      }
-    })
-
-    // Track which appointments have been processed
-    const processedGroomingIds = new Set<string>()
-    const processedDaycareIds = new Set<string>()
-
-    const formatDateKey = (date: string) => new Date(date).toISOString().split("T")[0]
-    const mergedAppointments: MergedAppointment[] = []
-
-    // First, handle combined appointments (appointments linked via combined_appointments table)
-    for (const groomingAppt of groomingAppointments) {
-      if (processedGroomingIds.has(groomingAppt.id)) continue
-
-      const linkedDaycareId = combinedMap.get(groomingAppt.id)
-      if (linkedDaycareId) {
-        const daycareAppt = daycareAppointments.find((d) => d.id === linkedDaycareId)
-        if (daycareAppt) {
-          // Both appointments are linked - create "both" type
-          const groomingStart = new Date(groomingAppt.start_at)
-          const daycareStart = new Date(daycareAppt.start_at)
-          const appointmentStart = groomingStart < daycareStart ? groomingStart : daycareStart
-
-          const groomingEnd = new Date(groomingAppt.end_at)
-          const daycareEnd = new Date(daycareAppt.end_at)
-          const appointmentEnd = new Date(Math.max(groomingEnd.getTime(), daycareEnd.getTime()))
-
-          const date = formatDateKey(groomingAppt.start_at)
-          const time = appointmentStart.toTimeString().slice(0, 5) // HH:MM format
-
-          mergedAppointments.push({
-            id: `combined-${groomingAppt.id}-${daycareAppt.id}`,
-            dogId,
-            dogName,
-            date,
-            time,
-            service: "both",
-            status:
-              groomingAppt.status === "cancelled" || daycareAppt.status === "cancelled"
-                ? "cancelled"
-                : groomingAppt.status,
-            stationId: groomingAppt.station_id || daycareAppt.station_id || undefined,
-            notes: (groomingAppt.customer_notes || daycareAppt.customer_notes || undefined)?.trim() || undefined,
-            groomingNotes: (groomingAppt.grooming_notes || groomingAppt.internal_notes)?.trim() || undefined,
-            gardenNotes: daycareAppt.internal_notes?.trim() || undefined,
-            groomingStatus: groomingAppt.status,
-            gardenStatus: daycareAppt.status,
-            startDateTime: appointmentStart.toISOString(),
-            endDateTime: appointmentEnd.toISOString(),
-            groomingAppointmentId: groomingAppt.id,
-            gardenAppointmentId: daycareAppt.id,
-            latePickupRequested: daycareAppt.late_pickup_requested || false,
-            latePickupNotes: daycareAppt.late_pickup_notes?.trim() || undefined,
-            gardenTrimNails: daycareAppt.garden_trim_nails || false,
-            gardenBrush: daycareAppt.garden_brush || false,
-            gardenBath: daycareAppt.garden_bath || false,
-            clientConfirmedArrival: (groomingAppt.client_confirmed_arrival || false) && (daycareAppt.client_confirmed_arrival || false),
-          })
-
-          processedGroomingIds.add(groomingAppt.id)
-          processedDaycareIds.add(daycareAppt.id)
-          continue
-        }
-      }
-    }
-
-    // Then, process all remaining grooming appointments individually (even if multiple on same date)
-    for (const groomingAppt of groomingAppointments) {
-      if (processedGroomingIds.has(groomingAppt.id)) continue
-
-      const start = new Date(groomingAppt.start_at)
-      const end = new Date(groomingAppt.end_at)
-      const date = formatDateKey(groomingAppt.start_at)
-      const time = start.toTimeString().slice(0, 5)
-
-      mergedAppointments.push({
-        id: groomingAppt.id,
-        dogId,
-        dogName,
-        date,
-        time,
-        service: "grooming",
-        status: groomingAppt.status,
-        stationId: groomingAppt.station_id || undefined,
-        notes: groomingAppt.customer_notes?.trim() || undefined,
-        groomingNotes: (groomingAppt.grooming_notes || groomingAppt.internal_notes)?.trim() || undefined,
-        startDateTime: start.toISOString(),
-        endDateTime: end.toISOString(),
-        groomingAppointmentId: groomingAppt.id,
-        clientConfirmedArrival: groomingAppt.client_confirmed_arrival || false,
-      })
-
-      processedGroomingIds.add(groomingAppt.id)
-    }
-
-    // Finally, process all remaining daycare appointments individually (even if multiple on same date)
-    for (const daycareAppt of daycareAppointments) {
-      if (processedDaycareIds.has(daycareAppt.id)) continue
-
-      const start = new Date(daycareAppt.start_at)
-      const end = new Date(daycareAppt.end_at)
-      const date = formatDateKey(daycareAppt.start_at)
-      const time = start.toTimeString().slice(0, 5)
-
-      mergedAppointments.push({
-        id: daycareAppt.id,
-        dogId,
-        dogName,
-        date,
-        time,
-        service: "garden",
-        status: daycareAppt.status,
-        stationId: daycareAppt.station_id || undefined,
-        notes: daycareAppt.customer_notes?.trim() || undefined,
-        gardenNotes: daycareAppt.internal_notes?.trim() || undefined,
-        startDateTime: start.toISOString(),
-        endDateTime: end.toISOString(),
-        gardenAppointmentId: daycareAppt.id,
-        latePickupRequested: daycareAppt.late_pickup_requested || false,
-        latePickupNotes: daycareAppt.late_pickup_notes?.trim() || undefined,
-        gardenTrimNails: daycareAppt.garden_trim_nails || false,
-        gardenBrush: daycareAppt.garden_brush || false,
-        gardenBath: daycareAppt.garden_bath || false,
-        clientConfirmedArrival: daycareAppt.client_confirmed_arrival || false,
-      })
-
-      processedDaycareIds.add(daycareAppt.id)
-    }
-
-    // Sort by date and time
-    mergedAppointments.sort((a, b) => {
-      const dateA = new Date(`${a.date}T${a.time}`).getTime()
-      const dateB = new Date(`${b.date}T${b.time}`).getTime()
-      return dateA - dateB
-    })
-
-    return { appointments: mergedAppointments }
-  } catch (error) {
-    console.error(`❌ [getMergedAppointments] Error:`, error)
-    throw error
-  }
-}
-
-// Get available dates for a dog using the backend-configured calendar window
-export async function getAvailableDates(dogId: string, serviceType: string): Promise<AvailableDatesResult> {
-  try {
-    // Use the new direct Supabase implementation instead of edge function
-    const availableDates = await getAvailableDatesDirectly(dogId, serviceType)
-
-    return { availableDates }
-  } catch (error) {
-    console.error("❌ Error fetching available dates:", error)
-    throw error
-  }
-}
-
-// Get available times for a dog on a specific date
-export async function getAvailableTimes(dogId: string, date: string): Promise<AvailableTime[]> {
-  try {
-    // Edge function will handle all complex calculation - this just calls it
-    const result = await callSupabaseFunction("get-available-times", {
-      dogId,
-      date,
-      mode: "time",
-    })
-
-    return result.data?.availableTimes || result.availableTimes || []
-  } catch (error) {
-    console.error("❌ Error fetching available times:", error)
-    throw error
-  }
-}
-
-// 6. Reserve appointment for dog on a specific date
+// Reserve a single appointment (service-based, human barbershop)
 export async function reserveAppointment(
-  dogId: string,
+  serviceId: string,
   date: string,
   stationId: string,
   startTime: string,
   notes?: string,
-  isTrial?: boolean,
-  appointmentType?: string,
-  latePickupRequested?: boolean,
-  latePickupNotes?: string,
-  gardenTrimNails?: boolean,
-  gardenBrush?: boolean,
-  gardenBath?: boolean
-): Promise<{
-  success: boolean
-  data?: any
-  message?: string
-  error?: string
-}> {
+): Promise<{ success: boolean; data?: any; message?: string; error?: string }> {
   const payload = {
-    dogId,
+    serviceId,
     date,
     stationId,
     startTime,
     ...(notes ? { notes } : {}),
-    ...(isTrial !== undefined ? { isTrial } : {}),
-    ...(appointmentType ? { appointmentType } : {}),
-    ...(latePickupRequested !== undefined ? { latePickupRequested } : {}),
-    ...(latePickupNotes ? { latePickupNotes } : {}),
-    ...(gardenTrimNails !== undefined ? { gardenTrimNails } : {}),
-    ...(gardenBrush !== undefined ? { gardenBrush } : {}),
-    ...(gardenBath !== undefined ? { gardenBath } : {}),
   }
 
-  const result = await callSupabaseFunction("reserve-appointment", payload)
-  // Always return the full result object, not just result.data
-  return result
-}
-
-export async function updateLatePickup(
-  appointmentId: string,
-  latePickupRequested: boolean,
-  latePickupNotes?: string
-): Promise<{
-  success: boolean
-  data?: any
-  error?: string
-}> {
-  const payload = {
-    appointmentId,
-    latePickupRequested,
-    ...(latePickupNotes ? { latePickupNotes } : {}),
-  }
-
-  // Use direct Supabase update instead of edge function
-  const { updateLatePickup } = await import("@/pages/Appointments/Appointments.module")
-  return await updateLatePickup(appointmentId, latePickupRequested, latePickupNotes)
+  return await callSupabaseFunction("reserve-appointment", payload)
 }
 
 // 7. Check if user exists in Supabase by email
@@ -1076,97 +278,6 @@ export async function checkUserExists(email: string): Promise<{
 }
 
 // 8. Register for waiting list
-export async function registerWaitingList(
-  dogId: string,
-  serviceType: string,
-  dateRanges: Array<{ startDate: string; endDate: string }>,
-  userId?: string
-): Promise<{
-  success: boolean
-  message?: string
-  error?: string
-}> {
-  try {
-    // Use direct Supabase insert instead of edge function
-    const { registerWaitingList } = await import("@/pages/Appointments/Appointments.module")
-    return await registerWaitingList(dogId, serviceType, dateRanges, userId)
-  } catch (error) {
-    console.error("Failed to register waiting list:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to register waiting list",
-    }
-  }
-}
-
-export async function updateWaitingListEntry(
-  entryId: string,
-  dogId: string,
-  serviceType: string,
-  dateRanges: Array<{ startDate: string; endDate: string }>,
-  userId?: string
-): Promise<{
-  success: boolean
-  message?: string
-  error?: string
-}> {
-  try {
-    // Use direct Supabase update instead of edge function
-    const { updateWaitingListEntry } = await import("@/pages/Appointments/Appointments.module")
-    return await updateWaitingListEntry(entryId, dogId, serviceType, dateRanges)
-  } catch (error) {
-    console.error("Failed to update waiting list entry:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to update waiting list entry",
-    }
-  }
-}
-
-export async function deleteDog(
-  dogId: string,
-  options?: { ownerId?: string; dogName?: string }
-): Promise<{
-  success: boolean
-  message?: string
-  error?: string
-}> {
-  try {
-    if (!dogId) {
-      throw new Error("dogId is required")
-    }
-
-    if (!supabase) {
-      throw new Error("Supabase client not initialized")
-    }
-
-    const hasHistory = await hasDogAppointmentHistory(dogId)
-    if (hasHistory) {
-      return {
-        success: false,
-        error: "לא ניתן למחוק כלב שכבר הוזמנו לו תורים",
-      }
-    }
-
-    const { error } = await supabase.from("dogs").delete().eq("id", dogId)
-
-    if (error) {
-      throw error
-    }
-
-    return {
-      success: true,
-      message: options?.dogName ? `הכלב ${options.dogName} הוסר בהצלחה` : undefined,
-    }
-  } catch (error) {
-    console.error("Failed to delete dog:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to delete dog",
-    }
-  }
-}
-
 export async function getClientProfile(clientId: string): Promise<ClientProfile> {
   if (!clientId) {
     throw new Error("clientId is required")
@@ -1724,54 +835,15 @@ export async function getManagerSchedule(
             .order("start_at")
 
     // Fetch daycare appointments
-    const daycarePromise =
-      serviceType === "grooming"
-        ? Promise.resolve([])
-        : supabase
-            .from("daycare_appointments")
-            .select(
-              `
-              id,
-              status,
-              station_id,
-              start_at,
-              end_at,
-              customer_notes,
-              internal_notes,
-              payment_status,
-              service_type,
-              late_pickup_requested,
-              late_pickup_notes,
-              garden_trim_nails,
-              garden_brush,
-              garden_bath,
-              questionnaire_result,
-              series_id,
-              dog_id,
-              customer_id,
-              client_approved_arrival,
-              manager_approved_arrival,
-              treatment_started_at,
-              treatment_ended_at,
-              created_at,
-              updated_at,
-              stations(id, name),
-              dogs(id, name, breed_id, customer_id, breeds(name, size_class, min_groom_price, max_groom_price)),
-              customers(id, full_name, phone, email, classification)
-            `
-            )
-            .gte("start_at", dayStart.toISOString())
-            .lte("start_at", dayEnd.toISOString())
-            .order("start_at")
+    // Daycare appointments don't exist in this system - return empty result
+    const daycarePromise = Promise.resolve({ data: [], error: null })
 
     const [groomingResult, daycareResult] = await Promise.all([groomingPromise, daycarePromise])
 
     if (groomingResult.error) {
       throw new Error(`Failed to fetch grooming appointments: ${groomingResult.error.message}`)
     }
-    if (daycareResult.error) {
-      throw new Error(`Failed to fetch daycare appointments: ${daycareResult.error.message}`)
-    }
+    // Daycare appointments don't exist in this system - daycareResult is always empty
 
     const groomingAppointments = (groomingResult.data || []) as any[]
     const daycareAppointments = (daycareResult.data || []) as any[]
@@ -2068,10 +1140,10 @@ export async function moveAppointment(params: {
   }
 }
 
-// Helper function to get or create system customer and dog for private appointments
-async function getOrCreateSystemCustomerAndDog(
+// Helper function to get or create system customer for private appointments
+async function getOrCreateSystemCustomer(
   appointmentName: string
-): Promise<{ customerId: string; dogId: string }> {
+): Promise<{ customerId: string }> {
   const SYSTEM_CUSTOMER_NAME = "צוות פנימי"
   const SYSTEM_PHONE = "0000000000"
 
@@ -2084,7 +1156,7 @@ async function getOrCreateSystemCustomerAndDog(
 
   if (customerSearchError && customerSearchError.code !== "PGRST116") {
     // PGRST116 = no rows returned, which is fine - we'll create one
-    console.error("❌ [getOrCreateSystemCustomerAndDog] Error searching for system customer:", customerSearchError)
+    console.error("❌ [getOrCreateSystemCustomer] Error searching for system customer:", customerSearchError)
     throw new Error(`Failed to search for system customer: ${customerSearchError.message}`)
   }
 
@@ -2111,56 +1183,17 @@ async function getOrCreateSystemCustomerAndDog(
       .single()
 
     if (customerError || !newCustomer) {
-      console.error("❌ [getOrCreateSystemCustomerAndDog] Error creating system customer:", customerError)
+      console.error("❌ [getOrCreateSystemCustomer] Error creating system customer:", customerError)
       throw new Error(`Failed to create system customer: ${customerError?.message || "Unknown error"}`)
     }
 
     systemCustomer = newCustomer
-    console.log("✅ [getOrCreateSystemCustomerAndDog] Created system customer:", systemCustomer.id)
+    console.log("✅ [getOrCreateSystemCustomer] Created system customer:", systemCustomer.id)
   } else {
-    console.log("✅ [getOrCreateSystemCustomerAndDog] Found existing system customer:", systemCustomer.id)
+    console.log("✅ [getOrCreateSystemCustomer] Found existing system customer:", systemCustomer.id)
   }
 
-  // Try to find existing dog with the same name for this customer
-  const dogName = appointmentName || "תור פרטי"
-  let { data: systemDog, error: dogSearchError } = await supabase
-    .from("dogs")
-    .select("id")
-    .eq("customer_id", systemCustomer.id)
-    .eq("name", dogName)
-    .maybeSingle()
-
-  if (dogSearchError && dogSearchError.code !== "PGRST116") {
-    console.error("❌ [getOrCreateSystemCustomerAndDog] Error searching for system dog:", dogSearchError)
-    throw new Error(`Failed to search for system dog: ${dogSearchError.message}`)
-  }
-
-  // If dog doesn't exist, create it
-  if (!systemDog) {
-    const { data: newDog, error: dogError } = await supabase
-      .from("dogs")
-      .insert({
-        name: dogName.length > 100 ? "תור פרטי" : dogName,
-        customer_id: systemCustomer.id,
-        breed_id: null, // No breed for system dogs
-        gender: "male", // Required field - default value for system dogs
-        is_small: true, // Match edge function default
-      })
-      .select("id")
-      .single()
-
-    if (dogError || !newDog) {
-      console.error("❌ [getOrCreateSystemCustomerAndDog] Error creating system dog:", dogError)
-      throw new Error(`Failed to create system dog: ${dogError?.message || "Unknown error"}`)
-    }
-
-    systemDog = newDog
-    console.log("✅ [getOrCreateSystemCustomerAndDog] Created system dog:", systemDog.id)
-  } else {
-    console.log("✅ [getOrCreateSystemCustomerAndDog] Found existing system dog:", systemDog.id)
-  }
-
-  return { customerId: systemCustomer.id, dogId: systemDog.id }
+  return { customerId: systemCustomer.id }
 }
 
 // Create manager appointment via edge function (for business/garden) or PostgREST (for private)
@@ -2202,8 +1235,8 @@ export async function createManagerAppointment(params: {
     console.log("🔒 [createManagerAppointment] Creating private appointment via PostgREST")
     
     try {
-      // Get or create system customer and dog
-      const { customerId, dogId } = await getOrCreateSystemCustomerAndDog(params.name)
+      // Get or create system customer
+      const { customerId } = await getOrCreateSystemCustomer(params.name)
       
       // Generate group ID if multiple stations
       const finalGroupId = params.groupId || 
@@ -2222,7 +1255,7 @@ export async function createManagerAppointment(params: {
           .from("grooming_appointments")
           .insert({
             customer_id: customerId,
-            dog_id: dogId,
+            dog_id: null, // No dogs in barbershop
             station_id: stationIdToUse,
             start_at: params.startTime,
             end_at: params.endTime,
