@@ -8,7 +8,6 @@ import {
     Calendar as CalendarIcon,
     CalendarClock,
     Clock,
-    Dog,
     CheckCircle,
     XCircle,
     Scissors,
@@ -107,7 +106,7 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
         parseDateTime(appointment.endDateTime) ??
         new Date(appointmentStart.getTime() + 60 * 60 * 1000)
 
-    const title = `${getServiceName(appointment.service)} - ${appointment.dogName || "כלב"}`
+    const title = `${getServiceName(appointment.service)}`
     const details = appointment.notes ? `הערות: ${appointment.notes}` : ""
 
     const formattedStart = formatForGoogleCalendar(appointmentStart)
@@ -125,25 +124,16 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
     return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
 
-interface Dog {
-    id: string
-    name: string
-    breed: string
-    size: string
-    isSmall: boolean
-    ownerId: string
-    groomingMinPrice?: number | null
-    groomingMaxPrice?: number | null
-}
+// Removed Dog interface - barbery system doesn't use dogs
 
 interface Appointment {
     id: string
-    dogId: string
+    // Removed dogId - barbery system doesn't use dogs
     date: string
     time: string
     service: "grooming" | "garden" | "both"
     status: string
-    dogName?: string
+    // Removed dogName - barbery system doesn't use dogs
     startDateTime?: string
     endDateTime?: string
     stationId?: string
@@ -164,8 +154,7 @@ interface Appointment {
 
 interface WaitingListEntry {
     id: string
-    dogId: string
-    dogName: string | null
+    // Removed dogId, dogName - barbery system doesn't use dogs
     serviceType: string | null
     status: string | null
     notes?: string | null
@@ -177,18 +166,9 @@ interface WaitingListEntry {
 
 type WaitlistServiceScopeValue = 'grooming' | 'garden' | 'both' | 'daycare'
 
-interface WaitlistModalSubmission {
-    customer: WaitlistCustomer
-    dog: WaitlistModalDog
-    entries: Array<{ startDate: string; endDate: string | null }>
-    serviceScope: WaitlistServiceScopeValue
-    notes: string
-    mode: 'create' | 'edit'
-    entryId?: string
-}
+// Removed WaitlistModalSubmission - barbery system doesn't use dogs
 
-type ListOwnerDogsResponse = { dogs: Dog[] }
-type DogAppointmentsResponse = { appointments: Appointment[] }
+// Removed ListOwnerDogsResponse and DogAppointmentsResponse - barbery system doesn't use dogs
 
 const CANCELLED_STATUS_KEYWORDS = ["cancelled", "canceled", "מבוטל", "בוטל"]
 
@@ -225,7 +205,7 @@ export default function Appointments() {
     const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null)
     const [isWaitingListDialogOpen, setIsWaitingListDialogOpen] = useState(false)
     const [editingWaitingListEntry, setEditingWaitingListEntry] = useState<WaitingListEntry | null>(null)
-    const [waitlistModalDogId, setWaitlistModalDogId] = useState<string | null>(null)
+    // Removed waitlistModalDogId - barbery system doesn't use dogs
     const [waitlistModalServiceScope, setWaitlistModalServiceScope] = useState<WaitlistServiceScopeValue>('grooming')
     const [waitlistModalDateRanges, setWaitlistModalDateRanges] = useState<Array<{ startDate: string; endDate?: string | null }> | undefined>(undefined)
     const [waitlistModalNotes, setWaitlistModalNotes] = useState<string | null>(null)
@@ -419,43 +399,6 @@ export default function Appointments() {
             // TODO: Implement late pickup for people if needed
             throw new Error("Late pickup functionality not available for barbershop")
 
-            dispatch(
-                supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
-                    'getMergedAppointments',
-                    latePickupDialogState.appointment.dogId,
-                    (draft) => {
-                        const target = draft.appointments?.find((apt) =>
-                            apt.id === latePickupDialogState.appointment.id ||
-                            apt.gardenAppointmentId === latePickupDialogState.appointmentId
-                        )
-
-                        if (target) {
-                            target.latePickupRequested = latePickupDialogRequested
-                            target.latePickupNotes = trimmedNotes
-                        }
-                    }
-                )
-            )
-
-            try {
-                dispatch(
-                    supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
-                        'getDogGardenAppointments',
-                        latePickupDialogState.appointment.dogId,
-                        (draft) => {
-                            const target = draft.appointments?.find((apt) => apt.id === latePickupDialogState.appointmentId)
-
-                            if (target) {
-                                target.latePickupRequested = latePickupDialogRequested
-                                target.latePickupNotes = trimmedNotes
-                            }
-                        }
-                    )
-                )
-            } catch (error) {
-                console.warn("Skipping garden appointments cache update", error)
-            }
-
             dispatch(supabaseApi.util.invalidateTags(["Appointment", "GardenAppointment"]))
 
             toast({
@@ -515,20 +458,12 @@ export default function Appointments() {
     const latePickupDialogDateLabel = latePickupDialogDateTime ? formatDateLabel(latePickupDialogDateTime) : ""
     const latePickupDialogTimeLabel = latePickupDialogDateTime ? format(latePickupDialogDateTime, "HH:mm") : (latePickupDialogAppointment?.time ?? "")
 
-    const {
-        data: dogsQueryData,
-        isFetching: isFetchingDogs,
-        isLoading: isLoadingDogs,
-        error: dogsQueryError,
-        refetch: refetchDogs,
-    } = useListOwnerDogsQuery(ownerId ?? skipToken, {
-        skip: !ownerId,
-    })
-
-    const dogs = useMemo<Dog[]>(() => {
-        const response = dogsQueryData as ListOwnerDogsResponse | undefined
-        return response?.dogs ?? []
-    }, [dogsQueryData])
+    // Removed dog queries - barbery system doesn't use dogs
+    const dogs: never[] = []
+    const isFetchingDogs = false
+    const isLoadingDogs = false
+    const dogsQueryError = null
+    const refetchDogs = async () => { }
 
     const waitlistModalCustomer = useMemo<WaitlistCustomer | null>(() => {
         if (!ownerId) {
@@ -554,151 +489,35 @@ export default function Appointments() {
         }
     }, [ownerId, user])
 
-    const waitlistModalDog = useMemo<WaitlistModalDog | null>(() => {
-        if (!waitlistModalDogId) {
-            return null
-        }
-        const dog = dogs.find((d) => d.id === waitlistModalDogId)
-        if (!dog) {
-            return null
-        }
+    // Removed waitlistModalDog - barbery system doesn't use dogs
 
-        return {
-            id: dog.id,
-            name: dog.name,
-            breed: dog.breed,
-            size: dog.size,
-            isSmall: dog.isSmall,
-            ownerId: dog.ownerId,
-        }
-    }, [dogs, waitlistModalDogId])
-
-    const dogIds = useMemo(() => dogs.map((dog) => dog.id), [dogs])
-
-    const waitingListQueryArg = dogIds.length > 0 ? { dogIds } : skipToken
-
-    const { data: waitingListData, isFetching: isFetchingWaitingList } = useGetWaitingListEntriesQuery(
-        waitingListQueryArg,
-        {
-            skip: dogIds.length === 0,
-        }
+    // Fetch appointments by customer_id - barbery system doesn't use dogs
+    const { data: clientAppointmentHistory, isFetching: isFetchingAppointments, isLoading: isLoadingAppointments } = supabaseApi.useGetClientAppointmentHistoryQuery(
+        ownerId ?? skipToken,
+        { skip: !ownerId }
     )
 
-    const [deleteWaitingListEntry] = useDeleteWaitingListEntryMutation()
-
-    const dogIdsKey = useMemo(() => (dogs.length ? dogs.map((dog) => dog.id).sort().join("|") : ""), [dogs])
-
-    useEffect(() => {
-        if (!dogIdsKey) {
-            return
-        }
-
-        // Fetch merged appointments for all dogs
-        const subscriptions = dogs.map((dog) =>
-            dispatch(
-                supabaseApi.endpoints.getMergedAppointments.initiate(dog.id, {
-                    forceRefetch: false,
-                })
-            )
-        )
-
-        return () => {
-            subscriptions.forEach((subscription) => subscription.unsubscribe())
-        }
-    }, [dispatch, dogIdsKey, dogs])
-
-    const mergedAppointmentsByDog = useAppSelector((state) => {
-        if (!dogs.length) {
-            return [] as Array<{
-                dog: Dog
-                appointments: Appointment[]
-                isFetching: boolean
-                isLoading: boolean
-                error: FetchBaseQueryError | undefined
-            }>
-        }
-
-        return dogs.map((dog) => {
-            const queryState = supabaseApi.endpoints.getMergedAppointments.select(dog.id)(state)
-            // The API returns the appointments array directly, not an object with 'appointments' property
-            const responseData = queryState?.data
-
-            // Handle both array format (current) and object format (legacy)
-            const appointments: Appointment[] = Array.isArray(responseData)
-                ? responseData
-                : (responseData as DogAppointmentsResponse | undefined)?.appointments ?? []
-
-            console.log(`🔍 [Appointments] Dog ${dog.name} (${dog.id}):`, {
-                queryStateExists: !!queryState,
-                responseDataType: Array.isArray(responseData) ? 'array' : typeof responseData,
-                responseDataLength: Array.isArray(responseData) ? responseData.length : 'N/A',
-                appointmentsCount: appointments.length,
-                isFetching: queryState?.isFetching,
-                isLoading: queryState?.isLoading,
-                hasError: !!queryState?.error,
-            })
-
-            return {
-                dog,
-                appointments,
-                isFetching: queryState?.isFetching ?? false,
-                isLoading: queryState?.isLoading ?? false,
-                error: queryState?.error as FetchBaseQueryError | undefined,
-            }
-        })
-    })
-
+    // Transform client appointment history to Appointment format
     const allAppointments = useMemo<Appointment[]>(() => {
-        return mergedAppointmentsByDog.flatMap(({ dog, appointments }) =>
-            appointments.map((appointment) => ({
-                ...appointment,
-                dogId: appointment.dogId || dog.id,
-                dogName: appointment.dogName || dog.name,
-                // Service type is already set correctly by the merged endpoint
-            }))
-        )
-    }, [mergedAppointmentsByDog])
-
-    const waitingListEntries = useWaitingListEntries(waitingListData, dogIds)
-
-    const waitingListEntriesByDog = useMemo(() => {
-        const grouped = new Map<string, { dog: Dog; entries: WaitingListEntry[] }>()
-
-        waitingListEntries.forEach((entry) => {
-            const dog = dogs.find((d) => d.id === entry.dogId)
-            if (!dog) return
-
-            if (!grouped.has(dog.id)) {
-                grouped.set(dog.id, { dog, entries: [] })
-            }
-
-            grouped.get(dog.id)!.entries.push(entry)
-        })
-
-        return Array.from(grouped.values()).map(({ dog, entries }) => ({
-            dog,
-            entries: entries.sort((a, b) => {
-                const aDate = safeParseDate(a.startDate) ?? new Date(a.createdAt)
-                const bDate = safeParseDate(b.startDate) ?? new Date(b.createdAt)
-                return aDate.getTime() - bDate.getTime()
-            }),
+        if (!clientAppointmentHistory?.appointments) {
+            return []
+        }
+        return clientAppointmentHistory.appointments.map((apt) => ({
+            id: apt.id,
+            date: apt.startAt.split('T')[0],
+            time: apt.startAt.split('T')[1]?.slice(0, 5) || '',
+            service: apt.serviceType,
+            status: apt.status || 'pending',
+            startDateTime: apt.startAt,
+            // Removed dogId, dogName - barbery system doesn't use dogs
         }))
-    }, [waitingListEntries, dogs])
+    }, [clientAppointmentHistory])
 
-    const isFetchingAppointments = useMemo(() => {
-        return mergedAppointmentsByDog.some(
-            ({ isFetching, isLoading, appointments }) => (isFetching || isLoading) && (!appointments || appointments.length === 0)
-        )
-    }, [mergedAppointmentsByDog])
-
-    const appointmentErrorMessages = useMemo(() => {
-        return mergedAppointmentsByDog
-            .filter(({ error }) => error)
-            .map(({ dog, error }) => {
-                const message = extractErrorMessage(error, "שגיאה בלתי ידועה")
-                return `שגיאה בטעינת תורים עבור ${dog.name}: ${message}`
-            })
-    }, [mergedAppointmentsByDog])
+    // Removed waiting list functionality - barbery system doesn't use dogs
+    const waitingListEntries: WaitingListEntry[] = []
+    const waitingListEntriesByDog: Array<{ entries: WaitingListEntry[] }> = []
+    const isFetchingWaitingList = false
+    const appointmentErrorMessages: string[] = []
 
     useEffect(() => {
         const tabParam = searchParams.get('tab')
@@ -709,73 +528,27 @@ export default function Appointments() {
         }
     }, [searchParams])
 
-    useEffect(() => {
-        if (!dogs.length) {
-            return
-        }
+    // Removed dog-based waiting list URL params handling - barbery system doesn't use dogs
 
-        const tabParam = searchParams.get('tab')
-        const actionParam = searchParams.get('action')
-        if (tabParam === 'waitingList' && actionParam === 'new') {
-            const dogParam = searchParams.get('dogId')
-            const serviceTypeParam = searchParams.get('serviceType')
-            const validServiceTypes = new Set(['grooming', 'garden', 'both'])
-            const chosenService = serviceTypeParam && validServiceTypes.has(serviceTypeParam) ? serviceTypeParam : 'grooming'
-            const chosenDogId = dogParam && dogs.some((dog) => dog.id === dogParam) ? dogParam : dogs[0].id
-
-            openWaitingListDialog(undefined, { dogId: chosenDogId, serviceType: chosenService })
-
-            const params = new URLSearchParams(searchParams)
-            params.set('tab', 'waitingList')
-            params.delete('action')
-            params.delete('dogId')
-            params.delete('serviceType')
-            setSearchParams(params, { replace: true })
-        }
-    }, [dogs, searchParams])
-
-    const dogsErrorMessage = useMemo(
-        () => extractErrorMessage(dogsQueryError, "שגיאה בטעינת רשימת הכלבים"),
-        [dogsQueryError]
-    )
-
-    const combinedError = dogsErrorMessage || appointmentErrorMessages[0] || null
+    const combinedError = appointmentErrorMessages[0] || null
 
     const isInitialLoading =
         isAuthLoading ||
         (!ownerId && isAuthLoading) ||
-        (ownerId && (isLoadingDogs || (isFetchingDogs && !dogs.length))) ||
-        (dogs.length > 0 && isFetchingAppointments)
+        (ownerId && (isLoadingAppointments || isFetchingAppointments))
 
     const handleRetry = async () => {
         if (!ownerId) {
             return
         }
-
-        await refetchDogs()
-
-        await Promise.all(
-            dogs.map(async (dog) => {
-                const result = dispatch(
-                    supabaseApi.endpoints.getMergedAppointments.initiate(dog.id, {
-                        forceRefetch: true,
-                    })
-                )
-
-                try {
-                    await result.unwrap()
-                } catch (err) {
-                    console.error("Failed to refetch appointments for", dog.name, err)
-                } finally {
-                    result.unsubscribe()
-                }
-            })
-        )
+        // Removed dog refetch - barbery system doesn't use dogs
+        // Refetch client appointments
+        // The query will automatically refetch due to RTK Query
     }
 
     // Filter appointments by ID if provided, otherwise show all
     const dogFilteredAppointments = filterId
-        ? allAppointments.filter(apt => apt.dogId === filterId || apt.id === filterId)
+        ? allAppointments.filter(apt => apt.id === filterId)
         : allAppointments
 
     const serviceFilteredAppointments = useMemo(() => {
@@ -1101,28 +874,14 @@ export default function Appointments() {
 
                 if (result.success) {
                     console.log(`Both appointments cancelled successfully`)
-                    // Update the merged appointments cache
-                    dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
-                            'getMergedAppointments',
-                            appointment.dogId,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) => apt.id === appointment.id)
-                                if (target) {
-                                    target.status = "cancelled"
-                                    target.groomingStatus = "cancelled"
-                                    target.gardenStatus = "cancelled"
-                                }
-                            }
-                        )
-                    )
+                    // Removed dog-based cache updates - barbery system doesn't use dogs
 
                     setAppointmentPendingCancellation(null)
 
                     toast({
                         title: "התורים בוטלו",
                         description:
-                            result.message || `התורים (תספורת וגן) ל${appointment.dogName} בוטלו בהצלחה`,
+                            result.message || `התורים (תספורת וגן) בוטלו בהצלחה`,
                     })
                     invalidateAppointmentsCache()
                 } else {
@@ -1142,23 +901,12 @@ export default function Appointments() {
                 const result = await cancelAppointmentWebhook(appointment.id, {
                     serviceType: appointment.service,
                     appointmentTime,
-                    dogId: appointment.dogId,
+                    // Removed dogId - barbery system doesn't use dogs
                     stationId: appointment.stationId,
                 })
 
                 if (result.success) {
-                    dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
-                            'getMergedAppointments',
-                            appointment.dogId,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) => apt.id === appointment.id)
-                                if (target) {
-                                    target.status = "cancelled"
-                                }
-                            }
-                        )
-                    )
+                    // Removed dog-based cache updates - barbery system doesn't use dogs
 
                     setAppointmentPendingCancellation(null)
 
@@ -1206,38 +954,7 @@ export default function Appointments() {
 
             if (result.success) {
                 console.log(`Individual appointment approved successfully`)
-                // Update the merged appointments cache for all dogs
-                dogs.forEach(dog => {
-                    dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
-                            'getMergedAppointments',
-                            dog.id,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) =>
-                                    apt.groomingAppointmentId === appointmentId ||
-                                    apt.gardenAppointmentId === appointmentId
-                                )
-                                if (target) {
-                                    if (service === 'grooming') {
-                                        target.groomingStatus = 'approved'
-                                    } else {
-                                        target.gardenStatus = 'approved'
-                                    }
-                                    if (target.service === 'both') {
-                                        const otherStatus = service === 'grooming'
-                                            ? target.gardenStatus
-                                            : target.groomingStatus
-                                        if (otherStatus === 'approved') {
-                                            target.status = 'approved'
-                                        }
-                                    } else {
-                                        target.status = 'approved'
-                                    }
-                                }
-                            }
-                        )
-                    )
-                })
+                // Removed dog-based cache updates - barbery system doesn't use dogs
 
                 toast({
                     title: "התור אושר",
@@ -1285,35 +1002,13 @@ export default function Appointments() {
             const result = await cancelAppointmentWebhook(appointmentId, {
                 serviceType: service,
                 appointmentTime,
-                dogId: appointmentDetails?.dogId,
+                // Removed dogId - barbery system doesn't use dogs
                 stationId: appointmentDetails?.stationId,
             })
 
             if (result.success) {
                 console.log(`Individual appointment cancelled successfully`)
-                // Update the merged appointments cache for all dogs
-                dogs.forEach(dog => {
-                    dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
-                            'getMergedAppointments',
-                            dog.id,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) =>
-                                    apt.groomingAppointmentId === appointmentId ||
-                                    apt.gardenAppointmentId === appointmentId
-                                )
-                                if (target) {
-                                    if (service === 'grooming') {
-                                        target.groomingStatus = 'cancelled'
-                                    } else {
-                                        target.gardenStatus = 'cancelled'
-                                    }
-                                    target.status = "cancelled"
-                                }
-                            }
-                        )
-                    )
-                })
+                // Removed dog-based cache updates - barbery system doesn't use dogs
 
                 toast({
                     title: "התור בוטל",
@@ -1354,39 +1049,7 @@ export default function Appointments() {
                     description: "הערות התור עודכנו בהצלחה",
                 })
 
-                dogs.forEach(dog => {
-                    dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
-                            'getMergedAppointments',
-                            dog.id,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) =>
-                                    apt.groomingAppointmentId === appointmentId ||
-                                    apt.gardenAppointmentId === appointmentId
-                                )
-                                if (target) {
-                                    if (service === 'grooming') {
-                                        target.groomingNotes = notes
-                                    } else {
-                                        target.gardenNotes = notes
-                                    }
-
-                                    if (target.service === service) {
-                                        target.notes = notes
-                                    } else if (target.service === 'both') {
-                                        const combinedNotes = [
-                                            target.groomingNotes?.trim(),
-                                            target.gardenNotes?.trim(),
-                                        ]
-                                            .filter(Boolean)
-                                            .join(' | ')
-                                        target.notes = combinedNotes
-                                    }
-                                }
-                            }
-                        )
-                    )
-                })
+                // Removed dog-based cache updates - barbery system doesn't use dogs
             } else {
                 console.error(`Failed to update notes for appointment ${appointmentId}:`, result.error)
                 toast({
@@ -1426,23 +1089,11 @@ export default function Appointments() {
 
                 if (groomingResult.success && gardenResult.success) {
                     console.log(`[handleApproval] Both appointments confirmed successfully`)
-                    // Update the merged appointments cache
-                    dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
-                            'getMergedAppointments',
-                            appointment.dogId,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) => apt.id === appointment.id)
-                                if (target) {
-                                    target.clientConfirmedArrival = true
-                                }
-                            }
-                        )
-                    )
+                    // Removed dog-based cache updates - barbery system doesn't use dogs
 
                     toast({
                         title: "ההגעה אושרה",
-                        description: `ההגעה לתורים (תספורת וגן) ל${appointment.dogName} אושרה בהצלחה`,
+                        description: `ההגעה לתורים (תספורת וגן) אושרה בהצלחה`,
                     })
                     invalidateAppointmentsCache()
                 } else {
@@ -1462,25 +1113,9 @@ export default function Appointments() {
                 if (result.success) {
                     console.log(`[handleApproval] Appointment arrival confirmed successfully`, {
                         appointmentId: appointment.id,
-                        dogId: appointment.dogId,
                     })
-                    
-                    // Update cache immediately to show badge
-                    dispatch(
-                        supabaseApi.util.updateQueryData<DogAppointmentsResponse>(
-                            'getMergedAppointments',
-                            appointment.dogId,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) => apt.id === appointment.id)
-                                if (target) {
-                                    console.log(`[handleApproval] Updating cache for appointment ${appointment.id} - setting clientConfirmedArrival to true`)
-                                    target.clientConfirmedArrival = true
-                                } else {
-                                    console.warn(`[handleApproval] Could not find appointment ${appointment.id} in cache to update`)
-                                }
-                            }
-                        )
-                    )
+
+                    // Removed dog-based cache updates - barbery system doesn't use dogs
 
                     const successMessage = result.message || "ההגעה אושרה בהצלחה"
                     toast({
@@ -1521,21 +1156,21 @@ export default function Appointments() {
         const params = new URLSearchParams(searchParams)
         params.set('tab', value)
         params.delete('action')
-        params.delete('dogId')
         params.delete('serviceType')
         setSearchParams(params, { replace: true })
     }
 
-    const openWaitingListDialog = (entry?: WaitingListEntry, options?: { dogId?: string; serviceType?: string }) => {
+    const openWaitingListDialog = (entry?: WaitingListEntry, options?: { serviceType?: string }) => {
+        // Removed dog-related waiting list - barbery system doesn't use dogs
         if (entry) {
             setEditingWaitingListEntry(entry)
-            setWaitlistModalDogId(entry.dogId)
+            // Removed waitlistModalDogId - barbery system doesn't use dogs
             setWaitlistModalServiceScope(normalizeServiceScopeFromEntry(entry.serviceType))
             setWaitlistModalDateRanges(getEntryDateRanges(entry))
             setWaitlistModalNotes(entry.notes ?? "")
         } else {
             setEditingWaitingListEntry(null)
-            setWaitlistModalDogId(options?.dogId ?? dogs[0]?.id ?? null)
+            // Removed waitlistModalDogId - barbery system doesn't use dogs
             setWaitlistModalServiceScope(
                 options?.serviceType ? normalizeServiceScopeFromEntry(options.serviceType) : 'grooming'
             )
@@ -1559,30 +1194,18 @@ export default function Appointments() {
 
 
 
-    const handleDeleteWaitingListEntry = async (entry: WaitingListEntry) => {
-        try {
-            setDeletingWaitingListEntryId(entry.id)
-            const result = await deleteWaitingListEntry(entry.id).unwrap()
-            toast({ title: "הפריט הוסר", description: result?.message || "בקשת ההמתנה הוסרה בהצלחה" })
-            dispatch(supabaseApi.util.invalidateTags(["WaitingList"]))
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : (error as any)?.data ?? "שגיאה בהסרת בקשת ההמתנה"
-            toast({ title: "שגיאה", description: String(errorMessage), variant: "destructive" })
-        } finally {
-            setDeletingWaitingListEntryId(null)
-        }
+    const handleDeleteWaitingListEntry = async (_entry: WaitingListEntry) => {
+        // Removed waiting list deletion - barbery system doesn't use dogs
+        throw new Error("Waiting list functionality not available - no dogs in barbershop")
     }
 
     const handleWaitlistSubmit = useCallback(
-        async (submission: WaitlistModalSubmission) => {
-            const dogId = submission.dog.id
+        async (_submission: unknown) => {
             // Waiting list functionality removed - no dogs in barbershop
             // TODO: Reimplement waiting list for people if needed
             throw new Error("Waiting list functionality not available - no dogs in barbershop")
-
-            dispatch(supabaseApi.util.invalidateTags(["WaitingList"]))
         },
-        [dispatch, user?.id]
+        []
     )
 
     if (isInitialLoading) {
@@ -1681,7 +1304,7 @@ export default function Appointments() {
 
                             <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-right space-y-3">
                                 <div className="text-base font-semibold text-red-800">
-                                    {appointmentPendingCancellation.dogName || "כלב לא ידוע"}
+                                    תור
                                 </div>
                                 <div className="flex items-center  gap-2 text-sm text-red-700">
                                     <CalendarIcon className="h-4 w-4" />
@@ -1806,7 +1429,7 @@ export default function Appointments() {
                     {latePickupDialogAppointment && (
                         <div className="space-y-4">
                             <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 space-y-1">
-                                <div className="font-semibold">{latePickupDialogAppointment.dogName || "כלב"}</div>
+                                <div className="font-semibold">תור</div>
                                 <div className="flex flex-wrap items-center gap-3  text-xs text-gray-500">
                                     {latePickupDialogDateLabel && (
                                         <div className="flex items-center gap-1">
@@ -1899,7 +1522,7 @@ export default function Appointments() {
                 }}
                 onSubmit={handleWaitlistSubmit}
                 defaultCustomer={waitlistModalCustomer}
-                defaultDog={waitlistModalDog}
+                // Removed defaultDog - barbery system doesn't use dogs
                 disableCustomerSelection={Boolean(waitlistModalCustomer)}
                 title={editingWaitingListEntry ? "עריכת בקשת המתנה" : "בקשת המתנה חדשה"}
                 description="בחר את הכלב וסוג השירות כדי לקבל התראה כאשר יפתח תור פנוי."
@@ -2049,17 +1672,13 @@ export default function Appointments() {
                                             <Card key={appointment.id} className="hover:shadow-md transition-shadow">
                                                 <CardContent className="p-6">
                                                     <div className="flex items-start justify-between flex-row-reverse">
-                                                        {/* Right side - Dog icon */}
-                                                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                                            <Dog className="h-6 w-6 text-blue-600" />
-                                                        </div>
                                                         {/* Center - Content */}
                                                         <div className="flex-1 space-y-2 text-right mr-2 ml-6">
                                                             {/* Name and status badge row */}
                                                             <div className="flex items-center gap-2 justify-end">
                                                                 {getStatusBadge(appointment)}
 
-                                                                <h3 className="text-lg font-semibold">{appointment.dogName || "כלב לא ידוע"}</h3>
+                                                                <h3 className="text-lg font-semibold">{getServiceName(appointment.service)}</h3>
                                                                 {getApprovalBadge(appointment)}
                                                             </div>
                                                             {/* Details row */}
@@ -2192,11 +1811,11 @@ export default function Appointments() {
                                     <h3 className="text-lg font-semibold text-gray-800">בקשות רשימת המתנה</h3>
                                     <p className="text-sm text-gray-500">נהל כאן את הבקשות להודעה על תורים פנויים עבור הכלבים שלך.</p>
                                 </div>
-                                {dogs.length > 0 && (
+                                {false && (
                                     <Button
                                         onClick={() => {
                                             handleTabChange('waitingList')
-                                            openWaitingListDialog(undefined, { dogId: dogs[0].id, serviceType: 'grooming' })
+                                            openWaitingListDialog(undefined, { serviceType: 'grooming' })
                                         }}
                                         className="bg-emerald-600 hover:bg-emerald-700 flex items-center gap-2 self-start sm:self-auto"
                                     >
@@ -2222,15 +1841,13 @@ export default function Appointments() {
                                     </CardContent>
                                 </Card>
                             ) : (
-                                waitingListEntriesByDog.map(({ dog, entries }) => (
-                                    <Card key={dog.id} className="border border-emerald-200 shadow-sm" dir="rtl">
+                                // Removed dog-based waiting list display - barbery system doesn't use dogs
+                                waitingListEntriesByDog.map(({ entries }) => (
+                                    <Card key="waiting-list" className="border border-emerald-200 shadow-sm" dir="rtl">
                                         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-right">
                                             <div className="flex items-center gap-2 justify-end">
-                                                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center ml-2">
-                                                    <Dog className="h-6 w-6 text-emerald-700" />
-                                                </div>
                                                 <div className="text-right">
-                                                    <CardTitle className="text-right">{dog.name}</CardTitle>
+                                                    <CardTitle className="text-right">רשימת המתנה</CardTitle>
                                                     <CardDescription className="text-right text-gray-500">סה"כ בקשות: {entries.length}</CardDescription>
                                                 </div>
                                             </div>
@@ -2366,17 +1983,13 @@ export default function Appointments() {
                                             <Card key={appointment.id} className="hover:shadow-md transition-shadow">
                                                 <CardContent className="p-6">
                                                     <div className="flex items-start justify-between flex-row-reverse">
-                                                        {/* Right side - Dog icon */}
-                                                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                                            <Dog className="h-6 w-6 text-gray-600" />
-                                                        </div>
                                                         {/* Center - Content */}
                                                         <div className="flex-1 space-y-2 text-right mr-2 ml-6">
                                                             {/* Name and status badge row */}
                                                             <div className="flex items-center gap-2 justify-end">
                                                                 {getStatusBadge(appointment)}
                                                                 {appointmentIncludesGarden(appointment) ? renderLatePickupBadge(appointment.latePickupRequested) : null}
-                                                                <h3 className="text-lg font-semibold">{appointment.dogName || "כלב לא ידוע"}</h3>
+                                                                <h3 className="text-lg font-semibold">{getServiceName(appointment.service)}</h3>
                                                                 {getApprovalBadge(appointment)}
                                                             </div>
                                                             {/* Details row */}
@@ -2458,7 +2071,7 @@ export default function Appointments() {
                                                                 size="sm"
                                                                 onClick={() => {
                                                                     const params = new URLSearchParams()
-                                                                    params.set('dogId', appointment.dogId)
+                                                                    // Removed dogId - barbery system doesn't use dogs
                                                                     if (appointment.service) {
                                                                         params.set('serviceType', appointment.service.toLowerCase())
                                                                     }

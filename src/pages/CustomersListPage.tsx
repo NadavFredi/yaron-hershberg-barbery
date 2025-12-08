@@ -35,7 +35,7 @@ interface Customer {
     full_name: string
     phone: string
     email: string | null
-    classification: 'new' | 'existing' | 'vip' | 'extra_vip'
+    classification: 'new' | 'vip' | 'standard' | 'inactive'
     address: string | null
     send_invoice: boolean
     created_at: string
@@ -992,9 +992,9 @@ export default function CustomersListPage() {
     const getClassificationLabel = (classification: Customer['classification']) => {
         const labels = {
             new: "חדש",
-            existing: "קיים",
             vip: "VIP",
-            extra_vip: "VIP מועדף",
+            standard: "רגיל",
+            inactive: "לא פעיל",
         }
         return labels[classification]
     }

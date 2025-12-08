@@ -42,7 +42,7 @@ interface SentReminder {
         id: string
         full_name: string
         phone: string
-        classification: "extra_vip" | "vip" | "existing" | "new"
+        classification: "new" | "vip" | "standard" | "inactive"
         customer_type?: {
             id: string
             name: string
@@ -326,7 +326,7 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
             // Customer category filter
             if (searchCustomerCategory !== "all") {
                 if (searchCustomerCategory === "classification") {
-                    // Filter by classification (extra_vip, vip, existing, new)
+                    // Filter by classification (new, vip, standard, inactive)
                     // This would need additional UI, for now we'll skip
                 } else {
                     const customerTypeId = reminder.customer?.customer_type?.id
@@ -377,10 +377,10 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
 
     const getClassificationLabel = (classification: string) => {
         const labels: Record<string, string> = {
-            extra_vip: "VIP+",
-            vip: "VIP",
-            existing: "קיים",
             new: "חדש",
+            vip: "VIP",
+            standard: "רגיל",
+            inactive: "לא פעיל",
         }
         return labels[classification] || classification
     }

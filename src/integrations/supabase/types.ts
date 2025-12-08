@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
   public: {
@@ -55,7 +49,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       breed_modifiers: {
@@ -94,7 +88,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "services"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       breeds: {
@@ -208,7 +202,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "grooming_appointments"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       credit_tokens: {
@@ -252,7 +246,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       customers: {
@@ -338,7 +332,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       daycare_appointments: {
@@ -435,7 +429,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stations"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       daycare_capacity_limits: {
@@ -522,7 +516,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "dogs"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       dogs: {
@@ -600,7 +594,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       garden_questionnaires: {
@@ -666,7 +660,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       grooming_appointments: {
@@ -767,7 +761,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stations"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       order_items: {
@@ -812,7 +806,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       orders: {
@@ -870,7 +864,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "grooming_appointments"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       payments: {
@@ -927,7 +921,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "credit_tokens"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       products: {
@@ -1044,7 +1038,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stations"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       services: {
@@ -1128,7 +1122,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stations"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       station_unavailability: {
@@ -1172,7 +1166,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stations"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       stations: {
@@ -1315,7 +1309,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tickets"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       tickets: {
@@ -1363,7 +1357,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ticket_types"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       proposed_meetings: {
@@ -1462,7 +1456,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stations"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       proposed_meeting_invites: {
@@ -1523,7 +1517,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customer_types"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       proposed_meeting_categories: {
@@ -1559,7 +1553,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "proposed_meetings"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
     }
@@ -1715,7 +1709,7 @@ export type Database = {
       absence_reason: "sick" | "vacation" | "ad_hoc"
       appointment_kind: "business" | "personal"
       appointment_status: "pending" | "approved" | "cancelled" | "matched"
-      customer_class: "extra_vip" | "vip" | "existing" | "new"
+      customer_class: "new" | "vip" | "standard" | "inactive"
       daycare_service_type: "full_day" | "trial" | "hourly"
       dog_gender: "male" | "female"
       payment_status: "unpaid" | "paid" | "partial"
@@ -1759,7 +1753,7 @@ export type Tables<
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never = never
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1769,25 +1763,21 @@ export type Tables<
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+    ? R
     : never
+  : never
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never = never
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1797,22 +1787,20 @@ export type TablesInsert<
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Insert: infer I
+    }
+    ? I
     : never
+  : never
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never = never
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1822,29 +1810,27 @@ export type TablesUpdate<
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Update: infer U
+    }
+    ? U
     : never
+  : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never = never
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
@@ -1854,14 +1840,14 @@ export type CompositeTypes<
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never = never
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
 
 export const Constants = {
   public: {
@@ -1869,7 +1855,7 @@ export const Constants = {
       absence_reason: ["sick", "vacation", "ad_hoc"],
       appointment_kind: ["business", "personal"],
       appointment_status: ["pending", "approved", "cancelled", "matched"],
-      customer_class: ["extra_vip", "vip", "existing", "new"],
+      customer_class: ["new", "vip", "standard", "inactive"],
       daycare_service_type: ["full_day", "trial", "hourly"],
       dog_gender: ["male", "female"],
       payment_status: ["unpaid", "paid", "partial"],
@@ -1880,4 +1866,3 @@ export const Constants = {
     },
   },
 } as const
-

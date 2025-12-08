@@ -1109,7 +1109,7 @@ async function getOrCreateSystemCustomer(appointmentName: string): Promise<{ cus
       .insert({
         full_name: SYSTEM_CUSTOMER_NAME,
         phone: SYSTEM_PHONE,
-        classification: "existing", // Use valid enum value: 'extra_vip', 'vip', 'existing', 'new'
+        classification: "standard", // Valid enum values: 'new', 'vip', 'standard', 'inactive'
         auth_user_id: user.id, // Required by RLS policy
       })
       .select("id")
