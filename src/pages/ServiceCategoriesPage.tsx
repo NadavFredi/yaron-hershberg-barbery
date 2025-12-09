@@ -960,7 +960,7 @@ function CategoryServicesModal({ category, isOpen, isEditing, onClose }: Categor
             </div>
           )}
         </div>
-        <DialogFooter className="flex-row-reverse gap-2">
+        <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
           {isEditing ? (
             <>
               <Button onClick={handleSaveLinks} disabled={updateService.isPending}>
