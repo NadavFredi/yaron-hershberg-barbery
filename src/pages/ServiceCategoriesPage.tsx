@@ -409,7 +409,7 @@ export default function ServiceCategoriesPage() {
               </div>
             )}
           </div>
-          <DialogFooter className="flex-row-reverse gap-2">
+          <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
             <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deleteCategory.isPending}>
               {deleteCategory.isPending ? (
                 <>

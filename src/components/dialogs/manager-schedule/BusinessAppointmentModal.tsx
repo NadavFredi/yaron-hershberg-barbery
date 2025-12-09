@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
@@ -106,8 +106,8 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         setSelectedCustomer(null)
     }
 
-    // Search function for AutocompleteFilter
-    const searchServices = (term: string): Promise<string[]> => {
+    // Search function for AutocompleteFilter - memoized to update when filteredServices changes
+    const searchServices = useCallback((term: string): Promise<string[]> => {
         if (!filteredServices.length) {
             return Promise.resolve([])
         }
@@ -123,7 +123,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 .slice(0, 10)
                 .map((service) => service.name)
         )
-    }
+    }, [filteredServices])
 
     const handleServiceSelect = (serviceName: string) => {
         setServiceInputValue(serviceName)
