@@ -79,7 +79,6 @@ export interface ManyChatCustomField {
  * Flow IDs are used to trigger specific flows in ManyChat via the API.
  */
 export const MANYCHAT_FLOW_IDS: Record<string, string> = {
-  YOUR_DOG_IS_READY_IN_X_MINUTES: "content20251128211128_639274",
   YOUR_APPOINTMENT_APPROVED: "content20251205234121_595370",
   YOUR_APPOINTMENT_APPROVED_WITH_MODIFY: "content20251205234451_085450",
   YOUR_APPOINTMENT_WAITING_FOR_CONFIRMATION: "content20251205234241_956262",

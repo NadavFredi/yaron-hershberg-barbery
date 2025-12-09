@@ -39,7 +39,7 @@ interface CartAppointment {
   id: string
   appointment_price: number | null
   grooming_appointment_id: string | null
-  daycare_appointment_id: string | null
+  // Removed daycare_appointment_id - barbery system doesn't have daycare
 }
 
 serve(async (req) => {
@@ -196,7 +196,7 @@ serve(async (req) => {
           supabaseClient.from("cart_items").select("id, item_name, quantity, unit_price").eq("cart_id", order.cart_id),
           supabaseClient
             .from("cart_appointments")
-            .select("id, appointment_price, grooming_appointment_id, daycare_appointment_id")
+            .select("id, appointment_price, grooming_appointment_id")
             .eq("cart_id", order.cart_id),
         ])
 
@@ -214,11 +214,7 @@ serve(async (req) => {
         // Add cart appointments as items
         if (cartAppointmentsResult.data && cartAppointmentsResult.data.length > 0) {
           ;(cartAppointmentsResult.data as CartAppointment[]).forEach((ca) => {
-            const appointmentType = ca.grooming_appointment_id
-              ? "תור מספרה"
-              : ca.daycare_appointment_id
-              ? "תור גן"
-              : "תור"
+            const appointmentType = ca.grooming_appointment_id ? "תור מספרה" : "תור"
             items.push({
               name: appointmentType,
               unitPrice: ca.appointment_price || 0,

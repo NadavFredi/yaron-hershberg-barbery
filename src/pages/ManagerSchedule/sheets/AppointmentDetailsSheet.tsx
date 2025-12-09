@@ -283,7 +283,7 @@ export const AppointmentDetailsSheet = ({
                     serviceType: selectedAppointment.serviceType,
                 })
 
-                // Try both grooming and daycare appointments
+                // Fetch grooming appointment images count (barbery system only has grooming appointments)
                 const { count: groomingCount, error: groomingError } = await supabase
                     .from("appointment_session_images")
                     .select("*", { count: "exact", head: true })
@@ -293,16 +293,7 @@ export const AppointmentDetailsSheet = ({
                     console.error("❌ [AppointmentDetailsSheet] Error fetching grooming session images count:", groomingError)
                 }
 
-                const { count: daycareCount, error: daycareError } = await supabase
-                    .from("appointment_session_images")
-                    .select("*", { count: "exact", head: true })
-                    .eq("daycare_appointment_id", appointmentId)
-
-                if (daycareError && daycareError.code !== "PGRST116") {
-                    console.error("❌ [AppointmentDetailsSheet] Error fetching daycare session images count:", daycareError)
-                }
-
-                const totalCount = (groomingCount ?? 0) + (daycareCount ?? 0)
+                const totalCount = groomingCount ?? 0
                 console.log("✅ [AppointmentDetailsSheet] Session images count:", totalCount)
                 setSessionImagesCount(totalCount)
             } catch (error) {
@@ -2171,19 +2162,13 @@ export const AppointmentDetailsSheet = ({
                                 }
 
                                 if (refreshAppointmentId) {
-                                    Promise.all([
-                                        supabase
-                                            .from("appointment_session_images")
-                                            .select("*", { count: "exact", head: true })
-                                            .eq("grooming_appointment_id", refreshAppointmentId),
-                                        supabase
-                                            .from("appointment_session_images")
-                                            .select("*", { count: "exact", head: true })
-                                            .eq("daycare_appointment_id", refreshAppointmentId),
-                                    ]).then(([{ count: groomingCount }, { count: daycareCount }]) => {
-                                        const totalCount = (groomingCount ?? 0) + (daycareCount ?? 0)
-                                        setSessionImagesCount(totalCount)
-                                    })
+                                    supabase
+                                        .from("appointment_session_images")
+                                        .select("*", { count: "exact", head: true })
+                                        .eq("grooming_appointment_id", refreshAppointmentId)
+                                        .then(({ count }) => {
+                                            setSessionImagesCount(count ?? 0)
+                                        })
                                 }
                             }
                         }}

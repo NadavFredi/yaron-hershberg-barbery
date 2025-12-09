@@ -32,7 +32,7 @@ serve(async (req) => {
         price,
         recordId,
         recordNumber,
-        serviceType, // "garden" or "grooming"
+        serviceType, // "grooming" only
       }),
     })
 

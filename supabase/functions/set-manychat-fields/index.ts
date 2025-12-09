@@ -115,7 +115,7 @@ async function getOrCreateSubscribers(
 
 /**
  * Set fields for a single subscriber
- * Supports both field_id (numeric) and field_name (string like "dog_name")
+ * Supports both field_id (numeric) and field_name (string)
  */
 async function setFieldsForSubscriber(
   manychat: ManyChatClient,
@@ -128,19 +128,19 @@ async function setFieldsForSubscriber(
     // Check if field key is numeric (field_id) or string (field_name)
     const fieldsArray = Object.entries(fields).map(([fieldKey, fieldValue]) => {
       // If the key is numeric, it's a field_id
-      // If the key is "dog_name" or other string, it's a field_name
+      // If the key is a string, it's a field_name
       const isNumeric = /^\d+$/.test(fieldKey)
-      
+
       if (isNumeric) {
         return { fieldId: fieldKey, fieldValue }
       } else {
-        // String keys like "dog_name" should use field_name
+        // String keys should use field_name
         return { fieldName: fieldKey, fieldValue }
       }
     })
 
     await manychat.setMultipleFields(subscriberId, fieldsArray)
-    
+
     console.log(
       `✅ [set-manychat-fields] Set ${fieldsArray.length} field(s) for subscriber ${subscriberId}`,
       Object.keys(fields).join(", ")
@@ -154,7 +154,7 @@ async function setFieldsForSubscriber(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
     console.error(`❌ [set-manychat-fields] Failed to set fields for subscriber ${subscriberId}:`, errorMsg)
-    
+
     return {
       key,
       success: false,

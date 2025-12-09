@@ -10,18 +10,15 @@ export interface AirtableRecord<T> {
 /** Fields for 'לקוחות' table */
 export interface TreatmentFields {
   שם: string
-  גזע: string[] // Array of record IDs from 'גזעים'
-  "האם מילא שאלון התאמה לגן"?: boolean
-  "האם הלקוח היה במספרה"?: boolean
+  // Removed breed and garden fields - barbery system doesn't use them
 }
 
 /** Fields for 'עמדות מול גזעים' table */
 export interface TreatmentTypeDurationRuleFields {
-  גזע: string[] // Array of record IDs from 'גזעים'
+  // Removed breed fields - barbery system doesn't use breeds
   עמדה: string[] // Array of record IDs from 'עמדות עבודה'
   'סה"כ משך תספורת בשניות'?: number
-  'סה"כ משך גן בשניות'?: number
-  'סה"כ משך משולב בשניות'?: number
+  // Removed garden duration fields - barbery system only has grooming
 }
 
 /** Fields for 'שעות פעילות' table */
@@ -45,20 +42,7 @@ export interface ConstraintFields {
   "עמדת עבודה": string[] // Array of record IDs from 'עמדות עבודה'
 }
 
-/** Fields for 'תקרת שיבוצים בגן' table */
-export interface GardenCapacityFields {
-  "הגבלת שיבוץ לניסיון"?: number
-  "הגבלה לשיבוץ רגיל"?: number
-}
-
-/** Fields for 'תורים לגן' table */
-export interface GardenAppointmentFields {
-  "מועד התור": string
-  "מועד סיום התור"?: string
-  סטטוס?: string
-  "סוג פעילות"?: string
-  "האם ניסיון"?: boolean
-}
+// Removed GardenCapacityFields and GardenAppointmentFields - barbery system doesn't have garden
 
 /** Simplified internal representation of data for calculation */
 export interface Appointment {
@@ -107,12 +91,7 @@ export interface StationAvailabilityProfile {
   remoteBookingAllowed?: boolean
 }
 
-export interface GardenCapacityState {
-  trialLimit: number
-  regularLimit: number
-  trialBooked: number
-  regularBooked: number
-}
+// Removed GardenCapacityState - barbery system doesn't have garden
 
 export interface Workstation {
   id: string

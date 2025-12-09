@@ -68,7 +68,7 @@ export function ImageGalleryModal({
 
           setImages(data || [])
         } else if (imageType === "appointment-session") {
-          // Try both grooming and daycare appointments
+          // Fetch grooming appointment images (barbery system only has grooming appointments)
           const { data: groomingData, error: groomingError } = await supabase
             .from("appointment_session_images")
             .select("*")
@@ -79,18 +79,7 @@ export function ImageGalleryModal({
             console.error("❌ [ImageGalleryModal] Error fetching grooming appointment images:", groomingError)
           }
 
-          const { data: daycareData, error: daycareError } = await supabase
-            .from("appointment_session_images")
-            .select("*")
-            .eq("daycare_appointment_id", entityId)
-            .order("created_at", { ascending: false })
-
-          if (daycareError && daycareError.code !== "PGRST116") {
-            console.error("❌ [ImageGalleryModal] Error fetching daycare appointment images:", daycareError)
-          }
-
-          const allImages = [...(groomingData || []), ...(daycareData || [])]
-          setImages(allImages)
+          setImages(groomingData || [])
         }
       } catch (error) {
         console.error("❌ [ImageGalleryModal] Unexpected error fetching images:", error)
@@ -158,52 +147,33 @@ export function ImageGalleryModal({
 
         setImages((prev) => [data, ...prev])
       } else if (imageType === "appointment-session") {
-        // Determine if it's a grooming or daycare appointment
-        // Try grooming first, then daycare
-        let isGrooming = false
+        // Verify it's a grooming appointment (barbery system only has grooming appointments)
         const { data: groomingCheck, error: groomingError } = await supabase
           .from("grooming_appointments")
           .select("id")
           .eq("id", entityId)
           .maybeSingle()
 
-        if (groomingCheck && !groomingError) {
-          isGrooming = true
-        } else {
-          // Check if it's a daycare appointment
-          const { data: daycareCheck, error: daycareError } = await supabase
-            .from("daycare_appointments")
-            .select("id")
-            .eq("id", entityId)
-            .maybeSingle()
-
-          if (!daycareCheck || daycareError) {
-            console.error("❌ [ImageGalleryModal] Appointment not found in either table", {
-              entityId,
-              groomingError,
-              daycareError,
-            })
-            // Try to delete the uploaded file
-            await deleteGalleryImage(uploadResult.storagePath, imageType)
-            toast({
-              title: "שגיאה",
-              description: "לא ניתן למצוא את התור",
-              variant: "destructive",
-            })
-            return
-          }
+        if (!groomingCheck || groomingError) {
+          console.error("❌ [ImageGalleryModal] Grooming appointment not found", {
+            entityId,
+            groomingError,
+          })
+          // Try to delete the uploaded file
+          await deleteGalleryImage(uploadResult.storagePath, imageType)
+          toast({
+            title: "שגיאה",
+            description: "לא ניתן למצוא את התור",
+            variant: "destructive",
+          })
+          return
         }
 
         const insertData: any = {
           image_url: uploadResult.imageUrl,
           storage_path: uploadResult.storagePath,
           created_by: userId,
-        }
-
-        if (isGrooming) {
-          insertData.grooming_appointment_id = entityId
-        } else {
-          insertData.daycare_appointment_id = entityId
+          grooming_appointment_id: entityId,
         }
 
         const { data, error } = await supabase

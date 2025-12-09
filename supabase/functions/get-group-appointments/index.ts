@@ -62,16 +62,14 @@ interface ManagerTreatment {
   birthDate?: string
   tendsToBite?: string
   aggressiveWithOtherTreatments?: string
-  hasBeenToGarden?: boolean
-  suitableForGardenFromQuestionnaire?: boolean
-  notSuitableForGardenFromQuestionnaire?: boolean
+  // Removed garden-related fields - barbery system doesn't have garden
   recordId?: string
   recordNumber?: string
 }
 
 interface ManagerAppointment {
   id: string
-  serviceType: "grooming" | "garden"
+  serviceType: "grooming"
   stationId: string
   stationName: string
   startDateTime: string
@@ -92,11 +90,7 @@ interface ManagerAppointment {
   durationMinutes?: number
   latePickupRequested?: boolean
   latePickupNotes?: string
-  gardenTrimNails?: boolean
-  gardenBrush?: boolean
-  gardenBath?: boolean
-  gardenAppointmentType?: "full-day" | "hourly"
-  gardenIsTrial?: boolean
+  // Removed garden-specific fields - barbery system only has grooming
   recordId?: string
   recordNumber?: string
   isPersonalAppointment?: boolean
@@ -217,9 +211,7 @@ const fetchTreatmentsByIds = async (
         "Aggressive With Other Treatments",
         "aggressiveWithOtherTreatments",
       ]),
-      hasBeenToGarden: fields["האם הלקוח היה במספרה"] === true,
-      suitableForGardenFromQuestionnaire: fields["האם נמצא מתאים לגן מהשאלון"] === true,
-      notSuitableForGardenFromQuestionnaire: fields["האם נמצא לא מתאים לגן מהשאלון"] === true,
+      // Removed garden-related field mappings - barbery system doesn't have garden
       recordId: coalesceStringField(fields, ["מזהה רשומה", "Record ID", "recordId"]),
       recordNumber: coalesceStringField(fields, ["מספר רשומה", "Record Number", "recordNumber"]),
     }

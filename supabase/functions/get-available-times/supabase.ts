@@ -91,25 +91,7 @@ interface StationAllowedCustomerTypeRow {
   customer_type_id: string
 }
 
-interface DaycareAppointment {
-  id: string
-  treatment_id: string
-  station_id: string | null
-  start_at: string
-  end_at: string
-  status: string
-  service_type: string | null
-}
-
-interface DaycareCapacityLimitRow {
-  id: string
-  effective_date: string
-  total_limit: number
-  hourly_limit: number
-  full_day_limit: number
-  trial_limit: number
-  regular_limit: number
-}
+// Removed DaycareAppointment and DaycareCapacityLimitRow interfaces - barbery system doesn't have daycare
 
 /**
  * Get treatment record with treatmentType information
@@ -325,33 +307,7 @@ export async function getStationAllowedCustomerTypes(): Promise<StationAllowedCu
   return data || []
 }
 
-export async function getDaycareAppointmentsForRange(
-  startDate: Date,
-  endDate: Date,
-): Promise<DaycareAppointment[]> {
-  console.log(
-    `🔍 [getDaycareAppointmentsForRange] Fetching daycare appointments from ${startDate.toISOString()} to ${endDate.toISOString()}`,
-  )
-
-  const { data, error } = await supabase
-    .from("daycare_appointments")
-    .select("id, treatment_id, station_id, start_at, end_at, status, service_type")
-    .gte("start_at", startDate.toISOString())
-    .lte("start_at", endDate.toISOString())
-    .neq("status", "cancelled")
-
-  if (error) {
-    throw new Error(`Failed to fetch daycare appointments: ${error.message}`)
-  }
-
-  return data || []
-}
-
-export async function getDaycareCapacityLimits(): Promise<DaycareCapacityLimitRow[]> {
-  console.log(`🔍 [getDaycareCapacityLimits] Fetching daycare capacity limits`)
-
-  const { data, error } = await supabase
-    .from("daycare_capacity_limits")
+// Removed getDaycareAppointmentsForRange and getDaycareCapacityLimits functions - barbery system doesn't have daycare
     .select("id, effective_date, total_limit, hourly_limit, full_day_limit, trial_limit, regular_limit")
     .order("effective_date", { ascending: true })
 
