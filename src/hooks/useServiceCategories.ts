@@ -7,7 +7,6 @@ export interface ServiceCategory {
   name: string
   variant: ServiceCategoryVariant
   is_default?: boolean
-  is_favorite?: boolean
   created_at: string
   updated_at: string
 }
@@ -32,22 +31,35 @@ export const useServiceCategoriesWithCounts = () => {
   return useQuery({
     queryKey: ["service-categories-with-counts"],
     queryFn: async () => {
+      // First get all categories
       const { data: categories, error: categoriesError } = await supabase
         .from("service_categories")
-        .select(
-          `
-          *,
-          services(count)
-        `
-        )
+        .select("*")
         .order("name")
 
       if (categoriesError) throw categoriesError
 
-      return (categories as any[]).map((category) => ({
-        ...category,
-        services_count: Array.isArray(category.services) ? category.services.length : 0,
-      })) as ServiceCategoryWithServices[]
+      // Then get counts for each category
+      const categoriesWithCounts = await Promise.all(
+        (categories || []).map(async (category) => {
+          const { count, error: countError } = await supabase
+            .from("services")
+            .select("*", { count: "exact", head: true })
+            .eq("service_category_id", category.id)
+
+          if (countError) {
+            console.error("Error counting services for category:", category.id, countError)
+            return { ...category, services_count: 0 }
+          }
+
+          return {
+            ...category,
+            services_count: count || 0,
+          }
+        })
+      )
+
+      return categoriesWithCounts as ServiceCategoryWithServices[]
     },
   })
 }

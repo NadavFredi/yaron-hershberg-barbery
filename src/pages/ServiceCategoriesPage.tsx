@@ -304,38 +304,34 @@ export default function ServiceCategoriesPage() {
                             <span className="text-sm text-gray-600 text-right">
                               {category.services_count || 0}
                             </span>
-                            {category.services_count && category.services_count > 0 && (
-                              <>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setServicesModalCategory(category)
-                                    setIsEditingServices(false)
-                                    setServicesModalOpen(true)
-                                  }}
-                                  className="h-6 w-6 p-0"
-                                  title="צפה בשירותים"
-                                >
-                                  <Eye className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setServicesModalCategory(category)
-                                    setIsEditingServices(true)
-                                    setServicesModalOpen(true)
-                                  }}
-                                  className="h-6 w-6 p-0"
-                                  title="נהל שירותים"
-                                >
-                                  <Edit2 className="h-3 w-3" />
-                                </Button>
-                              </>
-                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setServicesModalCategory(category)
+                                setIsEditingServices(false)
+                                setServicesModalOpen(true)
+                              }}
+                              className="h-6 w-6 p-0"
+                              title="צפה בשירותים"
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setServicesModalCategory(category)
+                                setIsEditingServices(true)
+                                setServicesModalOpen(true)
+                              }}
+                              className="h-6 w-6 p-0"
+                              title="נהל שירותים"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
                           </div>
                         </TableCell>
                         <TableCell className="text-right">

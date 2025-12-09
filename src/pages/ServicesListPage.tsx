@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Trash2, Loader2, Search, X, ArrowUp, ArrowDown, GripVertical, ChevronDown, ChevronRight, Check, Save } from "lucide-react"
+import { Plus, Trash2, Loader2, Search, X, ArrowUp, ArrowDown, GripVertical, ChevronDown, ChevronRight, Check, Save, Copy } from "lucide-react"
 import {
     DndContext,
     PointerSensor,
@@ -1478,9 +1478,8 @@ export default function ServicesListPage() {
                                         const isEditingCategory = editingCategoryId === service.id
 
                                         return (
-                                            <>
+                                            <Fragment key={service.id}>
                                                 <TableRow
-                                                    key={service.id}
                                                     className={cn(serviceMode === "complicated" && "cursor-pointer")}
                                                     onClick={(e) => {
                                                         // Only toggle if clicking on the row itself, not on interactive elements
@@ -1786,7 +1785,7 @@ export default function ServicesListPage() {
                                                                 className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
                                                                 title="שכפל שירות"
                                                             >
-                                                                <Plus className="h-4 w-4" />
+                                                                <Copy className="h-4 w-4" />
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"
@@ -1993,7 +1992,7 @@ export default function ServicesListPage() {
                                                         )}
                                                     </>
                                                 )}
-                                            </>
+                                            </Fragment>
                                         )
                                     })
                                 )}

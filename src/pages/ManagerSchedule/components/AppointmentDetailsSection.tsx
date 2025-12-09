@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { DatePickerInput } from "@/components/DatePickerInput"
@@ -93,6 +94,10 @@ interface AppointmentDetailsSectionProps {
     children?: React.ReactNode
     sendWhatsApp?: boolean
     onSendWhatsAppChange?: (sendWhatsApp: boolean) => void
+    syncTime?: boolean
+    onSyncTimeChange?: (syncTime: boolean) => void
+    selectedServiceId?: string | null
+    serviceStationConfigs?: Array<{ station_id: string; base_time_minutes: number }>
 }
 
 export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps> = ({
@@ -112,16 +117,22 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
     disableEndTime = false,
     children,
     sendWhatsApp: controlledSendWhatsApp,
-    onSendWhatsAppChange
+    onSendWhatsAppChange,
+    syncTime: controlledSyncTime,
+    onSyncTimeChange,
+    selectedServiceId,
+    serviceStationConfigs = []
 }) => {
     const [isEditing, setIsEditing] = useState(true)
     const [editableTimes, setEditableTimes] = useState<AppointmentTimes | null>(cloneTimes(finalizedTimes))
     const [sendWhatsApp, setSendWhatsApp] = useState(true) // Default to checked
+    const [syncTime, setSyncTime] = useState<boolean>(controlledSyncTime ?? false)
     const datePickerRef = useRef<HTMLInputElement>(null)
     const isAutoEndTime = endTimeMode === "auto"
-    
+
     // Use controlled value if provided, otherwise use internal state
     const actualSendWhatsApp = controlledSendWhatsApp !== undefined ? controlledSendWhatsApp : sendWhatsApp
+    const actualSyncTime = controlledSyncTime !== undefined ? controlledSyncTime : syncTime
 
     useEffect(() => {
         setEditableTimes(cloneTimes(finalizedTimes))
@@ -130,6 +141,43 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
             setIsEditing(true)
         }
     }, [finalizedTimes, isOpen])
+
+    // Update end time when syncTime is enabled and service is selected
+    useEffect(() => {
+        if (!actualSyncTime || !selectedServiceId || !editableTimes?.startTime || !editableTimes?.stationId) {
+            return
+        }
+
+        // Find the service-station configuration
+        const config = serviceStationConfigs.find(
+            (config) => config.station_id === editableTimes.stationId
+        )
+
+        if (config && config.base_time_minutes > 0) {
+            const durationMs = config.base_time_minutes * 60 * 1000
+            const newEndTime = new Date(editableTimes.startTime.getTime() + durationMs)
+
+            // Only update if the end time would be different
+            if (!editableTimes.endTime || editableTimes.endTime.getTime() !== newEndTime.getTime()) {
+                setEditableTimes((prev) => {
+                    if (!prev) return null
+                    return {
+                        ...prev,
+                        endTime: newEndTime
+                    }
+                })
+
+                // Notify parent of the change
+                if (onTimesChange) {
+                    onTimesChange({
+                        startTime: editableTimes.startTime,
+                        endTime: newEndTime,
+                        stationId: editableTimes.stationId
+                    })
+                }
+            }
+        }
+    }, [actualSyncTime, selectedServiceId, editableTimes?.startTime, editableTimes?.stationId, editableTimes?.endTime, serviceStationConfigs, onTimesChange])
 
     useEffect(() => {
         if (isOpen) {
@@ -375,6 +423,31 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
                             משך משוער: <span className="font-medium">{autoDurationMinutes} דקות</span>
                         </div>
                     )}
+
+                    {/* Sync Time Checkbox - Always visible */}
+                    {onSyncTimeChange !== undefined && (
+                        <div className="flex items-center space-x-2 space-x-reverse pt-1">
+                            <Checkbox
+                                id="sync-time"
+                                checked={actualSyncTime}
+                                onCheckedChange={(checked) => {
+                                    const newValue = checked === true
+                                    if (onSyncTimeChange) {
+                                        onSyncTimeChange(newValue)
+                                    } else {
+                                        setSyncTime(newValue)
+                                    }
+                                }}
+                            />
+                            <Label
+                                htmlFor="sync-time"
+                                className={cn("text-xs font-medium leading-none cursor-pointer", themeCfg.label)}
+                            >
+                                סנכרן זמן לפי השירות
+                            </Label>
+                        </div>
+                    )}
+
                     {children && (
                         <div className="mt-3">
                             {children}

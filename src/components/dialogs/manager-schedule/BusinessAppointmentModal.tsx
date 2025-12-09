@@ -14,7 +14,6 @@ import { useServices } from "@/hooks/useServices"
 import { useServiceCategories } from "@/hooks/useServiceCategories"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import { AutocompleteFilter } from "@/components/AutocompleteFilter"
 import { useServiceStationConfigs } from "@/hooks/useServiceConfiguration"
 
@@ -156,30 +155,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         }
     }
 
-    // Update end time when service is selected and syncTime is enabled
-    useEffect(() => {
-        if (!syncTime || !selectedServiceId || !appointmentTimes?.startTime || !appointmentTimes?.stationId) {
-            return
-        }
-
-        // Find the service-station configuration
-        const config = serviceStationConfigs.find(
-            (config) => config.station_id === appointmentTimes.stationId
-        )
-
-        if (config && config.base_time_minutes > 0) {
-            const durationMs = config.base_time_minutes * 60 * 1000
-            const newEndTime = new Date(appointmentTimes.startTime.getTime() + durationMs)
-
-            setAppointmentTimes((prev) => {
-                if (!prev) return null
-                return {
-                    ...prev,
-                    endTime: newEndTime
-                }
-            })
-        }
-    }, [selectedServiceId, syncTime, appointmentTimes?.startTime, appointmentTimes?.stationId, serviceStationConfigs])
+    // Sync time logic is now handled inside AppointmentDetailsSection
 
     const handleCategoryChange = (categoryId: string | null) => {
         setSelectedCategoryId(categoryId)
@@ -276,6 +252,10 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                             endTimeMode="editable"
                             hideSaveCancelButtons
                             disableEndTime={false}
+                            syncTime={syncTime}
+                            onSyncTimeChange={setSyncTime}
+                            selectedServiceId={selectedServiceId}
+                            serviceStationConfigs={serviceStationConfigs}
                         >
                         </AppointmentDetailsSection>
 
@@ -328,22 +308,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                                     initialResultsLimit={5}
                                 />
                             </div>
-
-                            {isTimeZero && (
-                                <div className="flex items-center space-x-2 space-x-reverse">
-                                    <Checkbox
-                                        id="sync-time"
-                                        checked={syncTime}
-                                        onCheckedChange={(checked) => setSyncTime(checked === true)}
-                                    />
-                                    <Label
-                                        htmlFor="sync-time"
-                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                                    >
-                                        סנכרן זמן לפי השירות
-                                    </Label>
-                                </div>
-                            )}
                         </div>
                     </div>
                 )}
