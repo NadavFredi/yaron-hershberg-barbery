@@ -695,7 +695,7 @@ export default function ServicesListPage() {
             }, 100)
         } catch (error: unknown) {
             console.error("Error updating sub-action:", error)
-            
+
             // Revert optimistic update on error
             if (previousServices) {
                 queryClient.setQueryData<Service[]>(["services"], previousServices)
@@ -710,11 +710,11 @@ export default function ServicesListPage() {
             cancelInlineEdit()
         }
     }
-    
+
     const handleSubActionActiveChange = async (subActionId: string, checked: boolean) => {
         // Optimistic update
         const previousServices = queryClient.getQueryData<Service[]>(["services"])
-        
+
         if (previousServices) {
             const optimisticServices = previousServices.map((s) => {
                 if (s.service_sub_actions) {
@@ -737,14 +737,14 @@ export default function ServicesListPage() {
                 subActionId,
                 is_active: checked,
             })
-            
+
             // Silently refetch to ensure sync
             setTimeout(() => {
                 queryClient.invalidateQueries({ queryKey: ["services"] })
             }, 100)
         } catch (error: unknown) {
             console.error("Error updating sub-action active status:", error)
-            
+
             // Revert optimistic update on error
             if (previousServices) {
                 queryClient.setQueryData<Service[]>(["services"], previousServices)
@@ -758,11 +758,11 @@ export default function ServicesListPage() {
             })
         }
     }
-    
+
     const handleServiceActiveChange = async (serviceId: string, checked: boolean) => {
         // Optimistic update
         const previousServices = queryClient.getQueryData<Service[]>(["services"])
-        
+
         if (previousServices) {
             const optimisticServices = previousServices.map((s) => {
                 if (s.id === serviceId) {
@@ -779,14 +779,14 @@ export default function ServicesListPage() {
                 serviceId,
                 is_active: checked,
             })
-            
+
             // Silently refetch to ensure sync
             setTimeout(() => {
                 queryClient.invalidateQueries({ queryKey: ["services"] })
             }, 100)
         } catch (error: unknown) {
             console.error("Error updating service active status:", error)
-            
+
             // Revert optimistic update on error
             if (previousServices) {
                 queryClient.setQueryData<Service[]>(["services"], previousServices)
@@ -856,7 +856,7 @@ export default function ServicesListPage() {
             }, 100)
         } catch (error: unknown) {
             console.error("Error updating service:", error)
-            
+
             // Revert optimistic update on error
             if (previousServices) {
                 queryClient.setQueryData<Service[]>(["services"], previousServices)
@@ -935,7 +935,7 @@ export default function ServicesListPage() {
             is_active: true,
         })
     }
-    
+
     const handleCancelNewSubActionRow = () => {
         // Only cancel if there are no pending sub-actions, otherwise just reset the form
         const hasPending = Array.from(pendingSubActions.values()).some(arr => arr.length > 0)
@@ -1258,11 +1258,11 @@ export default function ServicesListPage() {
                                                                 onClick={() => toggleExpanded(service.id)}
                                                                 className="h-6 w-6 p-0"
                                                             >
-                                                            {isExpanded ? (
-                                                                <ChevronRight className="h-4 w-4" />
-                                                            ) : (
-                                                                <ChevronDown className="h-4 w-4" />
-                                                            )}
+                                                                {isExpanded ? (
+                                                                    <ChevronRight className="h-4 w-4" />
+                                                                ) : (
+                                                                    <ChevronDown className="h-4 w-4" />
+                                                                )}
                                                             </Button>
                                                             {isEditingName ? (
                                                                 <div className="flex items-center gap-1">

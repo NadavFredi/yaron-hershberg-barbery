@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { useAppDispatch } from "@/store/hooks"
 import { supabaseApi } from "@/store/services/supabaseApi"
+import { useQueryClient } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { StationUnavailabilityDialog } from "@/components/dialogs/settings/stations/StationUnavailabilityDialog"
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core"
@@ -993,17 +994,18 @@ export function SettingsStationsSection() {
                     setStationWorkingHours((prev) => ({ ...prev, [targetId]: hours }))
                 }
 
+                // Invalidate RTK Query cache
+                // This must happen BEFORE the toast and dialog close to ensure immediate refetch
+                dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Station"]))
+                dispatch(supabaseApi.util.invalidateTags(["StationWorkingHours", "ShiftRestrictions"]))
+                // Invalidate React Query cache and refetch immediately
+                await queryClient.invalidateQueries({ queryKey: ['stations'] })
+                await queryClient.invalidateQueries({ queryKey: ['services-with-stats'] })
+
                 toast({
                     title: "הצלחה",
                     description: `הנתונים הועתקו ל-${params.targetStationIds.length} עמדות בהצלחה`,
                 })
-
-                // Invalidate RTK Query cache
-                dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Station"]))
-                dispatch(supabaseApi.util.invalidateTags(["StationWorkingHours", "ShiftRestrictions"]))
-                // Invalidate React Query cache
-                queryClient.invalidateQueries({ queryKey: ['stations'] })
-                queryClient.invalidateQueries({ queryKey: ['services-with-stats'] })
 
                 setIsDuplicateDialogOpen(false)
                 setStationToDuplicate(null)
@@ -1012,19 +1014,20 @@ export function SettingsStationsSection() {
             }
 
 
+            // Invalidate RTK Query cache so the calendar board reflects the changes immediately
+            // This must happen BEFORE the toast and dialog close to ensure immediate refetch
+            dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Station"]))
+            dispatch(supabaseApi.util.invalidateTags(["StationWorkingHours", "ShiftRestrictions"]))
+            // Invalidate React Query cache and refetch immediately
+            await queryClient.invalidateQueries({ queryKey: ['stations'] })
+            await queryClient.invalidateQueries({ queryKey: ['services-with-stats'] })
+
             toast({
                 title: "הצלחה",
                 description: params.mode === "new"
                     ? "העמדה שוכפלה בהצלחה עם כל הערכים"
                     : "הנתונים הועתקו לעמדה הקיימת בהצלחה",
             })
-
-            // Invalidate RTK Query cache so the calendar board reflects the changes immediately
-            dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Station"]))
-            dispatch(supabaseApi.util.invalidateTags(["StationWorkingHours", "ShiftRestrictions"]))
-            // Invalidate React Query cache
-            queryClient.invalidateQueries({ queryKey: ['stations'] })
-            queryClient.invalidateQueries({ queryKey: ['services-with-stats'] })
 
             setIsDuplicateDialogOpen(false)
             setStationToDuplicate(null)

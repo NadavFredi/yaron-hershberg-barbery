@@ -51,16 +51,6 @@ interface SentReminder {
     appointment?: {
         id: string
         start_at: string
-        dog_id: string
-        dog?: {
-            id: string
-            name: string
-            breed_id: string | null
-            breed?: {
-                id: string
-                name: string
-            } | null
-        }
     }
     reminder?: {
         id: string
@@ -92,16 +82,13 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
     const [searchStartTime, setSearchStartTime] = useState<string>("")
     const [searchEndTime, setSearchEndTime] = useState<string>("")
     const [searchCustomer, setSearchCustomer] = useState<string>("")
-    const [searchBreed, setSearchBreed] = useState<string>("")
     const [searchCustomerCategory, setSearchCustomerCategory] = useState<string>("all")
-    const [searchBreedCategory, setSearchBreedCategory] = useState<string>("all")
     const [searchAppointmentType, setSearchAppointmentType] = useState<string>("all")
     const [searchSuccess, setSearchSuccess] = useState<string>("all")
     const [searchReminderType, setSearchReminderType] = useState<string>("all") // "all" | "manual" | "automatic"
 
     // Filter options
     const [customerCategories, setCustomerCategories] = useState<Array<{ id: string; name: string }>>([])
-    const [breedCategories, setBreedCategories] = useState<Array<{ id: string; name: string }>>([])
 
     useEffect(() => {
         loadData()
@@ -123,19 +110,6 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
             } else {
                 console.log("[SentRemindersTable] Loaded customer types:", customerTypesData?.length || 0)
                 setCustomerCategories(customerTypesData || [])
-            }
-
-            // Load dog categories
-            const { data: dogCategoriesData, error: dogCategoriesError } = await supabase
-                .from("dog_categories")
-                .select("id, name")
-                .order("name")
-
-            if (dogCategoriesError) {
-                console.error("[SentRemindersTable] Error loading dog categories:", dogCategoriesError)
-            } else {
-                console.log("[SentRemindersTable] Loaded dog categories:", dogCategoriesData?.length || 0)
-                setBreedCategories(dogCategoriesData || [])
             }
         } catch (error) {
             console.error("[SentRemindersTable] Failed to load filter options:", error)
@@ -205,43 +179,12 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
                             .from("grooming_appointments")
                             .select(`
                                 id,
-                                start_at,
-                                dog_id,
-                                dog:dogs (
-                                    id,
-                                    name,
-                                    breed_id,
-                                    breed:breeds (
-                                        id,
-                                        name
-                                    )
-                                )
+                                start_at
                             `)
                             .eq("id", reminder.appointment_id)
                             .single()
 
                         appointmentData = groomingData
-                    } else if (reminder.appointment_type === "daycare") {
-                        const { data: daycareData } = await supabase
-                            .from("daycare_appointments")
-                            .select(`
-                                id,
-                                start_at,
-                                dog_id,
-                                dog:dogs (
-                                    id,
-                                    name,
-                                    breed_id,
-                                    breed:breeds (
-                                        id,
-                                        name
-                                    )
-                                )
-                            `)
-                            .eq("id", reminder.appointment_id)
-                            .single()
-
-                        appointmentData = daycareData
                     }
 
                     return {
@@ -314,15 +257,6 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
                 }
             }
 
-            // Breed filter
-            if (searchBreed) {
-                const breedName = reminder.appointment?.dog?.breed?.name?.toLowerCase() || ""
-                const searchLower = searchBreed.toLowerCase()
-                if (!breedName.includes(searchLower)) {
-                    return false
-                }
-            }
-
             // Customer category filter
             if (searchCustomerCategory !== "all") {
                 if (searchCustomerCategory === "classification") {
@@ -335,9 +269,6 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
                     }
                 }
             }
-
-            // Breed category filter (would need to join through breed_dog_categories)
-            // For now, we'll skip this as it requires additional joins
 
             // Appointment type filter
             if (searchAppointmentType !== "all") {
@@ -356,23 +287,21 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
 
             return true
         })
-    }, [sentReminders, searchDate, searchStartTime, searchEndTime, searchCustomer, searchBreed, searchCustomerCategory, searchBreedCategory, searchAppointmentType, searchSuccess, searchReminderType])
+    }, [sentReminders, searchDate, searchStartTime, searchEndTime, searchCustomer, searchCustomerCategory, searchAppointmentType, searchSuccess, searchReminderType])
 
     const clearFilters = () => {
         setSearchDate(null)
         setSearchStartTime("")
         setSearchEndTime("")
         setSearchCustomer("")
-        setSearchBreed("")
         setSearchCustomerCategory("all")
-        setSearchBreedCategory("all")
         setSearchAppointmentType("all")
         setSearchSuccess("all")
         setSearchReminderType("all")
     }
 
-    const hasActiveFilters = searchDate || searchStartTime || searchEndTime || searchCustomer || searchBreed ||
-        searchCustomerCategory !== "all" || searchBreedCategory !== "all" ||
+    const hasActiveFilters = searchDate || searchStartTime || searchEndTime || searchCustomer ||
+        searchCustomerCategory !== "all" ||
         searchAppointmentType !== "all" || searchSuccess !== "all" || searchReminderType !== "all"
 
     const getClassificationLabel = (classification: string) => {
@@ -485,21 +414,6 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">גזע</label>
-                            <div className="relative">
-                                <Search className="absolute right-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    type="text"
-                                    value={searchBreed}
-                                    onChange={(e) => setSearchBreed(e.target.value)}
-                                    placeholder="חפש גזע..."
-                                    dir="rtl"
-                                    className="text-right pr-8"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
                             <label className="text-sm font-medium">קטגוריית לקוח</label>
                             <Select value={searchCustomerCategory} onValueChange={setSearchCustomerCategory}>
                                 <SelectTrigger className="text-right" dir="rtl">
@@ -579,10 +493,6 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
                                     <TableHead className="text-right">טלפון</TableHead>
                                     {!hideColumns.customerCategory && (
                                         <TableHead className="text-right">קטגוריית לקוח</TableHead>
-                                    )}
-                                    <TableHead className="text-right">כלב</TableHead>
-                                    {!hideColumns.breed && (
-                                        <TableHead className="text-right">גזע</TableHead>
                                     )}
                                     <TableHead className="text-right">סוג תור</TableHead>
                                     <TableHead className="text-right">תאריך תור</TableHead>
