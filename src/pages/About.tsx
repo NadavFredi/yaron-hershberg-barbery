@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "../components/ui/badge.tsx"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card.tsx"
 import { cn } from "../lib/utils.ts"
-import { useBreeds } from "../hooks/useBreeds.ts"
+import { useServicesWithStats } from "../hooks/useServices.ts"
 import { AutocompleteFilter } from "../components/AutocompleteFilter.tsx"
-import { groomingPriceCopy, groomingPriceSections } from "../copy/pricing.ts"
-import { Leaf, Scissors, DollarSign, Sparkles, Dog } from "lucide-react"
+import { barberyPriceCopy, barberyPriceSections } from "../copy/pricing.ts"
+import { Scissors, DollarSign, Sparkles } from "lucide-react"
 
-type ExperienceId = "garden" | "barber" | "pricing"
+type ExperienceId = "barber" | "pricing"
 type ExperienceType = "fillout" | "pricing"
 
 interface ExperienceOption {
@@ -24,16 +24,6 @@ interface ExperienceOption {
 const FILL_OUT_SCRIPT_SRC = "https://server.fillout.com/embed/v1/"
 
 const experienceOptions: Record<ExperienceId, ExperienceOption> = {
-    garden: {
-        id: "garden",
-        type: "fillout",
-        title: "הכירו את גן הכלבים שלנו",
-        subtitle: "שגרה שמלאה באהבה, משחקים ולמידה",
-        description: "קבלו הצצה ליום של כלב בגן B LOVED - התכנית, הצוות והאווירה שאנחנו בונים לכל חבר על ארבע.",
-        icon: <Leaf className="h-6 w-6" />,
-        filloutId: "o4iG1m9JH9us",
-        accent: "from-emerald-50 to-emerald-100"
-    },
     barber: {
         id: "barber",
         type: "fillout",
@@ -48,23 +38,25 @@ const experienceOptions: Record<ExperienceId, ExperienceOption> = {
         id: "pricing",
         type: "pricing",
         title: "השקיפות שלנו בתמחור",
-        subtitle: "בחרו גזע וקבלו טווח מחיר מיידי",
-        description: "התאימו את חוויית הטיפוח לצרכים של הכלב שלכם. בחרו גזע, ראו את טווח המחירים המשוער וגלו מה משפיע על התמחור.",
+        subtitle: "בחרו שירות וקבלו טווח מחיר מיידי",
+        description: "התאימו את חוויית הטיפוח לצרכים שלכם. בחרו שירות, ראו את טווח המחירים המשוער וגלו מה משפיע על התמחור.",
         icon: <DollarSign className="h-6 w-6" />,
         accent: "from-amber-50 to-orange-100"
     }
 }
 
-type PricingBreed = {
+type PricingService = {
     id: string
     name: string
-    size_class?: string | null
-    min_groom_price?: number | null
-    max_groom_price?: number | null
+    priceRange: {
+        min: number
+        max: number
+    }
+    averageTime: number
 }
 
 export default function About() {
-    const [selectedId, setSelectedId] = useState<ExperienceId>("garden")
+    const [selectedId, setSelectedId] = useState<ExperienceId>("barber")
 
     const selectedExperience = useMemo(
         () => experienceOptions[selectedId],
@@ -82,7 +74,7 @@ export default function About() {
                         רוצים לדעת על מה כולם מדברים?
                     </h1>
                     <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                        בחרו אם תרצו לגלות עוד על גן הכלבים שלנו או על המספרה המקצועית. כל בחירה תפתח עבורכם חוויית עומק ממוקדת ומהנה.
+                        גלו עוד על המספרה המקצועית שלנו ועל השירותים שאנחנו מציעים. כל בחירה תפתח עבורכם חוויית עומק ממוקדת ומהנה.
                     </p>
                 </header>
 
@@ -208,66 +200,61 @@ function FilloutEmbed({ filloutId, accent }: FilloutEmbedProps) {
 }
 
 function PricingExperience() {
-    const { data: breeds, isLoading, isError, error } = useBreeds()
-    const [selectedBreedId, setSelectedBreedId] = useState<string | undefined>(undefined)
+    const { data: services, isLoading, isError, error } = useServicesWithStats()
+    const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>(undefined)
     const [inputValue, setInputValue] = useState("")
 
-    const sortedBreeds = useMemo<PricingBreed[]>(() => {
-        if (!breeds?.length) {
+    const sortedServices = useMemo<PricingService[]>(() => {
+        if (!services?.length) {
             return []
         }
 
-        const normalized = (breeds as unknown[]).map((breed) => {
-            const record = breed as PricingBreed & { [key: string]: unknown }
-            return {
-                id: record.id,
-                name: record.name,
-                size_class: (record.size_class ?? null) as string | null,
-                min_groom_price: typeof record.min_groom_price === "number" ? record.min_groom_price : null,
-                max_groom_price: typeof record.max_groom_price === "number" ? record.max_groom_price : null
-            }
-        })
+        const normalized = services.map((service) => ({
+            id: service.id,
+            name: service.name,
+            priceRange: service.priceRange,
+            averageTime: service.averageTime
+        }))
 
         return normalized.sort((a, b) => a.name.localeCompare(b.name, "he"))
-    }, [breeds])
+    }, [services])
 
     useEffect(() => {
-        if (sortedBreeds.length) {
-            console.log("🐾 [PricingExperience] נטענו", sortedBreeds.length, "גזעים להצגת מחירים")
+        if (sortedServices.length) {
+            console.log("💇 [PricingExperience] נטענו", sortedServices.length, "שירותים להצגת מחירים")
         }
-    }, [sortedBreeds])
+    }, [sortedServices])
 
-    const selectedBreed = useMemo<PricingBreed | null>(() => {
-        return sortedBreeds.find((breed) => breed.id === selectedBreedId) ?? null
-    }, [selectedBreedId, sortedBreeds])
+    const selectedService = useMemo<PricingService | null>(() => {
+        return sortedServices.find((service) => service.id === selectedServiceId) ?? null
+    }, [selectedServiceId, sortedServices])
 
     useEffect(() => {
-        if (selectedBreed) {
-            console.log("💡 [PricingExperience] הגזע שנבחר עבור תמחור:", {
-                id: selectedBreed.id,
-                name: selectedBreed.name,
-                size: selectedBreed.size_class,
-                minPrice: selectedBreed.min_groom_price,
-                maxPrice: selectedBreed.max_groom_price
+        if (selectedService) {
+            console.log("💡 [PricingExperience] השירות שנבחר עבור תמחור:", {
+                id: selectedService.id,
+                name: selectedService.name,
+                priceRange: selectedService.priceRange,
+                averageTime: selectedService.averageTime
             })
         }
-    }, [selectedBreed])
+    }, [selectedService])
 
-    const searchBreeds = (term: string) => {
-        if (!sortedBreeds.length) {
+    const searchServices = (term: string) => {
+        if (!sortedServices.length) {
             return Promise.resolve<string[]>([])
         }
 
         const needle = term.trim().toLowerCase()
         if (!needle) {
-            return Promise.resolve(sortedBreeds.slice(0, 8).map((breed) => breed.name))
+            return Promise.resolve(sortedServices.slice(0, 8).map((service) => service.name))
         }
 
         return Promise.resolve(
-            sortedBreeds
-                .filter((breed) => breed.name.toLowerCase().includes(needle))
+            sortedServices
+                .filter((service) => service.name.toLowerCase().includes(needle))
                 .slice(0, 8)
-                .map((breed) => breed.name)
+                .map((service) => service.name)
         )
     }
 
@@ -279,32 +266,27 @@ function PricingExperience() {
         return `₪${price.toLocaleString("he-IL")}`
     }
 
-    const translateSize = (size: string | null | undefined) => {
-        if (!size) {
-            return "גודל מותאם אישית"
+    const formatTime = (minutes: number) => {
+        if (minutes < 60) {
+            return `${minutes} דקות`
         }
-
-        switch (size.toLowerCase()) {
-            case "small":
-                return "כלבים קטנים"
-            case "medium":
-                return "כלבים בינוניים"
-            case "large":
-                return "כלבים גדולים"
-            default:
-                return "גודל מותאם אישית"
+        const hours = Math.floor(minutes / 60)
+        const mins = minutes % 60
+        if (mins === 0) {
+            return `${hours} ${hours === 1 ? "שעה" : "שעות"}`
         }
+        return `${hours} ${hours === 1 ? "שעה" : "שעות"} ו-${mins} דקות`
     }
 
-    const hasPriceData =
-        typeof selectedBreed?.min_groom_price === "number" || typeof selectedBreed?.max_groom_price === "number"
+    const hasPriceData = selectedService?.priceRange &&
+        (typeof selectedService.priceRange.min === "number" || typeof selectedService.priceRange.max === "number")
 
     return (
         <div className="space-y-4 text-right" dir="rtl">
 
             {isLoading ? (
                 <div className="rounded-2xl border border-blue-100 bg-white/90 p-4 text-sm text-gray-600">
-                    טוען רשימת גזעים...
+                    טוען רשימת שירותים...
                 </div>
             ) : null}
 
@@ -315,41 +297,41 @@ function PricingExperience() {
                 </div>
             ) : null}
 
-            {!isLoading && !isError && !sortedBreeds.length ? (
+            {!isLoading && !isError && !sortedServices.length ? (
                 <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
                     עוד לא הזנו מחירים בטבלה – דברו איתנו כדי לקבל הצעת מחיר מותאמת.
                 </div>
             ) : null}
 
-            {!isLoading && !isError && sortedBreeds.length ? (
+            {!isLoading && !isError && sortedServices.length ? (
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <span className="text-sm font-medium text-gray-800">
-                            חפשו גזע והציגו את טווח המחירים שלנו
+                            חפשו שירות והציגו את טווח המחירים שלנו
                         </span>
                         <AutocompleteFilter
                             value={inputValue}
                             onChange={(value) => {
                                 setInputValue(value)
                                 if (!value.trim()) {
-                                    setSelectedBreedId(undefined)
+                                    setSelectedServiceId(undefined)
                                     return
                                 }
                             }}
                             onSelect={(value) => {
                                 setInputValue(value)
-                                const breed = sortedBreeds.find((option) => option.name === value)
-                                if (breed) {
-                                    setSelectedBreedId(breed.id)
-                                    console.log("🎯 [PricingExperience] משתמש בחר גזע חדש:", {
-                                        id: breed.id,
-                                        name: breed.name
+                                const service = sortedServices.find((option) => option.name === value)
+                                if (service) {
+                                    setSelectedServiceId(service.id)
+                                    console.log("🎯 [PricingExperience] משתמש בחר שירות חדש:", {
+                                        id: service.id,
+                                        name: service.name
                                     })
                                 }
                             }}
-                            placeholder="הקלידו את שם הגזע..."
+                            placeholder="הקלידו את שם השירות..."
                             className="rounded-2xl border border-blue-200 bg-white/90 py-5 text-base font-medium text-gray-900"
-                            searchFn={searchBreeds}
+                            searchFn={searchServices}
                             minSearchLength={1}
                             debounceMs={150}
                             initialLoadOnMount
@@ -358,7 +340,7 @@ function PricingExperience() {
                     </div>
 
                     <div className="grid gap-3 md:grid-cols-3">
-                        {groomingPriceSections.map((section) => (
+                        {barberyPriceSections.map((section) => (
                             <div
                                 key={section.title}
                                 className="rounded-2xl border border-blue-50 bg-white/95 p-4 shadow-sm transition hover:shadow-md"
@@ -366,14 +348,11 @@ function PricingExperience() {
                                 <h4 className="text-sm font-semibold text-gray-900">{section.title}</h4>
                                 <div className="mt-2 space-y-2 text-xs text-gray-600">
                                     {section.paragraphs.map((paragraph, index) => {
-                                        const isLastParagraph = index === section.paragraphs.length - 1
-                                        const needsSparkles = section.title === "מה כולל הטיפול?" && index === 0
-                                        const needsDog = section.title === "כמה זמן זה לוקח?" && isLastParagraph
+                                        const needsSparkles = section.title === "מה כולל השירות?" && index === 0
                                         return (
                                             <p key={`${section.title}-${index}`} className="flex items-center gap-1.5">
                                                 {paragraph}
                                                 {needsSparkles && <Sparkles className="h-3 w-3 inline text-blue-500" />}
-                                                {needsDog && <Dog className="h-3 w-3 inline text-blue-500" />}
                                             </p>
                                         )
                                     })}
@@ -382,26 +361,31 @@ function PricingExperience() {
                         ))}
                     </div>
 
-                    {selectedBreed ? (
+                    {selectedService ? (
                         <div className="space-y-3 rounded-2xl border border-blue-200 bg-white/95 p-4">
                             <div className="flex flex-col gap-1">
                                 <span className="text-sm text-gray-500">
-                                    טווח המחירים המשוער ל{translateSize(selectedBreed.size_class)}
+                                    טווח המחירים המשוער ל{selectedService.name}
                                 </span>
                                 {hasPriceData ? (
                                     <div className="text-2xl font-bold text-blue-700">
-                                        {formatPrice(selectedBreed.min_groom_price)} – {formatPrice(selectedBreed.max_groom_price)}
+                                        {formatPrice(selectedService.priceRange.min)} – {formatPrice(selectedService.priceRange.max)}
                                     </div>
                                 ) : (
                                     <div className="text-sm text-amber-700">
-                                        עוד לא הזנו טווח מחירים לגזע {selectedBreed.name}. נשמח להתאים הצעת מחיר אישית.
+                                        עוד לא הזנו טווח מחירים לשירות {selectedService.name}. נשמח להתאים הצעת מחיר אישית.
+                                    </div>
+                                )}
+                                {selectedService.averageTime > 0 && (
+                                    <div className="text-sm text-gray-600 mt-2">
+                                        משך זמן ממוצע: {formatTime(selectedService.averageTime)}
                                     </div>
                                 )}
                             </div>
 
                             <div className="space-y-1 text-xs text-gray-600">
-                                <p>{groomingPriceCopy.hourly}</p>
-                                <p>{groomingPriceCopy.final}</p>
+                                <p>{barberyPriceCopy.hourly}</p>
+                                <p>{barberyPriceCopy.final}</p>
                             </div>
                         </div>
                     ) : null}
