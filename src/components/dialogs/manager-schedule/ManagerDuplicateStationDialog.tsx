@@ -90,8 +90,8 @@ export function ManagerDuplicateStationDialog() {
                     if (insertError) throw insertError
                 }
 
-                // Copy breed relations if requested
-                if (groomingServiceId && params.copyBreedRelations) {
+                // Copy service relations if requested
+                if (groomingServiceId && params.copyServiceRelations) {
                     // Copy service_station_matrix
                     const { data: originalMatrixData } = await supabase
                         .from("service_station_matrix")
@@ -108,39 +108,8 @@ export function ManagerDuplicateStationDialog() {
                             service_id: groomingServiceId,
                             station_id: targetStationId,
                             base_time_minutes: originalBaseTime,
-                            price: 0,
+                            price_adjustment: 0,
                         }, { onConflict: "service_id,station_id" })
-
-                    // Copy station_breed_rules
-                    const { data: originalRules } = await supabase
-                        .from("station_breed_rules")
-                        .select("*")
-                        .eq("station_id", sourceStationId)
-
-                    if (originalRules && originalRules.length > 0) {
-                        for (const rule of originalRules) {
-                            const { data: breedModifier } = await supabase
-                                .from("breed_modifiers")
-                                .select("time_modifier_minutes")
-                                .eq("service_id", groomingServiceId)
-                                .eq("breed_id", rule.breed_id)
-                                .maybeSingle()
-
-                            const defaultTime = breedModifier?.time_modifier_minutes || 60
-                            const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
-
-                            await supabase
-                                .from("station_breed_rules")
-                                .upsert({
-                                    station_id: targetStationId,
-                                    breed_id: rule.breed_id,
-                                    is_active: rule.is_active ?? true,
-                                    remote_booking_allowed: rule.remote_booking_allowed ?? false,
-                                    requires_staff_approval: rule.requires_staff_approval ?? false,
-                                    duration_modifier_minutes: durationMinutes,
-                                }, { onConflict: "station_id,breed_id" })
-                        }
-                    }
                 }
 
                 toast({
@@ -182,8 +151,8 @@ export function ManagerDuplicateStationDialog() {
                         }
                     }
 
-                    // Copy breed relations if requested
-                    if (groomingServiceId && params.copyBreedRelations) {
+                    // Copy service relations if requested
+                    if (groomingServiceId && params.copyServiceRelations) {
                         const { data: originalMatrixData } = await supabase
                             .from("service_station_matrix")
                             .select("base_time_minutes")
@@ -199,38 +168,8 @@ export function ManagerDuplicateStationDialog() {
                                 service_id: groomingServiceId,
                                 station_id: targetId,
                                 base_time_minutes: originalBaseTime,
-                                price: 0,
+                                price_adjustment: 0,
                             }, { onConflict: "service_id,station_id" })
-
-                        const { data: originalRules } = await supabase
-                            .from("station_breed_rules")
-                            .select("*")
-                            .eq("station_id", sourceStationId)
-
-                        if (originalRules && originalRules.length > 0) {
-                            for (const rule of originalRules) {
-                                const { data: breedModifier } = await supabase
-                                    .from("breed_modifiers")
-                                    .select("time_modifier_minutes")
-                                    .eq("service_id", groomingServiceId)
-                                    .eq("breed_id", rule.breed_id)
-                                    .maybeSingle()
-
-                                const defaultTime = breedModifier?.time_modifier_minutes || 60
-                                const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
-
-                                await supabase
-                                    .from("station_breed_rules")
-                                    .upsert({
-                                        station_id: targetId,
-                                        breed_id: rule.breed_id,
-                                        is_active: rule.is_active ?? true,
-                                        remote_booking_allowed: rule.remote_booking_allowed ?? false,
-                                        requires_staff_approval: rule.requires_staff_approval ?? false,
-                                        duration_modifier_minutes: durationMinutes,
-                                    }, { onConflict: "station_id,breed_id" })
-                            }
-                        }
                     }
                 }
 

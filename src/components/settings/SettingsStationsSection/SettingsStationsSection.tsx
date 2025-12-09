@@ -800,7 +800,7 @@ export function SettingsStationsSection() {
         name?: string
         targetStationIds?: string[]
         copyDetails: boolean
-        copyBreedRelations: boolean
+        copyServiceRelations: boolean
     }) => {
         if (!stationToDuplicate) return
 
@@ -866,6 +866,28 @@ export function SettingsStationsSection() {
                         .insert(payload)
 
                     if (insertAllowedError) throw insertAllowedError
+                }
+
+                // Copy service relations if requested
+                if (groomingServiceId && params.copyServiceRelations) {
+                    const { data: originalMatrixData } = await supabase
+                        .from("service_station_matrix")
+                        .select("base_time_minutes, price_adjustment")
+                        .eq("service_id", groomingServiceId)
+                        .eq("station_id", sourceStationId)
+                        .maybeSingle()
+
+                    const originalBaseTime = originalMatrixData?.base_time_minutes || 0
+                    const originalPriceAdjustment = originalMatrixData?.price_adjustment || 0
+
+                    await supabase
+                        .from("service_station_matrix")
+                        .upsert({
+                            service_id: groomingServiceId,
+                            station_id: targetStationId,
+                            base_time_minutes: originalBaseTime,
+                            price_adjustment: originalPriceAdjustment,
+                        }, { onConflict: "service_id,station_id" })
                 }
             } else {
                 // Copy to existing stations
@@ -933,19 +955,20 @@ export function SettingsStationsSection() {
                         }
                     }
 
-                    // Copy breed relations if requested
-                    if (groomingServiceId && params.copyBreedRelations) {
+                    // Copy service relations if requested
+                    if (groomingServiceId && params.copyServiceRelations) {
                         // Get the original station's base_time_minutes from service_station_matrix
                         const { data: originalMatrixData } = await supabase
                             .from("service_station_matrix")
-                            .select("base_time_minutes")
+                            .select("base_time_minutes, price_adjustment")
                             .eq("service_id", groomingServiceId)
                             .eq("station_id", sourceStationId)
                             .maybeSingle()
 
                         const originalBaseTime = originalMatrixData?.base_time_minutes || 0
+                        const originalPriceAdjustment = originalMatrixData?.price_adjustment || 0
 
-                        // Copy the base_time_minutes to the target station
+                        // Copy the base_time_minutes and price_adjustment to the target station
                         const { error: baseTimeError } = await supabase
                             .from("service_station_matrix")
                             .upsert(
@@ -953,7 +976,7 @@ export function SettingsStationsSection() {
                                     service_id: groomingServiceId,
                                     station_id: targetId,
                                     base_time_minutes: originalBaseTime,
-                                    price: 0,
+                                    price_adjustment: originalPriceAdjustment,
                                 },
                                 { onConflict: "service_id,station_id" }
                             )
