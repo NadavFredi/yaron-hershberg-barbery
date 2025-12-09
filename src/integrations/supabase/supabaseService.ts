@@ -1415,7 +1415,6 @@ export async function getSingleManagerAppointment(
         ${serviceType === "grooming" ? "appointment_kind," : ""}
         amount_due,
         customer_id,
-        // Removed garden-specific fields - barbery system only has grooming appointments
         created_at,
         updated_at,
         stations(id, name),
