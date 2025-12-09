@@ -33,9 +33,7 @@ function toDateKey(date: Date): string {
 }
 
 function getWeekday(date: Date): string {
-  return new Intl.DateTimeFormat("en-GB", { timeZone: BUSINESS_TIME_ZONE, weekday: "long" })
-    .format(date)
-    .toLowerCase()
+  return new Intl.DateTimeFormat("en-GB", { timeZone: BUSINESS_TIME_ZONE, weekday: "long" }).format(date).toLowerCase()
 }
 
 function minutesInBusinessTz(date: Date): number {
@@ -122,38 +120,75 @@ async function fetchStations(serviceId: string) {
         slot_interval_minutes,
         is_active
       )
-    `,
+    `
     )
     .eq("service_id", serviceId)
     .eq("is_active", true)
 
   if (error) {
+    console.error(`[get-available-times] Failed to load station matrix for service ${serviceId}:`, error.message)
     throw new Error(`Failed to load station matrix: ${error.message}`)
   }
 
-  return (
-    data
-      ?.filter((row) => row.stations?.is_active !== false && row.remote_booking_allowed !== false)
-      .map((row) => ({
-        stationId: row.station_id as string,
-        name: (row.stations as any)?.name as string,
-        duration: Number(row.base_time_minutes ?? DEFAULT_DURATION),
-        slotInterval: Number((row.stations as any)?.slot_interval_minutes ?? DEFAULT_SLOT_INTERVAL),
-        breakBetween: Number((row.stations as any)?.break_between_treatments_minutes ?? 0),
-      })) ?? []
+  interface StationData {
+    id: string
+    name: string
+    break_between_treatments_minutes: number | null
+    slot_interval_minutes: number | null
+    is_active: boolean | null
+  }
+
+  interface StationRow {
+    station_id: string
+    base_time_minutes: number | null
+    remote_booking_allowed: boolean | null
+    stations: StationData[] | null
+  }
+
+  const filtered =
+    (data as unknown as StationRow[] | null)?.filter((row) => {
+      // Supabase returns the relation as an array, take the first element
+      const station = row.stations?.[0]
+      const stationActive = station?.is_active !== false
+      const remoteBookingAllowed = row.remote_booking_allowed === true // Explicitly require true
+      return stationActive && remoteBookingAllowed
+    }) ?? []
+
+  console.log(
+    `[get-available-times] Service ${serviceId}: Found ${data?.length ?? 0} matrix entries, ${
+      filtered.length
+    } after filtering (active + remote_booking_allowed=true)`
   )
+
+  return filtered.map((row) => {
+    // Supabase returns the relation as an array, take the first element
+    const station = row.stations?.[0]
+    return {
+      stationId: row.station_id,
+      name: station?.name ?? "",
+      duration: Number(row.base_time_minutes ?? DEFAULT_DURATION),
+      slotInterval: Number(station?.slot_interval_minutes ?? DEFAULT_SLOT_INTERVAL),
+      breakBetween: Number(station?.break_between_treatments_minutes ?? 0),
+    }
+  })
 }
 
 async function fetchWorkingHours(stationIds: string[]) {
-  if (stationIds.length === 0) return []
+  if (stationIds.length === 0) {
+    console.log("[get-available-times] No station IDs provided, skipping working hours fetch")
+    return []
+  }
   const { data, error } = await supabase
     .from("station_working_hours")
     .select("station_id, weekday, open_time, close_time")
     .in("station_id", stationIds)
 
   if (error) {
+    console.error(`[get-available-times] Failed to fetch station working hours:`, error.message)
     throw new Error(`Failed to fetch station working hours: ${error.message}`)
   }
+
+  console.log(`[get-available-times] Found ${data?.length ?? 0} working hour entries for ${stationIds.length} stations`)
   return data ?? []
 }
 
@@ -161,14 +196,18 @@ async function fetchAppointments(stationIds: string[], startDate: Date, endDate:
   if (stationIds.length === 0) return []
   const { data, error } = await supabase
     .from("appointments")
-    .select("id, station_id, start_at, end_at")
+    .select("id, station_id, start_at, end_at, status")
     .in("station_id", stationIds)
     .gte("start_at", startDate.toISOString())
     .lte("end_at", endDate.toISOString())
+    .neq("status", "cancelled") // Exclude cancelled appointments
 
   if (error) {
+    console.error(`[get-available-times] Failed to fetch appointments:`, error.message)
     throw new Error(`Failed to fetch existing appointments: ${error.message}`)
   }
+
+  console.log(`[get-available-times] Found ${data?.length ?? 0} active appointments (excluding cancelled)`)
   return data ?? []
 }
 
@@ -195,6 +234,13 @@ function dateFromKey(key: string): Date {
 async function computeAvailability(serviceId: string, startDate: Date, endDate: Date) {
   const stations = await fetchStations(serviceId)
   const stationIds = stations.map((s) => s.stationId)
+
+  if (stations.length === 0) {
+    console.warn(
+      `[get-available-times] No stations found for service ${serviceId} with active matrix entries and remote_booking_allowed=true`
+    )
+  }
+
   const [workingHours, appointments, unavailability] = await Promise.all([
     fetchWorkingHours(stationIds),
     fetchAppointments(stationIds, startDate, endDate),
@@ -209,6 +255,21 @@ async function computeAvailability(serviceId: string, startDate: Date, endDate: 
     intervals.push({ start: parseMinutes(wh.open_time), end: parseMinutes(wh.close_time) })
     stationMap.set(weekday, intervals)
     workingByStation.set(wh.station_id, stationMap)
+  }
+
+  // Log summary of working hours by station
+  for (const station of stations) {
+    const stationWorkingHours = workingByStation.get(station.stationId)
+    const weekdayCount = stationWorkingHours ? Array.from(stationWorkingHours.keys()).length : 0
+    if (weekdayCount === 0) {
+      console.warn(
+        `[get-available-times] Station ${station.stationId} (${station.name}) has no working hours configured`
+      )
+    } else {
+      console.log(
+        `[get-available-times] Station ${station.stationId} (${station.name}) has working hours for ${weekdayCount} weekdays`
+      )
+    }
   }
 
   const blockersByDateAndStation = new Map<string, Map<string, Interval[]>>()
@@ -275,6 +336,8 @@ serve(async (req: Request) => {
     const { stations, workingByStation, blockersByDateAndStation, appointmentsByDateAndStation } =
       await computeAvailability(effectiveServiceId, today, endDate)
 
+    console.log(`[get-available-times] Computing availability for ${stations.length} stations over ${daysAhead} days`)
+
     const allDates: string[] = []
     for (let i = 0; i <= daysAhead; i++) {
       const d = new Date(today)
@@ -300,7 +363,7 @@ serve(async (req: Request) => {
         const slots = buildSlots(
           availableWindows,
           station.duration + station.breakBetween,
-          Math.max(station.slotInterval, 5),
+          Math.max(station.slotInterval, 5)
         ).map((slot) => ({ ...slot, stationId: station.stationId }))
 
         result.push(...slots)
@@ -337,6 +400,19 @@ serve(async (req: Request) => {
       })
       .filter((d) => d.available)
 
+    console.log(
+      `[get-available-times] Found ${availableDates.length} available dates out of ${allDates.length} total dates`
+    )
+
+    if (availableDates.length === 0 && stations.length > 0) {
+      console.warn(
+        `[get-available-times] No available dates found. This could mean:\n` +
+          `  - Stations don't have working hours configured\n` +
+          `  - All time slots are blocked by appointments or unavailability\n` +
+          `  - Service-station matrix entries don't have remote_booking_allowed=true`
+      )
+    }
+
     return new Response(JSON.stringify({ success: true, availableDates }), {
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       status: 200,
@@ -345,7 +421,7 @@ serve(async (req: Request) => {
     console.error("Error processing availability:", error)
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Internal server error" }),
-      { headers: { ...CORS_HEADERS, "Content-Type": "application/json" }, status: 500 },
+      { headers: { ...CORS_HEADERS, "Content-Type": "application/json" }, status: 500 }
     )
   }
 })
