@@ -109,14 +109,16 @@ function PendingSubActionRow({ subAction, onRemove }: PendingSubActionRowProps) 
                 </div>
             </TableCell>
             <TableCell>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onRemove}
-                    className="h-6 w-6 p-0 text-red-600"
-                >
-                    <X className="h-3 w-3" />
-                </Button>
+                <div className="flex items-center gap-2 justify-end">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onRemove}
+                        className="h-6 w-6 p-0 text-red-600"
+                    >
+                        <X className="h-3 w-3" />
+                    </Button>
+                </div>
             </TableCell>
         </TableRow>
     )
@@ -639,6 +641,33 @@ export default function ServicesListPage() {
     const saveSubActionEdit = async (subActionId: string, field: string, value: string | number) => {
         if (!editingField) return
 
+        // Optimistic update
+        const previousServices = queryClient.getQueryData<Service[]>(["services"])
+        let optimisticServices = previousServices
+
+        if (previousServices) {
+            optimisticServices = previousServices.map((s) => {
+                if (s.service_sub_actions) {
+                    const updatedSubActions = s.service_sub_actions.map((sa) => {
+                        if (sa.id === subActionId) {
+                            if (field === "name") {
+                                return { ...sa, name: String(value).trim() }
+                            } else if (field === "description") {
+                                return { ...sa, description: String(value).trim() || null }
+                            } else if (field === "duration") {
+                                return { ...sa, duration: Number(value) }
+                            }
+                        }
+                        return sa
+                    })
+                    return { ...s, service_sub_actions: updatedSubActions }
+                }
+                return s
+            })
+
+            queryClient.setQueryData<Service[]>(["services"], optimisticServices)
+        }
+
         try {
             const updateData: {
                 name?: string
@@ -659,15 +688,111 @@ export default function ServicesListPage() {
                 ...updateData,
             })
 
-            toast({
-                title: "הצלחה",
-                description: "פעולת המשנה עודכנה בהצלחה",
-            })
-
             cancelInlineEdit()
+            // Silently refetch to ensure sync
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["services"] })
+            }, 100)
         } catch (error: unknown) {
             console.error("Error updating sub-action:", error)
+            
+            // Revert optimistic update on error
+            if (previousServices) {
+                queryClient.setQueryData<Service[]>(["services"], previousServices)
+            }
+
             const errorMessage = error instanceof Error ? error.message : "לא ניתן לעדכן את פעולת המשנה"
+            toast({
+                title: "שגיאה",
+                description: errorMessage,
+                variant: "destructive",
+            })
+            cancelInlineEdit()
+        }
+    }
+    
+    const handleSubActionActiveChange = async (subActionId: string, checked: boolean) => {
+        // Optimistic update
+        const previousServices = queryClient.getQueryData<Service[]>(["services"])
+        
+        if (previousServices) {
+            const optimisticServices = previousServices.map((s) => {
+                if (s.service_sub_actions) {
+                    const updatedSubActions = s.service_sub_actions.map((sa) => {
+                        if (sa.id === subActionId) {
+                            return { ...sa, is_active: checked }
+                        }
+                        return sa
+                    })
+                    return { ...s, service_sub_actions: updatedSubActions }
+                }
+                return s
+            })
+
+            queryClient.setQueryData<Service[]>(["services"], optimisticServices)
+        }
+
+        try {
+            await updateSubAction.mutateAsync({
+                subActionId,
+                is_active: checked,
+            })
+            
+            // Silently refetch to ensure sync
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["services"] })
+            }, 100)
+        } catch (error: unknown) {
+            console.error("Error updating sub-action active status:", error)
+            
+            // Revert optimistic update on error
+            if (previousServices) {
+                queryClient.setQueryData<Service[]>(["services"], previousServices)
+            }
+
+            const errorMessage = error instanceof Error ? error.message : "לא ניתן לעדכן את הסטטוס"
+            toast({
+                title: "שגיאה",
+                description: errorMessage,
+                variant: "destructive",
+            })
+        }
+    }
+    
+    const handleServiceActiveChange = async (serviceId: string, checked: boolean) => {
+        // Optimistic update
+        const previousServices = queryClient.getQueryData<Service[]>(["services"])
+        
+        if (previousServices) {
+            const optimisticServices = previousServices.map((s) => {
+                if (s.id === serviceId) {
+                    return { ...s, is_active: checked }
+                }
+                return s
+            })
+
+            queryClient.setQueryData<Service[]>(["services"], optimisticServices)
+        }
+
+        try {
+            await updateService.mutateAsync({
+                serviceId,
+                is_active: checked,
+            })
+            
+            // Silently refetch to ensure sync
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["services"] })
+            }, 100)
+        } catch (error: unknown) {
+            console.error("Error updating service active status:", error)
+            
+            // Revert optimistic update on error
+            if (previousServices) {
+                queryClient.setQueryData<Service[]>(["services"], previousServices)
+            }
+
+            const errorMessage = error instanceof Error ? error.message : "לא ניתן לעדכן את הסטטוס"
             toast({
                 title: "שגיאה",
                 description: errorMessage,
@@ -678,6 +803,29 @@ export default function ServicesListPage() {
 
     const saveInlineEdit = async (service: Service) => {
         if (!editingField) return
+
+        // Optimistic update
+        const previousServices = queryClient.getQueryData<Service[]>(["services"])
+        let optimisticServices = previousServices
+
+        if (previousServices) {
+            optimisticServices = previousServices.map((s) => {
+                if (s.id === service.id) {
+                    if (editingField.field === "name") {
+                        return { ...s, name: inlineEditValue.trim() }
+                    } else if (editingField.field === "description") {
+                        return { ...s, description: inlineEditValue.trim() || null }
+                    } else if (editingField.field === "base_price") {
+                        return { ...s, base_price: parseFloat(inlineEditValue) || 0 }
+                    } else if (editingField.field === "duration" && service.mode === "simple") {
+                        return { ...s, duration: parseInt(inlineEditValue) || 0 }
+                    }
+                }
+                return s
+            })
+
+            queryClient.setQueryData<Service[]>(["services"], optimisticServices)
+        }
 
         try {
             const updateData: {
@@ -701,20 +849,26 @@ export default function ServicesListPage() {
                 ...updateData,
             })
 
-            toast({
-                title: "הצלחה",
-                description: "השירות עודכן בהצלחה",
-            })
-
             cancelInlineEdit()
+            // Silently refetch to ensure sync
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["services"] })
+            }, 100)
         } catch (error: unknown) {
             console.error("Error updating service:", error)
+            
+            // Revert optimistic update on error
+            if (previousServices) {
+                queryClient.setQueryData<Service[]>(["services"], previousServices)
+            }
+
             const errorMessage = error instanceof Error ? error.message : "לא ניתן לעדכן את השירות"
             toast({
                 title: "שגיאה",
                 description: errorMessage,
                 variant: "destructive",
             })
+            cancelInlineEdit()
         }
     }
 
@@ -742,7 +896,7 @@ export default function ServicesListPage() {
         setPendingSubActions(new Map())
     }
 
-    const handleAddPendingSubAction = (serviceId: string) => {
+    const handleSaveNewSubActionRow = (serviceId: string) => {
         if (!newSubAction.name.trim()) {
             toast({
                 title: "שגיאה",
@@ -773,13 +927,28 @@ export default function ServicesListPage() {
             }
         ])))
 
-        // Reset form
+        // Reset form for next row
         setNewSubAction({
             name: "",
             description: "",
             duration: 0,
             is_active: true,
         })
+    }
+    
+    const handleCancelNewSubActionRow = () => {
+        // Only cancel if there are no pending sub-actions, otherwise just reset the form
+        const hasPending = Array.from(pendingSubActions.values()).some(arr => arr.length > 0)
+        if (!hasPending) {
+            handleCancelAddingSubAction()
+        } else {
+            setNewSubAction({
+                name: "",
+                description: "",
+                duration: 0,
+                is_active: true,
+            })
+        }
     }
 
     const handleRemovePendingSubAction = (serviceId: string, tempId: string) => {
@@ -1089,11 +1258,11 @@ export default function ServicesListPage() {
                                                                 onClick={() => toggleExpanded(service.id)}
                                                                 className="h-6 w-6 p-0"
                                                             >
-                                                                {isExpanded ? (
-                                                                    <ChevronDown className="h-4 w-4" />
-                                                                ) : (
-                                                                    <ChevronRight className="h-4 w-4" />
-                                                                )}
+                                                            {isExpanded ? (
+                                                                <ChevronRight className="h-4 w-4" />
+                                                            ) : (
+                                                                <ChevronDown className="h-4 w-4" />
+                                                            )}
                                                             </Button>
                                                             {isEditingName ? (
                                                                 <div className="flex items-center gap-1">
@@ -1296,10 +1465,7 @@ export default function ServicesListPage() {
                                                             <Checkbox
                                                                 checked={service.is_active ?? true}
                                                                 onCheckedChange={(checked) => {
-                                                                    updateService.mutateAsync({
-                                                                        serviceId: service.id,
-                                                                        is_active: checked as boolean,
-                                                                    })
+                                                                    handleServiceActiveChange(service.id, checked as boolean)
                                                                 }}
                                                             />
                                                             <Label className="text-xs cursor-pointer">
@@ -1345,10 +1511,7 @@ export default function ServicesListPage() {
                                                                             key={subAction.id}
                                                                             subAction={subAction}
                                                                             onUpdateActive={(checked) => {
-                                                                                updateSubAction.mutateAsync({
-                                                                                    subActionId: subAction.id,
-                                                                                    is_active: checked,
-                                                                                })
+                                                                                handleSubActionActiveChange(subAction.id, checked)
                                                                             }}
                                                                             onDelete={() => {
                                                                                 deleteSubAction.mutateAsync(subAction.id)
@@ -1368,56 +1531,68 @@ export default function ServicesListPage() {
                                                         )}
                                                         {isAddingSubAction && (
                                                             <>
-                                                                {/* Single line input form */}
+                                                                {/* New sub-action row matching table structure */}
                                                                 <TableRow className="bg-blue-50/50">
-                                                                    <TableCell colSpan={7} className="p-2">
+                                                                    <TableCell className="pl-12">
+                                                                        <Input
+                                                                            value={newSubAction.name}
+                                                                            onChange={(e) => setNewSubAction({ ...newSubAction, name: e.target.value })}
+                                                                            placeholder="שם הפעולה *"
+                                                                            className="h-7 text-sm w-auto min-w-[120px] max-w-[200px] hover:ring-2 hover:ring-primary/20 transition-all"
+                                                                            dir="rtl"
+                                                                        />
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <span className="text-xs text-gray-500">פעולת משנה</span>
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <div className="hover:ring-2 hover:ring-primary/20 rounded-md transition-all w-fit">
+                                                                            <DurationInput
+                                                                                value={newSubAction.duration}
+                                                                                onChange={(minutes) => setNewSubAction({ ...newSubAction, duration: minutes })}
+                                                                                className="h-7"
+                                                                            />
+                                                                        </div>
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <Input
+                                                                            value={newSubAction.description}
+                                                                            onChange={(e) => setNewSubAction({ ...newSubAction, description: e.target.value })}
+                                                                            placeholder="תיאור (אופציונלי)"
+                                                                            className="h-7 text-sm w-auto min-w-[150px] hover:ring-2 hover:ring-primary/20 transition-all"
+                                                                            dir="rtl"
+                                                                        />
+                                                                    </TableCell>
+                                                                    <TableCell></TableCell>
+                                                                    <TableCell>
                                                                         <div className="flex items-center gap-2">
-                                                                            <Input
-                                                                                value={newSubAction.name}
-                                                                                onChange={(e) => setNewSubAction({ ...newSubAction, name: e.target.value })}
-                                                                                placeholder="שם הפעולה *"
-                                                                                className="w-auto min-w-[120px] max-w-[200px] hover:ring-2 hover:ring-primary/20 transition-all"
-                                                                                dir="rtl"
-                                                                                onKeyDown={(e) => {
-                                                                                    if (e.key === "Enter") {
-                                                                                        handleAddPendingSubAction(service.id)
-                                                                                    }
-                                                                                }}
+                                                                            <Checkbox
+                                                                                checked={newSubAction.is_active}
+                                                                                onCheckedChange={(checked) => setNewSubAction({ ...newSubAction, is_active: checked as boolean })}
                                                                             />
-                                                                            <div className="w-32">
-                                                                                <div className="hover:ring-2 hover:ring-primary/20 rounded-md transition-all">
-                                                                                    <DurationInput
-                                                                                        value={newSubAction.duration}
-                                                                                        onChange={(minutes) => setNewSubAction({ ...newSubAction, duration: minutes })}
-                                                                                    />
-                                                                                </div>
-                                                                            </div>
-                                                                            <Input
-                                                                                value={newSubAction.description}
-                                                                                onChange={(e) => setNewSubAction({ ...newSubAction, description: e.target.value })}
-                                                                                placeholder="תיאור (אופציונלי)"
-                                                                                className="flex-1 hover:ring-2 hover:ring-primary/20 transition-all"
-                                                                                dir="rtl"
-                                                                                onKeyDown={(e) => {
-                                                                                    if (e.key === "Enter") {
-                                                                                        handleAddPendingSubAction(service.id)
-                                                                                    }
-                                                                                }}
-                                                                            />
-                                                                            <div className="flex items-center gap-1">
-                                                                                <Checkbox
-                                                                                    checked={newSubAction.is_active}
-                                                                                    onCheckedChange={(checked) => setNewSubAction({ ...newSubAction, is_active: checked as boolean })}
-                                                                                />
-                                                                                <Label className="text-xs cursor-pointer whitespace-nowrap">זמן עבודה פעיל</Label>
-                                                                            </div>
+                                                                            <Label className="text-xs cursor-pointer">
+                                                                                זמן עבודה פעיל
+                                                                            </Label>
+                                                                        </div>
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <div className="flex items-center gap-2 justify-end">
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                onClick={handleCancelNewSubActionRow}
+                                                                                className="h-7"
+                                                                            >
+                                                                                ביטול
+                                                                            </Button>
                                                                             <Button
                                                                                 size="sm"
-                                                                                onClick={() => handleAddPendingSubAction(service.id)}
+                                                                                onClick={() => handleSaveNewSubActionRow(service.id)}
                                                                                 disabled={!newSubAction.name.trim() || newSubAction.duration <= 0}
+                                                                                className="h-7"
                                                                             >
-                                                                                <Plus className="h-4 w-4 ml-1" />
-                                                                                הוסף
+                                                                                <Save className="h-4 w-4 ml-1" />
+                                                                                שמור
                                                                             </Button>
                                                                         </div>
                                                                     </TableCell>
@@ -1445,7 +1620,7 @@ export default function ServicesListPage() {
                                                                     </DndContext>
                                                                 )}
 
-                                                                {/* Save/Cancel buttons */}
+                                                                {/* Save All / Cancel All buttons - only show if there are pending sub-actions */}
                                                                 {(pendingSubActions.get(service.id) || []).length > 0 && (
                                                                     <TableRow>
                                                                         <TableCell colSpan={7} className="p-2">
@@ -1455,7 +1630,7 @@ export default function ServicesListPage() {
                                                                                     size="sm"
                                                                                     onClick={handleCancelAddingSubAction}
                                                                                 >
-                                                                                    ביטול
+                                                                                    ביטול הכל
                                                                                 </Button>
                                                                                 <Button
                                                                                     size="sm"
@@ -1470,6 +1645,23 @@ export default function ServicesListPage() {
                                                                                     שמור הכל ({pendingSubActions.get(service.id)?.length || 0})
                                                                                 </Button>
                                                                             </div>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                )}
+
+                                                                {/* Plus icon at bottom - ALWAYS at the bottom when adding */}
+                                                                {isAddingSubAction && (
+                                                                    <TableRow className="bg-gray-50/50">
+                                                                        <TableCell colSpan={7} className="p-2">
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                onClick={() => handleStartAddingSubAction(service.id)}
+                                                                                className="w-full justify-start"
+                                                                            >
+                                                                                <Plus className="h-4 w-4 ml-2" />
+                                                                                הוסף שורה נוספת
+                                                                            </Button>
                                                                         </TableCell>
                                                                     </TableRow>
                                                                 )}

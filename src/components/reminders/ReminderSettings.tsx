@@ -22,6 +22,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion"
+import { TimePickerInput } from "@/components/TimePickerInput"
 import { cn } from "@/lib/utils"
 
 interface ReminderRow {
@@ -828,14 +829,12 @@ export default function ReminderSettings() {
                                                         />
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Input
-                                                            type="time"
+                                                        <TimePickerInput
                                                             value={row.specificTime || ""}
-                                                            onChange={(e) => updateRow(dayType, row.id, { specificTime: e.target.value || null })}
-                                                            placeholder="HH:mm"
-                                                            dir="ltr"
+                                                            onChange={(time) => updateRow(dayType, row.id, { specificTime: time || null })}
                                                             disabled={!isEnabled}
-                                                            className="h-9 text-sm"
+                                                            className="h-9 text-sm text-right"
+                                                            intervalMinutes={15}
                                                             title="שעה ספציפית לשליחת התזכורת (למשל: 18:00). אם לא מוגדר, התזכורת תישלח יחסית לזמן התור."
                                                         />
                                                     </TableCell>
