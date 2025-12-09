@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -45,9 +45,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SERVICE_CATEGORY_VARIANTS } from "@/lib/serviceCategoryVariants"
-import { useServiceCategories } from "@/hooks/useServiceCategories"
+import { useServiceCategories, type ServiceCategory } from "@/hooks/useServiceCategories"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover"
 
 interface PendingSubActionRowProps {
     subAction: {
@@ -452,6 +453,8 @@ export default function ServicesListPage() {
     // Inline editing state
     const [editingField, setEditingField] = useState<{ serviceId: string; field: string; subActionId?: string } | null>(null)
     const [inlineEditValue, setInlineEditValue] = useState<string>("")
+    const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
+    const [categorySearchTerm, setCategorySearchTerm] = useState<string>("")
 
     // Inline sub-action creation state - accumulate multiple before saving
     const [addingSubActionTo, setAddingSubActionTo] = useState<string | null>(null)
@@ -811,6 +814,57 @@ export default function ServicesListPage() {
             }
 
             const errorMessage = error instanceof Error ? error.message : "לא ניתן לעדכן את הסטטוס"
+            toast({
+                title: "שגיאה",
+                description: errorMessage,
+                variant: "destructive",
+            })
+        }
+    }
+
+    const handleCategoryChange = async (serviceId: string, categoryId: string | null) => {
+        // Optimistic update
+        const previousServices = queryClient.getQueryData<Service[]>(["services"])
+        const selectedCategory = categories.find(c => c.id === categoryId)
+
+        if (previousServices) {
+            const optimisticServices = previousServices.map((s) => {
+                if (s.id === serviceId) {
+                    return {
+                        ...s,
+                        service_category_id: categoryId,
+                        service_category: selectedCategory ? {
+                            id: selectedCategory.id,
+                            name: selectedCategory.name,
+                            variant: selectedCategory.variant,
+                        } : null,
+                    }
+                }
+                return s
+            })
+
+            queryClient.setQueryData<Service[]>(["services"], optimisticServices)
+        }
+
+        try {
+            await updateService.mutateAsync({
+                serviceId,
+                service_category_id: categoryId,
+            })
+
+            // Silently refetch to ensure sync
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["services"] })
+            }, 100)
+        } catch (error: unknown) {
+            console.error("Error updating service category:", error)
+
+            // Revert optimistic update on error
+            if (previousServices) {
+                queryClient.setQueryData<Service[]>(["services"], previousServices)
+            }
+
+            const errorMessage = error instanceof Error ? error.message : "לא ניתן לעדכן את הקטגוריה"
             toast({
                 title: "שגיאה",
                 description: errorMessage,
@@ -1359,6 +1413,7 @@ export default function ServicesListPage() {
                                         const isEditingDescription = editingField?.serviceId === service.id && editingField.field === "description" && !editingField.subActionId
                                         const isEditingPrice = editingField?.serviceId === service.id && editingField.field === "base_price" && !editingField.subActionId
                                         const isEditingDuration = editingField?.serviceId === service.id && editingField.field === "duration" && serviceMode === "simple" && !editingField.subActionId
+                                        const isEditingCategory = editingCategoryId === service.id
 
                                         return (
                                             <>
@@ -1435,20 +1490,47 @@ export default function ServicesListPage() {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
-                                                        {service.service_category ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <div
-                                                                    className={cn(
-                                                                        "h-3 w-3 rounded-full",
-                                                                        SERVICE_CATEGORY_VARIANTS[service.service_category.variant as keyof typeof SERVICE_CATEGORY_VARIANTS]?.bg || "bg-gray-400"
-                                                                    )}
-                                                                />
-                                                                <span className="text-sm">
-                                                                    {service.service_category.name}
-                                                                </span>
-                                                            </div>
+                                                        {isEditingCategory ? (
+                                                            <CategoryAutocomplete
+                                                                serviceId={service.id}
+                                                                currentCategoryId={service.service_category_id || null}
+                                                                categories={categories}
+                                                                searchTerm={categorySearchTerm}
+                                                                onSearchChange={setCategorySearchTerm}
+                                                                onSelect={(categoryId) => {
+                                                                    handleCategoryChange(service.id, categoryId)
+                                                                    setEditingCategoryId(null)
+                                                                    setCategorySearchTerm("")
+                                                                }}
+                                                                onCancel={() => {
+                                                                    setEditingCategoryId(null)
+                                                                    setCategorySearchTerm("")
+                                                                }}
+                                                            />
                                                         ) : (
-                                                            <span className="text-sm text-gray-400">ללא קטגוריה</span>
+                                                            <div
+                                                                className="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors"
+                                                                onClick={() => {
+                                                                    setEditingCategoryId(service.id)
+                                                                    setCategorySearchTerm(service.service_category?.name || "")
+                                                                }}
+                                                            >
+                                                                {service.service_category ? (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div
+                                                                            className={cn(
+                                                                                "h-3 w-3 rounded-full",
+                                                                                SERVICE_CATEGORY_VARIANTS[service.service_category.variant as keyof typeof SERVICE_CATEGORY_VARIANTS]?.bg || "bg-gray-400"
+                                                                            )}
+                                                                        />
+                                                                        <span className="text-sm">
+                                                                            {service.service_category.name}
+                                                                        </span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-sm text-gray-400">ללא קטגוריה</span>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </TableCell>
                                                     <TableCell>
@@ -2101,6 +2183,126 @@ export default function ServicesListPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+        </div>
+    )
+}
+
+interface CategoryAutocompleteProps {
+    serviceId: string
+    currentCategoryId: string | null
+    categories: ServiceCategory[]
+    searchTerm: string
+    onSearchChange: (term: string) => void
+    onSelect: (categoryId: string | null) => void
+    onCancel: () => void
+}
+
+function CategoryAutocomplete({
+    serviceId: _serviceId,
+    currentCategoryId,
+    categories,
+    searchTerm,
+    onSearchChange,
+    onSelect,
+    onCancel,
+}: CategoryAutocompleteProps) {
+    const [isOpen, setIsOpen] = useState(false)
+    const inputRef = useRef<HTMLInputElement>(null)
+
+    useEffect(() => {
+        if (inputRef.current) {
+            inputRef.current.focus()
+        }
+    }, [])
+
+    const filteredCategories = categories.filter((cat) =>
+        cat.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+
+    const handleSelect = (categoryId: string | null) => {
+        onSelect(categoryId)
+        setIsOpen(false)
+    }
+
+    return (
+        <div className="relative w-full">
+            <Popover open={isOpen} onOpenChange={setIsOpen}>
+                <PopoverAnchor asChild>
+                    <div className="flex items-center gap-1">
+                        <Input
+                            ref={inputRef}
+                            value={searchTerm}
+                            onChange={(e) => {
+                                onSearchChange(e.target.value)
+                                setIsOpen(true)
+                            }}
+                            onFocus={() => setIsOpen(true)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Escape") {
+                                    onCancel()
+                                } else if (e.key === "Enter" && filteredCategories.length === 1) {
+                                    handleSelect(filteredCategories[0].id)
+                                }
+                            }}
+                            className="h-8 w-auto min-w-[150px] hover:ring-2 hover:ring-primary/20 transition-all"
+                            placeholder="חפש קטגוריה..."
+                            dir="rtl"
+                        />
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSelect(null)}
+                            className="h-6 w-6 p-0"
+                            title="הסר קטגוריה"
+                        >
+                            <X className="h-3 w-3 text-red-600" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onCancel}
+                            className="h-6 w-6 p-0"
+                        >
+                            <X className="h-3 w-3 text-gray-600" />
+                        </Button>
+                    </div>
+                </PopoverAnchor>
+                <PopoverContent className="w-[200px] p-0" align="start" side="bottom">
+                    <div className="max-h-[200px] overflow-y-auto">
+                        {filteredCategories.length > 0 ? (
+                            <div className="py-1">
+                                <div
+                                    className="px-3 py-2 text-sm text-gray-500 cursor-pointer hover:bg-gray-100"
+                                    onClick={() => handleSelect(null)}
+                                >
+                                    ללא קטגוריה
+                                </div>
+                                {filteredCategories.map((category) => {
+                                    const variant = SERVICE_CATEGORY_VARIANTS[category.variant as keyof typeof SERVICE_CATEGORY_VARIANTS]
+                                    return (
+                                        <div
+                                            key={category.id}
+                                            className={cn(
+                                                "px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 flex items-center gap-2",
+                                                currentCategoryId === category.id && "bg-blue-50"
+                                            )}
+                                            onClick={() => handleSelect(category.id)}
+                                        >
+                                            <div className={cn("h-3 w-3 rounded-full", variant?.bg || "bg-gray-400")} />
+                                            <span className="flex-1">{category.name}</span>
+                                            {currentCategoryId === category.id && (
+                                                <Check className="h-4 w-4 text-blue-600" />
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ) : (
+                            <div className="px-3 py-2 text-sm text-gray-500">לא נמצאו תוצאות</div>
+                        )}
+                    </div>
+                </PopoverContent>
+            </Popover>
         </div>
     )
 }

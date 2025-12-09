@@ -12,6 +12,14 @@ export type ServiceCategoryVariant =
   | "teal"
   | "cyan"
   | "sky"
+  | "green"
+  | "lime"
+  | "yellow"
+  | "violet"
+  | "fuchsia"
+  | "slate"
+  | "gray"
+  | "zinc"
 
 export interface ServiceCategoryVariantConfig {
   id: ServiceCategoryVariant
@@ -157,6 +165,94 @@ export const SERVICE_CATEGORY_VARIANTS: Record<ServiceCategoryVariant, ServiceCa
     textLight: "text-sky-50",
     border: "border-sky-200",
     ring: "ring-sky-500",
+  },
+  green: {
+    id: "green",
+    name: "ירוק",
+    bg: "bg-green-600",
+    bgLight: "bg-green-50",
+    bgHover: "hover:bg-green-700",
+    text: "text-green-600",
+    textLight: "text-green-50",
+    border: "border-green-200",
+    ring: "ring-green-500",
+  },
+  lime: {
+    id: "lime",
+    name: "ליים",
+    bg: "bg-lime-600",
+    bgLight: "bg-lime-50",
+    bgHover: "hover:bg-lime-700",
+    text: "text-lime-600",
+    textLight: "text-lime-50",
+    border: "border-lime-200",
+    ring: "ring-lime-500",
+  },
+  yellow: {
+    id: "yellow",
+    name: "צהוב",
+    bg: "bg-yellow-600",
+    bgLight: "bg-yellow-50",
+    bgHover: "hover:bg-yellow-700",
+    text: "text-yellow-600",
+    textLight: "text-yellow-50",
+    border: "border-yellow-200",
+    ring: "ring-yellow-500",
+  },
+  violet: {
+    id: "violet",
+    name: "סגול כהה",
+    bg: "bg-violet-600",
+    bgLight: "bg-violet-50",
+    bgHover: "hover:bg-violet-700",
+    text: "text-violet-600",
+    textLight: "text-violet-50",
+    border: "border-violet-200",
+    ring: "ring-violet-500",
+  },
+  fuchsia: {
+    id: "fuchsia",
+    name: "פוקסיה",
+    bg: "bg-fuchsia-600",
+    bgLight: "bg-fuchsia-50",
+    bgHover: "hover:bg-fuchsia-700",
+    text: "text-fuchsia-600",
+    textLight: "text-fuchsia-50",
+    border: "border-fuchsia-200",
+    ring: "ring-fuchsia-500",
+  },
+  slate: {
+    id: "slate",
+    name: "צפחה",
+    bg: "bg-slate-600",
+    bgLight: "bg-slate-50",
+    bgHover: "hover:bg-slate-700",
+    text: "text-slate-600",
+    textLight: "text-slate-50",
+    border: "border-slate-200",
+    ring: "ring-slate-500",
+  },
+  gray: {
+    id: "gray",
+    name: "אפור",
+    bg: "bg-gray-600",
+    bgLight: "bg-gray-50",
+    bgHover: "hover:bg-gray-700",
+    text: "text-gray-600",
+    textLight: "text-gray-50",
+    border: "border-gray-200",
+    ring: "ring-gray-500",
+  },
+  zinc: {
+    id: "zinc",
+    name: "אבץ",
+    bg: "bg-zinc-600",
+    bgLight: "bg-zinc-50",
+    bgHover: "hover:bg-zinc-700",
+    text: "text-zinc-600",
+    textLight: "text-zinc-50",
+    border: "border-zinc-200",
+    ring: "ring-zinc-500",
   },
 }
 

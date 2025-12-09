@@ -164,9 +164,9 @@ export default function ServiceCategoriesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>שם</TableHead>
-                  <TableHead>ווריאנט צבע</TableHead>
-                  <TableHead>מספר שירותים</TableHead>
+                  <TableHead className="text-right">שם</TableHead>
+                  <TableHead className="text-right">ווריאנט צבע</TableHead>
+                  <TableHead className="text-right">מספר שירותים</TableHead>
                   <TableHead className="text-left">פעולות</TableHead>
                 </TableRow>
               </TableHeader>
@@ -178,15 +178,16 @@ export default function ServiceCategoriesPage() {
 
                     return (
                       <TableRow key={category.id}>
-                        <TableCell>
+                        <TableCell className="text-right">
                           {isEditing ? (
                             <Input
                               value={editName}
                               onChange={(e) => setEditName(e.target.value)}
                               className="w-full"
+                              dir="rtl"
                             />
                           ) : (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 justify-end">
                               <div
                                 className={cn(
                                   "h-4 w-4 rounded-full",
@@ -197,14 +198,14 @@ export default function ServiceCategoriesPage() {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           {isEditing ? (
                             <VariantSelector
                               selectedVariant={editVariant}
                               onVariantChange={setEditVariant}
                             />
                           ) : (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 justify-end">
                               <span className={cn("text-sm", variant.text)}>
                                 {variant.name}
                               </span>
@@ -218,7 +219,7 @@ export default function ServiceCategoriesPage() {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <span className="text-sm text-gray-600">
                             {category.services_count || 0}
                           </span>
