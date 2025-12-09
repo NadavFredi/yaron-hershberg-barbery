@@ -218,7 +218,7 @@ export default function ServiceCategoriesPage() {
                   <TableHead className="text-right">שם</TableHead>
                   <TableHead className="text-right">ווריאנט צבע</TableHead>
                   <TableHead className="text-right">מספר שירותים</TableHead>
-                  <TableHead className="text-right">is_default</TableHead>
+                  <TableHead className="text-right">האם ברירת מחדל</TableHead>
                   <TableHead className="text-right">פעולות</TableHead>
                 </TableRow>
               </TableHeader>
@@ -300,7 +300,7 @@ export default function ServiceCategoriesPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center gap-2 justify-end">
+                          <div className="flex items-center gap-2 ">
                             <span className="text-sm text-gray-600 text-right">
                               {category.services_count || 0}
                             </span>
@@ -339,7 +339,7 @@ export default function ServiceCategoriesPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-center">
+                          <div className="flex items-center">
                             <button
                               type="button"
                               onClick={async () => {
@@ -389,7 +389,7 @@ export default function ServiceCategoriesPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           {isEditing ? (
-                            <div className="flex items-center gap-2 justify-end">
+                            <div className="flex items-center gap-2  ">
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -406,7 +406,7 @@ export default function ServiceCategoriesPage() {
                               </Button>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-2 justify-end">
+                            <div className="flex items-center gap-2 ">
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -469,7 +469,10 @@ export default function ServiceCategoriesPage() {
             </div>
           </div>
           <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
-            <Button onClick={handleCreate} disabled={createCategory.isPending}>
+            <Button
+              onClick={handleCreate}
+              disabled={createCategory.isPending || !newName.trim() || !newVariant}
+            >
               {createCategory.isPending ? (
                 <>
                   <Loader2 className="ml-2 h-4 w-4 animate-spin" />
