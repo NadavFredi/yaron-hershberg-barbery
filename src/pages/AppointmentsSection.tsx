@@ -33,6 +33,7 @@ import { setSelectedClient, setIsClientDetailsOpen, type ClientDetails } from "@
 import { SettingsStationsPerDaySection } from "@/components/settings/SettingsStationsPerDaySection/SettingsStationsPerDaySection"
 import { useStations } from "@/hooks/useStations"
 import { formatDurationFromMinutes } from "@/lib/duration-utils"
+import { MultiSelectDropdown } from "@/components/settings/SettingsServiceStationMatrixSection/components/MultiSelectDropdown"
 
 type AppointmentStatus = "pending" | "approved" | "cancelled" | "matched"
 type ServiceFilter = "all" | "grooming"
@@ -373,7 +374,7 @@ export default function AppointmentsSection() {
                     internalNotes: apt.internal_notes || undefined,
                     appointmentType: apt.appointment_kind === "personal" ? "private" : "business",
                     price: apt.amount_due ? Number(apt.amount_due) : undefined,
-                    dogs: managerDog ? [managerDog] : [],
+                    dogs: [],
                     clientId: apt.customer_id,
                     clientName: customer?.full_name || undefined,
                     clientClassification: customer?.classification || undefined,

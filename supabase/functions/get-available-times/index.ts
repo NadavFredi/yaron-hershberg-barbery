@@ -165,7 +165,8 @@ async function fetchStations(serviceId: string) {
     const station = row.stations?.[0]
     return {
       stationId: row.station_id,
-      name: station?.name ?? "",
+      stationName: station?.name ?? "",
+      name: station?.name ?? "", // Keep for backward compatibility
       duration: Number(row.base_time_minutes ?? DEFAULT_DURATION),
       slotInterval: Number(station?.slot_interval_minutes ?? DEFAULT_SLOT_INTERVAL),
       breakBetween: Number(station?.break_between_treatments_minutes ?? 0),
@@ -372,11 +373,15 @@ serve(async (req: Request) => {
     }
 
     if (mode === "time" && date) {
-      const availableTimes = computeForDate(date).map((slot) => ({
-        ...slot,
-        available: true,
-        duration: stations.find((s) => s.stationId === slot.stationId)?.duration ?? DEFAULT_DURATION,
-      }))
+      const availableTimes = computeForDate(date).map((slot) => {
+        const station = stations.find((s) => s.stationId === slot.stationId)
+        return {
+          ...slot,
+          available: true,
+          duration: station?.duration ?? DEFAULT_DURATION,
+          stationName: station?.stationName ?? station?.name ?? "",
+        }
+      })
       return new Response(JSON.stringify({ success: true, availableTimes }), {
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
         status: 200,

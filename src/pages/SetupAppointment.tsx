@@ -15,7 +15,7 @@ import confetti from "canvas-confetti"
 
 type ServiceOption = { id: string; name: string; description?: string | null }
 type AvailableDate = { date: string; available: boolean; stationId: string | null; availableTimes?: AvailableTime[] }
-type AvailableTime = { time: string; stationId: string; duration?: number; available?: boolean }
+type AvailableTime = { time: string; stationId: string; stationName?: string; duration?: number; available?: boolean }
 
 const BUSINESS_TIME_ZONE = "Asia/Jerusalem"
 const jerusalemDateFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -29,7 +29,7 @@ const toJerusalemDateString = (date: Date) => jerusalemDateFormatter.format(date
 
 const SetupAppointment: React.FC = () => {
   const navigate = useNavigate()
-  const { session } = useSupabaseAuthWithClientId()
+  const { user } = useSupabaseAuthWithClientId()
 
   const [services, setServices] = useState<ServiceOption[]>([])
   const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>(undefined)
@@ -69,9 +69,9 @@ const SetupAppointment: React.FC = () => {
   const timesQueryArg =
     selectedServiceId && selectedDateKey
       ? {
-          serviceId: selectedServiceId,
-          date: selectedDateKey,
-        }
+        serviceId: selectedServiceId,
+        date: selectedDateKey,
+      }
       : skipToken
 
   const { data: availableTimesData, isFetching: isFetchingTimes } = useGetAvailableTimesQuery(timesQueryArg, {
@@ -81,7 +81,9 @@ const SetupAppointment: React.FC = () => {
   const availableTimes = useMemo<AvailableTime[]>(() => {
     if (!availableTimesData) return []
     if (Array.isArray(availableTimesData)) return availableTimesData as AvailableTime[]
-    return (availableTimesData as { availableTimes?: AvailableTime[] }).availableTimes ?? []
+    // Handle response structure: { success: true, availableTimes: [...] }
+    const response = availableTimesData as { availableTimes?: AvailableTime[] }
+    return response.availableTimes ?? []
   }, [availableTimesData])
 
   useEffect(() => {
@@ -120,7 +122,7 @@ const SetupAppointment: React.FC = () => {
     }
   }
 
-  const isAuthenticated = Boolean(session?.user)
+  const isAuthenticated = Boolean(user)
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-10">
@@ -235,17 +237,29 @@ const SetupAppointment: React.FC = () => {
                     <Loader2 className="h-4 w-4 animate-spin" /> טוען שעות...
                   </div>
                 ) : availableTimes.length ? (
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {availableTimes.map((slot) => (
-                      <Button
-                        key={`${slot.stationId}-${slot.time}`}
-                        variant={selectedTime?.time === slot.time && selectedTime?.stationId === slot.stationId ? "default" : "outline"}
-                        onClick={() => setSelectedTime(slot)}
-                      >
-                        {slot.time} {slot.duration ? `(${slot.duration} דק')` : ""}
-                      </Button>
-                    ))}
-                  </div>
+                  <Select
+                    value={selectedTime ? `${selectedTime.stationId}-${selectedTime.time}` : undefined}
+                    onValueChange={(value) => {
+                      const [stationId, time] = value.split("-", 2)
+                      const slot = availableTimes.find(
+                        (s) => s.stationId === stationId && s.time === time
+                      )
+                      if (slot) setSelectedTime(slot)
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="בחרו שעה ותחנה" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTimes.map((slot) => (
+                        <SelectItem key={`${slot.stationId}-${slot.time}`} value={`${slot.stationId}-${slot.time}`}>
+                          {slot.time}
+                          {slot.stationName ? ` - ${slot.stationName}` : ""}
+                          {slot.duration ? ` (${slot.duration} דק')` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <p className="text-sm text-gray-600">אין שעות פנויות בתאריך זה.</p>
                 )
