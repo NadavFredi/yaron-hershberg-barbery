@@ -146,7 +146,23 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
             })
 
             if (handshakeError || !handshakeData?.success || !handshakeData?.thtk) {
-                throw new Error("לא ניתן להתחבר למערכת התשלומים")
+                // Extract error message from multiple possible sources
+                let errorMessage = "לא ניתן להתחבר למערכת התשלומים"
+
+                if (handshakeError) {
+                    errorMessage = handshakeError.message || errorMessage
+                } else if (handshakeData?.error) {
+                    errorMessage = handshakeData.error
+                } else if (handshakeData && !handshakeData.success) {
+                    errorMessage = handshakeData.error || "שגיאה ביצירת חיבור למערכת התשלומים"
+                }
+
+                console.error("❌ [PaymentFlow] Handshake failed:", {
+                    handshakeError,
+                    handshakeData,
+                    errorMessage,
+                })
+                throw new Error(errorMessage)
             }
 
             const thtk = handshakeData.thtk

@@ -1377,7 +1377,13 @@ export async function getSingleManagerAppointment(
         created_at,
         updated_at,
         stations(id, name),
-        customers(id, full_name, phone, email, classification)
+        customers(id, full_name, phone, email, classification),
+        services(
+          id,
+          name,
+          service_category_id,
+          service_categories(id, variant)
+        )
       `
       )
       .eq("id", appointmentId)
@@ -1410,6 +1416,10 @@ export async function getSingleManagerAppointment(
 
     const station = Array.isArray(appointmentData.stations) ? appointmentData.stations[0] : appointmentData.stations
     const customer = Array.isArray(appointmentData.customers) ? appointmentData.customers[0] : appointmentData.customers
+    const service = Array.isArray(appointmentData.services) ? appointmentData.services[0] : appointmentData.services
+    const serviceCategory = Array.isArray(service?.service_categories)
+      ? service.service_categories[0]
+      : service?.service_categories
 
     const appointment: ManagerAppointment = {
       id: appointmentData.id,
@@ -1441,6 +1451,8 @@ export async function getSingleManagerAppointment(
       durationMinutes: Math.round(
         (new Date(appointmentData.end_at).getTime() - new Date(appointmentData.start_at).getTime()) / 60000
       ),
+      serviceCategoryVariant: serviceCategory?.variant || null,
+      serviceName: service?.name || undefined,
       ...(appointmentData.created_at && { created_at: appointmentData.created_at }),
       ...(appointmentData.updated_at && { updated_at: appointmentData.updated_at }),
     } as any

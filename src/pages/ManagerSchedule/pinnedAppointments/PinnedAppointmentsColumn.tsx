@@ -318,6 +318,11 @@ export function PinnedAppointmentsColumn({
                         {appointment.stationName && (
                           <div className="text-gray-500">{appointment.stationName}</div>
                         )}
+                        {appointment.serviceName && (
+                          <div className="text-gray-500">
+                            סוג שירות: <span className="text-gray-700 font-medium">{appointment.serviceName}</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Target Date */}

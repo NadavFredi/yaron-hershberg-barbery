@@ -2287,13 +2287,47 @@ export const usePaymentModal = ({
       }
 
       // Call tranzila-handshake to get thtk
-      console.log("🤝 [PaymentModal] Getting Tranzila handshake token...")
+      console.log("🤝 [PaymentModal] Getting Tranzila handshake token...", { totalAmount })
       const { data: handshakeData, error: handshakeError } = await supabase.functions.invoke("tranzila-handshake", {
         body: { sum: totalAmount },
       })
 
+      // Log detailed error information for debugging
+      if (handshakeError) {
+        console.error("❌ [PaymentModal] Handshake error details:", {
+          message: handshakeError.message,
+          context: handshakeError.context,
+          status: handshakeError.status,
+          error: handshakeError,
+        })
+      }
+
+      if (handshakeData && !handshakeData.success) {
+        console.error("❌ [PaymentModal] Handshake returned unsuccessful:", handshakeData)
+      }
+
+      // Check for errors - either in error object or in data.error field
       if (handshakeError || !handshakeData?.success || !handshakeData?.thtk) {
-        throw new Error(handshakeError?.message || "לא ניתן להתחבר למערכת התשלומים")
+        // Extract error message from multiple possible sources
+        let errorMessage = "לא ניתן להתחבר למערכת התשלומים"
+
+        if (handshakeError) {
+          errorMessage = handshakeError.message || errorMessage
+        } else if (handshakeData?.error) {
+          errorMessage = handshakeData.error
+        } else if (handshakeData && !handshakeData.success) {
+          errorMessage = handshakeData.error || "שגיאה ביצירת חיבור למערכת התשלומים"
+        }
+
+        console.error("❌ [PaymentModal] Handshake failed:", {
+          handshakeError,
+          handshakeData,
+          errorMessage,
+          hasData: !!handshakeData,
+          dataSuccess: handshakeData?.success,
+          hasThtk: !!handshakeData?.thtk,
+        })
+        throw new Error(errorMessage)
       }
 
       const thtk = handshakeData.thtk

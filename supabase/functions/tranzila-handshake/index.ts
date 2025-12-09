@@ -45,8 +45,14 @@ serve(async (req) => {
 
     if (!handshakeResponse.ok) {
       const errorText = await handshakeResponse.text()
-      console.error("❌ [tranzila-handshake] Tranzilla API error:", errorText)
-      throw new Error(`Tranzila API error: ${handshakeResponse.status} ${handshakeResponse.statusText}`)
+      console.error("❌ [tranzila-handshake] Tranzilla API error:", {
+        status: handshakeResponse.status,
+        statusText: handshakeResponse.statusText,
+        errorText,
+        url: handshakeUrl.replace(/TranzilaPW=[^&]+/, "TranzilaPW=***"), // Hide password in logs
+      })
+      const errorMessage = errorText || `${handshakeResponse.status} ${handshakeResponse.statusText}`
+      throw new Error(`Tranzila API error: ${errorMessage}`)
     }
 
     // Parse the response - it returns plain text like "thtk=token"
@@ -85,7 +91,11 @@ serve(async (req) => {
       console.error("❌ [tranzila-handshake] Failed to extract token from response")
       console.error("❌ [tranzila-handshake] Original response:", JSON.stringify(responseText))
       console.error("❌ [tranzila-handshake] Cleaned response:", JSON.stringify(cleanedResponse))
-      throw new Error("Failed to get token from Tranzilla handshake response")
+      const errorMessage = `Failed to extract token from Tranzila response. Response: ${cleanedResponse.substring(
+        0,
+        200
+      )}`
+      throw new Error(errorMessage)
     }
 
     return new Response(
@@ -100,10 +110,21 @@ serve(async (req) => {
     )
   } catch (error) {
     console.error("❌ [tranzila-handshake] Error:", error)
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+    const errorStack = error instanceof Error ? error.stack : undefined
+
+    // Log full error details for debugging
+    console.error("❌ [tranzila-handshake] Full error details:", {
+      message: errorMessage,
+      stack: errorStack,
+      error,
+    })
+
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
+        error: errorMessage,
+        details: errorStack ? undefined : String(error), // Include details if no stack trace
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

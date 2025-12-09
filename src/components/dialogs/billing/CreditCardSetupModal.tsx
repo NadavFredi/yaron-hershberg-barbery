@@ -127,7 +127,23 @@ export const CreditCardSetupModal: React.FC<CreditCardSetupModalProps> = ({
             )
 
             if (handshakeError || !handshakeData?.success || !handshakeData?.thtk) {
-                throw new Error(handshakeError?.message || "Failed to create Tranzilla handshake")
+                // Extract error message from multiple possible sources
+                let errorMessage = "Failed to create Tranzilla handshake"
+
+                if (handshakeError) {
+                    errorMessage = handshakeError.message || errorMessage
+                } else if (handshakeData?.error) {
+                    errorMessage = handshakeData.error
+                } else if (handshakeData && !handshakeData.success) {
+                    errorMessage = handshakeData.error || "שגיאה ביצירת חיבור למערכת התשלומים"
+                }
+
+                console.error("❌ [CreditCardSetupModal] Handshake failed:", {
+                    handshakeError,
+                    handshakeData,
+                    errorMessage,
+                })
+                throw new Error(errorMessage)
             }
 
             const thtk = handshakeData.thtk

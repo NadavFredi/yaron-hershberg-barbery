@@ -128,7 +128,7 @@ export default function PaymentPage() {
                     .filter(Boolean) || []
 
                 let appointmentsData: any[] = []
-                
+
                 // Fetch grooming appointments
                 let groomingApps: any[] = []
                 if (groomingAppointmentIds.length > 0) {
@@ -178,12 +178,12 @@ export default function PaymentPage() {
                         ...ca,
                         appointment: appt
                             ? {
-                                  ...appt,
-                                  clientName: Array.isArray(appt.customers) 
-                                      ? appt.customers[0]?.full_name || null
-                                      : appt.customers?.full_name || null,
-                                  dogs: Array.isArray(appt.dogs) ? appt.dogs : (appt.dogs ? [appt.dogs] : []),
-                              }
+                                ...appt,
+                                clientName: Array.isArray(appt.customers)
+                                    ? appt.customers[0]?.full_name || null
+                                    : appt.customers?.full_name || null,
+                                dogs: Array.isArray(appt.dogs) ? appt.dogs : (appt.dogs ? [appt.dogs] : []),
+                            }
                             : null,
                     }
                 }) || []
@@ -253,7 +253,23 @@ export default function PaymentPage() {
             })
 
             if (handshakeError || !handshakeData?.success || !handshakeData?.thtk) {
-                throw new Error(handshakeError?.message || "לא ניתן להתחבר למערכת התשלומים")
+                // Extract error message from multiple possible sources
+                let errorMessage = "לא ניתן להתחבר למערכת התשלומים"
+
+                if (handshakeError) {
+                    errorMessage = handshakeError.message || errorMessage
+                } else if (handshakeData?.error) {
+                    errorMessage = handshakeData.error
+                } else if (handshakeData && !handshakeData.success) {
+                    errorMessage = handshakeData.error || "שגיאה ביצירת חיבור למערכת התשלומים"
+                }
+
+                console.error("❌ [PaymentPage] Handshake failed:", {
+                    handshakeError,
+                    handshakeData,
+                    errorMessage,
+                })
+                throw new Error(errorMessage)
             }
 
             const thtk = handshakeData.thtk
@@ -331,14 +347,14 @@ export default function PaymentPage() {
     const handlePaymentSuccess = async () => {
         setShowPaymentIframe(false)
         setPaymentPostData(undefined)
-        
+
         // Poll for payment confirmation
         const pollInterval = setInterval(async () => {
             if (!cartId) {
                 clearInterval(pollInterval)
                 return
             }
-            
+
             const { data: orderData } = await supabase
                 .from("orders")
                 .select("id, status")
@@ -445,7 +461,7 @@ export default function PaymentPage() {
         <div className="min-h-screen bg-gray-50 py-12 px-4" dir="rtl">
             <div className="max-w-2xl mx-auto">
                 <Card className="shadow-lg">
-                    <CardHeader 
+                    <CardHeader
                         className="text-white rounded-t-lg"
                         style={{ backgroundColor: "#4f60a8" }}
                     >
