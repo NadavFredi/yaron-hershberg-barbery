@@ -43,7 +43,6 @@ export interface ProposedMeetingCategory {
   customerTypeName?: string | null
 }
 
-
 export interface ManagerAppointment {
   id: string
   serviceType: "grooming"

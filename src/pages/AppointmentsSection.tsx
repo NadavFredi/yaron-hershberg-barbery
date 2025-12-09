@@ -205,12 +205,12 @@ export default function AppointmentsSection() {
     const { toast } = useToast()
     const [searchParams] = useSearchParams()
     const modeParam = searchParams.get("mode")
-    
+
     // Handle stations-per-day mode
     if (modeParam === "stations-per-day") {
         return <SettingsStationsPerDaySection />
     }
-    
+
     const [appointments, setAppointments] = useState<EnrichedAppointment[]>([])
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [error, setError] = useState<string | null>(null)
@@ -238,7 +238,7 @@ export default function AppointmentsSection() {
     const [isAppointmentSheetOpen, setIsAppointmentSheetOpen] = useState(false)
     const [showAllDogAppointments, setShowAllDogAppointments] = useState(false)
     const appliedModeRef = useRef<string | null>(null)
-    
+
     const { data: stations = [], isLoading: isLoadingStations } = useStations()
 
     useEffect(() => {
@@ -534,7 +534,7 @@ export default function AppointmentsSection() {
                 if (appointment.status in acc.byStatus) {
                     acc.byStatus[appointment.status as AppointmentStatus] += 1
                 }
-                
+
                 // Calculate duration in minutes
                 let durationMinutes = 0
                 try {
@@ -546,10 +546,10 @@ export default function AppointmentsSection() {
                 } catch (e) {
                     // Ignore invalid dates
                 }
-                
+
                 // Calculate payment
                 const payment = appointment.price != null && appointment.price > 0 ? appointment.price : 0
-                
+
                 if (appointment.serviceType === "grooming") {
                     acc.grooming.count += 1
                     acc.grooming.payments += payment
@@ -559,7 +559,7 @@ export default function AppointmentsSection() {
                     acc.garden.payments += payment
                     acc.garden.durationMinutes += durationMinutes
                 }
-                
+
                 return acc
             },
             {
@@ -706,7 +706,7 @@ export default function AppointmentsSection() {
             activeContainer: "bg-blue-500 border-blue-500 shadow-lg",
             activeText: "text-white",
             isActive: false,
-            onClick: () => {},
+            onClick: () => { },
         },
         {
             id: "grooming-payments",
@@ -718,7 +718,7 @@ export default function AppointmentsSection() {
             activeContainer: "bg-blue-500 border-blue-500 shadow-lg",
             activeText: "text-white",
             isActive: false,
-            onClick: () => {},
+            onClick: () => { },
         },
     ]
 
@@ -745,7 +745,7 @@ export default function AppointmentsSection() {
             activeContainer: "bg-emerald-500 border-emerald-500 shadow-lg",
             activeText: "text-white",
             isActive: false,
-            onClick: () => {},
+            onClick: () => { },
         },
         {
             id: "garden-payments",
@@ -757,7 +757,7 @@ export default function AppointmentsSection() {
             activeContainer: "bg-emerald-500 border-emerald-500 shadow-lg",
             activeText: "text-white",
             isActive: false,
-            onClick: () => {},
+            onClick: () => { },
         },
     ]
 
@@ -1280,7 +1280,7 @@ export default function AppointmentsSection() {
                                                         className={cn(
                                                             "w-fit",
                                                             STATUS_BADGES[(appointment.status as AppointmentStatus) || "pending"] ||
-                                                                STATUS_BADGES.pending,
+                                                            STATUS_BADGES.pending,
                                                         )}
                                                     >
                                                         {STATUS_LABELS[(appointment.status as AppointmentStatus) || "pending"] || appointment.status}

@@ -17,11 +17,11 @@ interface ServiceEditorProps {
 }
 
 // Memoized station card to prevent unnecessary re-renders
-const StationCard = React.memo(({ 
-  station, 
-  serviceBasePrice, 
-  onTimeChange, 
-  onPriceChange 
+const StationCard = React.memo(({
+  station,
+  serviceBasePrice,
+  onTimeChange,
+  onPriceChange
 }: {
   station: any;
   serviceBasePrice: number;
@@ -65,7 +65,7 @@ const StationCard = React.memo(({
           {station.is_active ? 'פעילה' : 'לא פעילה'}
         </div>
       </div>
-      
+
       <div className="space-y-3">
         <div>
           <label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -84,7 +84,7 @@ const StationCard = React.memo(({
             <span>3 שעות</span>
           </div>
         </div>
-        
+
         <div className="border-t pt-3">
           <label className="text-sm font-medium text-gray-700 mb-2 block">
             התאמת מחיר לעמדה זו
@@ -115,7 +115,7 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
   const [isApplyAllDialogOpen, setIsApplyAllDialogOpen] = useState(false);
   const [applyAllTime, setApplyAllTime] = useState(60);
   const { toast } = useToast();
-  
+
   const {
     service,
     stations,
@@ -185,8 +185,8 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={onBack}
             className="mb-4 text-blue-600 hover:text-blue-700"
           >

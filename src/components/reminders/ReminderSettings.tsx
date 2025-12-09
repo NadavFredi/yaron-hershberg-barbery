@@ -74,7 +74,7 @@ export default function ReminderSettings() {
         setIsLoading(true)
         try {
             console.log("[ReminderSettings] Loading reminder settings and reminders...")
-            
+
             // Load settings
             const { data: settingsData, error: settingsError } = await supabase
                 .from("appointment_reminder_settings")
@@ -125,7 +125,7 @@ export default function ReminderSettings() {
 
             remindersData?.forEach((reminder) => {
                 const isManual = reminder.is_manual === true
-                
+
                 // For manual reminders, we don't need days/hours, but we'll set defaults for the UI
                 const isDays = reminder.reminder_days !== null
                 const value = isDays ? reminder.reminder_days : reminder.reminder_hours
@@ -177,7 +177,7 @@ export default function ReminderSettings() {
             setSundayRows(sunday.sort(sortByHours))
             // Manual reminders sorted by display_order (already sorted by query)
             setManualRows(manual)
-            
+
             console.log("[ReminderSettings] Data loaded successfully")
         } catch (error) {
             console.error("[ReminderSettings] Failed to load data:", error)
@@ -354,7 +354,7 @@ export default function ReminderSettings() {
 
     const handleSave = async () => {
         console.log("[ReminderSettings] Starting save operation...")
-        
+
         // Validation
         const allRows = [...regularRows, ...sundayRows, ...manualRows]
         const activeRows = allRows.filter((r) => r.isActive)
@@ -372,10 +372,10 @@ export default function ReminderSettings() {
             // Manual reminders don't need time, but they need flow_id
             // Check if this is a manual reminder (either explicitly set or by dayType)
             const isManualReminder = row.isManual === true || row.dayType === "manual"
-            
+
             if (!isManualReminder) {
                 const hasTime = (row.unit === "days" && row.reminderDays !== null && row.reminderDays > 0) ||
-                               (row.unit === "hours" && row.reminderHours !== null && row.reminderHours > 0)
+                    (row.unit === "hours" && row.reminderHours !== null && row.reminderHours > 0)
 
                 if (!hasTime) {
                     toast({
@@ -405,11 +405,11 @@ export default function ReminderSettings() {
             if (settings?.id) {
                 const { error } = await supabase
                     .from("appointment_reminder_settings")
-                    .update({ 
+                    .update({
                         is_enabled: isEnabled
                     })
                     .eq("id", settings.id)
-                
+
                 if (error) {
                     console.error("[ReminderSettings] Error updating settings:", error)
                     throw error
@@ -417,7 +417,7 @@ export default function ReminderSettings() {
             } else {
                 const { data, error } = await supabase
                     .from("appointment_reminder_settings")
-                    .insert({ 
+                    .insert({
                         is_enabled: isEnabled
                     })
                     .select()
@@ -436,10 +436,10 @@ export default function ReminderSettings() {
             console.log("[ReminderSettings] Saving reminders...", { count: allRows.length })
             // Save all reminders (calculate display_order based on hours - earliest first)
             const remindersToSave = allRows.map((row, index) => {
-                const hoursBefore = row.isManual ? 0 : (row.unit === "days" 
-                    ? (row.reminderDays || 0) * 24 
+                const hoursBefore = row.isManual ? 0 : (row.unit === "days"
+                    ? (row.reminderDays || 0) * 24
                     : (row.reminderHours || 0))
-                
+
                 return {
                     id: row.originalReminder?.id,
                     day_type: row.isManual ? "manual" : row.dayType,
@@ -453,7 +453,7 @@ export default function ReminderSettings() {
                     is_default: row.isManual ? row.isDefault : false, // Only manual reminders can be default
                 }
             })
-            
+
             // Ensure only one default reminder exists
             const defaultReminders = remindersToSave.filter(r => r.is_default === true)
             if (defaultReminders.length > 1) {
@@ -501,7 +501,7 @@ export default function ReminderSettings() {
             }
 
             console.log("[ReminderSettings] Save completed successfully")
-            
+
             toast({
                 title: "הצלחה",
                 description: "הגדרות התזכורות נשמרו בהצלחה",
@@ -578,8 +578,8 @@ export default function ReminderSettings() {
                                                         }}
                                                         className={cn(
                                                             "p-1 rounded transition-colors",
-                                                            row.isDefault 
-                                                                ? "text-yellow-500 hover:text-yellow-600" 
+                                                            row.isDefault
+                                                                ? "text-yellow-500 hover:text-yellow-600"
                                                                 : "text-gray-400 hover:text-gray-600"
                                                         )}
                                                         title={row.isDefault ? "ברירת מחדל" : "הגדר כברירת מחדל"}
@@ -703,184 +703,184 @@ export default function ReminderSettings() {
                                 החלף הכל מ{otherTitle}
                             </Button>
                         </div>
-                    <div className="overflow-x-auto rounded-lg border border-slate-200">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className={cn(
-                                    dayType === "regular" ? "bg-blue-50" : "bg-green-50"
-                                )}>
-                                    <TableHead className={cn(
-                                        "w-20 text-center",
-                                        dayType === "regular" ? "text-blue-900" : "text-green-900"
-                                    )}>פעיל</TableHead>
-                                    <TableHead className={cn(
-                                        "w-[140px]",
-                                        dayType === "regular" ? "text-blue-900" : "text-green-900"
-                                    )}>סוג יחידה</TableHead>
-                                    <TableHead className={cn(
-                                        "w-[140px]",
-                                        dayType === "regular" ? "text-blue-900" : "text-green-900"
-                                    )}>זמן לפני התור</TableHead>
-                                    <TableHead className={cn(
-                                        dayType === "regular" ? "text-blue-900" : "text-green-900"
-                                    )}>מזהה זרימה (Flow ID)</TableHead>
-                                    <TableHead className={cn(
-                                        dayType === "regular" ? "text-blue-900" : "text-green-900"
-                                    )}>תיאור (אופציונלי)</TableHead>
-                                    <TableHead className={cn(
-                                        "w-32 text-center",
-                                        dayType === "regular" ? "text-blue-900" : "text-green-900"
-                                    )}>פעולות</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {rows.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center text-slate-500 py-8">
-                                            אין תזכורות. לחץ על "הוסף שורה" כדי להוסיף תזכורת חדשה.
-                                        </TableCell>
+                        <div className="overflow-x-auto rounded-lg border border-slate-200">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className={cn(
+                                        dayType === "regular" ? "bg-blue-50" : "bg-green-50"
+                                    )}>
+                                        <TableHead className={cn(
+                                            "w-20 text-center",
+                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                        )}>פעיל</TableHead>
+                                        <TableHead className={cn(
+                                            "w-[140px]",
+                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                        )}>סוג יחידה</TableHead>
+                                        <TableHead className={cn(
+                                            "w-[140px]",
+                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                        )}>זמן לפני התור</TableHead>
+                                        <TableHead className={cn(
+                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                        )}>מזהה זרימה (Flow ID)</TableHead>
+                                        <TableHead className={cn(
+                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                        )}>תיאור (אופציונלי)</TableHead>
+                                        <TableHead className={cn(
+                                            "w-32 text-center",
+                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                        )}>פעולות</TableHead>
                                     </TableRow>
-                                ) : (
-                                    rows.map((row, index) => {
-                                        const hoursBefore = row.unit === "days" 
-                                            ? (row.reminderDays || 0) * 24 
-                                            : (row.reminderHours || 0)
-                                        const rowOtherDayType: "regular" | "sunday" = dayType === "regular" ? "sunday" : "regular"
-                                        const rowOtherTitle = rowOtherDayType === "regular" ? "ימים רגילים" : "יום ראשון"
-                                        
-                                        return (
-                                            <TableRow key={row.id} className={cn(!row.originalReminder && "bg-blue-50")}>
-                                                <TableCell className="text-center">
-                                                    <Checkbox
-                                                        checked={row.isActive}
-                                                        onCheckedChange={(checked) =>
-                                                            updateRow(dayType, row.id, { isActive: Boolean(checked) })
-                                                        }
-                                                        disabled={!isEnabled}
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Select
-                                                        value={row.unit}
-                                                        onValueChange={(value: "days" | "hours") => {
-                                                            updateRow(dayType, row.id, {
-                                                                unit: value,
-                                                                reminderDays: value === "days" ? row.reminderDays || 1 : null,
-                                                                reminderHours: value === "hours" ? row.reminderHours || 1 : null,
-                                                            })
-                                                        }}
-                                                        disabled={!isEnabled}
-                                                    >
-                                                        <SelectTrigger className="h-9 text-right text-sm">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent align="end">
-                                                            <SelectItem value="days">ימים</SelectItem>
-                                                            <SelectItem value="hours">שעות</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        value={row.unit === "days" ? row.reminderDays ?? "" : row.reminderHours ?? ""}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value ? parseInt(e.target.value, 10) : null
-                                                            updateRow(dayType, row.id, {
-                                                                reminderDays: row.unit === "days" ? value : null,
-                                                                reminderHours: row.unit === "hours" ? value : null,
-                                                            })
-                                                        }}
-                                                        placeholder="0"
-                                                        dir="rtl"
-                                                        disabled={!isEnabled}
-                                                        className="h-9 text-sm text-right"
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Input
-                                                        type="text"
-                                                        value={row.flowId}
-                                                        onChange={(e) => updateRow(dayType, row.id, { flowId: e.target.value })}
-                                                        placeholder="הזן מזהה זרימה ManyChat"
-                                                        dir="rtl"
-                                                        disabled={!isEnabled}
-                                                        className="h-9 text-sm text-right"
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Input
-                                                        type="text"
-                                                        value={row.description}
-                                                        onChange={(e) => updateRow(dayType, row.id, { description: e.target.value })}
-                                                        placeholder="תיאור קצר (אופציונלי)"
-                                                        dir="rtl"
-                                                        disabled={!isEnabled}
-                                                        className="h-9 text-sm text-right"
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => duplicateRow(dayType, row.id)}
+                                </TableHeader>
+                                <TableBody>
+                                    {rows.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="text-center text-slate-500 py-8">
+                                                אין תזכורות. לחץ על "הוסף שורה" כדי להוסיף תזכורת חדשה.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        rows.map((row, index) => {
+                                            const hoursBefore = row.unit === "days"
+                                                ? (row.reminderDays || 0) * 24
+                                                : (row.reminderHours || 0)
+                                            const rowOtherDayType: "regular" | "sunday" = dayType === "regular" ? "sunday" : "regular"
+                                            const rowOtherTitle = rowOtherDayType === "regular" ? "ימים רגילים" : "יום ראשון"
+
+                                            return (
+                                                <TableRow key={row.id} className={cn(!row.originalReminder && "bg-blue-50")}>
+                                                    <TableCell className="text-center">
+                                                        <Checkbox
+                                                            checked={row.isActive}
+                                                            onCheckedChange={(checked) =>
+                                                                updateRow(dayType, row.id, { isActive: Boolean(checked) })
+                                                            }
                                                             disabled={!isEnabled}
-                                                            className={cn(
-                                                                "h-8 w-8 p-0",
-                                                                dayType === "regular" 
-                                                                    ? "text-blue-600 hover:text-blue-700 hover:bg-blue-50" 
-                                                                    : "text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                            )}
-                                                            title="שכפל שורה באותה טבלה"
-                                                        >
-                                                            <Copy className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => duplicateRowToOtherTable(dayType, row.id)}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Select
+                                                            value={row.unit}
+                                                            onValueChange={(value: "days" | "hours") => {
+                                                                updateRow(dayType, row.id, {
+                                                                    unit: value,
+                                                                    reminderDays: value === "days" ? row.reminderDays || 1 : null,
+                                                                    reminderHours: value === "hours" ? row.reminderHours || 1 : null,
+                                                                })
+                                                            }}
                                                             disabled={!isEnabled}
-                                                            className={cn(
-                                                                "h-8 w-8 p-0",
-                                                                dayType === "regular" 
-                                                                    ? "text-green-600 hover:text-green-700 hover:bg-green-50" 
-                                                                    : "text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                                            )}
-                                                            title={`שכפל ל${rowOtherTitle}`}
                                                         >
-                                                            <CopyCheck className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => removeRow(dayType, row.id)}
+                                                            <SelectTrigger className="h-9 text-right text-sm">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent align="end">
+                                                                <SelectItem value="days">ימים</SelectItem>
+                                                                <SelectItem value="hours">שעות</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Input
+                                                            type="number"
+                                                            min="0"
+                                                            value={row.unit === "days" ? row.reminderDays ?? "" : row.reminderHours ?? ""}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value ? parseInt(e.target.value, 10) : null
+                                                                updateRow(dayType, row.id, {
+                                                                    reminderDays: row.unit === "days" ? value : null,
+                                                                    reminderHours: row.unit === "hours" ? value : null,
+                                                                })
+                                                            }}
+                                                            placeholder="0"
+                                                            dir="rtl"
                                                             disabled={!isEnabled}
-                                                            className="h-8 w-8 p-0 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                                                            title="מחק שורה"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        )
-                                    })
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => addRow(dayType)}
-                        disabled={!isEnabled}
-                        className="mt-3 w-full border-dashed h-9 text-sm"
-                    >
-                        <Plus className="ml-2 h-4 w-4" />
-                        הוסף שורה
-                    </Button>
+                                                            className="h-9 text-sm text-right"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Input
+                                                            type="text"
+                                                            value={row.flowId}
+                                                            onChange={(e) => updateRow(dayType, row.id, { flowId: e.target.value })}
+                                                            placeholder="הזן מזהה זרימה ManyChat"
+                                                            dir="rtl"
+                                                            disabled={!isEnabled}
+                                                            className="h-9 text-sm text-right"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Input
+                                                            type="text"
+                                                            value={row.description}
+                                                            onChange={(e) => updateRow(dayType, row.id, { description: e.target.value })}
+                                                            placeholder="תיאור קצר (אופציונלי)"
+                                                            dir="rtl"
+                                                            disabled={!isEnabled}
+                                                            className="h-9 text-sm text-right"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => duplicateRow(dayType, row.id)}
+                                                                disabled={!isEnabled}
+                                                                className={cn(
+                                                                    "h-8 w-8 p-0",
+                                                                    dayType === "regular"
+                                                                        ? "text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                        : "text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                                )}
+                                                                title="שכפל שורה באותה טבלה"
+                                                            >
+                                                                <Copy className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => duplicateRowToOtherTable(dayType, row.id)}
+                                                                disabled={!isEnabled}
+                                                                className={cn(
+                                                                    "h-8 w-8 p-0",
+                                                                    dayType === "regular"
+                                                                        ? "text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                                        : "text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                )}
+                                                                title={`שכפל ל${rowOtherTitle}`}
+                                                            >
+                                                                <CopyCheck className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => removeRow(dayType, row.id)}
+                                                                disabled={!isEnabled}
+                                                                className="h-8 w-8 p-0 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                                                title="מחק שורה"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        })
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => addRow(dayType)}
+                            disabled={!isEnabled}
+                            className="mt-3 w-full border-dashed h-9 text-sm"
+                        >
+                            <Plus className="ml-2 h-4 w-4" />
+                            הוסף שורה
+                        </Button>
                     </div>
                 </AccordionContent>
             </AccordionItem>
@@ -922,14 +922,14 @@ export default function ReminderSettings() {
                                 checked={isEnabled}
                                 onCheckedChange={setIsEnabled}
                             />
-                            <Label 
-                                htmlFor="enable-reminders" 
+                            <Label
+                                htmlFor="enable-reminders"
                                 className="text-base font-medium cursor-pointer"
                             >
                                 הפעל תזכורות אוטומטיות
                             </Label>
                         </div>
-                        
+
                     </div>
                 </CardContent>
             </Card>

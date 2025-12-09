@@ -28,7 +28,6 @@ export function extractGroomingAppointmentId(appointmentId: string, groomingAppo
     return ""
   }
 
-
   // If it's not a combined ID, return as-is (assuming it's a valid UUID)
   return appointmentId
 }

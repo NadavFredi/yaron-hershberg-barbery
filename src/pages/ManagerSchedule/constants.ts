@@ -90,10 +90,7 @@ export const EMPTY_STATIONS_OVERRIDE_PARAM = "__none__"
 export const WAITLIST_DEFAULT_DURATION_MINUTES = 60
 export const UNCLASSIFIED_CUSTOMER_TYPE_ID = "uncategorized-customer-type"
 
-export const WAITLIST_SCOPE_META: Record<
-  WaitlistServiceScope,
-  { label: string; badgeClass: string }
-> = {
+export const WAITLIST_SCOPE_META: Record<WaitlistServiceScope, { label: string; badgeClass: string }> = {
   grooming: {
     label: "מספרה",
     badgeClass: "bg-blue-50 text-blue-700 border-blue-100",
