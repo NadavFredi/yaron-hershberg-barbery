@@ -130,50 +130,24 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
   const isProposedMeeting = Boolean(appointment.isProposedMeeting)
 
   const getCardStyle = (appointment: ManagerAppointment): string => {
-    console.log("[getCardStyle] Computing card style:", {
-      appointmentId: appointment.id,
-      isProposedMeeting: appointment.isProposedMeeting,
-      isPersonalAppointment: appointment.isPersonalAppointment,
-      appointmentType: appointment.appointmentType,
-      serviceCategoryVariant: appointment.serviceCategoryVariant,
-    })
-
     if (appointment.isProposedMeeting) {
-      console.log("[getCardStyle] Using proposed meeting style")
       return "bg-lime-50 border-lime-200"
     }
     if (appointment.isPersonalAppointment) {
-      console.log("[getCardStyle] Using personal appointment style")
       return "bg-purple-100 border-purple-300"
     }
     if (appointment.appointmentType === "private") {
-      console.log("[getCardStyle] Using private appointment style")
       return "bg-purple-100 border-purple-300"
     }
     // For business appointments, use service category variant colors if available
     if (appointment.appointmentType === "business" && appointment.serviceCategoryVariant) {
       const variant = appointment.serviceCategoryVariant as ServiceCategoryVariant
       const variantConfig = SERVICE_CATEGORY_VARIANTS[variant]
-      console.log("[getCardStyle] Business appointment with variant:", {
-        variant,
-        variantConfig,
-        hasVariantConfig: !!variantConfig,
-      })
       if (variantConfig) {
-        const style = `${variantConfig.bgLight} ${variantConfig.border}`
-        console.log("[getCardStyle] Using variant style:", style)
-        return style
-      } else {
-        console.warn("[getCardStyle] Variant config not found for variant:", variant)
+        return `${variantConfig.bgLight} ${variantConfig.border}`
       }
-    } else {
-      console.log("[getCardStyle] No variant available, checking conditions:", {
-        isBusiness: appointment.appointmentType === "business",
-        hasVariant: !!appointment.serviceCategoryVariant,
-      })
     }
     // Fallback to default service style
-    console.log("[getCardStyle] Using default service style:", serviceStyle.card)
     return serviceStyle.card
   }
 
