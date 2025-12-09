@@ -53,7 +53,6 @@ interface ReminderRow {
 interface ReminderSettings {
     id: string
     is_enabled: boolean
-    dog_ready_default_minutes: number | null
 }
 
 export default function ReminderSettings() {
@@ -62,14 +61,10 @@ export default function ReminderSettings() {
     const [isSaving, setIsSaving] = useState(false)
     const [settings, setSettings] = useState<ReminderSettings | null>(null)
     const [isEnabled, setIsEnabled] = useState(false)
-    const [dogReadyDefaultMinutes, setDogReadyDefaultMinutes] = useState<number>(30)
-    const [originalDogReadyDefaultMinutes, setOriginalDogReadyDefaultMinutes] = useState<number>(30)
-    const [isSavingDogReadyMinutes, setIsSavingDogReadyMinutes] = useState(false)
     const [regularRows, setRegularRows] = useState<ReminderRow[]>([])
     const [sundayRows, setSundayRows] = useState<ReminderRow[]>([])
     const [manualRows, setManualRows] = useState<ReminderRow[]>([])
 
-    const isDogReadyMinutesDirty = dogReadyDefaultMinutes !== originalDogReadyDefaultMinutes
 
     useEffect(() => {
         loadData()
@@ -95,9 +90,6 @@ export default function ReminderSettings() {
                 console.log("[ReminderSettings] Loaded settings:", settingsData)
                 setSettings(settingsData)
                 setIsEnabled(settingsData.is_enabled)
-                const defaultMinutes = settingsData.dog_ready_default_minutes ?? 30
-                setDogReadyDefaultMinutes(defaultMinutes)
-                setOriginalDogReadyDefaultMinutes(defaultMinutes)
             } else {
                 console.log("[ReminderSettings] No settings found, creating default...")
                 // Create default settings if none exist
@@ -111,9 +103,6 @@ export default function ReminderSettings() {
                     console.log("[ReminderSettings] Created default settings:", newSettings)
                     setSettings(newSettings)
                     setIsEnabled(false)
-                    const defaultMinutes = newSettings.dog_ready_default_minutes ?? 30
-                    setDogReadyDefaultMinutes(defaultMinutes)
-                    setOriginalDogReadyDefaultMinutes(defaultMinutes)
                 }
             }
 
@@ -411,23 +400,13 @@ export default function ReminderSettings() {
         setIsSaving(true)
         try {
             console.log("[ReminderSettings] Updating settings...")
-            // Validate dog ready default minutes
-            if (dogReadyDefaultMinutes < 1) {
-                toast({
-                    title: "שגיאה",
-                    description: "מספר הדקות ברירת המחדל חייב להיות גדול מ-0",
-                    variant: "destructive",
-                })
-                return
-            }
 
             // Update settings
             if (settings?.id) {
                 const { error } = await supabase
                     .from("appointment_reminder_settings")
                     .update({ 
-                        is_enabled: isEnabled,
-                        dog_ready_default_minutes: dogReadyDefaultMinutes
+                        is_enabled: isEnabled
                     })
                     .eq("id", settings.id)
                 
@@ -439,8 +418,7 @@ export default function ReminderSettings() {
                 const { data, error } = await supabase
                     .from("appointment_reminder_settings")
                     .insert({ 
-                        is_enabled: isEnabled,
-                        dog_ready_default_minutes: dogReadyDefaultMinutes
+                        is_enabled: isEnabled
                     })
                     .select()
                     .single<ReminderSettings>()
@@ -452,8 +430,6 @@ export default function ReminderSettings() {
 
                 if (data) {
                     setSettings(data)
-                    // Update original value when creating new settings
-                    setOriginalDogReadyDefaultMinutes(data.dog_ready_default_minutes ?? 30)
                 }
             }
 
@@ -525,10 +501,6 @@ export default function ReminderSettings() {
             }
 
             console.log("[ReminderSettings] Save completed successfully")
-            console.log("[ReminderSettings] Saved dog ready default minutes:", dogReadyDefaultMinutes)
-            
-            // Update original value after successful save to clear dirty state
-            setOriginalDogReadyDefaultMinutes(dogReadyDefaultMinutes)
             
             toast({
                 title: "הצלחה",
@@ -958,125 +930,6 @@ export default function ReminderSettings() {
                             </Label>
                         </div>
                         
-                        <div className="space-y-2 border-t pt-4">
-                            <Label htmlFor="dog-ready-minutes" className="text-base font-medium">
-                                ברירת מחדל לדקות "הכלב יהיה מוכן בעוד X דקות"
-                            </Label>
-                            <div className="flex items-center gap-3">
-                                <Input
-                                    id="dog-ready-minutes"
-                                    type="number"
-                                    min="1"
-                                    value={dogReadyDefaultMinutes}
-                                    onChange={(e) => {
-                                        const value = parseInt(e.target.value, 10)
-                                        if (!isNaN(value) && value > 0) {
-                                            setDogReadyDefaultMinutes(value)
-                                        } else if (e.target.value === "") {
-                                            setDogReadyDefaultMinutes(30)
-                                        }
-                                    }}
-                                    className="w-32 text-right"
-                                    dir="rtl"
-                                />
-                                <span className="text-sm text-gray-600">דקות</span>
-                                {isDogReadyMinutesDirty && (
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            size="sm"
-                                            onClick={async () => {
-                                                setIsSavingDogReadyMinutes(true)
-                                                try {
-                                                    console.log("[ReminderSettings] Saving dog ready default minutes...")
-                                                    
-                                                    if (dogReadyDefaultMinutes < 1) {
-                                                        toast({
-                                                            title: "שגיאה",
-                                                            description: "מספר הדקות חייב להיות גדול מ-0",
-                                                            variant: "destructive",
-                                                        })
-                                                        return
-                                                    }
-
-                                                    if (!settings?.id) {
-                                                        // Create settings if they don't exist
-                                                        const { data: newSettings, error } = await supabase
-                                                            .from("appointment_reminder_settings")
-                                                            .insert({ 
-                                                                is_enabled: false,
-                                                                dog_ready_default_minutes: dogReadyDefaultMinutes
-                                                            })
-                                                            .select()
-                                                            .single<ReminderSettings>()
-
-                                                        if (error) {
-                                                            console.error("[ReminderSettings] Error creating settings:", error)
-                                                            throw error
-                                                        }
-
-                                                        if (newSettings) {
-                                                            setSettings(newSettings)
-                                                            setOriginalDogReadyDefaultMinutes(dogReadyDefaultMinutes)
-                                                            toast({
-                                                                title: "הצלחה",
-                                                                description: "הערך נשמר בהצלחה",
-                                                            })
-                                                        }
-                                                    } else {
-                                                        const { error } = await supabase
-                                                            .from("appointment_reminder_settings")
-                                                            .update({ dog_ready_default_minutes: dogReadyDefaultMinutes })
-                                                            .eq("id", settings.id)
-
-                                                        if (error) {
-                                                            console.error("[ReminderSettings] Error updating dog ready minutes:", error)
-                                                            throw error
-                                                        }
-
-                                                        setOriginalDogReadyDefaultMinutes(dogReadyDefaultMinutes)
-                                                        toast({
-                                                            title: "הצלחה",
-                                                            description: "הערך נשמר בהצלחה",
-                                                        })
-                                                    }
-                                                } catch (error) {
-                                                    console.error("[ReminderSettings] Failed to save dog ready minutes:", error)
-                                                    toast({
-                                                        title: "שגיאה",
-                                                        description: "לא ניתן לשמור את הערך",
-                                                        variant: "destructive",
-                                                    })
-                                                } finally {
-                                                    setIsSavingDogReadyMinutes(false)
-                                                }
-                                            }}
-                                            disabled={isSavingDogReadyMinutes || dogReadyDefaultMinutes < 1}
-                                            className="h-8 px-3"
-                                        >
-                                            {isSavingDogReadyMinutes ? (
-                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                            ) : (
-                                                <Check className="h-3 w-3" />
-                                            )}
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
-                                                setDogReadyDefaultMinutes(originalDogReadyDefaultMinutes)
-                                            }}
-                                            disabled={isSavingDogReadyMinutes}
-                                            className="h-8 px-3"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                            <p className="text-sm text-gray-500">
-                                ערך ברירת המחדל שיוצג במודאל "הכלב יהיה מוכן בעוד X דקות"
-                            </p>
-                        </div>
                     </div>
                 </CardContent>
             </Card>

@@ -7,10 +7,8 @@ import type {
   ManagerScheduleData,
   ManagerAppointment,
   ManagerStation,
-  ManagerDog,
   ManagerServiceFilter,
   ManagerScheduleSearchResponse,
-  ManagerScheduleDogSearchResult,
   ManagerScheduleSearchClient,
 } from "@/pages/ManagerSchedule/types"
 import type { ProposedMeetingPublicDetails } from "@/types/proposedMeeting"
@@ -89,31 +87,7 @@ export interface ClientProfile {
   customerTypeName?: string | null
 }
 
-async function hasDogAppointmentHistory(dogId: string): Promise<boolean> {
-  if (!supabase) {
-    throw new Error("Supabase client not initialized")
-  }
-
-  if (!dogId) {
-    throw new Error("dogId is required")
-  }
-
-  // dog_id removed - returning 0 count
-  const [{ count: groomingCount, error: groomingError }] = await Promise.all([
-    Promise.resolve({ count: 0, error: null }),
-  ])
-
-  if (groomingError) {
-    console.error("❌ [hasDogAppointmentHistory] Failed to check grooming appointments", groomingError)
-    throw groomingError
-  }
-
-  // Daycare appointments don't exist in this system - set count to 0
-  const daycareCount = 0
-
-  const totalAppointments = (groomingCount ?? 0) + (daycareCount ?? 0)
-  return totalAppointments > 0
-}
+// Removed hasDogAppointmentHistory - barbery system doesn't use dogs
 
 // Generic function to call Supabase Edge Functions
 async function callSupabaseFunction(functionName: string, params: Record<string, any> = {}) {
@@ -914,11 +888,7 @@ export async function moveAppointment(params: {
   oldStationId: string
   oldStartTime: string
   oldEndTime: string
-  appointmentType: "grooming" | "garden"
-  newGardenAppointmentType?: "full-day" | "hourly" | "trial"
-  newGardenIsTrial?: boolean
-  selectedHours?: { start: string; end: string }
-  // Removed garden-specific fields - barbery system only has grooming appointments
+  appointmentType: "grooming"
   internalNotes?: string
   customerNotes?: string
   groomingNotes?: string
@@ -1285,7 +1255,6 @@ export async function managerCancelAppointment(params: {
   stationId?: string
   updateCustomer?: boolean
   clientName?: string
-  dogName?: string
   appointmentDate?: string
   groupId?: string
 }): Promise<{ success: boolean; message?: string; error?: string }> {
@@ -1331,7 +1300,6 @@ export async function managerDeleteAppointment(params: {
   stationId?: string
   updateCustomer?: boolean
   clientName?: string
-  dogName?: string
   appointmentDate?: string
   groupId?: string
 }): Promise<{ success: boolean; message?: string; error?: string }> {
@@ -1447,16 +1415,6 @@ export async function getSingleManagerAppointment(
     const customer = Array.isArray(appointmentData.customers) ? appointmentData.customers[0] : appointmentData.customers
 
     // Removed dog/breed references - barbery system doesn't use dogs
-    const managerDog: ManagerDog = {
-      id: "",
-      name: "",
-      ownerId: appointmentData.customer_id,
-      clientClassification: customer?.classification,
-      clientName: customer?.full_name,
-      minGroomingPrice: undefined,
-      maxGroomingPrice: undefined,
-    }
-
     const appointment: ManagerAppointment = {
       id: appointmentData.id,
       serviceType,
@@ -1469,8 +1427,8 @@ export async function getSingleManagerAppointment(
       notes: appointmentData.customer_notes || "",
       internalNotes: appointmentData.internal_notes || undefined,
       groomingNotes: serviceType === "grooming" ? (appointmentData as any).grooming_notes || undefined : undefined,
-      hasCrossServiceAppointment: hasCrossService,
-      dogs: [managerDog],
+      hasCrossServiceAppointment: false,
+      dogs: [],
       clientId: appointmentData.customer_id,
       clientName: customer?.full_name || undefined,
       clientClassification: customer?.classification || undefined,
@@ -1550,7 +1508,8 @@ export async function searchManagerSchedule({
     }
 
     const appointments: ManagerAppointment[] = Array.isArray(response.appointments) ? response.appointments : []
-    const dogs: ManagerScheduleDogSearchResult[] = Array.isArray(response.dogs) ? response.dogs : []
+    // Removed dogs from search results - barbery system doesn't use dogs
+    const dogs: [] = []
     const clients: ManagerScheduleSearchClient[] = Array.isArray(response.clients) ? response.clients : []
 
     return { appointments, dogs, clients }

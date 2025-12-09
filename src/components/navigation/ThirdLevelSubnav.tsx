@@ -35,7 +35,6 @@ export const THIRD_LEVEL_SECTIONS = {
     { id: "stations", label: "ניהול עמדות", icon: Building2 },
     { id: "stations-per-day", label: "עמדות לפי יום", icon: CalendarDays },
     { id: "constraints", label: "אילוצים", icon: AlertCircle },
-    { id: "matrix", label: "מטריצת שירותים-עמדות", icon: Grid3x3 },
   ],
   customers: [
     { id: "list", label: "לקוחות", description: "ניהול רשימת לקוחות", icon: Users },

@@ -13,7 +13,6 @@ export function ManagerScheduleLoadingState() {
     const formattedDate = format(selectedDate, "yyyy-MM-dd")
     const visibleStationIds = useAppSelector((state) => state.managerSchedule.visibleStationIds)
     const serviceFilter = useAppSelector((state) => state.managerSchedule.serviceFilter)
-    const showGardenColumn = useAppSelector((state) => state.managerSchedule.showGardenColumn)
 
     const snapshotKey = useMemo(() => `date:${formattedDate}`, [formattedDate])
     const initialSnapshot = useMemo(() => getManagerScheduleSnapshot(snapshotKey), [snapshotKey])
@@ -87,19 +86,11 @@ export function ManagerScheduleLoadingState() {
 
         if (serviceFilter === "grooming") {
             stationsToShow = stationsToShow.filter(station => station.serviceType === "grooming")
-        } else if (serviceFilter === "garden") {
-            stationsToShow = stationsToShow.filter(station => station.serviceType === "garden")
         }
 
-        return stationsToShow.filter(station => station.serviceType !== "garden")
+        return stationsToShow
     }, [stations, visibleStationIds, serviceFilter])
 
-    // Compute shouldShowGardenColumns
-    const shouldShowGardenColumns = useMemo(() => {
-        if (serviceFilter === "grooming") return false
-        // Show garden column if enabled in database settings, regardless of appointments
-        return showGardenColumn
-    }, [serviceFilter, showGardenColumn])
 
     const isInitialLoading = !hasLoadedInitialData && (isLoading || !data)
     const shouldShowInitialError = !hasLoadedInitialData && !!error && !isLoading
@@ -157,7 +148,7 @@ export function ManagerScheduleLoadingState() {
         )
     }
 
-    if (!filteredStations.length && !shouldShowGardenColumns) {
+    if (!filteredStations.length) {
         return (
             <Alert className="border border-amber-200 bg-amber-50">
                 <AlertTitle>אין עמדות להצגה</AlertTitle>

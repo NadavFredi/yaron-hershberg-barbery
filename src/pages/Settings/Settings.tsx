@@ -4,13 +4,11 @@ import { Loader2 } from "lucide-react"
 import { useManagerRole } from "@/hooks/useManagerRole"
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth"
 import AdminLayout from "@/components/layout/AdminLayout"
-import { SettingsBreedsSection } from "@/components/settings/SettingsBreedsSection/SettingsBreedsSection"
 import { SettingsWorkingHoursSection } from "@/components/settings/SettingsWorkingHoursSection/SettingsWorkingHoursSection"
 import { SettingsStationsSection } from "@/components/settings/SettingsStationsSection/SettingsStationsSection"
 import { SettingsStationsPerDaySection } from "@/components/settings/SettingsStationsPerDaySection/SettingsStationsPerDaySection"
 import { SettingsConstraintsSection } from "@/components/settings/SettingsConstraintsSection/SettingsConstraintsSection"
-import { SettingsBreedStationMatrixSection } from "@/components/settings/SettingsBreedStationMatrixSection/SettingsBreedStationMatrixSection"
-const VALID_SECTIONS = ["breeds", "working-hours", "stations", "stations-per-day", "constraints", "matrix"] as const
+const VALID_SECTIONS = ["working-hours", "stations", "stations-per-day", "constraints"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function Settings() {
@@ -23,7 +21,6 @@ export default function Settings() {
     // Also check if constraintId is present, which means we should open constraints section
     const constraintId = searchParams.get("constraintId")
     const sectionFromUrl = searchParams.get("mode")
-    const defaultDogCategoryId = searchParams.get("categoryId") || searchParams.get("category2Id") // Support both for backward compatibility
     const initialSection = (constraintId ? "constraints" : (sectionFromUrl && VALID_SECTIONS.includes(sectionFromUrl as SectionId)
         ? sectionFromUrl
         : "working-hours"))
@@ -86,16 +83,10 @@ export default function Settings() {
             <div className="min-h-screen bg-background py-6" dir="rtl">
                 <div className="mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-12">
                     {/* Active Section Content - Only render the active section to avoid unnecessary API calls */}
-                    {activeSection === "breeds" && (
-                        <SettingsBreedsSection
-                            defaultDogCategoryId={defaultDogCategoryId ?? undefined}
-                        />
-                    )}
                     {activeSection === "working-hours" && <SettingsWorkingHoursSection />}
                     {activeSection === "stations" && <SettingsStationsSection />}
                     {activeSection === "stations-per-day" && <SettingsStationsPerDaySection />}
                     {activeSection === "constraints" && <SettingsConstraintsSection />}
-                    {activeSection === "matrix" && <SettingsBreedStationMatrixSection />}
                 </div>
             </div>
         </AdminLayout>

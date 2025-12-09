@@ -32,7 +32,6 @@ import { useAppDispatch } from "@/store/hooks"
 import { setSelectedClient, setIsClientDetailsOpen, type ClientDetails } from "@/store/slices/managerScheduleSlice"
 import { SettingsStationsPerDaySection } from "@/components/settings/SettingsStationsPerDaySection/SettingsStationsPerDaySection"
 import { useStations } from "@/hooks/useStations"
-import { MultiSelectDropdown } from "@/components/settings/SettingsBreedStationMatrixSection/components/MultiSelectDropdown"
 import { formatDurationFromMinutes } from "@/lib/duration-utils"
 
 type AppointmentStatus = "pending" | "approved" | "cancelled" | "matched"

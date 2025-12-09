@@ -34,8 +34,6 @@ export function ApproveWithModifyDialog() {
     const appointmentDate = appointment ? format(new Date(appointment.startDateTime), 'dd/MM/yyyy') : ""
     // Format appointment time (HH:mm)
     const appointmentTime = appointment ? format(new Date(appointment.startDateTime), 'HH:mm') : ""
-    // Get dog name
-    const dogName = appointment?.dogs?.[0]?.name || "כלב ללא שם"
 
     // Helper function to trigger ManyChat flow
     const triggerManyChatApprovedWithModifyFlow = async () => {
@@ -58,20 +56,16 @@ export function ApproveWithModifyDialog() {
         // Use barber date field for all appointments
         const dateFieldId = getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
 
-        // Get hour and dog name fields (send for all appointment types)
+        // Get hour field (send for all appointment types)
         const hourFieldId = getManyChatCustomFieldId("BARBER_HOUR_APPOINTMENT")
-        const dogNameFieldId = getManyChatCustomFieldId("DOG_NAME")
 
-        // Build fields object - always send date, hour, and dog name
+        // Build fields object - always send date and hour
         const fields: Record<string, string> = {}
         if (dateFieldId) {
             fields[dateFieldId] = appointmentDate
         }
         if (hourFieldId) {
             fields[hourFieldId] = appointmentTime
-        }
-        if (dogNameFieldId) {
-            fields[dogNameFieldId] = dogName
         }
 
         const normalizedPhone = appointment.clientPhone.replace(/\D/g, "") // Normalize to digits only
@@ -212,10 +206,6 @@ export function ApproveWithModifyDialog() {
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <span className="text-sm font-medium text-gray-600">שעת התור:</span>
                             <span className="text-sm font-semibold text-gray-900">{appointmentTime}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <span className="text-sm font-medium text-gray-600">שם הכלב:</span>
-                            <span className="text-sm font-semibold text-gray-900">{dogName}</span>
                         </div>
                     </div>
 

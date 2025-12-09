@@ -9,7 +9,6 @@ import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ResetPassword from "./pages/ResetPassword";
 import Admin from "./pages/Admin";
-import BreedsManagementPage from "./pages/BreedsManagement";
 import StationsManagementPage from "./pages/StationsManagement";
 import NotFound from "./pages/NotFound";
 import { SimpleTest } from "./components/SimpleTest";
@@ -78,7 +77,6 @@ const AppContent = () => {
             <Route path="/about" element={<About />} />
             <Route path="/profile" element={<ProfileSettings />} />
             <Route path="/test" element={<SimpleTest />} />
-            <Route path="/admin/breeds" element={<BreedsManagementPage />} />
             <Route path="/admin/stations" element={<StationsManagementPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/manager-screens" element={<ManagerScreens />} />

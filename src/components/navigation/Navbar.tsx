@@ -64,13 +64,11 @@ import {
 } from "@/components/ui/tooltip"
 
 const SERVICE_BADGE_STYLES: Record<PendingAppointmentRequest["serviceType"], string> = {
-    grooming: "bg-blue-100 text-blue-700 border border-blue-200",
-    garden: "bg-emerald-100 text-emerald-700 border border-emerald-200"
+    grooming: "bg-blue-100 text-blue-700 border border-blue-200"
 }
 
 const SERVICE_TYPE_LABELS: Record<PendingAppointmentRequest["serviceType"], string> = {
-    grooming: "מספרה",
-    garden: "גן"
+    grooming: "מספרה"
 }
 
 const formatDateTime = (value: string | null, options: Intl.DateTimeFormatOptions = {}) => {
@@ -256,7 +254,7 @@ function ImpersonationSelector({ isManager }: ImpersonationSelectorProps) {
     const [searchTerm, setSearchTerm] = useState("")
     const [isOpen, setIsOpen] = useState(false)
     const debouncedSearchTerm = useDebounce(searchTerm.trim(), 300)
-    
+
     const { data: searchData, isLoading: isSearching } = useSearchCustomersQuery(
         { searchTerm: debouncedSearchTerm },
         { skip: !isOpen || debouncedSearchTerm.length < 1 }
@@ -912,7 +910,7 @@ export function Navbar({ isManager }: NavbarProps) {
                     <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
                         {/* Mobile Header */}
                         <div className="flex items-center justify-between gap-4 py-3 xl:hidden">
-                            <Link to={user ? "/my-dogs" : "/"} className="flex items-center gap-3">
+                            <Link to="/" className="flex items-center gap-3">
                                 <div className="w-10 h-10 shrink-0">
                                     <img src={logoImage} alt="B LOVED Logo" className="w-full h-full object-contain" />
                                 </div>

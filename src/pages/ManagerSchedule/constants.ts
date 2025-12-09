@@ -1,19 +1,14 @@
 import { addMinutes, setMilliseconds, setSeconds } from "date-fns"
 import type { ManagerAppointment, ManagerServiceFilter, WaitlistServiceScope } from "./types"
 
-export const SERVICE_LABELS: Record<Exclude<ManagerServiceFilter, "both">, string> = {
+export const SERVICE_LABELS: Record<ManagerServiceFilter, string> = {
   grooming: "מספרה",
-  garden: "גן",
 }
 
-export const SERVICE_STYLES: Record<Exclude<ManagerServiceFilter, "both">, { card: string; badge: string }> = {
+export const SERVICE_STYLES: Record<ManagerServiceFilter, { card: string; badge: string }> = {
   grooming: {
     card: "bg-blue-50 border-blue-200",
     badge: "border-blue-200 bg-blue-100 text-blue-800",
-  },
-  garden: {
-    card: "bg-emerald-50 border-emerald-200",
-    badge: "border-emerald-200 bg-emerald-100 text-emerald-800",
   },
 }
 
@@ -67,10 +62,6 @@ export const getStatusStyle = (status: string, appointment?: ManagerAppointment)
     normalized.includes("הושלם") ||
     normalized.includes("מאשר")
   ) {
-    // For trial garden appointments, use amber colors instead of emerald
-    if (appointment?.serviceType === "garden" && appointment?.gardenIsTrial) {
-      return "border-amber-200 bg-amber-50 text-amber-700"
-    }
     return STATUS_STYLE_MAP.success
   }
 
@@ -98,8 +89,6 @@ export const PINNED_APPOINTMENTS_VISIBILITY_STORAGE_KEY = "manager-schedule-pinn
 export const EMPTY_STATIONS_OVERRIDE_PARAM = "__none__"
 export const WAITLIST_DEFAULT_DURATION_MINUTES = 60
 export const UNCLASSIFIED_CUSTOMER_TYPE_ID = "uncategorized-customer-type"
-export const UNCLASSIFIED_CATEGORY_ID = "uncategorized-dog-category"
-export const UNCLASSIFIED_DOG_TYPE_ID = "uncategorized-dog-type"
 
 export const WAITLIST_SCOPE_META: Record<
   WaitlistServiceScope,
@@ -108,13 +97,5 @@ export const WAITLIST_SCOPE_META: Record<
   grooming: {
     label: "מספרה",
     badgeClass: "bg-blue-50 text-blue-700 border-blue-100",
-  },
-  daycare: {
-    label: "גן",
-    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-100",
-  },
-  both: {
-    label: "מספרה + גן",
-    badgeClass: "bg-purple-50 text-purple-700 border-purple-100",
   },
 }

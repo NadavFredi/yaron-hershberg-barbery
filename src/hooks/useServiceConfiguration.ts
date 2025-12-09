@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useServices } from './useServices';
 import { useStations } from './useStations';
-import { useBreeds } from './useBreeds';
 
 export interface ServiceStationConfig {
   id: string;
@@ -50,27 +49,7 @@ export const useServiceStationConfigs = (serviceId: string) => {
   });
 };
 
-export const useBreedModifiers = (serviceId: string) => {
-  return useQuery({
-    queryKey: ['breed-modifiers', serviceId],
-    queryFn: async () => {
-      // Join with breeds table to get breed names
-      const { data, error } = await supabase
-        .from('breed_modifiers')
-        .select(`
-          *,
-          breeds!breed_modifiers_breed_id_fkey(
-            id,
-            name
-          )
-        `)
-        .eq('service_id', serviceId);
-      
-      if (error) throw error;
-      return data;
-    }
-  });
-};
+// Removed useBreedModifiers - barbery system doesn't use breeds
 
 export const useUpdateServiceStationConfig = () => {
   const queryClient = useQueryClient();
@@ -154,84 +133,14 @@ export const useDeleteServiceStationConfig = () => {
   });
 };
 
-export const useUpdateBreedModifier = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ 
-      serviceId, 
-      breedId, 
-      timeModifierMinutes 
-    }: { 
-      serviceId: string; 
-      breedId: string; 
-      timeModifierMinutes: number 
-    }) => {
-      if (timeModifierMinutes === 0) {
-        // Delete the modifier if it's 0
-        const { error } = await supabase
-          .from('breed_modifiers')
-          .delete()
-          .eq('service_id', serviceId)
-          .eq('breed_id', breedId);
-        
-        if (error) throw error;
-        return null;
-      } else {
-        // Check if record exists
-        const { data: existing } = await supabase
-          .from('breed_modifiers')
-          .select('id')
-          .eq('service_id', serviceId)
-          .eq('breed_id', breedId)
-          .single();
-
-        if (existing) {
-          // Update existing record
-          const { data, error } = await supabase
-            .from('breed_modifiers')
-            .update({
-              time_modifier_minutes: timeModifierMinutes
-            })
-            .eq('service_id', serviceId)
-            .eq('breed_id', breedId)
-            .select()
-            .single();
-          
-          if (error) throw error;
-          return data;
-        } else {
-          // Insert new record
-          const { data, error } = await supabase
-            .from('breed_modifiers')
-            .insert({
-              service_id: serviceId,
-              breed_id: breedId,
-              time_modifier_minutes: timeModifierMinutes
-            })
-            .select()
-            .single();
-          
-          if (error) throw error;
-          return data;
-        }
-      }
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['breed-modifiers', variables.serviceId] });
-    }
-  });
-};
+// Removed useUpdateBreedModifier - barbery system doesn't use breeds
 
 // Main composite hook that combines all the functionality
 export const useServiceConfiguration = (serviceId: string) => {
   const { data: services } = useServices();
   const { data: allStations } = useStations();
-  const { data: allBreeds } = useBreeds();
   const { data: stationConfigs } = useServiceStationConfigs(serviceId);
-  const { data: breedModifiersWithBreeds } = useBreedModifiers(serviceId);
   const updateStationConfigMutation = useUpdateServiceStationConfig();
-  const updateBreedModifierMutation = useUpdateBreedModifier();
 
   const service = services?.find(s => s.id === serviceId);
 
@@ -263,32 +172,10 @@ export const useServiceConfiguration = (serviceId: string) => {
     return updateStationConfigMutation.mutateAsync(params);
   };
 
-  const addBreedAdjustments = async (breedIds: string[]) => {
-    const promises = breedIds.map(breedId => 
-      updateBreedModifierMutation.mutateAsync({
-        serviceId,
-        breedId,
-        timeModifierMinutes: 15 // Default adjustment
-      })
-    );
-    return Promise.all(promises);
-  };
-
-  const removeBreedAdjustment = async (breedId: string) => {
-    return updateBreedModifierMutation.mutateAsync({
-      serviceId,
-      breedId,
-      timeModifierMinutes: 0 // This will delete the record
-    });
-  };
-
-  const updateBreedTimeAdjustment = async (breedId: string, timeModifierMinutes: number) => {
-    return updateBreedModifierMutation.mutateAsync({
-      serviceId,
-      breedId,
-      timeModifierMinutes
-    });
-  };
+  // Removed breed-related functions - barbery system doesn't use breeds
+  const addBreedAdjustments = async (_breedIds: string[]) => { return Promise.resolve(); };
+  const removeBreedAdjustment = async (_breedId: string) => { return Promise.resolve(); };
+  const updateBreedTimeAdjustment = async (_breedId: string, _timeModifierMinutes: number) => { return Promise.resolve(); };
 
   const applyTimeToAllStations = async (timeMinutes: number) => {
     const promises = stations.map(station => 

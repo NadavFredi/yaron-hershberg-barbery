@@ -43,11 +43,6 @@ export interface ProposedMeetingCategory {
   customerTypeName?: string | null
 }
 
-export interface ProposedMeetingDogCategory {
-  id: string
-  dogCategoryId: string
-  dogCategoryName?: string | null
-}
 
 export interface ManagerAppointment {
   id: string
@@ -62,7 +57,7 @@ export interface ManagerAppointment {
   internalNotes?: string
   groomingNotes?: string
   hasCrossServiceAppointment?: boolean
-  dogs: ManagerDog[] // Empty array - barbery system doesn't use dogs
+  dogs: [] // Empty array - barbery system doesn't use dogs
   serviceName?: string
   subscriptionName?: string
   clientId?: string

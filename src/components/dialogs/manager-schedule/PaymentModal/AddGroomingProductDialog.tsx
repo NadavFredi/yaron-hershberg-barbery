@@ -5,8 +5,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
-import { useBreeds } from "@/hooks/useBreeds"
-import { AutocompleteFilter } from "@/components/AutocompleteFilter"
 
 interface AddGroomingProductDialogProps {
     open: boolean
@@ -21,77 +19,27 @@ export const AddGroomingProductDialog: React.FC<AddGroomingProductDialogProps> =
     onAdd,
     selectedDate,
 }) => {
-    const { data: breeds = [], isLoading: isLoadingBreeds } = useBreeds()
-    const [selectedBreed, setSelectedBreed] = useState<string>('')
     const [dogName, setDogName] = useState<string>('')
     const [calculatedPrice, setCalculatedPrice] = useState<number>(0)
     const [customPrice, setCustomPrice] = useState<string>('')
     const [isLoadingPrice, setIsLoadingPrice] = useState(false)
 
-    // Search function for breeds
-    const searchBreeds = useCallback(async (searchTerm: string): Promise<string[]> => {
-        // Breeds table doesn't exist in this system - return empty array
-        return []
-    }, [])
-
-    // Calculate price when breed changes
-    useEffect(() => {
-        if (selectedBreed) {
-            calculatePrice(selectedBreed)
-        }
-    }, [selectedBreed])
-
-
-    const calculatePrice = async (breedName: string) => {
-        if (!breedName) {
-            setCalculatedPrice(0)
-            return
-        }
-
-        setIsLoadingPrice(true)
-        try {
-            // Breeds table doesn't exist in this system - return null
-            const data = null
-            const error = null
-
-            if (error) throw error
-
-            if (data) {
-                const minPrice = data.min_groom_price != null ? Number(data.min_groom_price) : null
-                const price = minPrice || 0
-                setCalculatedPrice(price)
-                if (!customPrice) {
-                    setCustomPrice(price.toString())
-                }
-            } else {
-                setCalculatedPrice(0)
-                if (!customPrice) {
-                    setCustomPrice('0')
-                }
-            }
-        } catch (err) {
-            console.error('Error calculating price:', err)
-            setCalculatedPrice(0)
-        } finally {
-            setIsLoadingPrice(false)
-        }
-    }
+    // Removed breed-related logic - barbery system doesn't use breeds
 
     const handleAdd = () => {
-        if (!selectedBreed) {
+        const price = parseFloat(customPrice) || 0
+        if (price <= 0) {
             return
         }
 
-        const price = parseFloat(customPrice) || calculatedPrice || 0
         onAdd({
             dogId: `temp_${Date.now()}`,
-            dogName: dogName || 'כלב',
-            breed: selectedBreed,
+            dogName: dogName || 'שירות',
+            breed: '',
             price,
         })
 
         // Reset form
-        setSelectedBreed('')
         setDogName('')
         setCalculatedPrice(0)
         setCustomPrice('')
@@ -99,7 +47,6 @@ export const AddGroomingProductDialog: React.FC<AddGroomingProductDialogProps> =
     }
 
     const handleClose = () => {
-        setSelectedBreed('')
         setDogName('')
         setCalculatedPrice(0)
         setCustomPrice('')
@@ -112,76 +59,39 @@ export const AddGroomingProductDialog: React.FC<AddGroomingProductDialogProps> =
                 <DialogHeader>
                     <DialogTitle className="text-right">הוסף מוצר מספרה</DialogTitle>
                     <DialogDescription className="text-right">
-                        בחר כלב וגזע לחישוב מחיר
+                        הזן שם ומחיר למוצר
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
-                    {/* Breed Selection */}
+                    {/* Service Name */}
                     <div>
-                        <Label className="text-right block mb-2">גזע</Label>
-                        <AutocompleteFilter
-                            value={selectedBreed}
-                            onChange={(breedName) => {
-                                setSelectedBreed(breedName)
-                                if (breedName) {
-                                    calculatePrice(breedName)
-                                }
-                            }}
-                            onSelect={(breedName) => {
-                                setSelectedBreed(breedName)
-                                if (breedName) {
-                                    calculatePrice(breedName)
-                                }
-                            }}
-                            placeholder={isLoadingBreeds ? "טוען גזעים..." : "חפש גזע..."}
-                            searchFn={searchBreeds}
-                            minSearchLength={0}
-                            autoSearchOnFocus={true}
-                            className="w-full"
-                        />
-                    </div>
-
-                    {/* Dog Name (Optional) */}
-                    <div>
-                        <Label className="text-right block mb-2">שם הכלב (אופציונלי)</Label>
+                        <Label className="text-right block mb-2">שם השירות</Label>
                         <Input
                             type="text"
                             value={dogName}
                             onChange={(e) => setDogName(e.target.value)}
-                            placeholder="הזן שם כלב"
+                            placeholder="הזן שם שירות"
                             dir="rtl"
                         />
                     </div>
 
-                    {/* Price Display and Input */}
-                    {selectedBreed && (
-                        <div>
-                            <Label className="text-right block mb-2">מחיר</Label>
-                            <div className="flex items-center gap-2">
-                                {isLoadingPrice ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <>
-                                        <Input
-                                            type="number"
-                                            value={customPrice}
-                                            onChange={(e) => setCustomPrice(e.target.value)}
-                                            className="flex-1"
-                                            dir="rtl"
-                                            placeholder={calculatedPrice > 0 ? calculatedPrice.toString() : '0'}
-                                        />
-                                        <span className="text-sm">₪</span>
-                                        {calculatedPrice > 0 && (
-                                            <span className="text-xs text-gray-500">
-                                                (מוצע: ₪{calculatedPrice})
-                                            </span>
-                                        )}
-                                    </>
-                                )}
-                            </div>
+                    {/* Price Input */}
+                    <div>
+                        <Label className="text-right block mb-2">מחיר</Label>
+                        <div className="flex items-center gap-2">
+                            <Input
+                                type="number"
+                                value={customPrice}
+                                onChange={(e) => setCustomPrice(e.target.value)}
+                                className="flex-1"
+                                dir="rtl"
+                                placeholder="0"
+                                min="0"
+                            />
+                            <span className="text-sm">₪</span>
                         </div>
-                    )}
+                    </div>
 
                     {/* Buttons */}
                     <div className="flex gap-2 pt-4">
@@ -195,7 +105,7 @@ export const AddGroomingProductDialog: React.FC<AddGroomingProductDialogProps> =
                         <Button
                             className="flex-1"
                             onClick={handleAdd}
-                            disabled={!selectedBreed}
+                            disabled={!customPrice || parseFloat(customPrice) <= 0}
                         >
                             הוסף
                         </Button>

@@ -15,7 +15,6 @@ const parseISODate = (value?: string | null): Date | null => {
 
 interface DraggableAppointmentCardProps {
   appointment: ManagerAppointment
-  isGardenColumn?: boolean
   pixelsPerMinuteScale: number
   timelineStart: Date
   disabled?: boolean
@@ -26,7 +25,6 @@ interface DraggableAppointmentCardProps {
 
 export function DraggableAppointmentCard({
   appointment,
-  isGardenColumn = false,
   pixelsPerMinuteScale,
   timelineStart,
   disabled = false,
@@ -49,38 +47,28 @@ export function DraggableAppointmentCard({
     disabled,
   })
 
-  let style: React.CSSProperties
-
-  if (isGardenColumn) {
-    style = transform
-      ? {
-          transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        }
-      : {}
-  } else {
-    const startDate = parseISODate(appointment.startDateTime)
-    if (!startDate) {
-      return null
-    }
-    const pixelsPerMinute = PIXELS_PER_MINUTE_SCALE[pixelsPerMinuteScale - 1]
-    const startMinutes = Math.max(0, differenceInMinutes(startDate, timelineStart))
-    const top = startMinutes * pixelsPerMinute
-
-    style = transform
-      ? {
-          transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-          position: "absolute" as const,
-          top: `${top}px`,
-          left: "8px",
-          right: "8px",
-        }
-      : {
-          position: "absolute" as const,
-          top: `${top}px`,
-          left: "8px",
-          right: "8px",
-        }
+  const startDate = parseISODate(appointment.startDateTime)
+  if (!startDate) {
+    return null
   }
+  const pixelsPerMinute = PIXELS_PER_MINUTE_SCALE[pixelsPerMinuteScale - 1]
+  const startMinutes = Math.max(0, differenceInMinutes(startDate, timelineStart))
+  const top = startMinutes * pixelsPerMinute
+
+  const style: React.CSSProperties = transform
+    ? {
+      transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      position: "absolute" as const,
+      top: `${top}px`,
+      left: "8px",
+      right: "8px",
+    }
+    : {
+      position: "absolute" as const,
+      top: `${top}px`,
+      left: "8px",
+      right: "8px",
+    }
 
   return (
     <div

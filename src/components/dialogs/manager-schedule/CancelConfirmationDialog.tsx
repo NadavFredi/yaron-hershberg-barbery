@@ -155,28 +155,19 @@ export function CancelConfirmationDialog() {
             // Use barber fields for all appointments
             const dateFieldId = getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
             const hourFieldId = getManyChatCustomFieldId("BARBER_HOUR_APPOINTMENT")
-            const dogNameField = getManyChatCustomFieldId("DOG_NAME")
 
             // Format appointment date (dd/MM/yyyy)
             const appointmentDate = format(new Date(apt.startDateTime), 'dd/MM/yyyy')
             // Format appointment time (HH:mm)
             const appointmentTime = format(new Date(apt.startDateTime), 'HH:mm')
-            // Get dog name
-            const dogName = apt.dogs?.[0]?.name || "כלב ללא שם"
 
             // Build fields object
             const fields: Record<string, string> = {}
             if (dateFieldId) {
                 fields[dateFieldId] = appointmentDate
             }
-            // For grooming appointments, also set hour and dog name
-            if (!isGarden) {
-                if (hourFieldId) {
-                    fields[hourFieldId] = appointmentTime
-                }
-                if (dogNameField) {
-                    fields[dogNameField] = dogName
-                }
+            if (hourFieldId) {
+                fields[hourFieldId] = appointmentTime
             }
 
             if (!uniqueClients.has(normalizedPhone)) {
@@ -253,7 +244,6 @@ export function CancelConfirmationDialog() {
                         stationId: appointmentToCancel.stationId,
                         updateCustomer: updateCustomerCancel,
                         clientName: appointmentToCancel.clientName,
-                        dogName: appointmentToCancel.dogs[0]?.name,
                         appointmentDate: new Date(appointmentToCancel.startDateTime).toLocaleDateString('he-IL'),
                         groupId: cancelGroup ? appointmentToCancel.groupAppointmentId : undefined,
                     })

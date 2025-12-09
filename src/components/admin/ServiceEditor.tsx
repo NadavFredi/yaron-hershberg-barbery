@@ -5,11 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowRight, Plus, X, Search, Clock } from 'lucide-react';
+import { ArrowRight, Plus, X, Clock } from 'lucide-react';
 import { useServiceConfiguration } from '@/hooks/useServiceConfiguration';
 import ServiceBasePriceEditor from './ServiceBasePriceEditor';
 import PriceStepper from './PriceStepper';
-import SmartBreedSelectorMultiple from './SmartBreedSelectorMultiple';
 import { useToast } from '@/hooks/use-toast';
 
 interface ServiceEditorProps {
@@ -113,8 +112,6 @@ const StationCard = React.memo(({
 
 const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
   // All hooks must be called at the top level, unconditionally
-  const [isBreedSelectorOpen, setIsBreedSelectorOpen] = useState(false);
-  const [breedSearchTerm, setBreedSearchTerm] = useState('');
   const [isApplyAllDialogOpen, setIsApplyAllDialogOpen] = useState(false);
   const [applyAllTime, setApplyAllTime] = useState(60);
   const { toast } = useToast();
@@ -122,29 +119,12 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
   const {
     service,
     stations,
-    breedAdjustments,
     isLoading,
     updateStationConfig,
-    addBreedAdjustments,
-    removeBreedAdjustment,
-    updateBreedTimeAdjustment,
     applyTimeToAllStations
   } = useServiceConfiguration(serviceId);
 
-  // Filter breed adjustments based on search term and sort alphabetically
-  const filteredBreedAdjustments = useMemo(() => {
-    if (!breedAdjustments) return [];
-    
-    let filtered = breedAdjustments;
-    
-    if (breedSearchTerm.trim()) {
-      filtered = breedAdjustments.filter(adj => 
-        adj.breed_name.toLowerCase().includes(breedSearchTerm.toLowerCase())
-      );
-    }
-    
-    return filtered.sort((a, b) => a.breed_name.localeCompare(b.breed_name, 'he'));
-  }, [breedAdjustments, breedSearchTerm]);
+  // Removed breed adjustments - barbery system doesn't use breeds
 
   const handleStationTimeChange = useCallback(async (stationId: string, newTimeMinutes: number) => {
     return updateStationConfig({
@@ -164,38 +144,7 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
     });
   }, [serviceId, stations, updateStationConfig]);
 
-  const handleBreedsSelect = useCallback(async (breedIds: string[]) => {
-    try {
-      await addBreedAdjustments(breedIds);
-      toast({
-        title: "גזעים נוספו בהצלחה",
-        description: `${breedIds.length} גזעים נוספו לשירות`,
-      });
-    } catch (error) {
-      console.error('Error adding breeds:', error);
-      toast({
-        title: "שגיאה בהוספת הגזעים",
-        description: "אנא נסה שוב",
-        variant: "destructive",
-      });
-    }
-  }, [addBreedAdjustments, toast]);
-
-  const handleRemoveBreed = useCallback(async (breedId: string) => {
-    try {
-      await removeBreedAdjustment(breedId);
-    } catch (error) {
-      console.error('Error removing breed:', error);
-    }
-  }, [removeBreedAdjustment]);
-
-  const handleBreedTimeChange = useCallback(async (breedId: string, newTimeAdjustment: number) => {
-    try {
-      await updateBreedTimeAdjustment(breedId, newTimeAdjustment);
-    } catch (error) {
-      console.error('Error updating breed time:', error);
-    }
-  }, [updateBreedTimeAdjustment]);
+  // Removed breed-related handlers - barbery system doesn't use breeds
 
   const handleApplyTimeToAll = useCallback(async () => {
     try {
@@ -227,8 +176,6 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
     );
   }
 
-  // Get excluded breed IDs for the selector
-  const excludeBreedIds = breedAdjustments?.map(adj => adj.breed_id) || [];
 
   // Sort stations by creation order (id) for consistent display
   const sortedStations = stations?.slice().sort((a, b) => a.id.localeCompare(b.id)) || [];
@@ -290,93 +237,7 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
         </CardContent>
       </Card>
 
-      {/* Breed Adjustments */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xl">התאמות מיוחדות לגזעים</CardTitle>
-              <p className="text-sm text-gray-600 mt-1">
-                הוסף זמן נוסף לגזעים מסוימים (למשל: פודל טויי +15 דקות)
-              </p>
-            </div>
-            <Button
-              onClick={() => setIsBreedSelectorOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="w-4 h-4 ml-2" />
-              הוסף גזעים
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* Search Box - Always Visible */}
-          {breedAdjustments && breedAdjustments.length > 0 && (
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="חפש/י גזע ברשימה..."
-                  value={breedSearchTerm}
-                  onChange={(e) => setBreedSearchTerm(e.target.value)}
-                  className="pr-10"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Breed Adjustments List */}
-          {filteredBreedAdjustments.length > 0 ? (
-            <div className="space-y-3">
-              {filteredBreedAdjustments.map((adjustment) => (
-                <div
-                  key={adjustment.breed_id}
-                  className="flex items-center justify-between p-4 border rounded-lg bg-gray-50"
-                >
-                  <div className="flex items-center space-x-4 space-x-reverse flex-1">
-                    <div className="font-medium text-lg">{adjustment.breed_name}</div>
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <span className="text-sm text-gray-600">זמן נוסף:</span>
-                      <PriceStepper
-                        value={adjustment.time_modifier_minutes}
-                        onChange={(newTime) => handleBreedTimeChange(adjustment.breed_id, newTime)}
-                        step={5}
-                        min={-30}
-                        max={120}
-                      />
-                      <span className="text-sm text-gray-600">דקות</span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => handleRemoveBreed(adjustment.breed_id)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : breedAdjustments && breedAdjustments.length > 0 && breedSearchTerm ? (
-            // Show "no results" but keep search visible
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">לא נמצאו גזעים התואמים לחיפוש "{breedSearchTerm}"</p>
-              <Button
-                variant="outline"
-                onClick={() => setBreedSearchTerm('')}
-              >
-                נקה חיפוש
-              </Button>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <p>אין עדיין התאמות מיוחדות לגזעים.</p>
-              <p className="text-sm mt-2">לחץ על "הוסף גזעים" כדי להתחיל.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Removed Breed Adjustments section - barbery system doesn't use breeds */}
 
       {/* Apply Time to All Dialog */}
       <Dialog open={isApplyAllDialogOpen} onOpenChange={setIsApplyAllDialogOpen}>
@@ -413,14 +274,6 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Smart Breed Selector */}
-      <SmartBreedSelectorMultiple
-        open={isBreedSelectorOpen}
-        onOpenChange={setIsBreedSelectorOpen}
-        onBreedsSelect={handleBreedsSelect}
-        excludeBreedIds={excludeBreedIds}
-      />
     </div>
   );
 };

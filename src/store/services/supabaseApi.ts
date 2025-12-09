@@ -50,8 +50,6 @@ export type PendingAppointmentRequest = {
   customerId: string | null
   customerName: string | null
   customerPhone: string | null
-  dogId: string | null
-  dogName: string | null
   stationName: string | null
   serviceLabel: string | null
   notes: string | null
@@ -387,14 +385,7 @@ export const supabaseApi = createApi({
     }),
 
     // Appointments
-    getDogAppointments: builder.query({
-      query: (dogId: string) => ({
-        functionName: "get-dog-appointments",
-        body: { dogId },
-      }),
-      transformResponse: (response) => unwrapResponse(response),
-      providesTags: ["Appointment"],
-    }),
+    // Removed getDogAppointments - barbery system doesn't use dogs
 
     getAppointmentOrders: builder.query<
       { orders: Array<{ id: string; status: string | null; total: number | null }> },
@@ -3081,7 +3072,6 @@ export const {
   useGetSubscriptionTypesQuery,
 
   // Appointments
-  useGetDogAppointmentsQuery,
   useGetMergedAppointmentsQuery,
   useGetAvailableDatesQuery,
   useGetAvailableTimesQuery,

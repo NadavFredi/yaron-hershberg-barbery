@@ -1,16 +1,5 @@
 
-import { Breed, Service, Station, ServiceStationMatrix, BreedModifier, AdminAvailability, Appointment } from '@/types';
-
-export const breeds: Breed[] = [
-  { id: '1', name: 'פודל' },
-  { id: '2', name: 'שיצו' },
-  { id: '3', name: 'מלטז' },
-  { id: '4', name: 'מעורב קטן' },
-  { id: '5', name: 'מעורב גדול' },
-  { id: '6', name: 'יורקשייר טרייר' },
-  { id: '7', name: 'ביגל' },
-  { id: '8', name: 'לברדור' },
-];
+import { Service, Station, ServiceStationMatrix, AdminAvailability, Appointment } from '@/types';
 
 export const services: Service[] = [
   { id: '1', name: 'תספורת מלאה', description: 'תספורת כוללת עם רחצה וייבוש' },
@@ -43,19 +32,6 @@ export const serviceStationMatrix: ServiceStationMatrix[] = [
   { id: '9', serviceId: '3', stationId: '3', baseTimeMinutes: 18, price: 30 },
 ];
 
-export const breedModifiers: BreedModifier[] = [
-  // פודל - גזע מורכב יותר
-  { id: '1', breedId: '1', serviceId: '1', timeModifierMinutes: 30 },
-  { id: '2', breedId: '1', serviceId: '2', timeModifierMinutes: 15 },
-  
-  // מעורב גדול - דורש זמן נוסף
-  { id: '3', breedId: '5', serviceId: '1', timeModifierMinutes: 45 },
-  { id: '4', breedId: '5', serviceId: '2', timeModifierMinutes: 20 },
-  
-  // מלטז - גזע קטן וקל יותר
-  { id: '5', breedId: '3', serviceId: '1', timeModifierMinutes: -15 },
-  { id: '6', breedId: '3', serviceId: '2', timeModifierMinutes: -10 },
-];
 
 export const adminAvailability: AdminAvailability[] = [
   { id: '1', dayOfWeek: 1, startTime: '09:00', endTime: '17:00', isActive: true },
@@ -70,7 +46,6 @@ export const appointments: Appointment[] = [
   {
     id: '1',
     customerId: '1',
-    dogId: '1',
     serviceId: '1',
     stationId: '1',
     startTime: new Date('2025-01-02T10:00:00'),
@@ -78,10 +53,9 @@ export const appointments: Appointment[] = [
     status: 'מאושר',
     customerName: 'יוסי כהן',
     customerPhone: '052-1234567',
-    dogName: 'בובי',
     serviceName: 'תספורת מלאה',
     stationName: 'עמדה 1 - יוסי',
-    internalNotes: 'הכלב עצבני, צריך להיות זהיר'
+    internalNotes: 'הערות פנימיות'
   }
 ];
 

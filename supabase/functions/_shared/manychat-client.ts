@@ -128,21 +128,9 @@ export const MANYCHAT_CUSTOM_FIELDS: Record<string, ManyChatCustomField> = {
     type: "text",
     description: "",
   },
-  DOG_TYPE: {
-    id: "13530726",
-    name: "dog_type",
-    type: "text",
-    description: "",
-  },
   BARBER_HOUR_APPOINTMENT: {
     id: "13701535",
     name: "Barber_Hour_appointment",
-    type: "text",
-    description: "",
-  },
-  DOG_READY_IN_X_TIME: {
-    id: "13530732",
-    name: "dog_ready_in_X_time",
     type: "text",
     description: "",
   },
@@ -173,12 +161,6 @@ export const MANYCHAT_CUSTOM_FIELDS: Record<string, ManyChatCustomField> = {
   CUSTOM_PHONE: {
     id: "13711554",
     name: "custom_phone",
-    type: "text",
-    description: "",
-  },
-  DOG_NAME: {
-    id: "dog_name",
-    name: "dog_name",
     type: "text",
     description: "",
   },

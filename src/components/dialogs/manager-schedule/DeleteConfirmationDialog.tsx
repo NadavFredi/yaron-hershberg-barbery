@@ -220,28 +220,19 @@ export function DeleteConfirmationDialog() {
             // Use barber fields for all appointments
             const dateFieldId = getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
             const hourFieldId = getManyChatCustomFieldId("BARBER_HOUR_APPOINTMENT")
-            const dogNameField = getManyChatCustomFieldId("DOG_NAME")
 
             // Format appointment date (dd/MM/yyyy)
             const appointmentDate = format(new Date(apt.startDateTime), 'dd/MM/yyyy')
             // Format appointment time (HH:mm)
             const appointmentTime = format(new Date(apt.startDateTime), 'HH:mm')
-            // Get dog name
-            const dogName = apt.dogs?.[0]?.name || "כלב ללא שם"
 
             // Build fields object
             const fields: Record<string, string> = {}
             if (dateFieldId) {
                 fields[dateFieldId] = appointmentDate
             }
-            // For grooming appointments, also set hour and dog name
-            if (!isGarden) {
-                if (hourFieldId) {
-                    fields[hourFieldId] = appointmentTime
-                }
-                if (dogNameField) {
-                    fields[dogNameField] = dogName
-                }
+            if (hourFieldId) {
+                fields[hourFieldId] = appointmentTime
             }
 
             if (!uniqueClients.has(normalizedPhone)) {
@@ -256,13 +247,8 @@ export function DeleteConfirmationDialog() {
                 if (dateFieldId) {
                     existing.fields[dateFieldId] = appointmentDate
                 }
-                if (!isGarden) {
-                    if (hourFieldId) {
-                        existing.fields[hourFieldId] = appointmentTime
-                    }
-                    if (dogNameField) {
-                        existing.fields[dogNameField] = dogName
-                    }
+                if (hourFieldId) {
+                    existing.fields[hourFieldId] = appointmentTime
                 }
             }
         }
@@ -366,11 +352,9 @@ export function DeleteConfirmationDialog() {
                         appointmentId: aptId,
                         appointmentTime: apt.startDateTime,
                         serviceType: apt.serviceType,
-                        dogId: apt.dogs[0]?.id,
                         stationId: apt.stationId,
                         updateCustomer: updateCustomer,
                         clientName: apt.clientName,
-                        dogName: apt.dogs[0]?.name,
                         appointmentDate: new Date(apt.startDateTime).toLocaleDateString('he-IL'),
                         groupId: deleteGroup ? appointmentToDelete.groupAppointmentId : undefined,
                     })
@@ -385,11 +369,9 @@ export function DeleteConfirmationDialog() {
                     appointmentId: appointmentToDelete.id,
                     appointmentTime: appointmentToDelete.startDateTime,
                     serviceType: appointmentToDelete.serviceType,
-                    dogId: appointmentToDelete.dogs[0]?.id,
                     stationId: appointmentToDelete.stationId,
                     updateCustomer: updateCustomer,
                     clientName: appointmentToDelete.clientName,
-                    dogName: appointmentToDelete.dogs[0]?.name,
                     appointmentDate: new Date(appointmentToDelete.startDateTime).toLocaleDateString('he-IL'),
                     groupId: deleteGroup ? appointmentToDelete.groupAppointmentId : undefined,
                 })
@@ -427,7 +409,7 @@ export function DeleteConfirmationDialog() {
                 title: "התור נמחק בהצלחה",
                 description: isMultipleOperation
                     ? `${totalDeleted} תורים נמחקו בהצלחה`
-                    : `התור של ${appointmentToDelete.dogs[0]?.name || 'הכלב'} נמחק בהצלחה`,
+                    : `התור נמחק בהצלחה`,
                 variant: "default",
             })
 
@@ -480,15 +462,7 @@ export function DeleteConfirmationDialog() {
             // Invalidate comprehensive cache tags
             await dispatch(supabaseApi.util.invalidateTags(['ManagerSchedule', 'Appointment', 'GardenAppointment']))
 
-            // Also invalidate dog-specific caches if we have the appointment data
-            if (appointmentToDelete?.dogs?.[0]?.id) {
-                await dispatch(
-                    supabaseApi.util.invalidateTags([
-                        { type: "Appointment", id: appointmentToDelete.dogs[0].id },
-                        { type: "Appointment", id: `getMergedAppointments-${appointmentToDelete.dogs[0].id}` },
-                    ])
-                )
-            }
+            // Removed dog-specific cache invalidation - barbery system doesn't use dogs
             await refetch()
         } finally {
             dispatch(setIsDeleting(false))
@@ -530,12 +504,6 @@ export function DeleteConfirmationDialog() {
                                 </div>
                                 <div>
                                     <div><strong>לקוח:</strong> {appointmentToDelete.clientName || 'לא זמין'}</div>
-                                    <div>
-                                        <strong>כלב:</strong> {appointmentToDelete.dogs[0]?.name || 'לא זמין'}
-                                        {appointmentToDelete.dogs[0]?.breed && (
-                                            <span className="text-gray-500"> ({appointmentToDelete.dogs[0].breed})</span>
-                                        )}
-                                    </div>
                                     <div><strong>שירות:</strong> {appointmentToDelete.serviceType === 'grooming' ? 'מספרה' : 'גן'}</div>
                                 </div>
                             </div>

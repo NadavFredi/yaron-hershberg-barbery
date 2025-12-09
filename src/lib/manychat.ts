@@ -8,7 +8,6 @@
  * instead of making direct API calls. See docs/MANYCHAT_CLIENT.md for details.
  */
 export const MANYCHAT_FLOW_IDS: Record<string, string> = {
-  YOUR_DOG_IS_READY_IN_X_MINUTES: "content20251128211128_639274",
   YOUR_APPOINTMENT_APPROVED: "content20251205234121_595370",
   YOUR_APPOINTMENT_APPROVED_WITH_MODIFY: "content20251205234451_085450",
   YOUR_APPOINTMENT_WAITING_FOR_CONFIRMATION: "content20251205234241_956262",
@@ -67,21 +66,9 @@ export const MANYCHAT_CUSTOM_FIELDS: Record<string, ManyChatCustomField> = {
     type: "text",
     description: "",
   },
-  DOG_TYPE: {
-    id: "13530726",
-    name: "dog_type",
-    type: "text",
-    description: "",
-  },
   BARBER_HOUR_APPOINTMENT: {
     id: "13701535",
     name: "Barber_Hour_appointment",
-    type: "text",
-    description: "",
-  },
-  DOG_READY_IN_X_TIME: {
-    id: "13530732",
-    name: "dog_ready_in_X_time",
     type: "text",
     description: "",
   },
@@ -112,12 +99,6 @@ export const MANYCHAT_CUSTOM_FIELDS: Record<string, ManyChatCustomField> = {
   CUSTOM_PHONE: {
     id: "13711554",
     name: "custom_phone",
-    type: "text",
-    description: "",
-  },
-  DOG_NAME: {
-    id: "dog_name",
-    name: "dog_name",
     type: "text",
     description: "",
   },
