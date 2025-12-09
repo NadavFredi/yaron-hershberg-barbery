@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Trash2, Loader2, Edit2, Save, X } from "lucide-react"
+import { Plus, Trash2, Loader2, Edit2, Save, X, Eye } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
   useServiceCategoriesWithCounts,
@@ -330,74 +330,170 @@ interface VariantSelectorProps {
 }
 
 function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorProps) {
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false)
+  const [tempSelectedVariant, setTempSelectedVariant] = useState<ServiceCategoryVariant>(selectedVariant)
   const selectedVariantConfig = SERVICE_CATEGORY_VARIANTS[selectedVariant]
 
+  const handleOpenDemo = () => {
+    setTempSelectedVariant(selectedVariant)
+    setIsDemoModalOpen(true)
+  }
+
+  const handleChooseVariant = () => {
+    onVariantChange(tempSelectedVariant)
+    setIsDemoModalOpen(false)
+  }
+
+  const handleCancelDemo = () => {
+    setTempSelectedVariant(selectedVariant)
+    setIsDemoModalOpen(false)
+  }
+
+  const tempVariantConfig = SERVICE_CATEGORY_VARIANTS[tempSelectedVariant]
+
   return (
-    <div className="space-y-3">
-      <Select value={selectedVariant} onValueChange={onVariantChange}>
-        <SelectTrigger className="w-full">
-          <SelectValue>
-            <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "h-4 w-4 rounded-full",
-                  selectedVariantConfig.bg
-                )}
-              />
-              <span>{selectedVariantConfig.name}</span>
-            </div>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant) => (
-            <SelectItem key={variant.id} value={variant.id}>
+    <>
+      <div className="flex items-center gap-2">
+        <Select value={selectedVariant} onValueChange={onVariantChange} className="flex-1">
+          <SelectTrigger className="w-full">
+            <SelectValue>
               <div className="flex items-center gap-2">
                 <div
                   className={cn(
                     "h-4 w-4 rounded-full",
-                    variant.bg
+                    selectedVariantConfig.bg
                   )}
                 />
-                <span>{variant.name}</span>
+                <span>{selectedVariantConfig.name}</span>
               </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {/* Preview */}
-      <div className="rounded-lg border-2 p-4 space-y-3" style={{ borderColor: `var(--${selectedVariantConfig.ring.replace('ring-', '')})` }}>
-        <div className="text-sm font-medium text-gray-700">תצוגה מקדימה:</div>
-        <div className="space-y-2">
-          <div
-            className={cn(
-              "rounded-lg px-4 py-3 text-white font-medium",
-              selectedVariantConfig.bg
-            )}
-          >
-            כותרת עם רקע צבעוני
-          </div>
-          <div
-            className={cn(
-              "rounded-lg px-4 py-3 border-2",
-              selectedVariantConfig.bgLight,
-              selectedVariantConfig.border,
-              selectedVariantConfig.text
-            )}
-          >
-            כותרת עם רקע בהיר
-          </div>
-          <div
-            className={cn(
-              "rounded-lg px-4 py-2 border",
-              selectedVariantConfig.border,
-              selectedVariantConfig.text
-            )}
-          >
-            כותרת עם מסגרת
-          </div>
-        </div>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant) => (
+              <SelectItem key={variant.id} value={variant.id}>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "h-4 w-4 rounded-full",
+                      variant.bg
+                    )}
+                  />
+                  <span>{variant.name}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleOpenDemo}
+          className="shrink-0"
+        >
+          <Eye className="h-4 w-4 ml-1" />
+          צפה בדמו
+        </Button>
       </div>
-    </div>
+
+      <Dialog open={isDemoModalOpen} onOpenChange={setIsDemoModalOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>בחר ווריאנט צבע</DialogTitle>
+            <DialogDescription>
+              בחר ווריאנט צבע וצפה בתצוגה מקדימה
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            {/* Variants Grid - 5 per row */}
+            <div>
+              <Label className="text-base font-medium mb-3 block">ווריאנטים זמינים:</Label>
+              <div className="grid grid-cols-5 gap-1.5">
+                {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant) => {
+                  const isSelected = tempSelectedVariant === variant.id
+                  return (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      onClick={() => setTempSelectedVariant(variant.id)}
+                      className={cn(
+                        "p-1.5 rounded border transition-all hover:scale-105",
+                        isSelected
+                          ? cn("border-2", variant.border, "ring-1", variant.ring)
+                          : "border-gray-200 hover:border-gray-300"
+                      )}
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className={cn(
+                            "h-6 w-6 rounded-full",
+                            variant.bg
+                          )}
+                        />
+                        <span className={cn("text-xs font-medium", variant.text)}>
+                          {variant.name}
+                        </span>
+                        {isSelected && (
+                          <div className={cn("text-[10px] leading-tight", variant.text)}>✓ נבחר</div>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Preview Section */}
+            <div className="space-y-3">
+              <Label className="text-base font-medium">תצוגה מקדימה:</Label>
+              <div
+                className={cn(
+                  "rounded-lg border-2 p-4 space-y-3",
+                  tempVariantConfig.border
+                )}
+              >
+                <div className="space-y-2">
+                  <div
+                    className={cn(
+                      "rounded-lg px-4 py-3 text-white font-medium",
+                      tempVariantConfig.bg
+                    )}
+                  >
+                    כותרת עם רקע צבעוני
+                  </div>
+                  <div
+                    className={cn(
+                      "rounded-lg px-4 py-3 border-2",
+                      tempVariantConfig.bgLight,
+                      tempVariantConfig.border,
+                      tempVariantConfig.text
+                    )}
+                  >
+                    כותרת עם רקע בהיר
+                  </div>
+                  <div
+                    className={cn(
+                      "rounded-lg px-4 py-2 border",
+                      tempVariantConfig.border,
+                      tempVariantConfig.text
+                    )}
+                  >
+                    כותרת עם מסגרת
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelDemo}>
+              ביטול
+            </Button>
+            <Button onClick={handleChooseVariant}>
+              בחר
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
