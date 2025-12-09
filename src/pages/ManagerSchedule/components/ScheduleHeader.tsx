@@ -184,13 +184,8 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
         ? stations.filter((station) => visibleStationIds.includes(station.id))
         : stations
 
-    if (serviceFilter === "grooming") {
-      stationsToShow = stationsToShow.filter(station => station.serviceType === "grooming")
-    } else if (serviceFilter === "garden") {
-      stationsToShow = stationsToShow.filter(station => station.serviceType === "garden")
-    }
-
-    return stationsToShow.filter(station => station.serviceType !== "garden")
+    // Show only grooming stations
+    return stationsToShow.filter(station => station.serviceType === "grooming")
   }, [stations, visibleStationIds, serviceFilter, shouldHideAllStations])
 
   // Compute visible stations - show all filtered stations (no pagination)
@@ -202,14 +197,14 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
   const timeAxisWidth = 70
   const scheduledColumnCount = visibleStations.length
   const gridColumnParts: string[] = [`${timeAxisWidth}px`]
-  // Order MUST match ManagerScheduleContent: TimeAxis -> Pinned -> WaitingList -> Garden -> Stations
+  // Order MUST match ManagerScheduleContent: TimeAxis -> Pinned -> WaitingList -> Stations
   if (showPinnedAppointmentsColumn) {
     gridColumnParts.push(`${PINNED_APPOINTMENTS_COLUMN_WIDTH}px`)
   }
   if (showWaitingListColumn) {
     gridColumnParts.push(`${WAITLIST_COLUMN_WIDTH}px`)
   }
-  // Match ManagerScheduleContent: combine garden and stations into one repeat() call
+  // Match ManagerScheduleContent: stations in one repeat() call
   if (scheduledColumnCount > 0) {
     const scheduledTemplate =
       scheduledColumnCount === 1
@@ -375,7 +370,7 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
         ownerName,
         stationName: appointment.stationName,
         serviceType: appointment.serviceType,
-        serviceLabel: appointment.serviceType === "garden" ? "גן" : "מספרה",
+        serviceLabel: "מספרה",
         appointmentDate,
         dateLabel,
         timeLabel,
@@ -680,9 +675,7 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
                   }
                   return "border-slate-200 bg-slate-100 text-slate-700"
                 }
-                return result.serviceType === "garden"
-                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
-                  : "border-blue-100 bg-blue-50 text-blue-700"
+                return "border-blue-100 bg-blue-50 text-blue-700"
               })()
               const titleText =
                 result.entityType === "personal"
@@ -1105,7 +1098,7 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
   // Columns header component - extract all the columns grid content
   const columnsHeaderContent = (
     <>
-      {/* Order MUST match ManagerScheduleContent: TimeAxis -> Pinned -> WaitingList -> Garden -> Stations */}
+      {/* Order MUST match ManagerScheduleContent: TimeAxis -> Pinned -> WaitingList -> Stations */}
       <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-gray-600 shadow-sm min-w-0" dir="rtl">
         ציר זמן
       </div>
@@ -1129,13 +1122,6 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
               להיום · עודכן {waitingListHook.lastUpdatedLabel}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Garden Column Headers */}
-      {shouldShowGardenColumns && (
-        <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 shadow-sm min-w-0">
-          <span className="text-sm font-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">גן</span>
         </div>
       )}
 
