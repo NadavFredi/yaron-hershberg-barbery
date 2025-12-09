@@ -162,10 +162,10 @@ serve(async (req) => {
     const endAt = new Date(startAt.getTime() + durationMinutes * 60 * 1000)
 
     const requiresApproval = await stationRequiresApproval(serviceId, stationId)
-    const status = requiresApproval ? "pending" : "scheduled"
+    const status = requiresApproval ? "pending" : "approved"
 
     const { data: appointment, error: insertError } = await adminClient
-      .from("appointments")
+      .from("grooming_appointments")
       .insert({
         customer_id: customerId,
         service_id: serviceId,
@@ -176,7 +176,6 @@ serve(async (req) => {
         start_at: startAt.toISOString(),
         end_at: endAt.toISOString(),
         customer_notes: notes ?? null,
-        appointment_name: appointmentName ?? null,
       })
       .select()
       .maybeSingle()

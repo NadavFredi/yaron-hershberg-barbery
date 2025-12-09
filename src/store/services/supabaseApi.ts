@@ -436,9 +436,9 @@ export const supabaseApi = createApi({
             return { data: { appointments: [] } }
           }
 
-          // Query from the consolidated appointments table
+          // Query from grooming_appointments table to match manager schedule
           const appointmentsResult = await supabase
-            .from("appointments")
+            .from("grooming_appointments")
             .select("id, start_at, end_at, status, service_id, customer_notes, station_id")
             .eq("customer_id", clientId)
             .order("start_at", { ascending: true })

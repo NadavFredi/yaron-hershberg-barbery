@@ -88,7 +88,7 @@ serve(async (req) => {
         reschedule_original_end_at,
         proposed_meeting_invites(id, customer_id),
         proposed_meeting_categories(id, customer_type_id)
-      `,
+      `
       )
       .eq("id", meetingId)
       .maybeSingle()
@@ -111,11 +111,13 @@ serve(async (req) => {
       })
     }
 
-    const invited = (meeting.proposed_meeting_invites ?? []).some((invite: any) => invite.customer_id === customerRow.id)
+    const invited = (meeting.proposed_meeting_invites ?? []).some(
+      (invite: any) => invite.customer_id === customerRow.id
+    )
     const categoryAllowed =
       !!customerRow.customer_type_id &&
       (meeting.proposed_meeting_categories ?? []).some(
-        (category: any) => category.customer_type_id === customerRow.customer_type_id,
+        (category: any) => category.customer_type_id === customerRow.customer_type_id
       )
     const codeAllowed = Boolean(code && code === meeting.code)
 
@@ -146,22 +148,30 @@ serve(async (req) => {
       })
     }
 
+    // Get service_id from the meeting if available, or find a default service
+    let serviceId: string | null = null
+    if (meeting.service_type === "grooming") {
+      // Try to get a default service for grooming
+      const { data: defaultService } = await serviceClient.from("services").select("id").limit(1).maybeSingle()
+      serviceId = defaultService?.id ?? null
+    }
+
     const { data: appointment, error: appointmentError } = await serviceClient
-      .from("appointments")
+      .from("grooming_appointments")
       .upsert(
         {
           id: meeting.reschedule_appointment_id ?? undefined,
           customer_id: customerRow.id,
+          service_id: serviceId,
           station_id: stationId,
           start_at: start,
           end_at: end,
-          status: "scheduled",
+          status: "approved",
           payment_status: "unpaid",
           appointment_kind: "business",
-          appointment_name: meeting.title ?? null,
           customer_notes: meeting.summary ?? null,
         },
-        { onConflict: "id" },
+        { onConflict: "id" }
       )
       .select("id")
       .maybeSingle()
@@ -192,7 +202,7 @@ serve(async (req) => {
         appointmentId,
         meetingId,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   } catch (error) {
     console.error("❌ [book-proposed-meeting] Error:", error)
@@ -204,7 +214,7 @@ serve(async (req) => {
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     )
   }
 })
