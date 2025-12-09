@@ -69,21 +69,22 @@ export const APPOINTMENT_CHILD_LINKS: ManagerNavChild[] = [
 
 export const SERVICES_CHILD_LINKS: ManagerNavChild[] = [
   {
-    id: "service-category",
-    to: "/manager-screens?section=services&mode=service-category",
-    label: "קטגוריות שירותים",
-    icon: FolderTree,
-    match: (pathname, sectionParam, modeParam) =>
-      pathname === "/manager-screens" && sectionParam === "services" && modeParam === "service-category"
-  },
-  {
     id: "services",
     to: "/manager-screens?section=services&mode=services",
     label: "שירותים",
     icon: List,
     match: (pathname, sectionParam, modeParam) =>
       pathname === "/manager-screens" && sectionParam === "services" && (modeParam === "services" || modeParam === null)
+  },
+  {
+    id: "service-category",
+    to: "/manager-screens?section=services&mode=service-category",
+    label: "קטגוריות שירותים",
+    icon: FolderTree,
+    match: (pathname, sectionParam, modeParam) =>
+      pathname === "/manager-screens" && sectionParam === "services" && modeParam === "service-category"
   }
+
 ]
 
 export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
