@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { 
-  setShowPinnedAppointmentDropDialog, 
+import {
+  setShowPinnedAppointmentDropDialog,
   setPinnedAppointmentDropDetails,
   setPinnedAppointmentDropAction,
   setPinnedAppointmentDropRemoveFromPinned,
@@ -22,7 +22,7 @@ export function PinnedAppointmentDropDialog() {
   const open = useAppSelector((state) => state.managerSchedule.showPinnedAppointmentDropDialog)
   const dropDetails = useAppSelector((state) => state.managerSchedule.pinnedAppointmentDropDetails)
   const selectedDateStr = useAppSelector((state) => state.managerSchedule.selectedDate)
-  
+
   const [removeFromPinned, setRemoveFromPinned] = useState(true)
 
   // Get schedule data to access stations
@@ -30,7 +30,7 @@ export function PinnedAppointmentDropDialog() {
     const date = new Date(selectedDateStr)
     return format(date, "yyyy-MM-dd")
   }, [selectedDateStr])
-  
+
   const { data: scheduleData } = useGetManagerScheduleQuery({
     date: formattedDate,
     serviceType: "both",
@@ -48,12 +48,12 @@ export function PinnedAppointmentDropDialog() {
     if (!dropDetails || !scheduleData?.stations) return ""
     const station = scheduleData.stations.find(s => s.id === dropDetails.targetStationId)
     if (station) return station.name
-    
+
     // Handle garden columns
     if (dropDetails.targetStationId === "garden-full-day") return "גן - יום מלא"
     if (dropDetails.targetStationId === "garden-trial") return "גן - ניסיון"
     if (dropDetails.targetStationId?.startsWith("garden-")) return "גן"
-    
+
     return ""
   }, [scheduleData?.stations, dropDetails?.targetStationId])
 
@@ -84,6 +84,9 @@ export function PinnedAppointmentDropDialog() {
   const targetDateStr = format(targetDate, "dd.MM.yyyy", { locale: he })
 
   const dogNames = appointment.dogs.map(d => d.name).join(", ")
+  // Determine service type from appointment or pin
+  const serviceType = (appointment as any).serviceType || (pin.appointment_type === "daycare" ? "garden" : "grooming")
+  const serviceLabel = serviceType === "garden" ? "גן" : "מספרה"
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -102,28 +105,13 @@ export function PinnedAppointmentDropDialog() {
               <div>{dogNames} - {appointment.clientName}</div>
               <div>תאריך: <span className="font-medium">{targetDateStr}</span></div>
               <div>זמן: <span className="font-medium">{targetTime} - {targetEndTimeStr}</span></div>
+              <div>שירות: <span className="font-medium">{serviceLabel}</span></div>
               {stationName && <div>עמדה: <span className="font-medium">{stationName}</span></div>}
             </div>
           </div>
 
           {/* Action buttons */}
           <div className="space-y-3">
-            <Button
-              onClick={() => handleAction("proposal")}
-              className="w-full h-auto p-4 flex items-center justify-start gap-3 text-right"
-              variant="outline"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-lime-100">
-                  <Sparkles className="h-5 w-5 text-lime-600" />
-                </div>
-                <div className="text-right flex-1">
-                  <div className="font-semibold">צור הצעה</div>
-                  <div className="text-sm text-gray-500">יצירת הצעת פגישה חדשה</div>
-                </div>
-              </div>
-            </Button>
-
             <Button
               onClick={() => handleAction("move")}
               className="w-full h-auto p-4 flex items-center justify-start gap-3 text-right"
@@ -152,6 +140,22 @@ export function PinnedAppointmentDropDialog() {
                 <div className="text-right flex-1">
                   <div className="font-semibold">צור תור חדש</div>
                   <div className="text-sm text-gray-500">יצירת תור חדש במיקום זה</div>
+                </div>
+              </div>
+            </Button>
+
+            <Button
+              onClick={() => handleAction("proposal")}
+              className="w-full h-auto p-4 flex items-center justify-start gap-3 text-right"
+              variant="outline"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-lime-100">
+                  <Sparkles className="h-5 w-5 text-lime-600" />
+                </div>
+                <div className="text-right flex-1">
+                  <div className="font-semibold">צור הצעה</div>
+                  <div className="text-sm text-gray-500">יצירת הצעת פגישה חדשה</div>
                 </div>
               </div>
             </Button>
