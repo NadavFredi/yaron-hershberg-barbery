@@ -113,11 +113,7 @@ export function OrderDetailsModal({
                 query = query.eq("cart_id", cartId)
             } else if (appointmentId && serviceType) {
                 // Try to find orders by appointment_id directly
-                if (serviceType === "grooming") {
-                    query = query.eq("grooming_appointment_id", appointmentId)
-                } else {
-                    query = query.eq("daycare_appointment_id", appointmentId)
-                }
+                query = query.eq("grooming_appointment_id", appointmentId)
             }
 
             const { data, error } = await query
@@ -128,7 +124,7 @@ export function OrderDetailsModal({
 
             // If no orders found and we have appointmentId, try to find via cart_appointments
             if ((!data || data.length === 0) && appointmentId && serviceType) {
-                const appointmentIdField = serviceType === "grooming" ? "grooming_appointment_id" : "daycare_appointment_id"
+                const appointmentIdField = "grooming_appointment_id"
 
                 // Find carts linked to this appointment
                 const { data: cartAppointments } = await supabase
@@ -165,7 +161,7 @@ export function OrderDetailsModal({
                                         const [cartAppointmentsResult, cartItemsResult] = await Promise.all([
                                             supabase
                                                 .from("cart_appointments")
-                                                .select("id, appointment_price, grooming_appointment_id, daycare_appointment_id")
+                                                .select("id, appointment_price, grooming_appointment_id")
                                                 .eq("cart_id", order.cart_id),
                                             supabase
                                                 .from("cart_items")
@@ -202,7 +198,7 @@ export function OrderDetailsModal({
                             const [cartAppointmentsResult, cartItemsResult] = await Promise.all([
                                 supabase
                                     .from("cart_appointments")
-                                    .select("id, appointment_price, grooming_appointment_id, daycare_appointment_id")
+                                    .select("id, appointment_price, grooming_appointment_id")
                                     .eq("cart_id", order.cart_id),
                                 supabase
                                     .from("cart_items")
@@ -611,9 +607,7 @@ export function OrderDetailsModal({
                                                         <div key={ca.id} className="flex justify-between text-sm">
                                                             <span>
                                                                 {ca.grooming_appointment_id && "תור מספרה"}
-                                                                {ca.grooming_appointment_id && ca.daycare_appointment_id && " + "}
-                                                                {ca.daycare_appointment_id && "תור גן"}
-                                                                {!ca.grooming_appointment_id && !ca.daycare_appointment_id && "תור"}
+                                                                {ca.grooming_appointment_id ? "תור מספרה" : "תור"}
                                                             </span>
                                                             <span className="text-gray-600">
                                                                 ₪{ca.appointment_price?.toFixed(2) || "0.00"}
@@ -632,10 +626,8 @@ export function OrderDetailsModal({
                                                     <div className="font-medium text-sm text-gray-700">פרטי הזמנה:</div>
                                                     <div className="text-sm text-gray-600">
                                                         {order.grooming_appointment_id && "תור מספרה"}
-                                                        {order.grooming_appointment_id && order.daycare_appointment_id && " + "}
-                                                        {order.daycare_appointment_id && "תור גן"}
-                                                        {order.cart_id && !order.grooming_appointment_id && !order.daycare_appointment_id && "עגלת קניות"}
-                                                        {!order.grooming_appointment_id && !order.daycare_appointment_id && !order.cart_id && "הזמנה"}
+                                                        {order.cart_id && !order.grooming_appointment_id && "עגלת קניות"}
+                                                        {!order.grooming_appointment_id && !order.cart_id && "הזמנה"}
                                                     </div>
                                                     <div className="text-xs text-gray-500">
                                                         סכום כולל: ₪{order.total.toFixed(2)}

@@ -8,10 +8,11 @@ import { SettingsBreedsSection } from "@/components/settings/SettingsBreedsSecti
 import { SettingsWorkingHoursSection } from "@/components/settings/SettingsWorkingHoursSection/SettingsWorkingHoursSection"
 import { SettingsStationsSection } from "@/components/settings/SettingsStationsSection/SettingsStationsSection"
 import { SettingsStationsPerDaySection } from "@/components/settings/SettingsStationsPerDaySection/SettingsStationsPerDaySection"
+import { SettingsServiceStationMatrixSection } from "@/components/settings/SettingsServiceStationMatrixSection/SettingsServiceStationMatrixSection"
 import { SettingsConstraintsSection } from "@/components/settings/SettingsConstraintsSection/SettingsConstraintsSection"
 import { SettingsBreedStationMatrixSection } from "@/components/settings/SettingsBreedStationMatrixSection/SettingsBreedStationMatrixSection"
 
-const VALID_SECTIONS = ["breeds", "working-hours", "stations", "stations-per-day", "constraints", "matrix"] as const
+const VALID_SECTIONS = ["breeds", "working-hours", "stations", "stations-per-day", "service-station-matrix", "constraints", "matrix"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function Settings() {
@@ -97,6 +98,7 @@ export default function Settings() {
                     {activeSection === "working-hours" && <SettingsWorkingHoursSection />}
                     {activeSection === "stations" && <SettingsStationsSection />}
                     {activeSection === "stations-per-day" && <SettingsStationsPerDaySection />}
+                    {activeSection === "service-station-matrix" && <SettingsServiceStationMatrixSection />}
                     {activeSection === "constraints" && <SettingsConstraintsSection />}
                     {activeSection === "matrix" && <SettingsBreedStationMatrixSection />}
                 </div>

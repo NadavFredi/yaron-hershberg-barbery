@@ -157,7 +157,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             id: tempId,
             cart_id: providedCartId || '',
             grooming_appointment_id: null, // null indicates it's a temporary item
-            daycare_appointment_id: null,
             appointment_price: data.price,
             appointment: {
                 id: tempId,
@@ -221,7 +220,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         if (cartAppointments.length > 0) {
             const groomingAppts = cartAppointments.filter(ca =>
                 ca.grooming_appointment_id ||
-                (ca.appointment?.serviceType === 'grooming' && !ca.daycare_appointment_id && !ca.grooming_appointment_id)
+                (ca.appointment?.serviceType === 'grooming' && !ca.grooming_appointment_id)
             )
 
             return groomingAppts.reduce((sum, ca) => sum + (ca.appointment_price || 0), 0)
@@ -239,11 +238,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     // Show payment iframe if needed
     if (showPaymentIframe && paymentPostData) {
         // Calculate products total (excluding temporary grooming products)
-        const productsTotal = orderItems.reduce((sum, item) => sum + (item.price * item.amount), 0) +
-            (providedCartId ? cartAppointments.filter(ca =>
-                ca.daycare_appointment_id &&
-                !(ca.appointment as any)?._isTempGroomingProduct
-            ).reduce((sum, ca) => sum + (ca.appointment_price || 0), 0) : 0)
+        const productsTotal = orderItems.reduce((sum, item) => sum + (item.price * item.amount), 0)
 
         let appointmentPriceValue = 0
 
@@ -251,7 +246,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             // Calculate grooming appointments total (including temporary grooming products)
             const groomingAppts = cartAppointments.filter(ca =>
                 ca.grooming_appointment_id ||
-                (ca.appointment?.serviceType === 'grooming' && !ca.daycare_appointment_id && !ca.grooming_appointment_id)
+                (ca.appointment?.serviceType === 'grooming' && !ca.grooming_appointment_id)
             )
             appointmentPriceValue = groomingAppts.reduce((sum, ca) => sum + (ca.appointment_price || 0), 0)
         } else if (appointment) {
@@ -434,14 +429,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         <ProductsSection
                             orderItems={orderItems}
                             originalOrderItems={originalOrderItems}
-                            gardenAppointments={providedCartId ? cartAppointments.filter(ca =>
-                                ca.daycare_appointment_id &&
-                                !(ca.appointment as any)?._isTempGroomingProduct
-                            ) : []}
-                            originalGardenAppointments={providedCartId ? originalCartAppointments.filter(ca =>
-                                ca.daycare_appointment_id &&
-                                !(ca.appointment as any)?._isTempGroomingProduct
-                            ) : []}
+                            gardenAppointments={[]}
+                            originalGardenAppointments={[]}
                             products={products}
                             isLoadingCart={isLoadingCart}
                             isSavingCart={isSavingCart}
@@ -498,19 +487,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                 const productsSum = orderItems.reduce((sum, item) => sum + (item.price * item.amount), 0)
 
                                 // Calculate garden appointments total (only daycare appointments, exclude grooming)
-                                const gardenAppts = cartAppointments.filter(ca => {
-                                    // Must have daycare_appointment_id (garden appointment)
-                                    if (!ca.daycare_appointment_id) return false
-                                    // Must NOT be a temporary grooming product
-                                    if ((ca.appointment as any)?._isTempGroomingProduct) return false
-                                    // Must NOT be a grooming service type
-                                    if (ca.appointment?.serviceType === 'grooming') return false
-                                    // Must be garden service type or have daycare_appointment_id
-                                    return ca.appointment?.serviceType === 'garden' || ca.daycare_appointment_id !== null
-                                })
-                                const gardenSum = gardenAppts.reduce((sum, ca) => sum + (ca.appointment_price || 0), 0)
-
-                                return productsSum + gardenSum
+                                // No garden appointments in the app
+                                return productsSum
                             })()}
                         />
 
@@ -548,19 +526,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                 const productsSum = orderItems.reduce((sum, item) => sum + (item.price * item.amount), 0)
 
                                 // Calculate garden appointments total (only daycare appointments, exclude grooming)
-                                const gardenAppts = cartAppointments.filter(ca => {
-                                    // Must have daycare_appointment_id (garden appointment)
-                                    if (!ca.daycare_appointment_id) return false
-                                    // Must NOT be a temporary grooming product
-                                    if ((ca.appointment as any)?._isTempGroomingProduct) return false
-                                    // Must NOT be a grooming service type
-                                    if (ca.appointment?.serviceType === 'grooming') return false
-                                    // Must be garden service type or have daycare_appointment_id
-                                    return ca.appointment?.serviceType === 'garden' || ca.daycare_appointment_id !== null
-                                })
-                                const gardenSum = gardenAppts.reduce((sum, ca) => sum + (ca.appointment_price || 0), 0)
-
-                                return productsSum + gardenSum
+                                // No garden appointments in the app
+                                return productsSum
                             })()}
                         />
 
@@ -627,19 +594,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                 const productsSum = orderItems.reduce((sum, item) => sum + (item.price * item.amount), 0)
 
                                 // Calculate garden appointments total (only daycare appointments, exclude grooming)
-                                const gardenAppts = cartAppointments.filter(ca => {
-                                    // Must have daycare_appointment_id (garden appointment)
-                                    if (!ca.daycare_appointment_id) return false
-                                    // Must NOT be a temporary grooming product
-                                    if ((ca.appointment as any)?._isTempGroomingProduct) return false
-                                    // Must NOT be a grooming service type
-                                    if (ca.appointment?.serviceType === 'grooming') return false
-                                    // Must be garden service type or have daycare_appointment_id
-                                    return ca.appointment?.serviceType === 'garden' || ca.daycare_appointment_id !== null
-                                })
-                                const gardenSum = gardenAppts.reduce((sum, ca) => sum + (ca.appointment_price || 0), 0)
-
-                                return productsSum + gardenSum
+                                // No garden appointments in the app
+                                return productsSum
                             })()}
                         />
 
@@ -772,19 +728,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                 const productsSum = orderItems.reduce((sum, item) => sum + (item.price * item.amount), 0)
 
                                 // Calculate garden appointments total (only daycare appointments, exclude grooming)
-                                const gardenAppts = cartAppointments.filter(ca => {
-                                    // Must have daycare_appointment_id (garden appointment)
-                                    if (!ca.daycare_appointment_id) return false
-                                    // Must NOT be a temporary grooming product
-                                    if ((ca.appointment as any)?._isTempGroomingProduct) return false
-                                    // Must NOT be a grooming service type
-                                    if (ca.appointment?.serviceType === 'grooming') return false
-                                    // Must be garden service type or have daycare_appointment_id
-                                    return ca.appointment?.serviceType === 'garden' || ca.daycare_appointment_id !== null
-                                })
-                                const gardenSum = gardenAppts.reduce((sum, ca) => sum + (ca.appointment_price || 0), 0)
-
-                                return productsSum + gardenSum
+                                // No garden appointments in the app
+                                return productsSum
                             })()}
                         />
 

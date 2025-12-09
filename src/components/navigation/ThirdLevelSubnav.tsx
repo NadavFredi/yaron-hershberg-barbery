@@ -34,6 +34,7 @@ export const THIRD_LEVEL_SECTIONS = {
     { id: "working-hours", label: "שעות עבודה גלובליות", icon: Clock },
     { id: "stations", label: "ניהול עמדות", icon: Building2 },
     { id: "stations-per-day", label: "עמדות לפי יום", icon: CalendarDays },
+    { id: "service-station-matrix", label: "מטריצת שירותים-עמדות", icon: Grid3x3 },
     { id: "constraints", label: "אילוצים", icon: AlertCircle },
   ],
   customers: [

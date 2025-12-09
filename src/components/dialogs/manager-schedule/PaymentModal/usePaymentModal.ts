@@ -666,27 +666,9 @@ export const usePaymentModal = ({
 
   // Check if garden appointments are dirty (computed value)
   const isGardenAppointmentsDirty = useMemo(() => {
-    if (!providedCartId) return false
-    const gardenAppts = cartAppointments.filter((ca) => ca.daycare_appointment_id)
-    const originalGardenAppts = originalCartAppointments.filter((ca) => ca.daycare_appointment_id)
-
-    if (gardenAppts.length !== originalGardenAppts.length) return true
-
-    for (const gardenAppt of gardenAppts) {
-      const originalGardenAppt = originalGardenAppts.find((oga) => oga.id === gardenAppt.id)
-      if (!originalGardenAppt || originalGardenAppt.appointment_price !== gardenAppt.appointment_price) {
-        return true
-      }
-    }
-
-    for (const originalGardenAppt of originalGardenAppts) {
-      if (!gardenAppts.find((ga) => ga.id === originalGardenAppt.id)) {
-        return true
-      }
-    }
-
+    // No garden/daycare appointments in the app
     return false
-  }, [providedCartId, cartAppointments, originalCartAppointments])
+  }, [])
 
   // Check if products are dirty (computed value)
   const isProductsDirty = useMemo(() => {
@@ -725,8 +707,7 @@ export const usePaymentModal = ({
     setIsLoadingCart(true)
     try {
       // Query cart_appointments to find active cart for this appointment
-      const appointmentIdField =
-        appointment.serviceType === "grooming" ? "grooming_appointment_id" : "daycare_appointment_id"
+      const appointmentIdField = "grooming_appointment_id"
 
       // First, find the cart_appointment entry for this appointment
       const { data: cartApptData, error: cartApptError } = await supabase
@@ -955,7 +936,6 @@ export const usePaymentModal = ({
             id: existingCartAppt?.id || `temp_${apt.id}`,
             cart_id: cartIdToFetch,
             grooming_appointment_id: apt.id,
-            daycare_appointment_id: null,
             appointment_price: finalPrice,
             appointment: appointmentData,
           })
@@ -985,7 +965,6 @@ export const usePaymentModal = ({
             id: item.id,
             cart_id: cartIdToFetch,
             grooming_appointment_id: null,
-            daycare_appointment_id: null,
             appointment_price: item.unit_price || 0,
             appointment: {
               id: item.id,
@@ -1116,9 +1095,9 @@ export const usePaymentModal = ({
 
       // Update or insert appointments
       for (const cartAppt of cartAppointments) {
-        // Skip if both appointment IDs are null (violates check constraint)
-        if (!cartAppt.grooming_appointment_id && !cartAppt.daycare_appointment_id) {
-          console.warn("Skipping cart_appointment insert: both appointment IDs are null", cartAppt)
+        // Skip if appointment ID is null (violates check constraint)
+        if (!cartAppt.grooming_appointment_id) {
+          console.warn("Skipping cart_appointment insert: appointment ID is null", cartAppt)
           continue
         }
 
@@ -1135,7 +1114,6 @@ export const usePaymentModal = ({
           const { error: insertError } = await supabase.from("cart_appointments").insert({
             cart_id: currentCartId,
             grooming_appointment_id: cartAppt.grooming_appointment_id,
-            daycare_appointment_id: cartAppt.daycare_appointment_id,
             appointment_price: cartAppt.appointment_price,
           })
 
@@ -1200,14 +1178,13 @@ export const usePaymentModal = ({
         const appointmentsToInsert = realAppointments.map((ca) => ({
           cart_id: currentCartId,
           grooming_appointment_id: ca.grooming_appointment_id,
-          daycare_appointment_id: ca.daycare_appointment_id,
           appointment_price: ca.appointment_price,
         }))
 
         const { data: insertedAppts, error: insertError } = await supabase
           .from("cart_appointments")
           .insert(appointmentsToInsert)
-          .select("id, grooming_appointment_id, daycare_appointment_id")
+          .select("id, grooming_appointment_id")
 
         if (insertError) throw insertError
       }
@@ -1419,58 +1396,6 @@ export const usePaymentModal = ({
         if (insertItemsError) throw insertItemsError
       }
 
-      // Save garden appointments (daycare appointments)
-      const gardenAppointments = cartAppointments.filter((ca) => ca.daycare_appointment_id)
-      const originalGardenAppointments = originalCartAppointments.filter((ca) => ca.daycare_appointment_id)
-
-      // Delete removed garden appointments
-      const currentGardenIds = new Set(gardenAppointments.map((ca) => ca.id))
-      const originalGardenIds = originalGardenAppointments.map((ca) => ca.id)
-      const removedGardenIds = originalGardenIds.filter((id) => !currentGardenIds.has(id))
-
-      if (removedGardenIds.length > 0) {
-        const { error: deleteGardenError } = await supabase
-          .from("cart_appointments")
-          .delete()
-          .in("id", removedGardenIds)
-
-        if (deleteGardenError) throw deleteGardenError
-      }
-
-      // Update or insert garden appointments
-      for (const gardenAppt of gardenAppointments) {
-        if (originalGardenAppointments.find((oga) => oga.id === gardenAppt.id)) {
-          // Update existing
-          const { error: updateError } = await supabase
-            .from("cart_appointments")
-            .update({ appointment_price: gardenAppt.appointment_price })
-            .eq("id", gardenAppt.id)
-
-          if (updateError) throw updateError
-        } else {
-          // Insert new
-          const { data: inserted, error: insertError } = await supabase
-            .from("cart_appointments")
-            .insert({
-              cart_id: currentCartId,
-              daycare_appointment_id: gardenAppt.daycare_appointment_id,
-              appointment_price: gardenAppt.appointment_price,
-            })
-            .select("id")
-            .single()
-
-          if (insertError) throw insertError
-
-          // Update the ID for temp appointments
-          if (inserted && gardenAppt.id.startsWith("temp_")) {
-            const updatedAppointments = cartAppointments.map((ca) =>
-              ca.id === gardenAppt.id ? { ...ca, id: inserted.id } : ca
-            )
-            setCartAppointments(updatedAppointments)
-          }
-        }
-      }
-
       // Update original state
       setOriginalCartAppointments([...cartAppointments])
 
@@ -1500,8 +1425,7 @@ export const usePaymentModal = ({
     // Legacy mode: single appointment
     setIsSavingCart(true)
     try {
-      const appointmentIdField =
-        appointment.serviceType === "grooming" ? "grooming_appointment_id" : "daycare_appointment_id"
+      const appointmentIdField = "grooming_appointment_id"
 
       let currentCartId = cartId
 
@@ -1819,8 +1743,7 @@ export const usePaymentModal = ({
     // If no cart exists for this appointment, create one
     if (appointment?.id && appointment?.serviceType && !cartId && !providedCartId) {
       try {
-        const appointmentIdField =
-          appointment.serviceType === "grooming" ? "grooming_appointment_id" : "daycare_appointment_id"
+        const appointmentIdField = "grooming_appointment_id"
 
         // Create new cart
         const cartData: any = {
@@ -1929,7 +1852,7 @@ export const usePaymentModal = ({
         .select(
           `
                     cart_items(quantity, unit_price),
-                    cart_appointments(appointment_price, grooming_appointment_id, daycare_appointment_id)
+                    cart_appointments(appointment_price, grooming_appointment_id)
                 `
         )
         .eq("id", currentCartId)
@@ -1944,7 +1867,6 @@ export const usePaymentModal = ({
       const actualCartAppointments = (cartData?.cart_appointments || []) as Array<{
         appointment_price: number
         grooming_appointment_id: string | null
-        daycare_appointment_id: string | null
       }>
 
       const actualProductsTotal = actualCartItems.reduce(
@@ -2004,14 +1926,13 @@ export const usePaymentModal = ({
         actualCartItemsCount: actualCartItems?.length || 0,
         actualCartAppointmentsCount: actualCartAppointments?.length || 0,
         hasGroomingAppts: actualCartAppointments.some((ca) => ca.grooming_appointment_id),
-        hasDaycareAppts: actualCartAppointments.some((ca) => ca.daycare_appointment_id),
+        hasDaycareAppts: false,
         orderItemsCount: orderItems.length,
         cartAppointmentsCount: cartAppointments.length,
         cartAppointments: cartAppointments.map((ca) => ({
           id: ca.id,
           price: ca.appointment_price,
           groomingId: ca.grooming_appointment_id,
-          daycareId: ca.daycare_appointment_id,
         })),
         actualCartItems: actualCartItems,
         actualCartAppointments: actualCartAppointments,
@@ -2071,8 +1992,7 @@ export const usePaymentModal = ({
 
       // Add appointment fields only if we have appointments (legacy mode)
       if (appointment?.id && appointment?.serviceType) {
-        const appointmentIdField =
-          appointment.serviceType === "grooming" ? "grooming_appointment_id" : "daycare_appointment_id"
+        const appointmentIdField = "grooming_appointment_id"
         orderData[appointmentIdField] = appointment.id
       }
 
@@ -2247,9 +2167,6 @@ export const usePaymentModal = ({
           if (ca.grooming_appointment_id) {
             appointmentIdsToInvalidate.add(ca.grooming_appointment_id)
           }
-          if (ca.daycare_appointment_id) {
-            appointmentIdsToInvalidate.add(ca.daycare_appointment_id)
-          }
         })
       }
 
@@ -2258,9 +2175,6 @@ export const usePaymentModal = ({
         cartAppointments.forEach((ca) => {
           if (ca.grooming_appointment_id) {
             appointmentIdsToInvalidate.add(ca.grooming_appointment_id)
-          }
-          if (ca.daycare_appointment_id) {
-            appointmentIdsToInvalidate.add(ca.daycare_appointment_id)
           }
         })
       }
@@ -2540,8 +2454,7 @@ export const usePaymentModal = ({
       }
 
       if (appointment?.id && appointment?.serviceType) {
-        const appointmentIdField =
-          appointment.serviceType === "grooming" ? "grooming_appointment_id" : "daycare_appointment_id"
+        const appointmentIdField = "grooming_appointment_id"
         orderData[appointmentIdField] = appointment.id
       }
 
@@ -2790,8 +2703,7 @@ export const usePaymentModal = ({
       }
 
       if (appointment?.id && appointment?.serviceType) {
-        const appointmentIdField =
-          appointment.serviceType === "grooming" ? "grooming_appointment_id" : "daycare_appointment_id"
+        const appointmentIdField = "grooming_appointment_id"
         orderData[appointmentIdField] = appointment.id
       }
 
