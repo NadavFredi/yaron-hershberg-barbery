@@ -368,7 +368,6 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
       })
     })
 
-    // Removed dog search results - barbery system doesn't use dogs
 
     remoteScheduleSearchResults.clients.forEach((client) => {
       const clientDetails = {

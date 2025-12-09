@@ -10,15 +10,12 @@ export interface AirtableRecord<T> {
 /** Fields for 'לקוחות' table */
 export interface TreatmentFields {
   שם: string
-  // Removed breed and garden fields - barbery system doesn't use them
 }
 
 /** Fields for 'עמדות מול גזעים' table */
 export interface TreatmentTypeDurationRuleFields {
-  // Removed breed fields - barbery system doesn't use breeds
   עמדה: string[] // Array of record IDs from 'עמדות עבודה'
   'סה"כ משך תספורת בשניות'?: number
-  // Removed garden duration fields - barbery system only has grooming
 }
 
 /** Fields for 'שעות פעילות' table */
@@ -41,8 +38,6 @@ export interface ConstraintFields {
   "מועד סיום ההיעדרות": string // ISO DateTime string
   "עמדת עבודה": string[] // Array of record IDs from 'עמדות עבודה'
 }
-
-// Removed GardenCapacityFields and GardenAppointmentFields - barbery system doesn't have garden
 
 /** Simplified internal representation of data for calculation */
 export interface Appointment {
@@ -90,8 +85,6 @@ export interface StationAvailabilityProfile {
    */
   remoteBookingAllowed?: boolean
 }
-
-// Removed GardenCapacityState - barbery system doesn't have garden
 
 export interface Workstation {
   id: string

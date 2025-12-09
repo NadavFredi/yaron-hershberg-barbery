@@ -381,7 +381,6 @@ export default function AppointmentsSection() {
 
             const [groomingData, daycareData] = await Promise.all([groomingPromise(), daycarePromise()])
 
-            // Removed all breed/dog processing - barbery system doesn't use dogs/breeds
 
             const mappedGrooming: EnrichedAppointment[] = groomingData.map((apt) => {
                 const customer = getFirst<RawCustomerRecord>(apt.customers)
@@ -498,7 +497,6 @@ export default function AppointmentsSection() {
                 }
             }
 
-            // Removed dog category filters - barbery system doesn't use dogs/breeds
 
             if (selectedStationIds.length > 0) {
                 if (!appointment.stationId || !selectedStationIds.includes(appointment.stationId)) {
@@ -517,7 +515,6 @@ export default function AppointmentsSection() {
                 appointment.stationName,
                 appointment.notes,
                 appointment.internalNotes,
-                // Removed dog/breed from search - barbery system doesn't use dogs
             ]
                 .filter(Boolean)
                 .join(" ")

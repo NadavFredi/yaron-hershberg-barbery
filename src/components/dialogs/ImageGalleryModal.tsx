@@ -68,7 +68,6 @@ export function ImageGalleryModal({
 
           setImages(data || [])
         } else if (imageType === "appointment-session") {
-          // Fetch grooming appointment images (barbery system only has grooming appointments)
           const { data: groomingData, error: groomingError } = await supabase
             .from("appointment_session_images")
             .select("*")
@@ -147,7 +146,6 @@ export function ImageGalleryModal({
 
         setImages((prev) => [data, ...prev])
       } else if (imageType === "appointment-session") {
-        // Verify it's a grooming appointment (barbery system only has grooming appointments)
         const { data: groomingCheck, error: groomingError } = await supabase
           .from("grooming_appointments")
           .select("id")

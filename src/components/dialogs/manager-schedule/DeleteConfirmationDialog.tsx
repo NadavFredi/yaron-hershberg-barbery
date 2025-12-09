@@ -462,7 +462,6 @@ export function DeleteConfirmationDialog() {
             // Invalidate comprehensive cache tags
             await dispatch(supabaseApi.util.invalidateTags(['ManagerSchedule', 'Appointment', 'GardenAppointment']))
 
-            // Removed dog-specific cache invalidation - barbery system doesn't use dogs
             await refetch()
         } finally {
             dispatch(setIsDeleting(false))

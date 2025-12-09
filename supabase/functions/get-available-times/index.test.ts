@@ -8,7 +8,6 @@ Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", Deno.env.get("SUPABASE_SERVICE_ROLE_KE
 
 const { calculateAvailableDates, isDateWithinBusinessHours } = await import("./index.ts")
 
-// Removed createGardenContext - barbery system doesn't have garden
 
 function createGroomingContext(params: {
   businessHours: Map<number, Interval[]>
@@ -29,7 +28,6 @@ function createGroomingContext(params: {
       customer_type_id: "type-1",
     },
     isGrooming: true,
-    // Removed isGarden - barbery system doesn't have garden
     stationProfiles: [
       {
         id: "station-1",
@@ -45,7 +43,6 @@ function createGroomingContext(params: {
     stationAppointmentsByDate: new Map(),
     stationPositiveConstraints: params.positiveConstraints,
     stationNegativeConstraints: new Map(),
-    // Removed gardenUsageByDate and capacityLimits - barbery system doesn't have garden
   }
 }
 
@@ -58,13 +55,11 @@ Deno.test("isDateWithinBusinessHours identifies active weekdays", () => {
   assertEquals(isDateWithinBusinessHours(businessMap, "2025-05-06"), false)
 })
 
-// Removed garden service test - barbery system doesn't have garden
 Deno.test.skip("calculateAvailableDates skips dates without global business hours for garden service", () => {
   const businessMap = new Map<number, Interval[]>([
     [1, [{ startMinute: 9 * 60, endMinute: 17 * 60 }]],
   ])
 
-  // Removed garden context creation - barbery system doesn't have garden
   const context = null as any
     endDate: new Date("2025-05-07T00:00:00Z"),
   })
@@ -73,9 +68,7 @@ Deno.test.skip("calculateAvailableDates skips dates without global business hour
   assertEquals(dates.map((d) => d.date), ["2025-05-05"])
 })
 
-// Removed garden service test - barbery system doesn't have garden
 Deno.test.skip("calculateAvailableDates returns empty when no business hours configured", () => {
-  // Removed garden context creation - barbery system doesn't have garden
   const context = null as any
     endDate: new Date("2025-05-07T00:00:00Z"),
   })

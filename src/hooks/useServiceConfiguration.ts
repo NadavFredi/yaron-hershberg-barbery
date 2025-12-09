@@ -46,8 +46,6 @@ export const useServiceStationConfigs = (serviceId: string) => {
   })
 }
 
-// Removed useBreedModifiers - barbery system doesn't use breeds
-
 export const useUpdateServiceStationConfig = () => {
   const queryClient = useQueryClient()
 
@@ -130,8 +128,6 @@ export const useDeleteServiceStationConfig = () => {
   })
 }
 
-// Removed useUpdateBreedModifier - barbery system doesn't use breeds
-
 // Main composite hook that combines all the functionality
 export const useServiceConfiguration = (serviceId: string) => {
   const { data: services } = useServices()
@@ -171,7 +167,6 @@ export const useServiceConfiguration = (serviceId: string) => {
     return updateStationConfigMutation.mutateAsync(params)
   }
 
-  // Removed breed-related functions - barbery system doesn't use breeds
   const addBreedAdjustments = async (_breedIds: string[]) => {
     return Promise.resolve()
   }

@@ -118,10 +118,8 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
 
   const height = isExpanded && isSmallCard ? Math.max(originalHeight, 150) : originalHeight
 
-  // Removed dog/breed references - barbery system doesn't use dogs
   const dogName = appointment.serviceName ?? ""
 
-  // Removed dog/breed references - barbery system doesn't use dogs
   const hasOtherServiceAppointment = false
   const breedName = appointment.serviceName ?? undefined
   const crossServiceIndicator = undefined

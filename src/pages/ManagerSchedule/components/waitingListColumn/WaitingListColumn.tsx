@@ -87,17 +87,11 @@ export function WaitingListColumn({ selectedDate, timelineHeight }: WaitingListC
     waitingListSearchTerm,
     setWaitingListSearchTerm,
     selectedCustomerTypes,
-    selectedDogCategories,
     customerTypeQuery,
     setCustomerTypeQuery,
-    dogCategoryQuery,
-    setDogCategoryQuery,
     searchCustomerTypes,
-    searchDogCategories,
     handleSelectCustomerType,
-    handleSelectDogCategory,
     removeCustomerType,
-    removeDogCategory,
     clearWaitingListFilters,
     waitlistSection,
     setWaitlistSection,
@@ -128,12 +122,6 @@ export function WaitingListColumn({ selectedDate, timelineHeight }: WaitingListC
                 <span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">
                   מספרה {waitingListSummary.scopeCounts.grooming}
                 </span>
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">
-                  גן {waitingListSummary.scopeCounts.daycare}
-                </span>
-                <span className="rounded-full bg-purple-50 px-2 py-0.5 text-purple-700">
-                  שילוב {waitingListSummary.scopeCounts.both}
-                </span>
               </div>
             )}
 
@@ -141,7 +129,7 @@ export function WaitingListColumn({ selectedDate, timelineHeight }: WaitingListC
               <Input
                 value={waitingListSearchTerm}
                 onChange={(event) => setWaitingListSearchTerm(event.target.value)}
-                placeholder="חיפוש לפי שם כלב, לקוח או טלפון"
+                placeholder="חיפוש לפי שם לקוח או טלפון"
                 className="pr-9 text-sm"
               />
               <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -161,19 +149,6 @@ export function WaitingListColumn({ selectedDate, timelineHeight }: WaitingListC
                   initialLoadOnMount
                 />
               </div>
-              <div>
-                <Label className="mb-1 block text-xs font-medium text-gray-500">קטגוריית גזע</Label>
-                <AutocompleteFilter
-                  value={dogCategoryQuery}
-                  onChange={setDogCategoryQuery}
-                  onSelect={handleSelectDogCategory}
-                  placeholder="חפש קטגוריה..."
-                  searchFn={searchDogCategories}
-                  minSearchLength={0}
-                  autoSearchOnFocus
-                  initialLoadOnMount
-                />
-              </div>
             </div>
 
             {waitlistHasFilters && (
@@ -187,17 +162,6 @@ export function WaitingListColumn({ selectedDate, timelineHeight }: WaitingListC
                       className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700"
                     >
                       {type.name}
-                      <X className="h-3 w-3" />
-                    </button>
-                  ))}
-                  {selectedDogCategories.map((category) => (
-                    <button
-                      key={`dog-category-${category.id}`}
-                      type="button"
-                      onClick={() => removeDogCategory(category.id)}
-                      className="inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700"
-                    >
-                      {category.name}
                       <X className="h-3 w-3" />
                     </button>
                   ))}
@@ -247,20 +211,6 @@ export function WaitingListColumn({ selectedDate, timelineHeight }: WaitingListC
                       {renderWaitlistBucketGroups(
                         waitlistBuckets.clientTypes,
                         "client",
-                        activeWaitlistBucket,
-                        setActiveWaitlistBucket,
-                        handleWaitlistCardClick
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="dog-categories">
-                    <AccordionTrigger className="text-sm font-semibold text-gray-900 justify-between text-right flex-row-reverse">
-                      לפי קטגוריית גזע ({waitlistBuckets.dogCategories.length})
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-3">
-                      {renderWaitlistBucketGroups(
-                        waitlistBuckets.dogCategories,
-                        "category",
                         activeWaitlistBucket,
                         setActiveWaitlistBucket,
                         handleWaitlistCardClick

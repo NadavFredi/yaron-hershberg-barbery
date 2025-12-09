@@ -18,7 +18,6 @@ type ManagerStation = AppointmentStation
 
 type FinalizedDragTimes = AppointmentTimes
 
-// Removed DurationStatus type - barbery system doesn't use breed duration
 
 
 interface BusinessAppointmentModalProps {
@@ -47,7 +46,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         endTime: finalizedDragTimes.endTime ? new Date(finalizedDragTimes.endTime) : null,
         stationId: finalizedDragTimes.stationId ?? null
     } : null)
-    // Removed breed duration functionality - barbery system doesn't use dogs/breeds
     const [createManagerAppointment, { isLoading: isCreatingAppointment }] = useCreateManagerAppointmentMutation()
     const { toast } = useToast()
     const { data: services = [], isLoading: isLoadingServices } = useServices()
@@ -82,7 +80,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         }
     }, [finalizedDragTimes])
 
-    // Removed breed duration sync logic - barbery system doesn't use dogs/breeds
 
 
 
@@ -102,7 +99,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 stationId: times.stationId ?? prev?.stationId ?? null
             }
 
-            // Removed breed duration sync - barbery system doesn't use dogs/breeds
             // Maintain current duration when start time changes
             if (prev?.startTime && prev?.endTime && next.startTime && next.startTime.getTime() !== prev.startTime.getTime()) {
                 const currentDuration = prev.endTime.getTime() - prev.startTime.getTime()
@@ -136,7 +132,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 appointmentType: "business",
                 customerId: selectedCustomer.id,
                 serviceId: selectedServiceId,
-                // Removed dogId - barbery system doesn't use dogs
                 isManualOverride: true
             }).unwrap()
 
@@ -184,7 +179,6 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                             hideSaveCancelButtons={true}
                             disableEndTime={false}
                         >
-                            {/* Removed breed duration sync UI - barbery system doesn't use dogs/breeds */}
                         </AppointmentDetailsSection>
 
                         <div className="space-y-4">

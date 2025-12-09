@@ -24,7 +24,6 @@ export const AddGroomingProductDialog: React.FC<AddGroomingProductDialogProps> =
     const [customPrice, setCustomPrice] = useState<string>('')
     const [isLoadingPrice, setIsLoadingPrice] = useState(false)
 
-    // Removed breed-related logic - barbery system doesn't use breeds
 
     const handleAdd = () => {
         const price = parseFloat(customPrice) || 0

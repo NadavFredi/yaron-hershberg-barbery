@@ -90,7 +90,6 @@ interface ManagerAppointment {
   durationMinutes?: number
   latePickupRequested?: boolean
   latePickupNotes?: string
-  // Removed garden-specific fields - barbery system only has grooming
   recordId?: string
   recordNumber?: string
   isPersonalAppointment?: boolean
@@ -211,7 +210,6 @@ const fetchTreatmentsByIds = async (
         "Aggressive With Other Treatments",
         "aggressiveWithOtherTreatments",
       ]),
-      // Removed garden-related field mappings - barbery system doesn't have garden
       recordId: coalesceStringField(fields, ["מזהה רשומה", "Record ID", "recordId"]),
       recordNumber: coalesceStringField(fields, ["מספר רשומה", "Record Number", "recordNumber"]),
     }

@@ -124,7 +124,6 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
     applyTimeToAllStations
   } = useServiceConfiguration(serviceId);
 
-  // Removed breed adjustments - barbery system doesn't use breeds
 
   const handleStationTimeChange = useCallback(async (stationId: string, newTimeMinutes: number) => {
     return updateStationConfig({
@@ -144,7 +143,6 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
     });
   }, [serviceId, stations, updateStationConfig]);
 
-  // Removed breed-related handlers - barbery system doesn't use breeds
 
   const handleApplyTimeToAll = useCallback(async () => {
     try {
@@ -237,7 +235,6 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
         </CardContent>
       </Card>
 
-      {/* Removed Breed Adjustments section - barbery system doesn't use breeds */}
 
       {/* Apply Time to All Dialog */}
       <Dialog open={isApplyAllDialogOpen} onOpenChange={setIsApplyAllDialogOpen}>

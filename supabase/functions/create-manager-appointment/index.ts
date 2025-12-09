@@ -19,7 +19,6 @@ interface CreateManagerAppointmentRequest {
   customerId?: string
   serviceId?: string
   isManualOverride?: boolean
-  // Removed garden-specific fields - barbery system only has grooming appointments
   notes?: string
   internalNotes?: string
 }
@@ -104,15 +103,13 @@ serve(async (req) => {
       groupId,
       customerId,
       isManualOverride: _isManualOverride, // Reserved for future use
-      // Removed garden-specific fields - barbery system only has grooming appointments
       notes,
       internalNotes,
       serviceId,
     }: CreateManagerAppointmentRequest = await req.json()
 
     // Removed garden - barbery system only has grooming appointments
-    const normalizedAppointmentType: ManagerAppointmentType =
-      appointmentType === "business" ? "business" : "private"
+    const normalizedAppointmentType: ManagerAppointmentType = appointmentType === "business" ? "business" : "private"
 
     console.log("📋 [create-manager-appointment] Request data:", {
       name,
@@ -121,7 +118,6 @@ serve(async (req) => {
       startTime,
       endTime,
       appointmentType: normalizedAppointmentType,
-      // Removed gardenAppointmentType - barbery system only has grooming appointments
       groupId,
       customerId,
       serviceId,
@@ -216,7 +212,6 @@ serve(async (req) => {
     }
 
     // Create appointments for each station
-    // Removed garden appointments - barbery system only has grooming appointments
     console.log("✂️ [create-manager-appointment] Creating grooming appointments")
 
     for (const stationIdToUse of stationsToUse) {
@@ -263,9 +258,7 @@ serve(async (req) => {
         appointmentIds,
         groupId: finalGroupId,
         message: `${
-          normalizedAppointmentType === "business"
-            ? "Business"
-            : "Private"
+          normalizedAppointmentType === "business" ? "Business" : "Private"
         } appointment(s) created successfully`,
       }),
       {

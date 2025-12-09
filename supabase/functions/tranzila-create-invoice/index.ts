@@ -39,7 +39,6 @@ interface CartAppointment {
   id: string
   appointment_price: number | null
   grooming_appointment_id: string | null
-  // Removed daycare_appointment_id - barbery system doesn't have daycare
 }
 
 serve(async (req) => {

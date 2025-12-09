@@ -124,16 +124,13 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
     return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
 
-// Removed Dog interface - barbery system doesn't use dogs
 
 interface Appointment {
     id: string
-    // Removed dogId - barbery system doesn't use dogs
     date: string
     time: string
     service: "grooming" | "garden" | "both"
     status: string
-    // Removed dogName - barbery system doesn't use dogs
     startDateTime?: string
     endDateTime?: string
     stationId?: string
@@ -154,7 +151,6 @@ interface Appointment {
 
 interface WaitingListEntry {
     id: string
-    // Removed dogId, dogName - barbery system doesn't use dogs
     serviceType: string | null
     status: string | null
     notes?: string | null
@@ -166,9 +162,6 @@ interface WaitingListEntry {
 
 type WaitlistServiceScopeValue = 'grooming' | 'garden' | 'both' | 'daycare'
 
-// Removed WaitlistModalSubmission - barbery system doesn't use dogs
-
-// Removed ListOwnerDogsResponse and DogAppointmentsResponse - barbery system doesn't use dogs
 
 const CANCELLED_STATUS_KEYWORDS = ["cancelled", "canceled", "מבוטל", "בוטל"]
 
@@ -205,7 +198,6 @@ export default function Appointments() {
     const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null)
     const [isWaitingListDialogOpen, setIsWaitingListDialogOpen] = useState(false)
     const [editingWaitingListEntry, setEditingWaitingListEntry] = useState<WaitingListEntry | null>(null)
-    // Removed waitlistModalDogId - barbery system doesn't use dogs
     const [waitlistModalServiceScope, setWaitlistModalServiceScope] = useState<WaitlistServiceScopeValue>('grooming')
     const [waitlistModalDateRanges, setWaitlistModalDateRanges] = useState<Array<{ startDate: string; endDate?: string | null }> | undefined>(undefined)
     const [waitlistModalNotes, setWaitlistModalNotes] = useState<string | null>(null)
@@ -395,7 +387,6 @@ export default function Appointments() {
         const trimmedNotes = latePickupDialogNotes.trim()
 
         try {
-            // updateLatePickup removed - no dogs in barbershop
             // TODO: Implement late pickup for people if needed
             throw new Error("Late pickup functionality not available for barbershop")
 
@@ -458,7 +449,6 @@ export default function Appointments() {
     const latePickupDialogDateLabel = latePickupDialogDateTime ? formatDateLabel(latePickupDialogDateTime) : ""
     const latePickupDialogTimeLabel = latePickupDialogDateTime ? format(latePickupDialogDateTime, "HH:mm") : (latePickupDialogAppointment?.time ?? "")
 
-    // Removed dog queries - barbery system doesn't use dogs
     const dogs: never[] = []
     const isFetchingDogs = false
     const isLoadingDogs = false
@@ -509,11 +499,9 @@ export default function Appointments() {
             service: apt.serviceType,
             status: apt.status || 'pending',
             startDateTime: apt.startAt,
-            // Removed dogId, dogName - barbery system doesn't use dogs
         }))
     }, [clientAppointmentHistory])
 
-    // Removed waiting list functionality - barbery system doesn't use dogs
     const waitingListEntries: WaitingListEntry[] = []
     const waitingListEntriesByDog: Array<{ entries: WaitingListEntry[] }> = []
     const isFetchingWaitingList = false
@@ -541,7 +529,6 @@ export default function Appointments() {
         if (!ownerId) {
             return
         }
-        // Removed dog refetch - barbery system doesn't use dogs
         // Refetch client appointments
         // The query will automatically refetch due to RTK Query
     }
@@ -874,7 +861,6 @@ export default function Appointments() {
 
                 if (result.success) {
                     console.log(`Both appointments cancelled successfully`)
-                    // Removed dog-based cache updates - barbery system doesn't use dogs
 
                     setAppointmentPendingCancellation(null)
 
@@ -901,12 +887,10 @@ export default function Appointments() {
                 const result = await cancelAppointmentWebhook(appointment.id, {
                     serviceType: appointment.service,
                     appointmentTime,
-                    // Removed dogId - barbery system doesn't use dogs
                     stationId: appointment.stationId,
                 })
 
                 if (result.success) {
-                    // Removed dog-based cache updates - barbery system doesn't use dogs
 
                     setAppointmentPendingCancellation(null)
 
@@ -1002,7 +986,6 @@ export default function Appointments() {
             const result = await cancelAppointmentWebhook(appointmentId, {
                 serviceType: service,
                 appointmentTime,
-                // Removed dogId - barbery system doesn't use dogs
                 stationId: appointmentDetails?.stationId,
             })
 
@@ -1089,7 +1072,6 @@ export default function Appointments() {
 
                 if (groomingResult.success && gardenResult.success) {
                     console.log(`[handleApproval] Both appointments confirmed successfully`)
-                    // Removed dog-based cache updates - barbery system doesn't use dogs
 
                     toast({
                         title: "ההגעה אושרה",
@@ -1115,7 +1097,6 @@ export default function Appointments() {
                         appointmentId: appointment.id,
                     })
 
-                    // Removed dog-based cache updates - barbery system doesn't use dogs
 
                     const successMessage = result.message || "ההגעה אושרה בהצלחה"
                     toast({
@@ -1161,16 +1142,13 @@ export default function Appointments() {
     }
 
     const openWaitingListDialog = (entry?: WaitingListEntry, options?: { serviceType?: string }) => {
-        // Removed dog-related waiting list - barbery system doesn't use dogs
         if (entry) {
             setEditingWaitingListEntry(entry)
-            // Removed waitlistModalDogId - barbery system doesn't use dogs
             setWaitlistModalServiceScope(normalizeServiceScopeFromEntry(entry.serviceType))
             setWaitlistModalDateRanges(getEntryDateRanges(entry))
             setWaitlistModalNotes(entry.notes ?? "")
         } else {
             setEditingWaitingListEntry(null)
-            // Removed waitlistModalDogId - barbery system doesn't use dogs
             setWaitlistModalServiceScope(
                 options?.serviceType ? normalizeServiceScopeFromEntry(options.serviceType) : 'grooming'
             )
@@ -1195,8 +1173,7 @@ export default function Appointments() {
 
 
     const handleDeleteWaitingListEntry = async (_entry: WaitingListEntry) => {
-        // Removed waiting list deletion - barbery system doesn't use dogs
-        throw new Error("Waiting list functionality not available - no dogs in barbershop")
+        throw new Error("Waiting list functionality not available")
     }
 
     const handleWaitlistSubmit = useCallback(
@@ -1522,7 +1499,6 @@ export default function Appointments() {
                 }}
                 onSubmit={handleWaitlistSubmit}
                 defaultCustomer={waitlistModalCustomer}
-                // Removed defaultDog - barbery system doesn't use dogs
                 disableCustomerSelection={Boolean(waitlistModalCustomer)}
                 title={editingWaitingListEntry ? "עריכת בקשת המתנה" : "בקשת המתנה חדשה"}
                 description="בחר את הכלב וסוג השירות כדי לקבל התראה כאשר יפתח תור פנוי."
@@ -1841,7 +1817,6 @@ export default function Appointments() {
                                     </CardContent>
                                 </Card>
                             ) : (
-                                // Removed dog-based waiting list display - barbery system doesn't use dogs
                                 waitingListEntriesByDog.map(({ entries }) => (
                                     <Card key="waiting-list" className="border border-emerald-200 shadow-sm" dir="rtl">
                                         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-right">
@@ -2071,7 +2046,6 @@ export default function Appointments() {
                                                                 size="sm"
                                                                 onClick={() => {
                                                                     const params = new URLSearchParams()
-                                                                    // Removed dogId - barbery system doesn't use dogs
                                                                     if (appointment.service) {
                                                                         params.set('serviceType', appointment.service.toLowerCase())
                                                                     }

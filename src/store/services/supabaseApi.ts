@@ -266,7 +266,6 @@ export const supabaseApi = createApi({
   tagTypes: [
     "User",
     "Appointment",
-    // Removed "Dog" tag - barbery system doesn't use dogs
     "Availability",
     "WaitingList",
     "ManagerSchedule",
@@ -385,7 +384,6 @@ export const supabaseApi = createApi({
     }),
 
     // Appointments
-    // Removed getDogAppointments - barbery system doesn't use dogs
 
     getAppointmentOrders: builder.query<
       { orders: Array<{ id: string; status: string | null; total: number | null }> },
@@ -393,7 +391,6 @@ export const supabaseApi = createApi({
     >({
       async queryFn({ appointmentId, serviceType }) {
         try {
-          // Removed daycare - barbery system only has grooming appointments
           const column = "grooming_appointment_id"
           const { data, error } = await supabase.from("orders").select("id, status, total").eq(column, appointmentId)
 
@@ -436,7 +433,6 @@ export const supabaseApi = createApi({
             return { data: { appointments: [] } }
           }
 
-          // Removed daycare - barbery system only has grooming appointments
           const groomingResult = await supabase
             .from("grooming_appointments")
             .select("id, start_at, status")
@@ -468,8 +464,6 @@ export const supabaseApi = createApi({
       providesTags: (_result, _error, arg) => [{ type: "Appointment", id: `client-${arg.clientId}` }],
       keepUnusedDataFor: 300,
     }),
-
-    // getMergedAppointments removed - no dogs in barbershop
 
     getAvailableDates: builder.query({
       query: (params) => ({
@@ -563,7 +557,6 @@ export const supabaseApi = createApi({
           let dogId: string | undefined
           try {
             const { getSingleManagerAppointment } = await import("@/integrations/supabase/supabaseService")
-            // Removed dogId fetch - barbery system doesn't use dogs
           } catch (error) {
             console.warn("Error during cache invalidation:", error)
           }
@@ -1019,7 +1012,6 @@ export const supabaseApi = createApi({
             }
           }
 
-          // Removed daycare - barbery system only has grooming appointments
           const groomingResult = await supabase
             .from("grooming_appointments")
             .select(
@@ -1070,7 +1062,7 @@ export const supabaseApi = createApi({
               internalNotes: apt.internal_notes || undefined,
               groomingNotes: apt.grooming_notes || undefined,
               hasCrossServiceAppointment: false,
-              dogs: [], // Removed dog references - barbery system doesn't use dogs
+              dogs: [],
               clientId: apt.customer_id,
               clientName: customer?.full_name || undefined,
               clientClassification: customer?.classification || undefined,
@@ -1084,8 +1076,6 @@ export const supabaseApi = createApi({
               durationMinutes: Math.round((new Date(apt.end_at).getTime() - new Date(apt.start_at).getTime()) / 60000),
             } as ManagerAppointment)
           }
-
-          // Removed daycare appointments processing - barbery system only has grooming appointments
 
           // Sort by start time
           appointments.sort((a, b) => a.startDateTime.localeCompare(b.startDateTime))
@@ -2679,8 +2669,6 @@ export const supabaseApi = createApi({
       invalidatesTags: ["Worker", "WorkerAttendance"],
     }),
 
-    // Dogs removed - no dogs in barbershop
-
     // Customer Search - using edge function with service_role to bypass RLS
     // This allows managers to see all customers while regular customers remain restricted to their own
     searchCustomers: builder.query<
@@ -2967,7 +2955,6 @@ export const supabaseApi = createApi({
       Record<
         string,
         {
-          // Removed allowedDogCategories - barbery system doesn't use dogs
           allowedCustomerTypes?: string[]
           blockedCustomerTypes?: string[]
         }
@@ -2980,7 +2967,6 @@ export const supabaseApi = createApi({
             return { data: {} }
           }
 
-          // Removed shift_allowed_dog_categories - barbery system doesn't use dogs
           const dogCategoriesData: never[] = []
 
           // Fetch allowed customer types for shifts
@@ -3018,8 +3004,6 @@ export const supabaseApi = createApi({
               blockedCustomerTypes: [],
             }
           })
-
-          // Removed dog category processing - barbery system doesn't use dogs
 
           if (customerTypesData) {
             customerTypesData.forEach((item) => {
@@ -3115,8 +3099,6 @@ export const {
   useManagerCreateShiftMutation,
   useManagerUpdateShiftMutation,
   useManagerDeleteShiftMutation,
-
-  // Dogs removed - no dogs in barbershop
 
   // Customer Search
   useSearchCustomersQuery,

@@ -91,7 +91,6 @@ interface StationAllowedCustomerTypeRow {
   customer_type_id: string
 }
 
-// Removed DaycareAppointment and DaycareCapacityLimitRow interfaces - barbery system doesn't have daycare
 
 /**
  * Get treatment record with treatmentType information
@@ -307,7 +306,6 @@ export async function getStationAllowedCustomerTypes(): Promise<StationAllowedCu
   return data || []
 }
 
-// Removed getDaycareAppointmentsForRange and getDaycareCapacityLimits functions - barbery system doesn't have daycare
     .select("id, effective_date, total_limit, hourly_limit, full_day_limit, trial_limit, regular_limit")
     .order("effective_date", { ascending: true })
 

@@ -5,20 +5,12 @@ import { cn } from "@/lib/utils"
 import type { ManagerWaitlistEntry } from "./useWaitingList"
 
 const WAITLIST_SCOPE_META: Record<
-  "grooming" | "daycare" | "both",
+  "grooming",
   { label: string; badgeClass: string }
 > = {
   grooming: {
     label: "מספרה",
     badgeClass: "bg-blue-50 text-blue-700 border-blue-100",
-  },
-  daycare: {
-    label: "גן",
-    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-100",
-  },
-  both: {
-    label: "מספרה + גן",
-    badgeClass: "bg-purple-50 text-purple-700 border-purple-100",
   },
 }
 
@@ -52,13 +44,12 @@ export function WaitlistCard({ entry, isDragging = false, onClick }: WaitlistCar
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1 text-sm font-semibold text-gray-900">
           <GripVertical className="h-3.5 w-3.5 text-slate-300" />
-          <span>{entry.dogName}</span>
+          <span>{entry.customerName || "לקוח"}</span>
         </div>
         <Badge className={cn("text-[11px] font-medium border", scopeMeta.badgeClass)}>
           {scopeMeta.label}
         </Badge>
       </div>
-      <div className="mt-1 text-xs text-gray-600">{entry.customerName || "לקוח לא ידוע"}</div>
       <div className="mt-2 flex flex-wrap gap-1 text-[11px] text-gray-500">
         {dateLabel && (
           <span className="rounded-full bg-slate-100 px-2 py-0.5">{dateLabel}</span>
@@ -68,27 +59,7 @@ export function WaitlistCard({ entry, isDragging = false, onClick }: WaitlistCar
             {entry.customerTypeName}
           </span>
         )}
-        {entry.breedName && (
-          <span className="rounded-full bg-slate-50 px-2 py-0.5 text-slate-600">
-            {entry.breedName}
-          </span>
-        )}
       </div>
-      {entry.dogCategories.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {entry.dogCategories.slice(0, 2).map((category) => (
-            <span
-              key={category.id}
-              className="rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700"
-            >
-              {category.name}
-            </span>
-          ))}
-          {entry.dogCategories.length > 2 && (
-            <span className="text-[11px] text-gray-400">+{entry.dogCategories.length - 2}</span>
-          )}
-        </div>
-      )}
       {entry.notes && (
         <p className="mt-2 line-clamp-2 text-xs text-slate-500">{entry.notes}</p>
       )}

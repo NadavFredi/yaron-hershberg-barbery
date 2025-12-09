@@ -5,10 +5,11 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
-import { MoreHorizontal, Pencil, Phone, Calendar, CreditCard, Save, Loader2, X, Bell } from "lucide-react"
+import { MoreHorizontal, Pencil, Phone, Calendar, CreditCard, Save, Loader2, X, Bell, Image as ImageIcon } from "lucide-react"
 import { EditCustomerDialog } from "@/components/EditCustomerDialog"
 import { CustomerPaymentsModal } from "@/components/dialogs/payments/CustomerPaymentsModal"
 import { CustomerRemindersModal } from "@/components/dialogs/reminders/CustomerRemindersModal"
+import { CustomerImagesModal } from "@/components/dialogs/CustomerImagesModal"
 import { MessagingActions } from "@/components/sheets/MessagingActions"
 import { supabase } from "@/integrations/supabase/client"
 import type { ManagerAppointment, ManagerDog } from "../types"
@@ -65,6 +66,7 @@ export const ClientDetailsSheet = ({
     const [hasUnpaidPayments, setHasUnpaidPayments] = useState(false)
     const [hasAnyPayments, setHasAnyPayments] = useState(false)
     const [isRemindersModalOpen, setIsRemindersModalOpen] = useState(false)
+    const [isCustomerImagesModalOpen, setIsCustomerImagesModalOpen] = useState(false)
     const { toast } = useToast()
 
     // Get clientId from either clientId or id field (for compatibility)
@@ -189,26 +191,6 @@ export const ClientDetailsSheet = ({
 
                 if (customerPayments && customerPayments.length > 0) {
                     setHasUnpaidPayments(true)
-                    return
-                }
-
-                // Check for unpaid payments linked to customer's dogs
-                const { data: customerDogs } = await supabase
-                    .from("dogs")
-                    .select("id")
-                    .eq("customer_id", clientId)
-
-                const dogIds = (customerDogs || []).map(d => d.id)
-
-                if (dogIds.length > 0) {
-                    const { data: dogPayments } = await supabase
-                        .from("payments")
-                        .select("id")
-                        .in("dog_id", dogIds)
-                        .in("status", ["unpaid", "partial"])
-                        .limit(1)
-
-                    setHasUnpaidPayments(dogPayments && dogPayments.length > 0)
                 } else {
                     setHasUnpaidPayments(false)
                 }
@@ -231,25 +213,6 @@ export const ClientDetailsSheet = ({
 
                 if (customerPayments && customerPayments.length > 0) {
                     setHasAnyPayments(true)
-                    return
-                }
-
-                // Check for any payments linked to customer's dogs
-                const { data: customerDogs } = await supabase
-                    .from("dogs")
-                    .select("id")
-                    .eq("customer_id", clientId)
-
-                const dogIds = (customerDogs || []).map(d => d.id)
-
-                if (dogIds.length > 0) {
-                    const { data: dogPayments } = await supabase
-                        .from("payments")
-                        .select("id")
-                        .in("dog_id", dogIds)
-                        .limit(1)
-
-                    setHasAnyPayments(dogPayments && dogPayments.length > 0)
                 } else {
                     setHasAnyPayments(false)
                 }
@@ -663,6 +626,23 @@ export const ClientDetailsSheet = ({
                                 </div>
                             </div>
 
+                            {/* Customer Images Button */}
+                            {hasClientId && (
+                                <>
+                                    <Separator />
+                                    <div className="space-y-3">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-center gap-2"
+                                            onClick={() => setIsCustomerImagesModalOpen(true)}
+                                        >
+                                            <ImageIcon className="h-4 w-4" />
+                                            הצג את כל התמונות של הלקוח
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+
                             {/* Additional Contacts Section */}
                             {hasClientId && (
                                 <>
@@ -932,6 +912,16 @@ export const ClientDetailsSheet = ({
                 <CustomerRemindersModal
                     open={isRemindersModalOpen}
                     onOpenChange={setIsRemindersModalOpen}
+                    customerId={clientId}
+                    customerName={selectedClient.name}
+                />
+            )}
+
+            {/* Customer Images Modal */}
+            {selectedClient && hasClientId && (
+                <CustomerImagesModal
+                    open={isCustomerImagesModalOpen}
+                    onOpenChange={setIsCustomerImagesModalOpen}
                     customerId={clientId}
                     customerName={selectedClient.name}
                 />

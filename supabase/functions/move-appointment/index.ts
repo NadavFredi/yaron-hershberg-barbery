@@ -15,10 +15,8 @@ interface MoveAppointmentRequest {
   oldStartTime: string
   oldEndTime: string
   appointmentType: "grooming"
-  // Removed garden-specific fields - barbery system only has grooming appointments
   internalNotes?: string
   customerNotes?: string
-  // Removed groomingNotes - this field doesn't exist
 }
 
 serve(async (req) => {
@@ -52,7 +50,6 @@ serve(async (req) => {
       oldStartTime,
       oldEndTime,
       appointmentType,
-      // Removed garden-specific fields - barbery system only has grooming appointments
       internalNotes,
       customerNotes,
     }: MoveAppointmentRequest = await req.json()
@@ -84,12 +81,10 @@ serve(async (req) => {
       })
     }
 
-    // Removed garden-specific time calculation - barbery system only has grooming appointments
     const finalNewStartTime = newStartTime
     const finalNewEndTime = newEndTime
 
     // Prepare update object for Supabase
-    // Removed garden appointment handling - barbery system only has grooming appointments
     const updateData: Record<string, string | null | undefined> = {
       station_id: newStationId,
       start_at: finalNewStartTime,

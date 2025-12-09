@@ -17,6 +17,7 @@ import { OrderDetailsModal } from "@/components/dialogs/manager-schedule/Payment
 import { MessagingActions } from "@/components/sheets/MessagingActions"
 import { AppointmentActionsMenu } from "@/pages/ManagerSchedule/components/appointmentCard/AppointmentActionsMenu"
 import { ImageGalleryModal } from "@/components/dialogs/ImageGalleryModal"
+import { CustomerImagesModal } from "@/components/dialogs/CustomerImagesModal"
 import { cn, extractGroomingAppointmentId } from "@/lib/utils"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
@@ -176,6 +177,7 @@ export const AppointmentDetailsSheet = ({
     const [unlinkConfirmOpen, setUnlinkConfirmOpen] = useState(false)
     const [isDesiredGoalImagesModalOpen, setIsDesiredGoalImagesModalOpen] = useState(false)
     const [isSessionImagesModalOpen, setIsSessionImagesModalOpen] = useState(false)
+    const [isCustomerImagesModalOpen, setIsCustomerImagesModalOpen] = useState(false)
     const [desiredGoalImagesCount, setDesiredGoalImagesCount] = useState<number | null>(null)
     const [sessionImagesCount, setSessionImagesCount] = useState<number | null>(null)
     const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -283,7 +285,6 @@ export const AppointmentDetailsSheet = ({
                     serviceType: selectedAppointment.serviceType,
                 })
 
-                // Fetch grooming appointment images count (barbery system only has grooming appointments)
                 const { count: groomingCount, error: groomingError } = await supabase
                     .from("appointment_session_images")
                     .select("*", { count: "exact", head: true })
@@ -790,7 +791,7 @@ export const AppointmentDetailsSheet = ({
         setIsSavingGroomingNotes(true)
         try {
             // grooming_notes column doesn't exist - skipping update
-            console.log("⚠️ [AppointmentDetailsSheet] grooming_notes column removed, skipping save")
+            console.log("⚠️ [AppointmentDetailsSheet] grooming_notes column doesn't exist, skipping save")
 
             toast({
                 title: "הערות נשמרו",
@@ -933,7 +934,7 @@ export const AppointmentDetailsSheet = ({
             // Save grooming notes if changed (only for grooming appointments)
             // Note: grooming_notes column doesn't exist - skipping update
             if (selectedAppointment.serviceType === "grooming" && appointmentGroomingNotes !== originalGroomingNotes) {
-                console.log("⚠️ [AppointmentDetailsSheet] grooming_notes column removed, skipping save")
+                console.log("⚠️ [AppointmentDetailsSheet] grooming_notes column doesn't exist, skipping save")
                 // Skip the update since the column doesn't exist
             }
 
@@ -1665,6 +1666,16 @@ export const AppointmentDetailsSheet = ({
                                                     : `תמונות מהשירות הנוכחי (${sessionImagesCount} תמונות)`}
                                         </Button>
                                     )}
+                                    {selectedAppointment.clientId && (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-center gap-2"
+                                            onClick={() => setIsCustomerImagesModalOpen(true)}
+                                        >
+                                            <ImageIcon className="h-4 w-4" />
+                                            הצג את כל התמונות של הלקוח
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
 
@@ -2179,6 +2190,16 @@ export const AppointmentDetailsSheet = ({
                     />
                 )
             })()}
+
+            {/* Customer Images Modal */}
+            {selectedAppointment?.clientId && (
+                <CustomerImagesModal
+                    open={isCustomerImagesModalOpen}
+                    onOpenChange={setIsCustomerImagesModalOpen}
+                    customerId={selectedAppointment.clientId}
+                    customerName={selectedAppointment.clientName}
+                />
+            )}
         </Sheet>
     )
 }

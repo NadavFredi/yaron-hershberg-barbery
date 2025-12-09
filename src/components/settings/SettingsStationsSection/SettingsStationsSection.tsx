@@ -416,7 +416,6 @@ export function SettingsStationsSection() {
                 close_time: h.close_time?.substring(0, 5) || "",
                 allowedCustomerTypeIds: [] as string[],
                 blockedCustomerTypeIds: [] as string[],
-                // Removed allowedDogCategoryIds and blockedDogCategoryIds - barbery system doesn't use dogs
             }))
 
             // Fetch shift restrictions
@@ -430,7 +429,6 @@ export function SettingsStationsSection() {
                         .select("shift_id, customer_type_id")
                         .in("shift_id", shiftIds)
 
-                    // Removed dog category restrictions - barbery system doesn't use dogs
                     const dogCategoryRestrictions: never[] = []
                     const blockedDogCategoryRestrictions: never[] = []
 
@@ -452,7 +450,6 @@ export function SettingsStationsSection() {
                         }
                     })
 
-                    // Removed dog category restriction processing - barbery system doesn't use dogs
 
                     blockedCustomerTypeRestrictions?.forEach((r) => {
                         if (r.shift_id) {
@@ -466,7 +463,6 @@ export function SettingsStationsSection() {
                         if (shift.id) {
                             shift.allowedCustomerTypeIds = customerTypeMap.get(shift.id) || []
                             shift.blockedCustomerTypeIds = blockedCustomerTypeMap.get(shift.id) || []
-                            // Removed dog category restrictions - barbery system doesn't use dogs
                         }
                     })
                 }

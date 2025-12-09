@@ -567,7 +567,6 @@ export function useManagerScheduleContent() {
     const shiftRestriction = shiftRestrictions[matchingShift.id]
     if (!shiftRestriction) return false
 
-    // Removed allowedDogCategories - barbery system doesn't use dogs
     const hasRestrictions =
       (shiftRestriction.allowedCustomerTypes?.length > 0) ||
       (shiftRestriction.blockedCustomerTypes?.length > 0)
@@ -1731,7 +1730,6 @@ export function useManagerScheduleContent() {
         appointmentId: appointment.id,
         appointmentType: appointment.serviceType,
         clientName: appointment.clientName,
-        // Removed dogNames - barbery system doesn't use dogs
         overId: over?.id,
         overDataType: over?.data?.current?.type,
       })
@@ -2018,7 +2016,6 @@ export function useManagerScheduleContent() {
           endDateTime: targetEnd.toISOString(),
           stationId: targetStationId,
           // Add proposed meeting metadata for pre-filling
-          // Removed dog references - barbery system doesn't use dogs
           proposedTitle: `תור עבור ${appointment.clientName}`,
           proposedSummary: `תור תספורת עבור ${appointment.clientName}`,
           proposedNotes: appointment.internalNotes || appointment.customerNotes || "",
@@ -2070,7 +2067,6 @@ export function useManagerScheduleContent() {
         stationId: targetStationId,
       }))
       // Prefill with customer from the pinned appointment
-      // Removed dog prefill - barbery system doesn't use dogs
       if (appointment.clientId) {
         dispatch(setPrefillBusinessCustomer({
           id: appointment.clientId,

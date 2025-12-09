@@ -19,7 +19,6 @@ type ProposedMeetingRow = Database["public"]["Tables"]["proposed_meetings"]["Row
   stations?: { id: string; name: string } | { id: string; name: string }[] | null
   proposed_meeting_invites?: ProposedMeetingInviteRow[] | null
   proposed_meeting_categories?: ProposedMeetingCategoryRow[] | null
-  // Removed proposed_meeting_dog_categories - barbery system doesn't use dogs
 }
 type ProposedMeetingInviteRow = Database["public"]["Tables"]["proposed_meeting_invites"]["Row"] & {
   customers?:
@@ -32,7 +31,6 @@ type ProposedMeetingInviteRow = Database["public"]["Tables"]["proposed_meeting_i
 type ProposedMeetingCategoryRow = Database["public"]["Tables"]["proposed_meeting_categories"]["Row"] & {
   customer_type?: Pick<CustomerTypeRow, "name"> | null
 }
-// Removed ProposedMeetingDogCategoryRow - barbery system doesn't use dogs
 
 const PROPOSED_MEETING_WEBHOOK_URL = "https://hook.eu2.make.com/4vndwatkc4r648au3t1mc394gh73pfny"
 const PROPOSED_MEETING_CODE_ATTEMPTS = 5
@@ -44,11 +42,8 @@ const asSingle = <T>(value: T | T[] | null | undefined): T | null => {
   return value ?? null
 }
 
-// Removed DogRecord interface - barbery system doesn't use dogs/breeds
-
 export interface AppointmentRecord {
   id: string
-  // Removed dogId - barbery system doesn't use dogs
   date: string
   time: string
   service: string
@@ -70,11 +65,8 @@ export interface AvailableTime {
   stationId: string
 }
 
-// Removed GardenQuestionnaireStatus - barbery system doesn't have garden
-
 export interface AvailableDatesResult {
   availableDates: AvailableDate[]
-  // Removed gardenQuestionnaire - barbery system only has grooming appointments
 }
 
 export interface ClientProfile {
@@ -86,8 +78,6 @@ export interface ClientProfile {
   customerTypeId?: string | null
   customerTypeName?: string | null
 }
-
-// Removed hasDogAppointmentHistory - barbery system doesn't use dogs
 
 // Generic function to call Supabase Edge Functions
 async function callSupabaseFunction(functionName: string, params: Record<string, any> = {}) {
@@ -265,7 +255,6 @@ export async function updateAppointmentNotes(
   note: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Removed daycare - barbery system only has grooming appointments
     const tableName = "grooming_appointments"
 
     // Update customer_notes field using PostgREST
@@ -371,7 +360,6 @@ export async function cancelAppointment(appointmentId: string): Promise<{
 export interface CancelAppointmentOptions {
   serviceType?: "grooming" | "both"
   appointmentTime?: string
-  // Removed dogId - barbery system doesn't use dogs
   stationId?: string
 }
 
@@ -393,7 +381,6 @@ export async function cancelAppointmentWebhook(
       appointmentId,
       appointmentTime: options.appointmentTime,
       serviceType: options.serviceType,
-      // Removed dogId - barbery system doesn't use dogs
       stationId: options.stationId,
     })
   } catch (error) {
@@ -432,7 +419,6 @@ export const approveAppointmentByManager = async (
       status,
     })
 
-    // Removed daycare - barbery system only has grooming appointments
     const tableName = "grooming_appointments"
 
     const { data, error } = await supabase
@@ -504,10 +490,8 @@ export const approveGroomingAppointment = async (appointmentId: string, approval
 
 type CombinedAppointmentAction = "approve" | "cancel"
 
-// Removed CombinedAppointmentActionParams - barbery system only has grooming appointments
 interface CombinedAppointmentActionParams {
   groomingAppointmentId: string
-  // Removed gardenAppointmentId - barbery system only has grooming appointments
 }
 
 interface CombinedAppointmentActionResult {
@@ -523,7 +507,6 @@ async function callCombinedAppointmentAction(
   action: CombinedAppointmentAction,
   params: CombinedAppointmentActionParams
 ): Promise<CombinedAppointmentActionResult> {
-  // Removed gardenAppointmentId - barbery system only has grooming appointments
   const payload = {
     action,
     groomingAppointmentId: params.groomingAppointmentId,
@@ -549,7 +532,6 @@ async function callCombinedAppointmentAction(
 }
 
 function ensureCombinedIds(params: CombinedAppointmentActionParams) {
-  // Removed gardenAppointmentId check - barbery system only has grooming appointments
   if (!params.groomingAppointmentId) {
     throw new Error("groomingAppointmentId is required")
   }
@@ -564,7 +546,6 @@ export async function approveCombinedAppointments(
     return await callCombinedAppointmentAction("approve", params)
   } catch (error) {
     console.warn("Falling back to individual approval call:", error)
-    // Removed garden appointment approval - barbery system only has grooming appointments
     const groomingResult = await approveGroomingAppointment(params.groomingAppointmentId, "approved")
 
     if (groomingResult.success) {
@@ -581,7 +562,6 @@ export async function approveCombinedAppointments(
   }
 }
 
-// Removed combined_appointments - barbery system only uses grooming appointments
 export async function cancelCombinedAppointments(
   params: CombinedAppointmentActionParams
 ): Promise<CombinedAppointmentActionResult> {
@@ -634,8 +614,6 @@ const mapProposedMeetingRowToAppointment = (row: ProposedMeetingRow | null): Man
       customerTypeName: category.customer_type?.name ?? null,
     })) ?? []
 
-  // Removed dogCategories - barbery system doesn't use dogs
-
   const durationMinutes = Math.max(
     1,
     Math.round((new Date(row.end_at).getTime() - new Date(row.start_at).getTime()) / 60000)
@@ -671,10 +649,8 @@ const mapProposedMeetingRowToAppointment = (row: ProposedMeetingRow | null): Man
     proposedCreatedAt: row.created_at || undefined,
     proposedInvites: invites,
     proposedCategories: categories,
-    // Removed proposedDogCategories - barbery system doesn't use dogs
     proposedLinkedAppointmentId: row.reschedule_appointment_id || undefined,
     proposedLinkedCustomerId: row.reschedule_customer_id || undefined,
-    // Removed proposedLinkedDogId - barbery system doesn't use dogs
     proposedOriginalStart: row.reschedule_original_start_at || undefined,
     proposedOriginalEnd: row.reschedule_original_end_at || undefined,
   }
@@ -711,7 +687,6 @@ export async function getManagerSchedule(
       displayOrder: station.display_order ?? undefined,
     }))
 
-    // Removed garden station - barbery system only has grooming appointments
     // Fetch grooming appointments
     const groomingResult = await supabase
       .from("grooming_appointments")
@@ -749,7 +724,6 @@ export async function getManagerSchedule(
 
     const groomingAppointments = (groomingResult.data || []) as any[]
 
-    // Removed combined appointments - barbery system only uses grooming appointments
     const combinedGroomingIds = new Set<string>()
 
     // Transform appointments to ManagerAppointment format
@@ -775,7 +749,7 @@ export async function getManagerSchedule(
         internalNotes: apt.internal_notes || undefined,
         groomingNotes: (apt as any).grooming_notes || undefined,
         hasCrossServiceAppointment: hasCrossService,
-        dogs: [], // Removed dog references - barbery system doesn't use dogs
+        dogs: [],
         clientId: apt.customer_id,
         clientName: customer?.full_name || undefined,
         clientClassification: customer?.classification || undefined,
@@ -796,10 +770,7 @@ export async function getManagerSchedule(
       } as any)
     }
 
-    // Removed daycare appointments processing - barbery system only has grooming appointments
-
     // Include proposed meetings for the day so managers can see held slots
-    // Removed garden - barbery system only has grooming appointments
     const proposedServiceTypes: Array<"grooming"> = ["grooming"]
 
     if (proposedServiceTypes.length > 0) {
@@ -992,9 +963,7 @@ export async function createManagerAppointment(params: {
   appointmentType: "private" | "business"
   groupId?: string
   customerId?: string
-  // Removed dogId - barbery system doesn't use dogs
   isManualOverride?: boolean
-  // Removed garden-specific fields - barbery system only has grooming appointments
   notes?: string
   internalNotes?: string
 }): Promise<{
@@ -1251,7 +1220,6 @@ export async function managerCancelAppointment(params: {
   appointmentId: string
   appointmentTime: string
   serviceType: "grooming"
-  // Removed dogId - barbery system doesn't use dogs
   stationId?: string
   updateCustomer?: boolean
   clientName?: string
@@ -1259,7 +1227,6 @@ export async function managerCancelAppointment(params: {
   groupId?: string
 }): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    // Removed daycare - barbery system only has grooming appointments
     const tableName = "grooming_appointments"
 
     // Update appointment status to cancelled
@@ -1296,7 +1263,6 @@ export async function managerDeleteAppointment(params: {
   appointmentId: string
   appointmentTime: string
   serviceType: "grooming"
-  // Removed dogId - barbery system doesn't use dogs
   stationId?: string
   updateCustomer?: boolean
   clientName?: string
@@ -1304,7 +1270,6 @@ export async function managerDeleteAppointment(params: {
   groupId?: string
 }): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    // Removed daycare - barbery system only has grooming appointments
     const tableName = "grooming_appointments"
 
     // Actually delete the appointment record
@@ -1358,7 +1323,6 @@ export async function getSingleManagerAppointment(
       }
     }
 
-    // Removed garden - barbery system only has grooming appointments
     const tableName = "grooming_appointments"
 
     const { data, error } = await supabase
@@ -1408,13 +1372,11 @@ export async function getSingleManagerAppointment(
     // Take the first result (should only be one since we're querying by ID)
     const appointmentData = data[0]
 
-    // Removed combined_appointments check - barbery system only uses grooming appointments
     const hasCrossService = false
 
     const station = Array.isArray(appointmentData.stations) ? appointmentData.stations[0] : appointmentData.stations
     const customer = Array.isArray(appointmentData.customers) ? appointmentData.customers[0] : appointmentData.customers
 
-    // Removed dog/breed references - barbery system doesn't use dogs
     const appointment: ManagerAppointment = {
       id: appointmentData.id,
       serviceType,
@@ -1448,8 +1410,6 @@ export async function getSingleManagerAppointment(
       ...(appointmentData.created_at && { created_at: appointmentData.created_at }),
       ...(appointmentData.updated_at && { updated_at: appointmentData.updated_at }),
     } as any
-
-    // Removed garden-specific logic - barbery system only has grooming appointments
 
     return { success: true, appointment }
   } catch (error) {
@@ -1508,7 +1468,6 @@ export async function searchManagerSchedule({
     }
 
     const appointments: ManagerAppointment[] = Array.isArray(response.appointments) ? response.appointments : []
-    // Removed dogs from search results - barbery system doesn't use dogs
     const dogs: [] = []
     const clients: ManagerScheduleSearchClient[] = Array.isArray(response.clients) ? response.clients : []
 
@@ -1546,7 +1505,6 @@ export async function getProposedMeetingPublic(meetingId: string): Promise<Propo
 
 export async function bookProposedMeeting(params: {
   meetingId: string
-  // Removed dogId - barbery system doesn't use dogs // Removed requirement - barbery system doesn't use dogs
   code?: string
 }): Promise<{ success: boolean; appointmentId?: string }> {
   if (!params.meetingId) {
@@ -1579,7 +1537,6 @@ export interface ProposedMeetingInput {
   notes?: string
   customerIds: string[]
   customerTypeIds: string[]
-  // Removed dogCategoryIds - barbery system doesn't use dogs
   dogIds?: Array<{ customerId: string; dogId: string }>
   status?: string
   code?: string
@@ -1614,7 +1571,6 @@ export async function createProposedMeeting(params: ProposedMeetingInput): Promi
     status: params.status || "proposed",
     reschedule_appointment_id: params.rescheduleAppointmentId ?? null,
     reschedule_customer_id: params.rescheduleCustomerId ?? null,
-    // Removed reschedule_dog_id - barbery system doesn't use dogs
     reschedule_original_start_at: params.rescheduleOriginalStartAt ?? null,
     reschedule_original_end_at: params.rescheduleOriginalEndAt ?? null,
   }
@@ -1654,7 +1610,6 @@ export async function createProposedMeeting(params: ProposedMeetingInput): Promi
 
   try {
     await syncProposedMeetingCategories(createdMeetingId, params.customerTypeIds)
-    // Removed syncProposedMeetingDogCategories - barbery system doesn't use dogs
     await syncProposedMeetingInvites(createdMeetingId, params.customerIds, params.customerTypeIds, params.dogIds)
   } catch (syncError) {
     console.error("❌ [createProposedMeeting] Failed to sync metadata, rolling back", syncError)
@@ -1681,7 +1636,6 @@ export async function updateProposedMeeting(params: ProposedMeetingUpdateInput):
     status: params.status || "proposed",
     reschedule_appointment_id: params.rescheduleAppointmentId ?? null,
     reschedule_customer_id: params.rescheduleCustomerId ?? null,
-    // Removed reschedule_dog_id - barbery system doesn't use dogs
     reschedule_original_start_at: params.rescheduleOriginalStartAt ?? null,
     reschedule_original_end_at: params.rescheduleOriginalEndAt ?? null,
   }
@@ -1693,7 +1647,6 @@ export async function updateProposedMeeting(params: ProposedMeetingUpdateInput):
   }
 
   await syncProposedMeetingCategories(params.meetingId, params.customerTypeIds)
-  // Removed syncProposedMeetingDogCategories - barbery system doesn't use dogs
   await syncProposedMeetingInvites(params.meetingId, params.customerIds, params.customerTypeIds, undefined)
 
   return { success: true }
@@ -1890,46 +1843,6 @@ async function syncProposedMeetingCategories(meetingId: string, categoryIds: str
   }
 }
 
-// Removed syncProposedMeetingDogCategories - barbery system doesn't use dogs
-async function _syncProposedMeetingDogCategories_removed(meetingId: string, dogCategoryIds: string[]): Promise<void> {
-  if (!supabase) {
-    throw new Error("Supabase client not initialized")
-  }
-
-  const normalized = uniqueStrings(dogCategoryIds)
-
-  const { data: existing, error } = await supabase
-    .from("proposed_meeting_dog_categories")
-    .select("id, dog_category_id")
-    .eq("proposed_meeting_id", meetingId)
-
-  if (error) {
-    throw new Error(error.message || "Failed to load meeting dog categories")
-  }
-
-  const existingByCategoryId = new Map((existing ?? []).map((row) => [row.dog_category_id, row.id]))
-  const toInsert = normalized.filter((categoryId) => !existingByCategoryId.has(categoryId))
-  const toDeleteIds = existing?.filter((row) => !normalized.includes(row.dog_category_id)).map((row) => row.id) ?? []
-
-  if (toInsert.length) {
-    const { error: insertError } = await supabase
-      .from("proposed_meeting_dog_categories")
-      .insert(toInsert.map((dogCategoryId) => ({ proposed_meeting_id: meetingId, dog_category_id: dogCategoryId })))
-
-    if (insertError) {
-      throw new Error(insertError.message || "Failed to insert meeting dog categories")
-    }
-  }
-
-  if (toDeleteIds.length) {
-    const { error: deleteError } = await supabase.from("proposed_meeting_dog_categories").delete().in("id", toDeleteIds)
-
-    if (deleteError) {
-      throw new Error(deleteError.message || "Failed to delete meeting dog categories")
-    }
-  }
-}
-
 async function syncProposedMeetingInvites(
   meetingId: string,
   manualCustomerIds: string[],
@@ -1951,7 +1864,6 @@ async function syncProposedMeetingInvites(
     throw new Error(error.message || "Failed to load meeting invites")
   }
 
-  // Removed dog_id matching - barbery system doesn't use dogs
   // Create a map keyed by customerId for proper matching
   const plan = new Map<string, { source: "manual" | "category"; sourceCategoryId?: string | null }>()
   desiredPlan.forEach((meta, customerId) => {
@@ -2015,12 +1927,10 @@ async function syncProposedMeetingInvites(
 async function buildInvitePlan(
   manualCustomerIds: string[],
   categoryIds: string[],
-  dogIds?: Array<{ customerId: string; dogId: string }> // Ignored - barbery system doesn't use dogs
+  dogIds?: Array<{ customerId: string; dogId: string }>
 ): Promise<Map<string, { source: "manual" | "category"; sourceCategoryId?: string | null }>> {
   const plan = new Map<string, { source: "manual" | "category"; sourceCategoryId?: string | null }>()
   const manualIds = uniqueStrings(manualCustomerIds)
-
-  // Removed dogId mapping - barbery system doesn't use dogs
 
   manualIds.forEach((customerId) => {
     plan.set(customerId, {
@@ -2082,7 +1992,7 @@ export async function getPersonalAppointmentNames(searchTerm?: string): Promise<
     console.log("🔍 [getPersonalAppointmentNames] Fetching personal appointment names", { searchTerm })
 
     // appointment_name column doesn't exist - returning empty array
-    console.log("⚠️ [getPersonalAppointmentNames] appointment_name column removed, returning empty array")
+    console.log("⚠️ [getPersonalAppointmentNames] appointment_name column doesn't exist, returning empty array")
     const uniqueNames: string[] = []
 
     console.log(`✅ [getPersonalAppointmentNames] Found ${uniqueNames.length} appointment names`)

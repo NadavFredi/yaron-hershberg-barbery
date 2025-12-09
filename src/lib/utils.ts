@@ -5,8 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Removed extractCombinedAppointmentIds - barbery system doesn't have combined appointments
-
 /**
  * Extracts the grooming appointment ID from an appointment ID.
  * If it's a combined ID, returns the grooming UUID.

@@ -90,6 +90,7 @@ DROP TABLE IF EXISTS public.daycare_appointments CASCADE;
 
 -- Step 5: Drop garden-related tables
 DROP TABLE IF EXISTS public.garden_questionnaires CASCADE;
+DROP TABLE IF EXISTS public.daycare_waitlist CASCADE;
 
 -- Step 6: Drop garden-related enums if they exist
 DO $$
@@ -141,47 +142,39 @@ DO $$
 DECLARE
   default_value text;
 BEGIN
-  -- If service_scope enum exists and has 'daycare' value, we need to recreate it
   IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'service_scope') THEN
-    -- Check if 'daycare' is in the enum
     IF EXISTS (
       SELECT 1 FROM pg_enum 
       WHERE enumlabel = 'daycare' 
       AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'service_scope')
     ) THEN
-      -- Recreate the enum without 'daycare' - only 'grooming' and 'both' remain
       CREATE TYPE public.service_scope_new AS ENUM ('grooming', 'both');
       
-      -- Update any tables that use service_scope
-      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'daycare_waitlist') THEN
-        -- Get the current default value
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'waitlist') THEN
         SELECT column_default INTO default_value
         FROM information_schema.columns
         WHERE table_schema = 'public' 
-        AND table_name = 'daycare_waitlist' 
+        AND table_name = 'waitlist' 
         AND column_name = 'service_scope';
         
-        -- Drop the default if it exists
         IF default_value IS NOT NULL THEN
-          ALTER TABLE public.daycare_waitlist ALTER COLUMN service_scope DROP DEFAULT;
+          ALTER TABLE public.waitlist ALTER COLUMN service_scope DROP DEFAULT;
         END IF;
         
-        -- Change the column type
-        ALTER TABLE public.daycare_waitlist ALTER COLUMN service_scope TYPE public.service_scope_new USING 
+        ALTER TABLE public.waitlist ALTER COLUMN service_scope TYPE public.service_scope_new USING 
           CASE 
             WHEN service_scope::text = 'daycare' THEN 'grooming'::public.service_scope_new
             WHEN service_scope::text = 'both' THEN 'both'::public.service_scope_new
             ELSE 'grooming'::public.service_scope_new
           END;
         
-        -- Restore default if it existed (convert to new enum)
         IF default_value IS NOT NULL THEN
           IF default_value = '''daycare'''::text OR default_value LIKE '%daycare%' THEN
-            ALTER TABLE public.daycare_waitlist ALTER COLUMN service_scope SET DEFAULT 'grooming'::public.service_scope_new;
+            ALTER TABLE public.waitlist ALTER COLUMN service_scope SET DEFAULT 'grooming'::public.service_scope_new;
           ELSIF default_value = '''both'''::text OR default_value LIKE '%both%' THEN
-            ALTER TABLE public.daycare_waitlist ALTER COLUMN service_scope SET DEFAULT 'both'::public.service_scope_new;
+            ALTER TABLE public.waitlist ALTER COLUMN service_scope SET DEFAULT 'both'::public.service_scope_new;
           ELSE
-            ALTER TABLE public.daycare_waitlist ALTER COLUMN service_scope SET DEFAULT 'grooming'::public.service_scope_new;
+            ALTER TABLE public.waitlist ALTER COLUMN service_scope SET DEFAULT 'grooming'::public.service_scope_new;
           END IF;
         END IF;
       END IF;
