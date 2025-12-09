@@ -433,21 +433,22 @@ export const supabaseApi = createApi({
             return { data: { appointments: [] } }
           }
 
-          const groomingResult = await supabase
-            .from("grooming_appointments")
-            .select("id, start_at, status")
+          // Query from the consolidated appointments table
+          const appointmentsResult = await supabase
+            .from("appointments")
+            .select("id, start_at, status, service_id")
             .eq("customer_id", clientId)
             .order("start_at", { ascending: true })
 
-          if (groomingResult.error) {
-            throw new Error(groomingResult.error.message)
+          if (appointmentsResult.error) {
+            throw new Error(appointmentsResult.error.message)
           }
 
-          const appointments = (groomingResult.data || []).map((apt) => ({
+          const appointments = (appointmentsResult.data || []).map((apt) => ({
             id: apt.id as string,
             startAt: apt.start_at as string,
             status: (apt as { status?: string }).status ?? null,
-            serviceType: "grooming" as const,
+            serviceType: "grooming" as const, // All appointments in barbery system are grooming
           }))
 
           return { data: { appointments } }

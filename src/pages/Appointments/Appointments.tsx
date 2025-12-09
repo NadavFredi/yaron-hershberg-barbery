@@ -557,7 +557,9 @@ export default function Appointments() {
     const now = new Date()
     const upcomingAppointments = serviceFilteredAppointments.filter(apt => {
         const appointmentDate = new Date(`${apt.date}T${apt.time}`)
-        return appointmentDate > now && apt.status !== "cancelled"
+        const normalizedStatus = apt.status?.toLowerCase().trim() || ""
+        const isCancelled = normalizedStatus === "cancelled" || normalizedStatus === "canceled" || normalizedStatus === "בוטל"
+        return appointmentDate > now && !isCancelled
     }).sort((a, b) => {
         const dateA = new Date(`${a.date}T${a.time}`)
         const dateB = new Date(`${b.date}T${b.time}`)
@@ -582,26 +584,32 @@ export default function Appointments() {
             return null
         }
 
-        if (status === "cancelled" || status === "בוטל") {
+        const normalizedStatus = status.toLowerCase().trim()
+
+        if (normalizedStatus === "cancelled" || normalizedStatus === "בוטל" || normalizedStatus === "canceled") {
             return <Badge className="bg-red-100 text-red-800 border-red-200">בוטל</Badge>
         }
 
-        if (status === "approved" || status === "מאושר") {
+        if (normalizedStatus === "approved" || normalizedStatus === "מאושר") {
             if (isPast) {
                 return <Badge className="bg-green-100 text-green-800 border-green-200">הושלם</Badge>
             }
             return <Badge className="bg-green-200 text-green-900 border-green-300">מאושר</Badge>
         }
 
-        if (status === "confirmed" || status === "תואם") {
+        if (normalizedStatus === "confirmed" || normalizedStatus === "תואם") {
             return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">תואם</Badge>
         }
 
-        if (status === "pending" || status === "ממתין") {
+        if (normalizedStatus === "scheduled" || normalizedStatus === "תואם") {
+            return <Badge className="bg-blue-100 text-blue-800 border-blue-200">תואם</Badge>
+        }
+
+        if (normalizedStatus === "pending" || normalizedStatus === "ממתין") {
             return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">ממתין</Badge>
         }
 
-        if (status === "completed" || status === "הושלם" || (isPast && status !== "")) {
+        if (normalizedStatus === "completed" || normalizedStatus === "הושלם" || (isPast && status !== "")) {
             return <Badge className="bg-green-100 text-green-800 border-green-200">הושלם</Badge>
         }
 

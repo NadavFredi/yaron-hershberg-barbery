@@ -9,12 +9,10 @@ import {
     MessageSquare,
     Calendar,
     Search,
-    Dog as DogIcon,
     User,
     ShieldCheck,
     Globe,
     Scissors,
-    Bone,
     ChevronDown,
     ChevronUp,
     Clock,
@@ -52,8 +50,7 @@ import {
 interface WaitlistEntry {
     id: string
     customer_id: string
-    dog_id: string
-    service_scope: 'grooming' | 'daycare' | 'both'
+    service_scope: 'grooming'
     status: 'active' | 'fulfilled' | 'cancelled'
     start_date: string
     end_date: string | null
@@ -65,18 +62,6 @@ interface WaitlistEntry {
         full_name: string
         phone: string
         email: string | null
-    }
-    dog?: {
-        id: string
-        name: string
-        breed_id: string | null
-        breed?: {
-            id: string
-            name: string
-            size_class: string | null
-        }
-        dog_types?: Array<{ id: string; name: string }>
-        dog_categories?: Array<{ id: string; name: string }>
     }
 }
 
@@ -94,24 +79,15 @@ export default function WaitingListPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'fulfilled' | 'cancelled'>('active')
-    const [serviceFilter, setServiceFilter] = useState<'all' | 'grooming' | 'daycare' | 'both'>('all')
+    const [serviceFilter, setServiceFilter] = useState<'all' | 'grooming'>('all')
 
     // New filters
     const [phoneFilter, setPhoneFilter] = useState("")
     const [customerNameFilter, setCustomerNameFilter] = useState("")
-    const [dogNameFilter, setDogNameFilter] = useState("")
     const [emailFilter, setEmailFilter] = useState("")
-    const [breedFilter, setBreedFilter] = useState<string>("all")
-    const [category1Filter, setCategory1Filter] = useState<string>("all") // dog_types
-    const [category2Filter, setCategory2Filter] = useState<string>("all") // dog_categories
     const [startDateFilter, setStartDateFilter] = useState<Date | null>(null)
     const [endDateFilter, setEndDateFilter] = useState<Date | null>(null)
     const [singleDateFilter, setSingleDateFilter] = useState<Date | null>(null)
-
-    // Filter options
-    const [breeds, setBreeds] = useState<Array<{ id: string; name: string }>>([])
-    const [dogTypes, setDogTypes] = useState<Array<{ id: string; name: string }>>([])
-    const [dogCategories, setDogCategories] = useState<Array<{ id: string; name: string }>>([])
     const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null)
     const [approveDialogOpen, setApproveDialogOpen] = useState(false)
     const [declineDialogOpen, setDeclineDialogOpen] = useState(false)
@@ -132,20 +108,7 @@ export default function WaitingListPage() {
     }, [])
 
     const loadFilterOptions = async () => {
-        try {
-            // Breeds table doesn't exist in this system - set empty array
-            setBreeds([])
-
-            // Load dog categories (dog_types was consolidated into dog_categories)
-            const { data: categoriesData } = await supabase
-                .from("dog_categories")
-                .select("id, name")
-                .order("name")
-
-            if (categoriesData) setDogCategories(categoriesData)
-        } catch (error) {
-            console.error("Error loading filter options:", error)
-        }
+        // No filter options needed - no dogs in barbershop
     }
 
     // Search functions for autocomplete filters
@@ -187,11 +150,6 @@ export default function WaitingListPage() {
         return [...new Set((data || []).map(c => c.full_name).filter(Boolean))] as string[]
     }
 
-    // Removed searchDogNames - no dogs in barbershop
-    const searchDogNames = async (searchTerm: string): Promise<string[]> => {
-        // No dogs in barbershop - return empty array
-        return []
-    }
 
     const searchEmails = async (searchTerm: string): Promise<string[]> => {
         const trimmedTerm = searchTerm.trim()
@@ -249,37 +207,10 @@ export default function WaitingListPage() {
                 if (!customerName.includes(customerNameFilter.toLowerCase())) return false
             }
 
-            // Dog name filter
-            if (dogNameFilter) {
-                const dogName = entry.dog?.name?.toLowerCase() || ""
-                if (!dogName.includes(dogNameFilter.toLowerCase())) return false
-            }
-
             // Email filter
             if (emailFilter) {
                 const email = entry.customer?.email?.toLowerCase() || ""
                 if (!email.includes(emailFilter.toLowerCase())) return false
-            }
-
-            // Breed filter
-            if (breedFilter !== "all") {
-                if (entry.dog?.breed_id !== breedFilter) return false
-            }
-
-            // Category 1 filter (dog_types)
-            if (category1Filter !== "all") {
-                const hasCategory1 = entry.dog?.dog_types?.some(
-                    type => type.id === category1Filter
-                )
-                if (!hasCategory1) return false
-            }
-
-            // Category 2 filter (dog_categories)
-            if (category2Filter !== "all") {
-                const hasCategory2 = entry.dog?.dog_categories?.some(
-                    category => category.id === category2Filter
-                )
-                if (!hasCategory2) return false
             }
 
             // Single date filter (show all waiting dogs on this date)
@@ -313,13 +244,9 @@ export default function WaitingListPage() {
             if (searchTerm) {
                 const term = searchTerm.toLowerCase()
                 const customerName = entry.customer?.full_name?.toLowerCase() || ""
-                const dogName = entry.dog?.name?.toLowerCase() || ""
-                const breedName = entry.dog?.breed?.name?.toLowerCase() || ""
                 const phone = entry.customer?.phone?.toLowerCase() || ""
 
                 if (!customerName.includes(term) &&
-                    !dogName.includes(term) &&
-                    !breedName.includes(term) &&
                     !phone.includes(term)) {
                     return false
                 }
@@ -334,11 +261,7 @@ export default function WaitingListPage() {
         searchTerm,
         phoneFilter,
         customerNameFilter,
-        dogNameFilter,
         emailFilter,
-        breedFilter,
-        category1Filter,
-        category2Filter,
         startDateFilter,
         endDateFilter,
         singleDateFilter
@@ -361,19 +284,15 @@ export default function WaitingListPage() {
             const startTime = new Date(approveDate)
             startTime.setHours(hours, minutes, 0, 0)
 
-            // Calculate end time based on service type and breed (default 60 minutes for grooming, 480 for daycare)
+            // Calculate end time (default 60 minutes for grooming)
             const endTime = new Date(startTime)
-            const durationMinutes = selectedEntry.service_scope === 'daycare' ? 480 : 60
+            const durationMinutes = 60
             endTime.setMinutes(endTime.getMinutes() + durationMinutes)
 
             // Create appointment using the mutation
-            const serviceType = selectedEntry.service_scope === 'grooming' ? 'grooming' :
-                selectedEntry.service_scope === 'daycare' ? 'daycare' : 'grooming'
-
             await createAppointment({
                 customerId: selectedEntry.customer_id,
-                dogId: selectedEntry.dog_id,
-                serviceType,
+                serviceType: 'grooming',
                 startTime: startTime.toISOString(),
                 endTime: endTime.toISOString(),
                 notes: approveNotes || undefined,
@@ -493,9 +412,7 @@ export default function WaitingListPage() {
 
     const getServiceBadge = (service: string) => {
         const badges = {
-            grooming: { label: "מספרה", icon: Scissors, color: "bg-blue-100 text-blue-800 border-blue-200" },
-            daycare: { label: "גן", icon: Bone, color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-            both: { label: "שניהם", icon: CalendarCheck, color: "bg-purple-100 text-purple-800 border-purple-200" }
+            grooming: { label: "מספרה", icon: Scissors, color: "bg-blue-100 text-blue-800 border-blue-200" }
         }
         const badge = badges[service as keyof typeof badges] || badges.grooming
         const Icon = badge.icon
@@ -505,16 +422,6 @@ export default function WaitingListPage() {
                 {badge.label}
             </Badge>
         )
-    }
-
-    const getSizeLabel = (size: string | null) => {
-        const sizes: Record<string, string> = {
-            small: "קטן",
-            medium: "בינוני",
-            medium_large: "בינוני-גדול",
-            large: "גדול"
-        }
-        return sizes[size || ''] || "-"
     }
 
     if (isLoading) {
@@ -567,14 +474,12 @@ export default function WaitingListPage() {
                             <SelectContent dir="rtl">
                                 <SelectItem value="all">הכל</SelectItem>
                                 <SelectItem value="grooming">מספרה</SelectItem>
-                                <SelectItem value="daycare">גן</SelectItem>
-                                <SelectItem value="both">שניהם</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
-                    {/* Customer/Dog Details Filters Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {/* Customer Details Filters Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <Label className="text-sm mb-2 block">שם לקוח</Label>
                             <AutocompleteFilter
@@ -582,19 +487,6 @@ export default function WaitingListPage() {
                                 onChange={setCustomerNameFilter}
                                 placeholder="שם לקוח..."
                                 searchFn={searchCustomerNames}
-                                minSearchLength={0}
-                                autoSearchOnFocus
-                                initialLoadOnMount
-                                initialResultsLimit={5}
-                            />
-                        </div>
-                        <div>
-                            <Label className="text-sm mb-2 block">שם כלב</Label>
-                            <AutocompleteFilter
-                                value={dogNameFilter}
-                                onChange={setDogNameFilter}
-                                placeholder="שם כלב..."
-                                searchFn={searchDogNames}
                                 minSearchLength={0}
                                 autoSearchOnFocus
                                 initialLoadOnMount
@@ -629,52 +521,6 @@ export default function WaitingListPage() {
                         </div>
                     </div>
 
-                    {/* Breed and Categories Filters Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <Label className="text-sm mb-2 block">גזע</Label>
-                            <Select value={breedFilter} onValueChange={setBreedFilter}>
-                                <SelectTrigger dir="rtl">
-                                    <SelectValue placeholder="בחר גזע" />
-                                </SelectTrigger>
-                                <SelectContent dir="rtl">
-                                    <SelectItem value="all">הכל</SelectItem>
-                                    {breeds.map(breed => (
-                                        <SelectItem key={breed.id} value={breed.id}>{breed.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label className="text-sm mb-2 block">קטגוריה 1</Label>
-                            <Select value={category1Filter} onValueChange={setCategory1Filter}>
-                                <SelectTrigger dir="rtl">
-                                    <SelectValue placeholder="בחר קטגוריה 1" />
-                                </SelectTrigger>
-                                <SelectContent dir="rtl">
-                                    <SelectItem value="all">הכל</SelectItem>
-                                    {dogTypes.map(type => (
-                                        <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label className="text-sm mb-2 block">קטגוריה 2</Label>
-                            <Select value={category2Filter} onValueChange={setCategory2Filter}>
-                                <SelectTrigger dir="rtl">
-                                    <SelectValue placeholder="בחר קטגוריה 2" />
-                                </SelectTrigger>
-                                <SelectContent dir="rtl">
-                                    <SelectItem value="all">הכל</SelectItem>
-                                    {dogCategories.map(category => (
-                                        <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
                     {/* Date Filters Row */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
@@ -696,7 +542,7 @@ export default function WaitingListPage() {
                             />
                         </div>
                         <div>
-                            <Label className="text-sm mb-2 block">הצג כלבים ממתינים בתאריך זה</Label>
+                            <Label className="text-sm mb-2 block">הצג בקשות ממתינות בתאריך זה</Label>
                             <DatePickerInput
                                 value={singleDateFilter}
                                 onChange={setSingleDateFilter}
@@ -718,8 +564,7 @@ export default function WaitingListPage() {
                     </div>
 
                     {/* Clear Filters Button */}
-                    {(phoneFilter || customerNameFilter || dogNameFilter || emailFilter ||
-                        breedFilter !== "all" || category1Filter !== "all" || category2Filter !== "all" ||
+                    {(phoneFilter || customerNameFilter || emailFilter ||
                         startDateFilter || endDateFilter || singleDateFilter) && (
                             <div className="flex justify-start pt-2">
                                 <Button
@@ -727,11 +572,7 @@ export default function WaitingListPage() {
                                     onClick={() => {
                                         setPhoneFilter("")
                                         setCustomerNameFilter("")
-                                        setDogNameFilter("")
                                         setEmailFilter("")
-                                        setBreedFilter("all")
-                                        setCategory1Filter("all")
-                                        setCategory2Filter("all")
                                         setStartDateFilter(null)
                                         setEndDateFilter(null)
                                         setSingleDateFilter(null)
@@ -803,10 +644,7 @@ export default function WaitingListPage() {
                                 <thead>
                                     <tr className="border-b bg-[hsl(228_36%_95%)] text-right text-primary [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-[hsl(228_36%_95%)]">
                                         <th className="h-12 w-12 text-center align-middle font-semibold"></th>
-                                        <th className="h-12 px-3 align-middle font-semibold">שם הכלב</th>
-                                        <th className="h-12 px-3 align-middle font-semibold">גזע</th>
-                                        <th className="h-12 px-3 align-middle font-semibold">קטגוריות</th>
-                                        <th className="h-12 px-3 align-middle font-semibold">גודל</th>
+                                        <th className="h-12 px-3 align-middle font-semibold">לקוח</th>
                                         <th className="h-12 px-3 align-middle font-semibold text-center">טווח המתנה</th>
                                         <th className="h-12 px-3 align-middle font-semibold text-center w-32">סטטוס</th>
                                         <th className="h-12 px-3 align-middle font-semibold text-center w-16">פעולות</th>
@@ -832,7 +670,6 @@ export default function WaitingListPage() {
                                                 setSuggestDialogOpen(true)
                                             }}
                                             onViewInCalendar={() => handleViewInCalendar(entry)}
-                                            getSizeLabel={getSizeLabel}
                                         />
                                     ))}
                                 </tbody>
@@ -848,7 +685,7 @@ export default function WaitingListPage() {
                     <DialogHeader>
                         <DialogTitle>אשר בקשה מרשימת המתנה</DialogTitle>
                         <DialogDescription>
-                            צור תור חדש עבור {selectedEntry?.dog?.name} ({selectedEntry?.customer?.full_name})
+                            צור תור חדש עבור {selectedEntry?.customer?.full_name}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -904,7 +741,7 @@ export default function WaitingListPage() {
                     <DialogHeader>
                         <DialogTitle>דחה בקשה מרשימת המתנה</DialogTitle>
                         <DialogDescription>
-                            האם אתה בטוח שברצונך לדחות את הבקשה עבור {selectedEntry?.dog?.name}?
+                            האם אתה בטוח שברצונך לדחות את הבקשה עבור {selectedEntry?.customer?.full_name}?
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -942,7 +779,7 @@ export default function WaitingListPage() {
                     <DialogHeader>
                         <DialogTitle>הצע זמן חלופי</DialogTitle>
                         <DialogDescription>
-                            הצע תאריך ושעה חלופיים עבור {selectedEntry?.dog?.name}
+                            הצע תאריך ושעה חלופיים עבור {selectedEntry?.customer?.full_name}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -1015,7 +852,6 @@ interface WaitlistEntryRowProps {
     onDecline: () => void
     onSuggest: () => void
     onViewInCalendar: () => void
-    getSizeLabel: (size: string | null) => string
 }
 
 function WaitlistEntryRow({
@@ -1025,8 +861,7 @@ function WaitlistEntryRow({
     onApprove,
     onDecline,
     onSuggest,
-    onViewInCalendar,
-    getSizeLabel
+    onViewInCalendar
 }: WaitlistEntryRowProps) {
     const statusBadges = {
         active: { label: "פעיל", color: "bg-blue-100 text-blue-800 border-blue-200" },
@@ -1035,12 +870,7 @@ function WaitlistEntryRow({
     }
     const statusBadge = statusBadges[entry.status]
     const canModify = entry.status === 'active'
-    const serviceLabelMap: Record<WaitlistEntry['service_scope'], string> = {
-        grooming: "תספורת",
-        daycare: "גן",
-        both: "תספורת + גן",
-    }
-    const serviceLabel = serviceLabelMap[entry.service_scope] || entry.service_scope
+    const serviceLabel = "תספורת"
 
     const formatDateValue = (value?: string | null, withTime = false) => {
         if (!value) return "-"
@@ -1082,21 +912,12 @@ function WaitlistEntryRow({
                     </Button>
                 </td>
                 <td className="px-3 py-3 align-middle text-right">
-                    <span className="text-sm text-gray-900">{entry.dog?.name || "ללא שם"}</span>
-                </td>
-                <td className="px-3 py-3 align-middle text-right text-sm text-gray-700">
-                    {entry.dog?.breed?.name || "-"}
-                </td>
-                <td className="px-3 py-3 align-middle text-right text-xs text-gray-600">
-                    {[
-                        ...(entry.dog?.dog_types?.map((type) => type.name) ?? []),
-                        ...(entry.dog?.dog_categories?.map((category) => category.name) ?? []),
-                    ]
-                        .filter(Boolean)
-                        .join(", ") || "-"}
-                </td>
-                <td className="px-3 py-3 align-middle text-center text-sm text-gray-700">
-                    {getSizeLabel(entry.dog?.breed?.size_class || null)}
+                    <div>
+                        <span className="text-sm font-medium text-gray-900">{entry.customer?.full_name || "ללא שם"}</span>
+                        {entry.customer?.phone && (
+                            <div className="text-xs text-gray-500">{entry.customer.phone}</div>
+                        )}
+                    </div>
                 </td>
                 <td className="px-3 py-3 align-middle text-center text-sm text-gray-700">
                     <div className="inline-flex items-center gap-2">
@@ -1145,30 +966,9 @@ function WaitlistEntryRow({
             {isExpanded && (
                 <tr className="bg-[hsl(228_36%_98%)]">
                     <td className="border-b-0" />
-                    <td colSpan={7} className="border-b px-6 py-6">
+                    <td colSpan={4} className="border-b px-6 py-6">
                         <div className="space-y-6">
-                            <div className="grid gap-8 lg:grid-cols-3">
-                                <InfoSection
-                                    icon={<DogIcon className="h-4 w-4" />}
-                                    title="פרטי הכלב"
-                                    rows={[
-                                        { label: "שם", value: entry.dog?.name || "-" },
-                                        { label: "גזע", value: entry.dog?.breed?.name || "-" },
-                                        { label: "גודל", value: getSizeLabel(entry.dog?.breed?.size_class || null) },
-                                        entry.dog?.dog_types?.length
-                                            ? {
-                                                label: "קטגוריות ראשיות",
-                                                value: entry.dog.dog_types.map((type) => type.name).join(", "),
-                                            }
-                                            : null,
-                                        entry.dog?.dog_categories?.length
-                                            ? {
-                                                label: "קטגוריות משנה",
-                                                value: entry.dog.dog_categories.map((category) => category.name).join(", "),
-                                            }
-                                            : null,
-                                    ].filter(Boolean) as DetailRowProps[]}
-                                />
+                            <div className="grid gap-8 lg:grid-cols-2">
                                 <InfoSection
                                     icon={<User className="h-4 w-4" />}
                                     title="פרטי הלקוח"
