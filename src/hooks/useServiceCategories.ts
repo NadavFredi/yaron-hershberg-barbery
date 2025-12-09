@@ -6,6 +6,7 @@ export interface ServiceCategory {
   id: string
   name: string
   variant: ServiceCategoryVariant
+  is_default?: boolean
   created_at: string
   updated_at: string
 }
@@ -54,7 +55,7 @@ export const useCreateServiceCategory = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (categoryData: { name: string; variant: ServiceCategoryVariant }) => {
+    mutationFn: async (categoryData: { name: string; variant: ServiceCategoryVariant; is_default?: boolean }) => {
       const { data, error } = await supabase.from("service_categories").insert(categoryData).select().single()
 
       if (error) throw error
@@ -63,6 +64,7 @@ export const useCreateServiceCategory = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-categories"] })
       queryClient.invalidateQueries({ queryKey: ["service-categories-with-counts"] })
+      queryClient.invalidateQueries({ queryKey: ["default-service-category"] })
     },
   })
 }
@@ -75,14 +77,22 @@ export const useUpdateServiceCategory = () => {
       categoryId,
       name,
       variant,
+      is_default,
     }: {
       categoryId: string
       name?: string
       variant?: ServiceCategoryVariant
+      is_default?: boolean
     }) => {
+      // If setting this as default, unset all other defaults first
+      if (is_default === true) {
+        await supabase.from("service_categories").update({ is_default: false }).neq("id", categoryId)
+      }
+
       const updateData: any = {}
       if (name !== undefined) updateData.name = name
       if (variant !== undefined) updateData.variant = variant
+      if (is_default !== undefined) updateData.is_default = is_default
 
       const { data, error } = await supabase
         .from("service_categories")
@@ -98,6 +108,37 @@ export const useUpdateServiceCategory = () => {
       queryClient.invalidateQueries({ queryKey: ["service-categories"] })
       queryClient.invalidateQueries({ queryKey: ["service-categories-with-counts"] })
       queryClient.invalidateQueries({ queryKey: ["services"] })
+    },
+  })
+}
+
+export const useServicesByCategory = (categoryId: string | null) => {
+  return useQuery({
+    queryKey: ["services-by-category", categoryId],
+    queryFn: async () => {
+      if (!categoryId) return []
+
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name, is_active")
+        .eq("service_category_id", categoryId)
+        .order("name")
+
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!categoryId,
+  })
+}
+
+export const useDefaultServiceCategory = () => {
+  return useQuery({
+    queryKey: ["default-service-category"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("service_categories").select("*").eq("is_default", true).maybeSingle()
+
+      if (error) throw error
+      return data as ServiceCategory | null
     },
   })
 }

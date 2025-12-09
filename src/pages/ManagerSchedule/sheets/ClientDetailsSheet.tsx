@@ -329,35 +329,16 @@ export const ClientDetailsSheet = ({
 
             // Find all appointments for the same owner on the same day
             // Note: We only filter by enum value "cancelled" in the query, then filter Hebrew statuses in JS
-            const [groomingResult, daycareResult] = await Promise.all([
-                supabase
-                    .from("grooming_appointments")
-                    .select("id, amount_due, status")
-                    .eq("customer_id", clientId)
-                    .gte("start_at", dayStart.toISOString())
-                    .lte("start_at", dayEnd.toISOString())
-                    .neq("status", "cancelled"),
-                supabase
-                    .from("daycare_appointments")
-                    .select("id, amount_due, status")
-                    .eq("customer_id", clientId)
-                    .gte("start_at", dayStart.toISOString())
-                    .lte("start_at", dayEnd.toISOString())
-                    .neq("status", "cancelled"),
-            ])
+            const { data: groomingData, error: groomingError } = await supabase
+                .from("grooming_appointments")
+                .select("id, amount_due, status")
+                .eq("customer_id", clientId)
+                .gte("start_at", dayStart.toISOString())
+                .lte("start_at", dayEnd.toISOString())
+                .neq("status", "cancelled")
 
-            if (groomingResult.error) {
-                console.error("Error fetching grooming appointments:", groomingResult.error)
-                toast({
-                    title: "שגיאה",
-                    description: "לא הצלחנו לטעון את התורים",
-                    variant: "destructive",
-                })
-                return
-            }
-
-            if (daycareResult.error) {
-                console.error("Error fetching daycare appointments:", daycareResult.error)
+            if (groomingError) {
+                console.error("Error fetching grooming appointments:", groomingError)
                 toast({
                     title: "שגיאה",
                     description: "לא הצלחנו לטעון את התורים",
@@ -378,22 +359,13 @@ export const ClientDetailsSheet = ({
                 )
             }
 
-            const allAppointments = [
-                ...(groomingResult.data || [])
-                    .filter((apt) => !isCancelledStatus(apt.status))
-                    .map((apt) => ({
-                        id: apt.id,
-                        serviceType: "grooming" as const,
-                        amountDue: apt.amount_due || 0,
-                    })),
-                ...(daycareResult.data || [])
-                    .filter((apt) => !isCancelledStatus(apt.status))
-                    .map((apt) => ({
-                        id: apt.id,
-                        serviceType: "garden" as const,
-                        amountDue: apt.amount_due || 0,
-                    })),
-            ]
+            const allAppointments = (groomingData || [])
+                .filter((apt) => !isCancelledStatus(apt.status))
+                .map((apt) => ({
+                    id: apt.id,
+                    serviceType: "grooming" as const,
+                    amountDue: apt.amount_due || 0,
+                }))
 
             if (allAppointments.length === 0) {
                 toast({

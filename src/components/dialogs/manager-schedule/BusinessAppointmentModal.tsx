@@ -14,7 +14,9 @@ import { useServices } from "@/hooks/useServices"
 import { useServiceCategories } from "@/hooks/useServiceCategories"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { AutocompleteFilter } from "@/components/AutocompleteFilter"
+import { useServiceStationConfigs } from "@/hooks/useServiceConfiguration"
 
 type ManagerStation = AppointmentStation
 
@@ -50,6 +52,18 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         endTime: finalizedDragTimes.endTime ? new Date(finalizedDragTimes.endTime) : null,
         stationId: finalizedDragTimes.stationId ?? null
     } : null)
+    
+    // Check if time is 0 (created with 1 click - startTime and endTime are the same or endTime is null)
+    const isTimeZero = useMemo(() => {
+        if (!appointmentTimes?.startTime) return false
+        if (!appointmentTimes.endTime) return true
+        return appointmentTimes.startTime.getTime() === appointmentTimes.endTime.getTime()
+    }, [appointmentTimes])
+    
+    const [syncTime, setSyncTime] = useState<boolean>(isTimeZero)
+    
+    // Get service station configs for duration calculation
+    const { data: serviceStationConfigs = [] } = useServiceStationConfigs(selectedServiceId || "")
     const [createManagerAppointment, { isLoading: isCreatingAppointment }] = useCreateManagerAppointmentMutation()
     const { toast } = useToast()
     const { data: services = [], isLoading: isLoadingServices } = useServices()
@@ -72,8 +86,14 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
             setSelectedServiceId(null)
             setSelectedCategoryId(null)
             setServiceInputValue("")
+            setSyncTime(isTimeZero)
         }
-    }, [open])
+    }, [open, isTimeZero])
+    
+    // Update syncTime when isTimeZero changes
+    useEffect(() => {
+        setSyncTime(isTimeZero)
+    }, [isTimeZero])
 
     useEffect(() => {
         if (open && prefillCustomer) {
@@ -114,7 +134,8 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
 
         const needle = term.trim().toLowerCase()
         if (!needle) {
-            return Promise.resolve(filteredServices.slice(0, 10).map((service) => service.name))
+            // Return top 5 services by default (filtered by category if selected)
+            return Promise.resolve(filteredServices.slice(0, 5).map((service) => service.name))
         }
 
         return Promise.resolve(
@@ -134,6 +155,31 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
             setSelectedServiceId(null)
         }
     }
+    
+    // Update end time when service is selected and syncTime is enabled
+    useEffect(() => {
+        if (!syncTime || !selectedServiceId || !appointmentTimes?.startTime || !appointmentTimes?.stationId) {
+            return
+        }
+        
+        // Find the service-station configuration
+        const config = serviceStationConfigs.find(
+            (config) => config.station_id === appointmentTimes.stationId
+        )
+        
+        if (config && config.base_time_minutes > 0) {
+            const durationMs = config.base_time_minutes * 60 * 1000
+            const newEndTime = new Date(appointmentTimes.startTime.getTime() + durationMs)
+            
+            setAppointmentTimes((prev) => {
+                if (!prev) return null
+                return {
+                    ...prev,
+                    endTime: newEndTime
+                }
+            })
+        }
+    }, [selectedServiceId, syncTime, appointmentTimes?.startTime, appointmentTimes?.stationId, serviceStationConfigs])
 
     const handleCategoryChange = (categoryId: string | null) => {
         setSelectedCategoryId(categoryId)
@@ -278,9 +324,25 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                                     minSearchLength={1}
                                     debounceMs={150}
                                     initialLoadOnMount
-                                    initialResultsLimit={10}
+                                    initialResultsLimit={5}
                                 />
                             </div>
+                            
+                            {isTimeZero && (
+                                <div className="flex items-center space-x-2 space-x-reverse">
+                                    <Checkbox
+                                        id="sync-time"
+                                        checked={syncTime}
+                                        onCheckedChange={(checked) => setSyncTime(checked === true)}
+                                    />
+                                    <Label
+                                        htmlFor="sync-time"
+                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                    >
+                                        סנכרן זמן לפי השירות
+                                    </Label>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

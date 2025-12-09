@@ -45,15 +45,11 @@ type AppointmentPayment = Database["public"]["Tables"]["appointment_payments"]["
 
 const SERVICE_LABELS: Record<string, string> = {
     grooming: "מספרה",
-    garden: "גן",
 }
 
 const SERVICE_STYLES: Record<string, { badge: string }> = {
     grooming: {
         badge: "border-blue-200 bg-blue-100 text-blue-800",
-    },
-    garden: {
-        badge: "border-emerald-200 bg-emerald-100 text-emerald-800",
     },
 }
 
@@ -103,10 +99,6 @@ const getStatusStyle = (status: string, appointment?: ManagerAppointment): strin
         normalized.includes("הושלם") ||
         normalized.includes("מאשר")
     ) {
-        // For trial garden appointments, use amber colors instead of emerald
-        if (appointment?.serviceType === "garden" && appointment?.gardenIsTrial) {
-            return "border-amber-200 bg-amber-50 text-amber-700"
-        }
         return STATUS_STYLE_MAP.success
     }
 
@@ -304,7 +296,7 @@ export const AppointmentDetailsSheet = ({
         }
 
         fetchSessionImagesCount()
-    }, [selectedAppointment?.id, selectedAppointment?.groomingAppointmentId, selectedAppointment?.gardenAppointmentId, selectedAppointment?.serviceType, open])
+    }, [selectedAppointment?.id, selectedAppointment?.groomingAppointmentId, selectedAppointment?.serviceType, open])
 
     // Fetch dog's general grooming notes and appointment notes when appointment is selected
     useEffect(() => {
@@ -355,7 +347,7 @@ export const AppointmentDetailsSheet = ({
             if (!appointmentId) return
 
             try {
-                const tableName = selectedAppointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
+                const tableName = "grooming_appointments"
                 const selectFields = "internal_notes, customer_notes"
                 const { data, error } = await supabase
                     .from(tableName)
@@ -391,13 +383,14 @@ export const AppointmentDetailsSheet = ({
                 return
             }
 
-            const appointmentId = selectedAppointment.groomingAppointmentId || selectedAppointment.gardenAppointmentId
+            const appointmentId = extractGroomingAppointmentId(
+                selectedAppointment.id,
+                selectedAppointment.groomingAppointmentId
+            )
             if (!appointmentId) return
 
             try {
-                const appointmentIdField = selectedAppointment.serviceType === "grooming"
-                    ? "grooming_appointment_id"
-                    : "daycare_appointment_id"
+                const appointmentIdField = "grooming_appointment_id"
 
                 const { data, error } = await supabase
                     .from("appointment_payments")
@@ -433,43 +426,31 @@ export const AppointmentDetailsSheet = ({
                 return
             }
 
-            // Extract the actual appointment ID based on service type (same logic as fetchAppointmentNotes)
-            let appointmentId: string | undefined
-            if (selectedAppointment.serviceType === "grooming") {
-                appointmentId = extractGroomingAppointmentId(
-                    selectedAppointment.id,
-                    selectedAppointment.groomingAppointmentId
-                )
-            } else {
-                appointmentId = extractGardenAppointmentId(
-                    selectedAppointment.id,
-                    selectedAppointment.gardenAppointmentId
-                )
-            }
+            // Extract the actual appointment ID
+            const appointmentId = extractGroomingAppointmentId(
+                selectedAppointment.id,
+                selectedAppointment.groomingAppointmentId
+            )
 
             if (!appointmentId) {
                 console.log("[AppointmentDetailsSheet] No appointment ID found for order check", {
                     selectedAppointmentId: selectedAppointment.id,
                     serviceType: selectedAppointment.serviceType,
-                    groomingAppointmentId: selectedAppointment.groomingAppointmentId,
-                    gardenAppointmentId: selectedAppointment.gardenAppointmentId
+                    groomingAppointmentId: selectedAppointment.groomingAppointmentId
                 })
                 setHasOrder(false)
                 return
             }
 
             try {
-                const appointmentIdField = selectedAppointment.serviceType === "grooming"
-                    ? "grooming_appointment_id"
-                    : "daycare_appointment_id"
+                const appointmentIdField = "grooming_appointment_id"
 
                 console.log("[AppointmentDetailsSheet] Checking for order:", {
                     appointmentId,
                     appointmentIdField,
                     serviceType: selectedAppointment.serviceType,
                     selectedAppointmentId: selectedAppointment.id,
-                    groomingAppointmentId: selectedAppointment.groomingAppointmentId,
-                    gardenAppointmentId: selectedAppointment.gardenAppointmentId
+                    groomingAppointmentId: selectedAppointment.groomingAppointmentId
                 })
 
                 // Check for orders directly linked to appointment
@@ -568,10 +549,13 @@ export const AppointmentDetailsSheet = ({
 
             // If still missing, try to fetch from the appointment record itself
             if (!clientIdToUse) {
-                const appointmentId = selectedAppointment.groomingAppointmentId || selectedAppointment.gardenAppointmentId
+                const appointmentId = extractGroomingAppointmentId(
+                    selectedAppointment.id,
+                    selectedAppointment.groomingAppointmentId
+                )
                 if (appointmentId) {
                     try {
-                        const tableName = selectedAppointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
+                        const tableName = "grooming_appointments"
                         const { data: appointmentData, error: appointmentError } = await supabase
                             .from(tableName)
                             .select("customer_id, dog_id")
@@ -649,10 +633,13 @@ export const AppointmentDetailsSheet = ({
 
             // If still missing, try to fetch from the appointment record itself
             if (!clientIdToUse) {
-                const appointmentId = selectedAppointment.groomingAppointmentId || selectedAppointment.gardenAppointmentId
+                const appointmentId = extractGroomingAppointmentId(
+                    selectedAppointment.id,
+                    selectedAppointment.groomingAppointmentId
+                )
                 if (appointmentId) {
                     try {
-                        const tableName = selectedAppointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
+                        const tableName = "grooming_appointments"
                         const { data: appointmentData, error: appointmentError } = await supabase
                             .from(tableName)
                             .select("customer_id, dog_id")
@@ -735,7 +722,10 @@ export const AppointmentDetailsSheet = ({
     const handleSaveInternalNotes = async () => {
         if (!selectedAppointment) return
 
-        const appointmentId = selectedAppointment.groomingAppointmentId || selectedAppointment.gardenAppointmentId || selectedAppointment.id
+        const appointmentId = extractGroomingAppointmentId(
+            selectedAppointment.id,
+            selectedAppointment.groomingAppointmentId
+        ) || selectedAppointment.id
         if (!appointmentId) return
 
         setIsSavingInternalNotes(true)
@@ -821,7 +811,10 @@ export const AppointmentDetailsSheet = ({
     const handleSaveClientNotes = async () => {
         if (!selectedAppointment) return
 
-        const appointmentId = selectedAppointment.groomingAppointmentId || selectedAppointment.gardenAppointmentId || selectedAppointment.id
+        const appointmentId = extractGroomingAppointmentId(
+            selectedAppointment.id,
+            selectedAppointment.groomingAppointmentId
+        ) || selectedAppointment.id
         if (!appointmentId) return
 
         setIsSavingClientNotes(true)
@@ -875,7 +868,10 @@ export const AppointmentDetailsSheet = ({
     const handleSaveAllChanges = async () => {
         if (!selectedAppointment) return
 
-        const appointmentId = selectedAppointment.groomingAppointmentId || selectedAppointment.gardenAppointmentId || selectedAppointment.id
+        const appointmentId = extractGroomingAppointmentId(
+            selectedAppointment.id,
+            selectedAppointment.groomingAppointmentId
+        ) || selectedAppointment.id
         if (!appointmentId) return
 
         setIsSavingAllChanges(true)
@@ -1038,11 +1034,12 @@ export const AppointmentDetailsSheet = ({
         console.log("Payment confirmed:", paymentData)
         // Refresh payments after payment is completed
         if (selectedAppointment) {
-            const appointmentId = selectedAppointment.groomingAppointmentId || selectedAppointment.gardenAppointmentId || selectedAppointment.id
+            const appointmentId = extractGroomingAppointmentId(
+                selectedAppointment.id,
+                selectedAppointment.groomingAppointmentId
+            ) || selectedAppointment.id
             if (appointmentId) {
-                const appointmentIdField = selectedAppointment.serviceType === "grooming"
-                    ? "grooming_appointment_id"
-                    : "daycare_appointment_id"
+                const appointmentIdField = "grooming_appointment_id"
 
                 supabase
                     .from("appointment_payments")
@@ -1083,35 +1080,16 @@ export const AppointmentDetailsSheet = ({
 
             // Find all appointments for the same owner on the same day
             // Note: We only filter by enum value "cancelled" in the query, then filter Hebrew statuses in JS
-            const [groomingResult, daycareResult] = await Promise.all([
-                supabase
-                    .from("grooming_appointments")
-                    .select("id, amount_due, status")
-                    .eq("customer_id", selectedAppointment.clientId)
-                    .gte("start_at", dayStart.toISOString())
-                    .lte("start_at", dayEnd.toISOString())
-                    .neq("status", "cancelled"),
-                supabase
-                    .from("daycare_appointments")
-                    .select("id, amount_due, status")
-                    .eq("customer_id", selectedAppointment.clientId)
-                    .gte("start_at", dayStart.toISOString())
-                    .lte("start_at", dayEnd.toISOString())
-                    .neq("status", "cancelled"),
-            ])
+            const { data: groomingData, error: groomingError } = await supabase
+                .from("grooming_appointments")
+                .select("id, amount_due, status")
+                .eq("customer_id", selectedAppointment.clientId)
+                .gte("start_at", dayStart.toISOString())
+                .lte("start_at", dayEnd.toISOString())
+                .neq("status", "cancelled")
 
-            if (groomingResult.error) {
-                console.error("Error fetching grooming appointments:", groomingResult.error)
-                toast({
-                    title: "שגיאה",
-                    description: "לא הצלחנו לטעון את התורים",
-                    variant: "destructive",
-                })
-                return
-            }
-
-            if (daycareResult.error) {
-                console.error("Error fetching daycare appointments:", daycareResult.error)
+            if (groomingError) {
+                console.error("Error fetching grooming appointments:", groomingError)
                 toast({
                     title: "שגיאה",
                     description: "לא הצלחנו לטעון את התורים",
@@ -1132,22 +1110,13 @@ export const AppointmentDetailsSheet = ({
                 )
             }
 
-            const allAppointments = [
-                ...(groomingResult.data || [])
-                    .filter((apt) => !isCancelledStatus(apt.status))
-                    .map((apt) => ({
-                        id: apt.id,
-                        serviceType: "grooming" as const,
-                        amountDue: apt.amount_due || 0,
-                    })),
-                ...(daycareResult.data || [])
-                    .filter((apt) => !isCancelledStatus(apt.status))
-                    .map((apt) => ({
-                        id: apt.id,
-                        serviceType: "garden" as const,
-                        amountDue: apt.amount_due || 0,
-                    })),
-            ]
+            const allAppointments = (groomingData || [])
+                .filter((apt) => !isCancelledStatus(apt.status))
+                .map((apt) => ({
+                    id: apt.id,
+                    serviceType: "grooming" as const,
+                    amountDue: apt.amount_due || 0,
+                }))
 
             if (allAppointments.length === 0) {
                 toast({
@@ -1180,16 +1149,13 @@ export const AppointmentDetailsSheet = ({
                 // Check which appointments are already in the cart
                 const { data: existingCartAppointments } = await supabase
                     .from("cart_appointments")
-                    .select("grooming_appointment_id, daycare_appointment_id")
+                    .select("grooming_appointment_id")
                     .eq("cart_id", cartId)
 
                 const existingAppointmentIds = new Set<string>()
                 existingCartAppointments?.forEach((ca) => {
                     if (ca.grooming_appointment_id) {
                         existingAppointmentIds.add(ca.grooming_appointment_id)
-                    }
-                    if (ca.daycare_appointment_id) {
-                        existingAppointmentIds.add(ca.daycare_appointment_id)
                     }
                 })
 
@@ -1199,8 +1165,7 @@ export const AppointmentDetailsSheet = ({
                 if (appointmentsToAdd.length > 0) {
                     const cartAppointmentsToInsert = appointmentsToAdd.map((apt) => ({
                         cart_id: cartId,
-                        grooming_appointment_id: apt.serviceType === "grooming" ? apt.id : null,
-                        daycare_appointment_id: apt.serviceType === "garden" ? apt.id : null,
+                        grooming_appointment_id: apt.id,
                         appointment_price: apt.amountDue,
                     }))
 
@@ -1242,8 +1207,7 @@ export const AppointmentDetailsSheet = ({
                 // Add all appointments to cart_appointments
                 const cartAppointmentsToInsert = allAppointments.map((apt) => ({
                     cart_id: cartId,
-                    grooming_appointment_id: apt.serviceType === "grooming" ? apt.id : null,
-                    daycare_appointment_id: apt.serviceType === "garden" ? apt.id : null,
+                    grooming_appointment_id: apt.id,
                     appointment_price: apt.amountDue,
                 }))
 
@@ -1421,11 +1385,9 @@ export const AppointmentDetailsSheet = ({
                                         <Badge variant="outline" className={cn("text-[11px] font-medium", serviceStyle.badge)}>
                                             {serviceLabel}
                                         </Badge>
-                                        {selectedAppointment.serviceType !== "garden" && (
-                                            <Badge variant="outline" className={cn("text-[11px] font-medium", statusStyle)}>
-                                                {selectedAppointment.status}
-                                            </Badge>
-                                        )}
+                                        <Badge variant="outline" className={cn("text-[11px] font-medium", statusStyle)}>
+                                            {selectedAppointment.status}
+                                        </Badge>
                                         {selectedAppointment.seriesId && (
                                             <Badge variant="outline" className="text-[11px] font-medium border-purple-200 bg-purple-100 text-purple-800">
                                                 תור בסדרה
@@ -1618,7 +1580,7 @@ export const AppointmentDetailsSheet = ({
                                                     : `תמונות מטרה רצויה (${desiredGoalImagesCount} תמונות)`}
                                         </Button>
                                     )}
-                                    {(selectedAppointment.groomingAppointmentId || selectedAppointment.gardenAppointmentId) && (
+                                    {selectedAppointment.groomingAppointmentId && (
                                         <Button
                                             variant="outline"
                                             className="w-full justify-center gap-2"
@@ -1909,61 +1871,6 @@ export const AppointmentDetailsSheet = ({
                                 </div>
                             )}
 
-                            {selectedAppointment.serviceType === "garden" ? (
-                                <>
-                                    <Separator />
-                                    <div className="space-y-2 text-sm text-gray-600">
-                                        <h3 className="text-sm font-medium text-gray-900">פרטי גן</h3>
-                                        <div>
-                                            איסוף מאוחר: {" "}
-                                            <span className="font-medium text-gray-900">
-                                                {selectedAppointment.latePickupRequested ? "כן" : "לא"}
-                                            </span>
-                                        </div>
-                                        {selectedAppointment.latePickupNotes ? (
-                                            <div>
-                                                הערות איסוף: {" "}
-                                                <span className="font-medium text-gray-900">{selectedAppointment.latePickupNotes}</span>
-                                            </div>
-                                        ) : null}
-                                        <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-                                            <Badge
-                                                variant="outline"
-                                                className={cn(
-                                                    "border-slate-200",
-                                                    selectedAppointment.gardenTrimNails
-                                                        ? "bg-emerald-50 text-emerald-700"
-                                                        : "bg-slate-100 text-slate-600"
-                                                )}
-                                            >
-                                                גזירת ציפורניים {selectedAppointment.gardenTrimNails ? "✓" : "✕"}
-                                            </Badge>
-                                            <Badge
-                                                variant="outline"
-                                                className={cn(
-                                                    "border-slate-200",
-                                                    selectedAppointment.gardenBrush
-                                                        ? "bg-emerald-50 text-emerald-700"
-                                                        : "bg-slate-100 text-slate-600"
-                                                )}
-                                            >
-                                                סירוק {selectedAppointment.gardenBrush ? "✓" : "✕"}
-                                            </Badge>
-                                            <Badge
-                                                variant="outline"
-                                                className={cn(
-                                                    "border-slate-200",
-                                                    selectedAppointment.gardenBath
-                                                        ? "bg-emerald-50 text-emerald-700"
-                                                        : "bg-slate-100 text-slate-600"
-                                                )}
-                                            >
-                                                רחצה {selectedAppointment.gardenBath ? "✓" : "✕"}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : null}
 
                             {/* Record Information */}
                             {(selectedAppointment.recordId || selectedAppointment.recordNumber) && (
@@ -2109,17 +2016,10 @@ export const AppointmentDetailsSheet = ({
             {selectedAppointment && currentUserId && (() => {
                 // Extract the actual appointment ID based on service type
                 let appointmentId: string | null = null
-                if (selectedAppointment.serviceType === "grooming") {
-                    appointmentId = extractGroomingAppointmentId(
-                        selectedAppointment.id,
-                        selectedAppointment.groomingAppointmentId
-                    )
-                } else if (selectedAppointment.serviceType === "garden") {
-                    appointmentId = extractGardenAppointmentId(
-                        selectedAppointment.id,
-                        selectedAppointment.gardenAppointmentId
-                    )
-                }
+                appointmentId = extractGroomingAppointmentId(
+                    selectedAppointment.id,
+                    selectedAppointment.groomingAppointmentId
+                )
 
                 if (!appointmentId) return null
 

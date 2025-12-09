@@ -45,7 +45,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SERVICE_CATEGORY_VARIANTS } from "@/lib/serviceCategoryVariants"
-import { useServiceCategories, type ServiceCategory } from "@/hooks/useServiceCategories"
+import { useServiceCategories, useDefaultServiceCategory, type ServiceCategory } from "@/hooks/useServiceCategories"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover"
@@ -419,6 +419,7 @@ export default function ServicesListPage() {
     const queryClient = useQueryClient()
     const { data: services = [], isLoading, refetch } = useServices()
     const { data: categories = [] } = useServiceCategories()
+    const { data: defaultCategory } = useDefaultServiceCategory()
     const createService = useCreateService()
     const updateService = useUpdateService()
     const createSubAction = useCreateServiceSubAction()
@@ -430,8 +431,10 @@ export default function ServicesListPage() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     // Edit dialog removed - using inline editing instead
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false)
     // editingService removed - using inline editing instead
     const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null)
+    const [serviceToDuplicate, setServiceToDuplicate] = useState<Service | null>(null)
 
     // Form state
     const [formData, setFormData] = useState({
@@ -496,10 +499,63 @@ export default function ServicesListPage() {
             duration: 0,
             is_active: true,
             mode: "simple",
-            service_category_id: null,
+            service_category_id: defaultCategory?.id || null,
         })
         setSubActions([])
         setIsAddDialogOpen(true)
+    }
+
+    const handleDuplicate = (service: Service) => {
+        setServiceToDuplicate(service)
+        setIsDuplicateDialogOpen(true)
+    }
+
+    const handleConfirmDuplicate = async () => {
+        if (!serviceToDuplicate) return
+
+        try {
+            // Create the duplicated service
+            const duplicated = await createService.mutateAsync({
+                name: `${serviceToDuplicate.name} (עותק)`,
+                description: serviceToDuplicate.description,
+                base_price: serviceToDuplicate.base_price,
+                duration: serviceToDuplicate.duration,
+                is_active: serviceToDuplicate.is_active,
+                mode: serviceToDuplicate.mode,
+                service_category_id: serviceToDuplicate.service_category_id || undefined,
+            })
+
+            // If service has sub-actions, duplicate them too
+            if (serviceToDuplicate.mode === "complicated" && serviceToDuplicate.service_sub_actions) {
+                const sortedSubActions = [...serviceToDuplicate.service_sub_actions].sort((a, b) => a.order_index - b.order_index)
+                for (let i = 0; i < sortedSubActions.length; i++) {
+                    const subAction = sortedSubActions[i]
+                    await createSubAction.mutateAsync({
+                        service_id: duplicated.id,
+                        name: subAction.name,
+                        description: subAction.description,
+                        duration: subAction.duration,
+                        order_index: i,
+                        is_active: subAction.is_active,
+                    })
+                }
+            }
+
+            toast({
+                title: "הצלחה",
+                description: "השירות שוכפל בהצלחה",
+            })
+            setIsDuplicateDialogOpen(false)
+            setServiceToDuplicate(null)
+        } catch (error: unknown) {
+            console.error("Error duplicating service:", error)
+            const errorMessage = error instanceof Error ? error.message : "לא ניתן לשכפל את השירות"
+            toast({
+                title: "שגיאה",
+                description: errorMessage,
+                variant: "destructive",
+            })
+        }
     }
 
     // Edit functionality removed - using inline editing instead
@@ -568,7 +624,7 @@ export default function ServicesListPage() {
                 description: "השירות נוסף בהצלחה",
             })
             setIsAddDialogOpen(false)
-            setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple", service_category_id: null })
+            setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple", service_category_id: defaultCategory?.id || null })
             setSubActions([])
         } catch (error: unknown) {
             console.error("Error saving service:", error)
@@ -1703,8 +1759,20 @@ export default function ServicesListPage() {
                                                             </Label>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="w-[80px]">
-                                                        <div className="flex items-center justify-end">
+                                                    <TableCell className="w-[100px]">
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleDuplicate(service)
+                                                                }}
+                                                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                                                                title="שכפל שירות"
+                                                            >
+                                                                <Plus className="h-4 w-4" />
+                                                            </Button>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
@@ -1924,7 +1992,7 @@ export default function ServicesListPage() {
             <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
                 if (!open) {
                     setIsAddDialogOpen(false)
-                    setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple", service_category_id: null })
+                    setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple", service_category_id: defaultCategory?.id || null })
                     setSubActions([])
                 }
             }}>
@@ -2146,7 +2214,7 @@ export default function ServicesListPage() {
                     <DialogFooter dir="ltr">
                         <Button variant="outline" onClick={() => {
                             setIsAddDialogOpen(false)
-                            setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple", service_category_id: null })
+                            setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple", service_category_id: defaultCategory?.id || null })
                             setSubActions([])
                         }}>
                             ביטול
@@ -2167,18 +2235,50 @@ export default function ServicesListPage() {
             {/* Delete Confirmation Dialog */}
             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <DialogContent className="sm:max-w-[425px]" dir="rtl">
-                    <DialogHeader>
-                        <DialogTitle>מחיקת שירות</DialogTitle>
-                        <DialogDescription>
+                    <DialogHeader className="text-right">
+                        <DialogTitle className="text-right">מחיקת שירות</DialogTitle>
+                        <DialogDescription className="text-right">
                             האם אתה בטוח שברצונך למחוק את השירות "{serviceToDelete?.name}"? פעולה זו לא ניתנת לביטול.
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter dir="ltr">
+                    <DialogFooter className="flex-row-reverse gap-2">
+                        <Button variant="destructive" onClick={handleConfirmDelete}>
+                            מחק
+                        </Button>
                         <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
                             ביטול
                         </Button>
-                        <Button variant="destructive" onClick={handleConfirmDelete}>
-                            מחק
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Duplicate Confirmation Dialog */}
+            <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]" dir="rtl">
+                    <DialogHeader className="text-right">
+                        <DialogTitle className="text-right">שכפול שירות</DialogTitle>
+                        <DialogDescription className="text-right">
+                            האם אתה בטוח שברצונך לשכפל את השירות "{serviceToDuplicate?.name}"?
+                            {serviceToDuplicate?.mode === "complicated" && serviceToDuplicate.service_sub_actions && serviceToDuplicate.service_sub_actions.length > 0 && (
+                                <span className="block mt-2 text-sm">
+                                    כל {serviceToDuplicate.service_sub_actions.length} פעולות המשנה יישכפלו גם כן.
+                                </span>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex-row-reverse gap-2">
+                        <Button onClick={handleConfirmDuplicate} disabled={createService.isPending || createSubAction.isPending}>
+                            {createService.isPending || createSubAction.isPending ? (
+                                <>
+                                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                                    משכפל...
+                                </>
+                            ) : (
+                                "שכפל"
+                            )}
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsDuplicateDialogOpen(false)}>
+                            ביטול
                         </Button>
                     </DialogFooter>
                 </DialogContent>
