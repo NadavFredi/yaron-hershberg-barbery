@@ -45,22 +45,109 @@ serve(async (req) => {
       })
     }
 
-    // URL encode the password in case it contains special characters
-    const encodedPassword = encodeURIComponent(terminalPassword)
-    const handshakeUrl = `https://api.tranzila.com/v1/handshake/create?supplier=${terminalName}&sum=${sum}&TranzilaPW=${encodedPassword}`
-    console.log("🔗 [tranzila-handshake] Handshake URL:", {
-      url: handshakeUrl.replace(/TranzilaPW=[^&]+/, "TranzilaPW=***"), // Hide in log
-      passwordEncoded: encodedPassword !== terminalPassword,
-      originalPasswordLength: terminalPassword.length,
-      encodedPasswordLength: encodedPassword.length,
+    // Try multiple methods - Tranzila API might accept different formats
+    const handshakeUrl = "https://api.tranzila.com/v1/handshake/create"
+
+    console.log("🔗 [tranzila-handshake] Attempting handshake with:", {
+      url: handshakeUrl,
+      supplier: terminalName,
+      sum,
+      passwordLength: terminalPassword.length,
+      passwordValue: terminalPassword, // Full password as user approved
     })
 
-    const handshakeResponse = await fetch(handshakeUrl, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
+    let handshakeResponse: Response | null = null
+    let lastError: string | null = null
+
+    // Method 1: POST with form-encoded data
+    try {
+      console.log("🔄 [tranzila-handshake] Trying POST with form data...")
+      const formData = new URLSearchParams()
+      formData.append("supplier", terminalName)
+      formData.append("sum", sum.toString())
+      formData.append("TranzilaPW", terminalPassword)
+
+      handshakeResponse = await fetch(handshakeUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+      })
+
+      if (handshakeResponse.ok) {
+        console.log("✅ [tranzila-handshake] POST with form data succeeded")
+      } else {
+        const errorText = await handshakeResponse.text()
+        console.log("❌ [tranzila-handshake] POST with form data failed:", {
+          status: handshakeResponse.status,
+          error: errorText,
+        })
+        lastError = errorText
+        handshakeResponse = null
+      }
+    } catch (error) {
+      console.log("❌ [tranzila-handshake] POST with form data exception:", error)
+      lastError = String(error)
+    }
+
+    // Method 2: GET with URL-encoded password
+    if (!handshakeResponse || !handshakeResponse.ok) {
+      try {
+        console.log("🔄 [tranzila-handshake] Trying GET with URL-encoded password...")
+        const getUrl = `${handshakeUrl}?supplier=${encodeURIComponent(
+          terminalName
+        )}&sum=${sum}&TranzilaPW=${encodeURIComponent(terminalPassword)}`
+        handshakeResponse = await fetch(getUrl, {
+          method: "GET",
+        })
+
+        if (handshakeResponse.ok) {
+          console.log("✅ [tranzila-handshake] GET with URL-encoded password succeeded")
+        } else {
+          const errorText = await handshakeResponse.text()
+          console.log("❌ [tranzila-handshake] GET with URL-encoded password failed:", {
+            status: handshakeResponse.status,
+            error: errorText,
+          })
+          lastError = errorText
+          handshakeResponse = null
+        }
+      } catch (error) {
+        console.log("❌ [tranzila-handshake] GET with URL-encoded password exception:", error)
+        lastError = String(error)
+      }
+    }
+
+    // Method 3: GET with raw password (no encoding)
+    if (!handshakeResponse || !handshakeResponse.ok) {
+      try {
+        console.log("🔄 [tranzila-handshake] Trying GET with raw password...")
+        const getUrl = `${handshakeUrl}?supplier=${terminalName}&sum=${sum}&TranzilaPW=${terminalPassword}`
+        handshakeResponse = await fetch(getUrl, {
+          method: "GET",
+        })
+
+        if (handshakeResponse.ok) {
+          console.log("✅ [tranzila-handshake] GET with raw password succeeded")
+        } else {
+          const errorText = await handshakeResponse.text()
+          console.log("❌ [tranzila-handshake] GET with raw password failed:", {
+            status: handshakeResponse.status,
+            error: errorText,
+          })
+          lastError = errorText
+        }
+      } catch (error) {
+        console.log("❌ [tranzila-handshake] GET with raw password exception:", error)
+        lastError = String(error)
+      }
+    }
+
+    // If all methods failed, use the last response or create error
+    if (!handshakeResponse) {
+      throw new Error(`All handshake methods failed. Last error: ${lastError || "Unknown"}`)
+    }
 
     if (!handshakeResponse.ok) {
       const errorText = await handshakeResponse.text()

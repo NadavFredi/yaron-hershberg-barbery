@@ -686,7 +686,7 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
               </div>
             )}
             {/* Variants Grid - Numbered grid, 10 per row */}
-            <div className="grid grid-cols-10 gap-1 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-10 gap-1 max-h-[30vh] overflow-y-auto pr-2">
               <TooltipProvider>
                 {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant, index) => {
                   const row = Math.floor(index / 10) + 1
@@ -908,7 +908,7 @@ function EditVariantModal({ currentVariant, onSave, onClose }: EditVariantModalP
             </div>
           )}
           {/* Variants Grid - Numbered grid, 10 per row */}
-          <div className="grid grid-cols-10 gap-1 max-h-[50vh] overflow-y-auto pr-2">
+          <div className="grid grid-cols-10 gap-1 max-h-[25vh] overflow-y-auto pr-2">
             <TooltipProvider>
               {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant, index) => {
                 const row = Math.floor(index / 10) + 1
