@@ -84,9 +84,6 @@ export function PinnedAppointmentDropDialog() {
   const targetDateStr = format(targetDate, "dd.MM.yyyy", { locale: he })
 
   const dogNames = appointment.dogs.map(d => d.name).join(", ")
-  // Determine service type from appointment or pin
-  const serviceType = (appointment as any).serviceType || (pin.appointment_type === "daycare" ? "garden" : "grooming")
-  const serviceLabel = serviceType === "garden" ? "גן" : "מספרה"
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -105,7 +102,9 @@ export function PinnedAppointmentDropDialog() {
               <div>{dogNames} - {appointment.clientName}</div>
               <div>תאריך: <span className="font-medium">{targetDateStr}</span></div>
               <div>זמן: <span className="font-medium">{targetTime} - {targetEndTimeStr}</span></div>
-              <div>שירות: <span className="font-medium">{serviceLabel}</span></div>
+              {appointment.serviceName && (
+                <div>סוג שירות: <span className="font-medium">{appointment.serviceName}</span></div>
+              )}
               {stationName && <div>עמדה: <span className="font-medium">{stationName}</span></div>}
             </div>
           </div>
