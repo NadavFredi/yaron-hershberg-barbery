@@ -398,16 +398,13 @@ export const ClientDetailsSheet = ({
                 // Check which appointments are already in the cart
                 const { data: existingCartAppointments } = await supabase
                     .from("cart_appointments")
-                    .select("grooming_appointment_id, daycare_appointment_id")
+                    .select("grooming_appointment_id")
                     .eq("cart_id", cartId)
 
                 const existingAppointmentIds = new Set<string>()
                 existingCartAppointments?.forEach((ca) => {
                     if (ca.grooming_appointment_id) {
                         existingAppointmentIds.add(ca.grooming_appointment_id)
-                    }
-                    if (ca.daycare_appointment_id) {
-                        existingAppointmentIds.add(ca.daycare_appointment_id)
                     }
                 })
 
@@ -417,8 +414,7 @@ export const ClientDetailsSheet = ({
                 if (appointmentsToAdd.length > 0) {
                     const cartAppointmentsToInsert = appointmentsToAdd.map((apt) => ({
                         cart_id: cartId,
-                        grooming_appointment_id: apt.serviceType === "grooming" ? apt.id : null,
-                        daycare_appointment_id: apt.serviceType === "garden" ? apt.id : null,
+                        grooming_appointment_id: apt.id,
                         appointment_price: apt.amountDue,
                     }))
 
@@ -460,8 +456,7 @@ export const ClientDetailsSheet = ({
                 // Add all appointments to cart_appointments
                 const cartAppointmentsToInsert = allAppointments.map((apt) => ({
                     cart_id: cartId,
-                    grooming_appointment_id: apt.serviceType === "grooming" ? apt.id : null,
-                    daycare_appointment_id: apt.serviceType === "garden" ? apt.id : null,
+                    grooming_appointment_id: apt.id,
                     appointment_price: apt.amountDue,
                 }))
 

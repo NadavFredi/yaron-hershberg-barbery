@@ -52,16 +52,16 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
         endTime: finalizedDragTimes.endTime ? new Date(finalizedDragTimes.endTime) : null,
         stationId: finalizedDragTimes.stationId ?? null
     } : null)
-    
+
     // Check if time is 0 (created with 1 click - startTime and endTime are the same or endTime is null)
     const isTimeZero = useMemo(() => {
         if (!appointmentTimes?.startTime) return false
         if (!appointmentTimes.endTime) return true
         return appointmentTimes.startTime.getTime() === appointmentTimes.endTime.getTime()
     }, [appointmentTimes])
-    
+
     const [syncTime, setSyncTime] = useState<boolean>(isTimeZero)
-    
+
     // Get service station configs for duration calculation
     const { data: serviceStationConfigs = [] } = useServiceStationConfigs(selectedServiceId || "")
     const [createManagerAppointment, { isLoading: isCreatingAppointment }] = useCreateManagerAppointmentMutation()
@@ -89,7 +89,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
             setSyncTime(isTimeZero)
         }
     }, [open, isTimeZero])
-    
+
     // Update syncTime when isTimeZero changes
     useEffect(() => {
         setSyncTime(isTimeZero)
@@ -155,22 +155,22 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
             setSelectedServiceId(null)
         }
     }
-    
+
     // Update end time when service is selected and syncTime is enabled
     useEffect(() => {
         if (!syncTime || !selectedServiceId || !appointmentTimes?.startTime || !appointmentTimes?.stationId) {
             return
         }
-        
+
         // Find the service-station configuration
         const config = serviceStationConfigs.find(
             (config) => config.station_id === appointmentTimes.stationId
         )
-        
+
         if (config && config.base_time_minutes > 0) {
             const durationMs = config.base_time_minutes * 60 * 1000
             const newEndTime = new Date(appointmentTimes.startTime.getTime() + durationMs)
-            
+
             setAppointmentTimes((prev) => {
                 if (!prev) return null
                 return {
@@ -196,8 +196,9 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                 stationId: times.stationId ?? prev?.stationId ?? null
             }
 
-            // Maintain current duration when start time changes
-            if (prev?.startTime && prev?.endTime && next.startTime && next.startTime.getTime() !== prev.startTime.getTime()) {
+            // Maintain current duration when start time changes, but only if syncTime is disabled
+            // If syncTime is enabled, the useEffect will handle setting the end time based on service duration
+            if (!syncTime && prev?.startTime && prev?.endTime && next.startTime && next.startTime.getTime() !== prev.startTime.getTime()) {
                 const currentDuration = prev.endTime.getTime() - prev.startTime.getTime()
                 next.endTime = new Date(next.startTime.getTime() + currentDuration)
             }
@@ -327,7 +328,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                                     initialResultsLimit={5}
                                 />
                             </div>
-                            
+
                             {isTimeZero && (
                                 <div className="flex items-center space-x-2 space-x-reverse">
                                     <Checkbox

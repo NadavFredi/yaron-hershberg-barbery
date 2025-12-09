@@ -35,10 +35,10 @@ import { useStations } from "@/hooks/useStations"
 import { formatDurationFromMinutes } from "@/lib/duration-utils"
 
 type AppointmentStatus = "pending" | "approved" | "cancelled" | "matched"
-type ServiceFilter = "all" | "grooming" | "garden"
+type ServiceFilter = "all" | "grooming"
 
 type EnrichedAppointment = ManagerAppointment & {
-    sourceTable: "grooming_appointments" | "daycare_appointments"
+    sourceTable: "grooming_appointments"
     clientCustomerTypeId?: string | null
     clientCustomerTypeName?: string | null
 }
@@ -111,28 +111,6 @@ interface GroomingAppointmentRow {
     customers?: RawCustomerRecord | RawCustomerRecord[] | null
     stations?: RawStationRecord | RawStationRecord[] | null
     services?: RawServiceRecord | RawServiceRecord[] | null
-}
-
-interface DaycareAppointmentRow {
-    id: string
-    status?: string | null
-    start_at: string
-    end_at: string
-    payment_status?: string | null
-    amount_due?: number | null
-    customer_notes?: string | null
-    internal_notes?: string | null
-    service_type?: string | null
-    late_pickup_requested?: boolean | null
-    late_pickup_notes?: string | null
-    garden_trim_nails?: boolean | null
-    garden_brush?: boolean | null
-    garden_bath?: boolean | null
-    station_id?: string | null
-    customer_id: string
-    dogs?: RawDogRecord | RawDogRecord[] | null
-    customers?: RawCustomerRecord | RawCustomerRecord[] | null
-    stations?: RawStationRecord | RawStationRecord[] | null
 }
 
 interface BreedDogCategoryRow {
@@ -374,13 +352,7 @@ export default function AppointmentsSection() {
                 return (data ?? []) as GroomingAppointmentRow[]
             }
 
-            const daycarePromise = async (): Promise<DaycareAppointmentRow[]> => {
-                // Daycare appointments don't exist in this system - return empty array
-                return []
-            }
-
-            const [groomingData, daycareData] = await Promise.all([groomingPromise(), daycarePromise()])
-
+            const groomingData = await groomingPromise()
 
             const mappedGrooming: EnrichedAppointment[] = groomingData.map((apt) => {
                 const customer = getFirst<RawCustomerRecord>(apt.customers)
@@ -413,57 +385,7 @@ export default function AppointmentsSection() {
                 }
             })
 
-            const mappedDaycare: EnrichedAppointment[] = daycareData.map((apt) => {
-                const dog = getFirst<RawDogRecord>(apt.dogs)
-                const customer = getFirst<RawCustomerRecord>(apt.customers)
-                const station = getFirst<RawStationRecord>(apt.stations)
-                const managerDog = enhanceDog(dog, customer)
-
-                const serviceLabel = (() => {
-                    switch (apt.service_type) {
-                        case "hourly":
-                            return "גן - לפי שעה"
-                        case "trial":
-                            return "גן - ניסיון"
-                        default:
-                            return "גן - יום שלם"
-                    }
-                })()
-
-                return {
-                    id: apt.id,
-                    sourceTable: "daycare_appointments",
-                    serviceType: "garden",
-                    stationId: apt.station_id || station?.id || "garden",
-                    stationName: station?.name || "גן הכלבים",
-                    startDateTime: apt.start_at,
-                    endDateTime: apt.end_at,
-                    status: apt.status || "pending",
-                    paymentStatus: apt.payment_status || undefined,
-                    notes: apt.customer_notes || "",
-                    internalNotes: apt.internal_notes || undefined,
-                    price: apt.amount_due ? Number(apt.amount_due) : undefined,
-                    gardenAppointmentType:
-                        apt.service_type === "hourly" ? "hourly" : ("full-day" as "full-day" | "hourly"),
-                    gardenIsTrial: apt.service_type === "trial",
-                    latePickupRequested: apt.late_pickup_requested ?? undefined,
-                    latePickupNotes: apt.late_pickup_notes ?? undefined,
-                    gardenTrimNails: apt.garden_trim_nails ?? undefined,
-                    gardenBrush: apt.garden_brush ?? undefined,
-                    gardenBath: apt.garden_bath ?? undefined,
-                    dogs: managerDog ? [managerDog] : [],
-                    clientId: apt.customer_id,
-                    clientName: customer?.full_name || undefined,
-                    clientClassification: customer?.classification || undefined,
-                    clientEmail: customer?.email || undefined,
-                    clientPhone: customer?.phone || undefined,
-                    serviceName: serviceLabel,
-                    clientCustomerTypeId: customer?.customer_type?.id ?? customer?.customer_type_id ?? null,
-                    clientCustomerTypeName: customer?.customer_type?.name ?? undefined,
-                }
-            })
-
-            setAppointments([...mappedGrooming, ...mappedDaycare].sort((a, b) => {
+            setAppointments(mappedGrooming.sort((a, b) => {
                 return new Date(b.startDateTime).getTime() - new Date(a.startDateTime).getTime()
             }))
         } catch (fetchError) {
