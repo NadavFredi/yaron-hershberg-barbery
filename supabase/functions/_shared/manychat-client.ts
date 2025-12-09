@@ -15,6 +15,7 @@ export interface ManyChatSubscriber {
   first_name?: string
   last_name?: string
   email?: string
+  status?: string
   custom_fields?: Array<{
     id: number
     name: string
@@ -399,7 +400,7 @@ export class ManyChatClient {
       first_name: firstName,
       last_name: lastName,
       gender: null,
-      consent_phrase: "i agree to recieve marketing content from maayan arama",
+      consent_phrase: "i agree to recieve marketing content from yaron hershberg",
       has_opt_in_sms: true,
       has_opt_in_email: null,
       ...options,
@@ -510,50 +511,129 @@ export class ManyChatClient {
   /**
    * Get or create a subscriber by phone
    * First tries to find existing subscriber, then creates if not found
+   * If the only subscriber found is deleted, tries to create a new one
+   * If creation fails (WhatsApp ID exists), uses the deleted subscriber's ID
    */
   async getOrCreateSubscriber(phone: string, name: string): Promise<ManyChatSubscriber> {
     // Try to find existing subscriber
     let subscriber = await this.findSubscriberByPhone(phone)
+    let deletedSubscriber: ManyChatSubscriber | null = null
 
     if (subscriber) {
-      // Verify we have a valid ID
-      const subscriberId = subscriber.subscriber_id || subscriber.id
-      if (!subscriberId) {
-        console.warn(`⚠️ [ManyChat] Subscriber found but no ID, recreating...`)
+      // Check if subscriber is deleted
+      if (subscriber.status === "deleted") {
+        console.warn(`⚠️ [ManyChat] Found subscriber but status is "deleted"`)
+        // Save the deleted subscriber info in case we need to use its ID
+        deletedSubscriber = subscriber
         subscriber = null
       } else {
-        console.log(`✅ [ManyChat] Found existing subscriber: ${subscriberId}`)
-        return subscriber
+        // Verify we have a valid ID
+        const subscriberId = subscriber.subscriber_id || subscriber.id
+        if (!subscriberId) {
+          console.warn(`⚠️ [ManyChat] Subscriber found but no ID, recreating...`)
+          subscriber = null
+        } else {
+          console.log(`✅ [ManyChat] Found existing subscriber: ${subscriberId}`)
+          return subscriber
+        }
       }
     }
 
-    // Create new subscriber if not found
-    console.log(`➕ [ManyChat] Subscriber not found, creating new one...`)
-    const subscriberId = await this.createSubscriber(phone, name)
-
-    // Set custom phone field (field ID: 13711554) to normalized phone (digits only)
-    const phoneDigits = phone.replace(/\D/g, "")
-    if (phoneDigits) {
+    // Try to create new subscriber if not found or if found one was deleted
+    if (!subscriber) {
+      console.log(`➕ [ManyChat] Subscriber not found or was deleted, attempting to create new one...`)
       try {
-        await this.setCustomField(subscriberId, "13711554", phoneDigits)
-      } catch (fieldError) {
-        console.warn(`⚠️ [ManyChat] Failed to set custom phone field:`, fieldError)
-        // Non-critical, continue
+        const subscriberId = await this.createSubscriber(phone, name)
+
+        // Set custom phone field (field ID: 13711554) to normalized phone (digits only)
+        const phoneDigits = phone.replace(/\D/g, "")
+        if (phoneDigits) {
+          try {
+            await this.setCustomField(subscriberId, "13711554", phoneDigits)
+          } catch (fieldError) {
+            console.warn(`⚠️ [ManyChat] Failed to set custom phone field:`, fieldError)
+            // Non-critical, continue
+          }
+        }
+
+        // Fetch full subscriber data
+        const fullSubscriber = await this.getSubscriberById(subscriberId)
+        if (fullSubscriber) {
+          return fullSubscriber
+        }
+
+        // Fallback: return minimal subscriber object
+        return {
+          id: subscriberId,
+          subscriber_id: subscriberId,
+          phone: phone,
+          name: name,
+        }
+      } catch (createError) {
+        // Check if error is due to WhatsApp ID already existing
+        const errorMessage = createError instanceof Error ? createError.message : String(createError)
+        if (errorMessage.includes("WhatsApp ID already exists") && deletedSubscriber) {
+          console.warn(
+            `⚠️ [ManyChat] Cannot create new subscriber (WhatsApp ID exists). Attempting to update deleted subscriber to reactivate it...`
+          )
+
+          // Try to update the deleted subscriber's fields - this might reactivate it
+          const deletedId = deletedSubscriber.subscriber_id || deletedSubscriber.id
+          if (deletedId) {
+            try {
+              const nameParts = name.trim().split(/\s+/)
+              const firstName = nameParts[0] || name
+              const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : ""
+
+              // Update custom fields
+              await this.setMultipleFields(String(deletedId), [
+                { fieldName: "Client_name", fieldValue: name },
+                { fieldName: "custom_phone", fieldValue: phone.replace(/\D/g, "") },
+              ])
+
+              // Fetch the subscriber fresh to see if updating it changed the status
+              const refreshedSubscriber = await this.getSubscriberById(String(deletedId))
+              if (refreshedSubscriber && refreshedSubscriber.status !== "deleted") {
+                console.log(`✅ [ManyChat] Successfully reactivated deleted subscriber: ${deletedId}`)
+                return refreshedSubscriber
+              }
+
+              // Still deleted after update - cannot use it
+              throw new Error(
+                `Cannot use ManyChat subscriber: subscriber with WhatsApp ID ${phone.replace(
+                  /\D/g,
+                  ""
+                )} is deleted and cannot be reactivated. ManyChat does not allow creating new subscribers with existing WhatsApp IDs.`
+              )
+            } catch (updateError) {
+              // If we can't update it, or it's still deleted, throw an error
+              const updateErrorMessage = updateError instanceof Error ? updateError.message : String(updateError)
+              if (updateErrorMessage.includes("Cannot use ManyChat subscriber")) {
+                throw updateError
+              }
+              throw new Error(
+                `Cannot create or reactivate ManyChat subscriber: a deleted subscriber with WhatsApp ID ${phone.replace(
+                  /\D/g,
+                  ""
+                )} exists, but failed to update it: ${updateErrorMessage}`
+              )
+            }
+          } else {
+            throw new Error(
+              `Cannot create new ManyChat subscriber: a deleted subscriber with WhatsApp ID ${phone.replace(
+                /\D/g,
+                ""
+              )} exists but has no valid ID.`
+            )
+          }
+        }
+
+        // If it's not the WhatsApp ID error, rethrow
+        throw createError
       }
     }
 
-    // Fetch full subscriber data
-    const fullSubscriber = await this.getSubscriberById(subscriberId)
-    if (fullSubscriber) {
-      return fullSubscriber
-    }
-
-    // Fallback: return minimal subscriber object
-    return {
-      id: subscriberId,
-      subscriber_id: subscriberId,
-      phone: phone,
-      name: name,
-    }
+    // This should never be reached, but TypeScript needs it
+    throw new Error("Unexpected state in getOrCreateSubscriber")
   }
 }

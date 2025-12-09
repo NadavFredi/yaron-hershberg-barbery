@@ -1566,6 +1566,38 @@ export const AppointmentDetailsSheet = ({
                                 </>
                             )}
 
+                            {/* Client Section */}
+                            {selectedAppointment.clientId && (
+                                <>
+                                    <Separator />
+                                    <div className="space-y-3">
+                                        <h3 className="text-sm font-medium text-gray-900">לקוח</h3>
+                                        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => onClientClick({
+                                                    name: clientName,
+                                                    classification: classification,
+                                                    phone: selectedAppointment.clientPhone,
+                                                    email: selectedAppointment.clientEmail,
+                                                    recordId: selectedAppointment.recordId,
+                                                    recordNumber: selectedAppointment.recordNumber,
+                                                    clientId: selectedAppointment.clientId,
+                                                    id: selectedAppointment.clientId
+                                                })}
+                                                className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                            >
+                                                {clientName}
+                                            </button>
+                                            {classification && classification !== "לא ידוע" && (
+                                                <div className="mt-1 text-xs text-gray-600">
+                                                    סיווג: <span className="font-medium text-gray-700">{classification}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             {/* Images Section */}
                             <Separator />
