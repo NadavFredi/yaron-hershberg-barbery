@@ -41,6 +41,24 @@ ALTER TABLE public.pinned_appointments
 ALTER TABLE public.pinned_appointments 
   DROP CONSTRAINT IF EXISTS pinned_appointments_appointment_id_fkey;
 
+-- Change appointment_id from UUID to TEXT to support both UUIDs (for appointments) 
+-- and string IDs starting with "proposed-" (for proposed meetings)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'pinned_appointments' 
+    AND column_name = 'appointment_id'
+    AND data_type = 'uuid'
+  ) THEN
+    -- Convert UUID to TEXT
+    ALTER TABLE public.pinned_appointments 
+      ALTER COLUMN appointment_id TYPE TEXT USING appointment_id::TEXT;
+  END IF;
+END $$;
+
+-- Ensure appointment_id is TEXT (handled above if it was UUID)
 -- Add appointment_type column if it doesn't exist
 DO $$
 BEGIN
@@ -81,22 +99,10 @@ BEGIN
   END IF;
 END $$;
 
--- Add foreign key to grooming_appointments
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_schema = 'public' 
-    AND table_name = 'pinned_appointments' 
-    AND constraint_name = 'pinned_appointments_appointment_id_fkey'
-  ) THEN
-    ALTER TABLE public.pinned_appointments 
-      ADD CONSTRAINT pinned_appointments_appointment_id_fkey 
-      FOREIGN KEY (appointment_id) 
-      REFERENCES public.grooming_appointments(id) 
-      ON DELETE CASCADE;
-  END IF;
-END $$;
+-- Note: We cannot add a foreign key constraint to appointment_id because:
+-- 1. It needs to support both UUIDs (for grooming_appointments) and string IDs starting with "proposed-" (for proposed_meetings)
+-- 2. PostgreSQL foreign keys require matching types and can't reference multiple tables
+-- The application code should handle validation of appointment IDs
 
 -- Add unique constraint with appointment_type
 DO $$

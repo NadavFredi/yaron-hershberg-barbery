@@ -9,8 +9,6 @@ import { MANYCHAT_FLOW_IDS } from "@/lib/manychat"
 import {
     setIsDetailsOpen,
     setSelectedAppointment,
-    setGardenEditOpen,
-    setEditingGardenAppointment,
     setGroomingEditOpen,
     setEditingGroomingAppointment,
     setAppointmentToDelete,
@@ -190,13 +188,8 @@ export function ManagerAppointmentDetailsSheet() {
     }
 
     const handleEditAppointment = (appointment: ManagerAppointment) => {
-        if (appointment.serviceType === "garden") {
-            dispatch(setEditingGardenAppointment(appointment))
-            dispatch(setGardenEditOpen(true))
-        } else {
-            dispatch(setEditingGroomingAppointment(appointment))
-            dispatch(setGroomingEditOpen(true))
-        }
+        dispatch(setEditingGroomingAppointment(appointment))
+        dispatch(setGroomingEditOpen(true))
     }
 
     const handleCancelAppointment = (appointment: ManagerAppointment) => {
@@ -206,9 +199,7 @@ export function ManagerAppointmentDetailsSheet() {
         dispatch(setAppointmentToCancel(appointment))
         dispatch(setUpdateCustomerCancel(false))
         dispatch(setCancelConfirmationOpen(true))
-        dispatch(setGardenEditOpen(false))
         dispatch(setGroomingEditOpen(false))
-        dispatch(setEditingGardenAppointment(null))
         dispatch(setEditingGroomingAppointment(null))
     }
 
@@ -220,9 +211,7 @@ export function ManagerAppointmentDetailsSheet() {
         dispatch(setAppointmentToDelete(appointment))
         dispatch(setUpdateCustomer(false))
         dispatch(setDeleteConfirmationOpen(true))
-        dispatch(setGardenEditOpen(false))
         dispatch(setGroomingEditOpen(false))
-        dispatch(setEditingGardenAppointment(null))
         dispatch(setEditingGroomingAppointment(null))
     }
 
@@ -276,10 +265,10 @@ export function ManagerAppointmentDetailsSheet() {
                 proposedMeetingId: meeting.proposedMeetingId,
                 notificationCount: invite.notificationCount ?? 0,
             }).unwrap()
-            
+
             // Trigger ManyChat flow
             await triggerManyChatFlow([invite])
-            
+
             toast({
                 title: "ההזמנה נשלחה",
                 description: invite.customerName ? `נשלח קוד ל-${invite.customerName}` : "ההודעה נשלחה בהצלחה",
@@ -326,10 +315,10 @@ export function ManagerAppointmentDetailsSheet() {
                     notificationCount: invite.notificationCount ?? 0,
                 }).unwrap()
             }
-            
+
             // Trigger ManyChat flow for all invites
             await triggerManyChatFlow(meeting.proposedInvites || [])
-            
+
             toast({
                 title: "ההודעות נשלחו",
                 description: "כל הלקוחות קיבלו קישור עם קוד הגישה.",
@@ -363,10 +352,10 @@ export function ManagerAppointmentDetailsSheet() {
                     notificationCount: invite.notificationCount ?? 0,
                 }).unwrap()
             }
-            
+
             // Trigger ManyChat flow for category invites
             await triggerManyChatFlow(invites)
-            
+
             toast({
                 title: "ההודעות נשלחו",
                 description: `הקטגוריה נשלחה ל-${invites.length} לקוחות.`,
@@ -399,10 +388,10 @@ export function ManagerAppointmentDetailsSheet() {
                     notificationCount: invite.notificationCount ?? 0,
                 }).unwrap()
             }
-            
+
             // Trigger ManyChat flow for all category invites
             await triggerManyChatFlow(invites)
-            
+
             toast({
                 title: "ההודעות נשלחו",
                 description: `כל הקטגוריות נשלחו ל-${invites.length} לקוחות.`,

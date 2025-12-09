@@ -10,15 +10,13 @@ import { MANYCHAT_FLOW_IDS, getManyChatCustomFieldId } from "@/lib/manychat"
 import {
     setApproveWithModifyDialogOpen,
     setAppointmentToApproveWithModify,
-    setGardenEditOpen,
     setGroomingEditOpen,
     setPersonalAppointmentEditOpen,
-    setEditingGardenAppointment,
     setEditingGroomingAppointment,
     setEditingPersonalAppointment,
 } from "@/store/slices/managerScheduleSlice"
 import { approveAppointmentByManager } from "@/integrations/supabase/supabaseService"
-import { extractGardenAppointmentId, extractGroomingAppointmentId } from "@/lib/utils"
+import { extractGroomingAppointmentId } from "@/lib/utils"
 import { supabaseApi } from "@/store/services/supabaseApi"
 import type { CheckedState } from "@radix-ui/react-checkbox"
 import { Loader2 } from "lucide-react"
@@ -57,11 +55,8 @@ export function ApproveWithModifyDialog() {
             return
         }
 
-        // Determine which date field to use based on service type
-        const isGarden = appointment.serviceType === 'garden'
-        const dateFieldId = isGarden
-            ? getManyChatCustomFieldId("GARDEN_DATE_APPOINTMENT")
-            : getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
+        // Use barber date field for all appointments
+        const dateFieldId = getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
 
         // Get hour and dog name fields (send for all appointment types)
         const hourFieldId = getManyChatCustomFieldId("BARBER_HOUR_APPOINTMENT")
@@ -129,18 +124,10 @@ export function ApproveWithModifyDialog() {
             }
 
             // After ManyChat flow succeeds, approve the appointment
-            // Only approve grooming and garden appointments (not personal appointments)
+            // Only approve grooming appointments (not personal appointments)
             if (!appointment.isPersonalAppointment && appointment.appointmentType !== "private") {
-                let appointmentId: string
-                const appointmentType = appointment.serviceType === "grooming" ? "grooming" : "garden"
-
-                if (appointment.serviceType === "grooming") {
-                    appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
-                } else {
-                    appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
-                }
-
-                const approvalResult = await approveAppointmentByManager(appointmentId, appointmentType, "scheduled")
+                const appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
+                const approvalResult = await approveAppointmentByManager(appointmentId, "grooming", "scheduled")
 
                 if (!approvalResult.success) {
                     throw new Error(approvalResult.error || "לא ניתן לאשר את התור")
@@ -152,8 +139,7 @@ export function ApproveWithModifyDialog() {
                     supabaseApi.util.invalidateTags([
                         { type: 'ManagerSchedule', id: 'LIST' },
                         'ManagerSchedule',
-                        'Appointment',
-                        'GardenAppointment'
+                        'Appointment'
                     ])
                 )
                 console.log("✅ [ApproveWithModifyDialog] Cache invalidation dispatched")
@@ -164,10 +150,7 @@ export function ApproveWithModifyDialog() {
             dispatch(setAppointmentToApproveWithModify(null))
 
             // Open the appropriate edit modal
-            if (appointment.serviceType === "garden") {
-                dispatch(setEditingGardenAppointment(appointment))
-                dispatch(setGardenEditOpen(true))
-            } else if (appointment.isPersonalAppointment || appointment.appointmentType === "private") {
+            if (appointment.isPersonalAppointment || appointment.appointmentType === "private") {
                 dispatch(setEditingPersonalAppointment(appointment))
                 dispatch(setPersonalAppointmentEditOpen(true))
             } else {

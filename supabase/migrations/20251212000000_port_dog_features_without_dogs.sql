@@ -260,7 +260,7 @@ CREATE TABLE IF NOT EXISTS public.appointment_session_images (
 -- Scheduling helpers ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.pinned_appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  appointment_id UUID NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE,
+  appointment_id TEXT NOT NULL, -- TEXT to support both UUIDs (appointments) and "proposed-" prefixed IDs (proposed meetings)
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   reason TEXT,
   notes TEXT,

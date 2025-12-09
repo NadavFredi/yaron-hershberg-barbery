@@ -18,7 +18,7 @@ export interface ProposedMeetingPublicDetails {
   summary?: string | null
   notes?: string | null
   status: string
-  serviceType: "grooming" | "garden"
+  serviceType: "grooming"
   startAt: string
   endAt: string
   stationId?: string | null

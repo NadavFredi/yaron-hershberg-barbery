@@ -87,6 +87,12 @@ export function extractGroomingAppointmentId(appointmentId: string, groomingAppo
     return groomingAppointmentId
   }
   
+  // If it's a "proposed-" prefixed ID, it's a proposed meeting and not a real grooming appointment
+  // Return empty string to indicate this is not a valid grooming appointment ID
+  if (appointmentId.startsWith("proposed-")) {
+    return ""
+  }
+  
   // Try to extract from combined ID
   const combinedIds = extractCombinedAppointmentIds(appointmentId)
   if (combinedIds) {

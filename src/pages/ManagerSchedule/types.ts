@@ -1,9 +1,9 @@
-export type ManagerServiceFilter = "grooming" | "garden" | "both"
+export type ManagerServiceFilter = "grooming"
 
 export interface ManagerStation {
   id: string
   name: string
-  serviceType: "grooming" | "garden"
+  serviceType: "grooming"
   color?: string
   isActive: boolean
   displayOrder?: number
@@ -51,7 +51,7 @@ export interface ProposedMeetingDogCategory {
 
 export interface ManagerAppointment {
   id: string
-  serviceType: "grooming" | "garden"
+  serviceType: "grooming"
   stationId: string
   stationName: string
   startDateTime: string
@@ -73,11 +73,6 @@ export interface ManagerAppointment {
   durationMinutes?: number
   latePickupRequested?: boolean
   latePickupNotes?: string
-  gardenTrimNails?: boolean
-  gardenBrush?: boolean
-  gardenBath?: boolean
-  gardenAppointmentType?: "full-day" | "hourly"
-  gardenIsTrial?: boolean
   appointmentType?: "private" | "business"
   recordId?: string
   recordNumber?: string
@@ -167,7 +162,7 @@ export type ConstraintResizeState = {
   pointerId: number
 }
 
-export type WaitlistServiceScope = "grooming" | "daycare" | "both"
+export type WaitlistServiceScope = "grooming"
 
 export interface ManagerWaitlistEntry {
   id: string
@@ -222,4 +217,3 @@ export interface ClientDetails {
 }
 
 // Removed DogDetails interface - barbery system doesn't use dogs
-

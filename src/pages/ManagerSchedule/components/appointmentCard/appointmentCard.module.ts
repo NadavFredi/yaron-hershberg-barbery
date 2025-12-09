@@ -11,11 +11,9 @@ import {
   setCancelConfirmationOpen,
   setDeleteConfirmationOpen,
   setDuplicateSeriesOpen,
-  setEditingGardenAppointment,
   setEditingGroomingAppointment,
   setEditingPersonalAppointment,
   setEditingProposedMeeting,
-  setGardenEditOpen,
   setGroomingEditOpen,
   setPersonalAppointmentEditOpen,
   setIsClientDetailsOpen,
@@ -293,9 +291,18 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
   }, [appointment.status, appointment.isProposedMeeting, isCancelled])
 
   // Check if there's a paid cart/order related to this appointment
+  // Skip orders query for proposed meetings (they don't have orders)
+  // Extract actual UUID - proposed meetings won't have a valid grooming appointment ID
+  const actualGroomingId = appointment.isProposedMeeting
+    ? undefined
+    : extractGroomingAppointmentId(appointment.id, (appointment as any).groomingAppointmentId)
+
   const { data: appointmentOrders } = useGetAppointmentOrdersQuery(
-    { appointmentId: appointment.id, serviceType: appointment.serviceType === "grooming" ? "grooming" : "garden" },
-    { skip: !appointment.id || appointment.isProposedMeeting }
+    {
+      appointmentId: actualGroomingId || appointment.id,
+      serviceType: appointment.serviceType === "grooming" ? "grooming" : "garden",
+    },
+    { skip: !actualGroomingId || appointment.isProposedMeeting }
   )
 
   const hasPaidOrder = useMemo(() => {
@@ -581,15 +588,29 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
         })
 
         // Add appointments that aren't already in the cart
-        const appointmentsToAdd = allAppointments.filter((apt) => !existingAppointmentIds.has(apt.id))
+        // Filter out proposed meetings (they can't be added to carts)
+        const appointmentsToAdd = allAppointments.filter((apt) => {
+          if (apt.isProposedMeeting) return false // Skip proposed meetings
+          return !existingAppointmentIds.has(apt.id)
+        })
 
         if (appointmentsToAdd.length > 0) {
-          const cartAppointmentsToInsert = appointmentsToAdd.map((apt) => ({
-            cart_id: cartId,
-            grooming_appointment_id: apt.serviceType === "grooming" ? apt.id : null,
-            daycare_appointment_id: apt.serviceType === "garden" ? apt.id : null,
-            appointment_price: apt.amountDue,
-          }))
+          const cartAppointmentsToInsert = appointmentsToAdd.map((apt) => {
+            // Extract actual UUID for grooming appointments
+            const actualGroomingId =
+              apt.serviceType === "grooming"
+                ? extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
+                : null
+            const actualGardenId =
+              apt.serviceType === "garden" ? extractGardenAppointmentId(apt.id, (apt as any).gardenAppointmentId) : null
+
+            return {
+              cart_id: cartId,
+              grooming_appointment_id: actualGroomingId || null,
+              daycare_appointment_id: actualGardenId || null,
+              appointment_price: apt.amountDue,
+            }
+          })
 
           const { error: insertError } = await supabase.from("cart_appointments").insert(cartAppointmentsToInsert)
 
@@ -627,10 +648,17 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
         cartId = newCart.id
 
         // Add all appointments to cart_appointments
-        const cartAppointmentsToInsert = allAppointments.map((apt) => ({
+        // Filter out proposed meetings (they can't be added to carts)
+        const appointmentsToAddToNewCart = allAppointments.filter((apt) => !apt.isProposedMeeting)
+
+        const cartAppointmentsToInsert = appointmentsToAddToNewCart.map((apt) => ({
           cart_id: cartId,
-          grooming_appointment_id: apt.serviceType === "grooming" ? apt.id : null,
-          daycare_appointment_id: apt.serviceType === "garden" ? apt.id : null,
+          grooming_appointment_id:
+            apt.serviceType === "grooming"
+              ? extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
+              : null,
+          daycare_appointment_id:
+            apt.serviceType === "garden" ? extractGardenAppointmentId(apt.id, (apt as any).gardenAppointmentId) : null,
           appointment_price: apt.amountDue,
         }))
 
@@ -692,21 +720,6 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
     dispatch(setShowRescheduleProposalModal(true))
   }, [dispatch, toast, appointment])
 
-  const openGardenEditModal = useCallback(() => {
-    const dates = getAppointmentDates(appointment)
-    if (!dates) {
-      toast({
-        title: "שגיאה בעריכת התור",
-        description: "לא ניתן לפתוח את עריכת התור בגלל נתוני זמן חסרים או לא תקינים.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    dispatch(setEditingGardenAppointment(appointment))
-    dispatch(setGardenEditOpen(true))
-  }, [dispatch, toast, appointment])
-
   const openGroomingEditModal = useCallback(() => {
     const startDate = parseISODate(appointment.startDateTime)
     if (!startDate) {
@@ -760,10 +773,31 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
       const appointmentType = appointment.serviceType === "grooming" ? "grooming" : "garden"
 
       if (appointment.serviceType === "grooming") {
-        appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
+        appointmentId = extractGroomingAppointmentId(appointment.id)
       } else {
-        appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
+        appointmentId = extractGardenAppointmentId(appointment.id)
       }
+
+      // Optimistically update Redux cache immediately
+      dispatch(
+        supabaseApi.util.updateQueryData(
+          "getManagerSchedule",
+          { date: formattedDate, serviceType: "both" },
+          (draft) => {
+            if (draft && draft.appointments) {
+              const appointmentIndex = draft.appointments.findIndex(
+                (apt) =>
+                  (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
+                  (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
+              )
+              if (appointmentIndex !== -1) {
+                draft.appointments[appointmentIndex].status = "scheduled"
+                draft.appointments[appointmentIndex].updated_at = new Date().toISOString()
+              }
+            }
+          }
+        )
+      )
 
       const result = await approveAppointmentByManager(appointmentId, appointmentType, "scheduled")
 
@@ -772,11 +806,30 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
           title: "הצלחה",
           description: result.message || "התור אושר בהצלחה",
         })
-        // Invalidate cache to refresh the schedule
+        // Invalidate cache to refresh the schedule (ensures data consistency)
         dispatch(
           supabaseApi.util.invalidateTags([{ type: "ManagerSchedule", id: "LIST" }, "Appointment", "GardenAppointment"])
         )
       } else {
+        // Revert optimistic update on error
+        dispatch(
+          supabaseApi.util.updateQueryData(
+            "getManagerSchedule",
+            { date: formattedDate, serviceType: "both" },
+            (draft) => {
+              if (draft && draft.appointments) {
+                const appointmentIndex = draft.appointments.findIndex(
+                  (apt) =>
+                    (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
+                    (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
+                )
+                if (appointmentIndex !== -1) {
+                  draft.appointments[appointmentIndex].status = appointment.status
+                }
+              }
+            }
+          )
+        )
         toast({
           title: "שגיאה",
           description: result.error || "לא ניתן לאשר את התור",
@@ -784,6 +837,31 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
         })
       }
     } catch (error) {
+      // Revert optimistic update on error
+      let appointmentId: string
+      if (appointment.serviceType === "grooming") {
+        appointmentId = extractGroomingAppointmentId(appointment.id)
+      } else {
+        appointmentId = extractGardenAppointmentId(appointment.id)
+      }
+      dispatch(
+        supabaseApi.util.updateQueryData(
+          "getManagerSchedule",
+          { date: formattedDate, serviceType: "both" },
+          (draft) => {
+            if (draft && draft.appointments) {
+              const appointmentIndex = draft.appointments.findIndex(
+                (apt) =>
+                  (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
+                  (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
+              )
+              if (appointmentIndex !== -1) {
+                draft.appointments[appointmentIndex].status = appointment.status
+              }
+            }
+          }
+        )
+      )
       console.error("Error approving appointment:", error)
       toast({
         title: "שגיאה",
@@ -791,17 +869,38 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
         variant: "destructive",
       })
     }
-  }, [appointment, toast, dispatch])
+  }, [appointment, toast, dispatch, formattedDate])
 
   const handleDeclineAppointment = useCallback(async () => {
     try {
       let appointmentId: string
 
       if (appointment.serviceType === "grooming") {
-        appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
+        appointmentId = extractGroomingAppointmentId(appointment.id)
       } else {
-        appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
+        appointmentId = extractGardenAppointmentId(appointment.id)
       }
+
+      // Optimistically update Redux cache immediately
+      dispatch(
+        supabaseApi.util.updateQueryData(
+          "getManagerSchedule",
+          { date: formattedDate, serviceType: "both" },
+          (draft) => {
+            if (draft && draft.appointments) {
+              const appointmentIndex = draft.appointments.findIndex(
+                (apt) =>
+                  (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
+                  (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
+              )
+              if (appointmentIndex !== -1) {
+                draft.appointments[appointmentIndex].status = "cancelled"
+                draft.appointments[appointmentIndex].updated_at = new Date().toISOString()
+              }
+            }
+          }
+        )
+      )
 
       const result = await cancelAppointment(appointmentId)
 
@@ -810,9 +909,28 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
           title: "הצלחה",
           description: "התור בוטל בהצלחה",
         })
-        // Invalidate cache to refresh the schedule
+        // Invalidate cache to refresh the schedule (ensures data consistency)
         dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"]))
       } else {
+        // Revert optimistic update on error
+        dispatch(
+          supabaseApi.util.updateQueryData(
+            "getManagerSchedule",
+            { date: formattedDate, serviceType: "both" },
+            (draft) => {
+              if (draft && draft.appointments) {
+                const appointmentIndex = draft.appointments.findIndex(
+                  (apt) =>
+                    (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
+                    (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
+                )
+                if (appointmentIndex !== -1) {
+                  draft.appointments[appointmentIndex].status = appointment.status
+                }
+              }
+            }
+          )
+        )
         toast({
           title: "שגיאה",
           description: result.error || "לא ניתן לבטל את התור",
@@ -820,6 +938,31 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
         })
       }
     } catch (error) {
+      // Revert optimistic update on error
+      let appointmentId: string
+      if (appointment.serviceType === "grooming") {
+        appointmentId = extractGroomingAppointmentId(appointment.id)
+      } else {
+        appointmentId = extractGardenAppointmentId(appointment.id)
+      }
+      dispatch(
+        supabaseApi.util.updateQueryData(
+          "getManagerSchedule",
+          { date: formattedDate, serviceType: "both" },
+          (draft) => {
+            if (draft && draft.appointments) {
+              const appointmentIndex = draft.appointments.findIndex(
+                (apt) =>
+                  (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
+                  (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
+              )
+              if (appointmentIndex !== -1) {
+                draft.appointments[appointmentIndex].status = appointment.status
+              }
+            }
+          }
+        )
+      )
       console.error("Error declining appointment:", error)
       toast({
         title: "שגיאה",
@@ -827,7 +970,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
         variant: "destructive",
       })
     }
-  }, [appointment, toast, dispatch])
+  }, [appointment, toast, dispatch, formattedDate])
 
   const handleApproveWithChange = useCallback(() => {
     // Open approve with modify dialog first
@@ -891,7 +1034,6 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
     handleDuplicateAppointment,
     handlePaymentClick,
     handleOpenRescheduleProposal,
-    openGardenEditModal,
     openGroomingEditModal,
     openPersonalAppointmentEditModal,
     handleExpandCard,

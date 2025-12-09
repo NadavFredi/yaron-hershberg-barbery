@@ -25,7 +25,6 @@ import {
   setSelectedDate,
   setShowWaitingListColumn,
   setShowPinnedAppointmentsColumn,
-  setShowGardenColumn,
 } from "@/store/slices/managerScheduleSlice"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -98,7 +97,6 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
   const serviceFilter = useAppSelector((state) => state.managerSchedule.serviceFilter)
   const showPinnedAppointmentsColumn = useAppSelector((state) => state.managerSchedule.showPinnedAppointmentsColumn)
   const showWaitingListColumn = useAppSelector((state) => state.managerSchedule.showWaitingListColumn)
-  const showGardenColumn = useAppSelector((state) => state.managerSchedule.showGardenColumn)
   const isStationOrderSaving = useAppSelector((state) => state.managerSchedule.isStationOrderSaving)
   const scheduleSearchTerm = useAppSelector((state) => state.managerSchedule.scheduleSearchTerm)
   const isScheduleSearchOpen = useAppSelector((state) => state.managerSchedule.isScheduleSearchOpen)
@@ -195,23 +193,14 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
     return stationsToShow.filter(station => station.serviceType !== "garden")
   }, [stations, visibleStationIds, serviceFilter, shouldHideAllStations])
 
-  // Compute garden columns visibility
-  const shouldShowGardenColumns = useMemo(() => {
-    if (shouldHideAllStations) return false
-    if (serviceFilter === "grooming") return false
-    // Show garden column if enabled in database settings, regardless of appointments
-    return showGardenColumn
-  }, [serviceFilter, shouldHideAllStations, showGardenColumn])
-
   // Compute visible stations - show all filtered stations (no pagination)
-  const gardenColumnCount = shouldShowGardenColumns ? 1 : 0
   const visibleStations = filteredStations // Show all stations, no window pagination
 
-  // Compute grid template columns - station/garden columns expand but never shrink below the standard width
+  // Compute grid template columns - station columns expand but never shrink below the standard width
   // MUST match ManagerScheduleContent order and structure exactly
-  // Order: TimeAxis -> Pinned -> WaitingList -> Garden/Stations (direction: rtl will place TimeAxis on the right)
+  // Order: TimeAxis -> Pinned -> WaitingList -> Stations (direction: rtl will place TimeAxis on the right)
   const timeAxisWidth = 70
-  const scheduledColumnCount = gardenColumnCount + visibleStations.length
+  const scheduledColumnCount = visibleStations.length
   const gridColumnParts: string[] = [`${timeAxisWidth}px`]
   // Order MUST match ManagerScheduleContent: TimeAxis -> Pinned -> WaitingList -> Garden -> Stations
   if (showPinnedAppointmentsColumn) {
@@ -881,7 +870,7 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
       params.delete("stations")
       setSearchParams(params, { replace: true })
     }
-    
+
     // Directly load stations from DB config for the current weekday
     // We do this directly to ensure it happens immediately, regardless of persistence hook state
     const date = selectedDate
@@ -912,9 +901,9 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
 
       if (data) {
         // Check if config exists but has empty arrays (which means no stations configured)
-        const hasEmptyConfig = (!data.visible_station_ids || data.visible_station_ids.length === 0) && 
-                               (!data.station_order_ids || data.station_order_ids.length === 0)
-        
+        const hasEmptyConfig = (!data.visible_station_ids || data.visible_station_ids.length === 0) &&
+          (!data.station_order_ids || data.station_order_ids.length === 0)
+
         if (hasEmptyConfig) {
           console.warn("[RestoreDaily] DB config exists but has empty arrays - this means no stations are configured for", weekday)
           // Don't change anything if the config is empty - this likely means the config wasn't set up properly
@@ -1032,10 +1021,6 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
                 pinnedAppointmentsCount={pinnedAppointmentsHook.pinnedAppointments?.length ?? 0}
                 onTogglePinnedAppointments={(next) => {
                   dispatch(setShowPinnedAppointmentsColumn(next))
-                }}
-                showGardenColumn={showGardenColumn}
-                onToggleGarden={(next) => {
-                  dispatch(setShowGardenColumn(next))
                 }}
                 align="start"
                 trigger={

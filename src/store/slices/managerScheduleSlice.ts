@@ -245,8 +245,6 @@ interface ManagerScheduleState {
     oldEndTime: string // ISO string
     newStartTime: string // ISO string
     newEndTime: string // ISO string
-    newGardenAppointmentType?: "full-day" | "hourly" | "trial"
-    newGardenIsTrial?: boolean
     selectedHours?: { start: string; end: string }
   } | null
 
@@ -261,8 +259,6 @@ interface ManagerScheduleState {
   isLoadingAppointment: boolean
 
   // Modal states
-  newGardenAppointmentModalOpen: boolean
-  newGardenAppointmentType: "full-day" | "hourly" | "trial" | null
   showAppointmentTypeSelection: boolean
   showServiceTypeSelectionModal: boolean
   showDogAppointmentsModal: boolean
@@ -309,23 +305,17 @@ interface ManagerScheduleState {
   pinnedAppointmentDropAction: "proposal" | "move" | "new" | null
   pinnedAppointmentDropRemoveFromPinned: boolean
 
-  // Garden edit modal states
-  gardenEditOpen: boolean
-  editingGardenAppointment: ManagerAppointment | null
-  gardenEditLoading: boolean
-  updateCustomerGarden: boolean
-
   // Grooming edit modal states
   groomingEditOpen: boolean
   editingGroomingAppointment: ManagerAppointment | null
   groomingEditLoading: boolean
   updateCustomerGrooming: boolean
-  
+
   // Personal appointment edit modal states
   personalAppointmentEditOpen: boolean
   editingPersonalAppointment: ManagerAppointment | null
   personalAppointmentEditLoading: boolean
-  
+
   pendingResizeState: {
     appointment: ManagerAppointment
     originalEndTime: string // ISO string
@@ -372,7 +362,6 @@ interface ManagerScheduleState {
   // Column visibility states
   showPinnedAppointmentsColumn: boolean
   showWaitingListColumn: boolean
-  showGardenColumn: boolean
 }
 
 const initialState: ManagerScheduleState = {
@@ -409,9 +398,9 @@ const initialState: ManagerScheduleState = {
   showBusinessAppointmentModal: false,
   showPrivateAppointmentModal: false,
   privateAppointmentForm: {
-    name: '',
+    name: "",
     selectedStations: [],
-    notes: '',
+    notes: "",
   },
   prefillBusinessCustomer: null,
   prefillBusinessDog: null,
@@ -478,8 +467,6 @@ const initialState: ManagerScheduleState = {
   isLoadingAppointment: false,
 
   // Modal states
-  newGardenAppointmentModalOpen: false,
-  newGardenAppointmentType: null,
   showAppointmentTypeSelection: false,
   showServiceTypeSelectionModal: false,
   showDogAppointmentsModal: false,
@@ -507,23 +494,17 @@ const initialState: ManagerScheduleState = {
   pinnedAppointmentDropAction: null,
   pinnedAppointmentDropRemoveFromPinned: false,
 
-  // Garden edit modal states
-  gardenEditOpen: false,
-  editingGardenAppointment: null,
-  gardenEditLoading: false,
-  updateCustomerGarden: false,
-
   // Grooming edit modal states
   groomingEditOpen: false,
   editingGroomingAppointment: null,
   groomingEditLoading: false,
   updateCustomerGrooming: false,
-  
+
   // Personal appointment edit modal states
   personalAppointmentEditOpen: false,
   editingPersonalAppointment: null,
   personalAppointmentEditLoading: false,
-  
+
   pendingResizeState: null,
 
   // Proposed meeting invite states
@@ -552,7 +533,6 @@ const initialState: ManagerScheduleState = {
   // Column visibility states
   showPinnedAppointmentsColumn: false,
   showWaitingListColumn: false,
-  showGardenColumn: false,
 }
 
 const managerScheduleSlice = createSlice({
@@ -665,14 +645,24 @@ const managerScheduleSlice = createSlice({
       if (!action.payload) {
         // Reset form when modal closes
         state.privateAppointmentForm = {
-          name: '',
+          name: "",
           selectedStations: [],
-          notes: '',
+          notes: "",
         }
       }
     },
-    setPrivateAppointmentForm: (state, action: PayloadAction<{ name: string; selectedStations: string[]; notes: string } | ((prev: { name: string; selectedStations: string[]; notes: string }) => { name: string; selectedStations: string[]; notes: string })>) => {
-      if (typeof action.payload === 'function') {
+    setPrivateAppointmentForm: (
+      state,
+      action: PayloadAction<
+        | { name: string; selectedStations: string[]; notes: string }
+        | ((prev: { name: string; selectedStations: string[]; notes: string }) => {
+            name: string
+            selectedStations: string[]
+            notes: string
+          })
+      >
+    ) => {
+      if (typeof action.payload === "function") {
         state.privateAppointmentForm = action.payload(state.privateAppointmentForm)
       } else {
         state.privateAppointmentForm = action.payload
@@ -886,7 +876,7 @@ const managerScheduleSlice = createSlice({
       }
     },
     removeExpandedConstraint: (state, action: PayloadAction<string>) => {
-      state.expandedConstraints = state.expandedConstraints.filter(id => id !== action.payload)
+      state.expandedConstraints = state.expandedConstraints.filter((id) => id !== action.payload)
     },
     setExpandedAppointmentCards: (state, action: PayloadAction<string[]>) => {
       state.expandedAppointmentCards = action.payload
@@ -897,7 +887,7 @@ const managerScheduleSlice = createSlice({
       }
     },
     removeExpandedAppointmentCard: (state, action: PayloadAction<string>) => {
-      state.expandedAppointmentCards = state.expandedAppointmentCards.filter(id => id !== action.payload)
+      state.expandedAppointmentCards = state.expandedAppointmentCards.filter((id) => id !== action.payload)
     },
     setResizingPreview: {
       reducer: (state, action: PayloadAction<{ appointmentId: string; endDate: string } | null>) => {
@@ -964,8 +954,6 @@ const managerScheduleSlice = createSlice({
           oldEndTime: Date | string
           newStartTime: Date | string
           newEndTime: Date | string
-          newGardenAppointmentType?: "full-day" | "hourly" | "trial"
-          newGardenIsTrial?: boolean
           selectedHours?: { start: string; end: string }
         } | null
       ) => {
@@ -973,9 +961,11 @@ const managerScheduleSlice = createSlice({
         return {
           payload: {
             ...payload,
-            oldStartTime: payload.oldStartTime instanceof Date ? payload.oldStartTime.toISOString() : payload.oldStartTime,
+            oldStartTime:
+              payload.oldStartTime instanceof Date ? payload.oldStartTime.toISOString() : payload.oldStartTime,
             oldEndTime: payload.oldEndTime instanceof Date ? payload.oldEndTime.toISOString() : payload.oldEndTime,
-            newStartTime: payload.newStartTime instanceof Date ? payload.newStartTime.toISOString() : payload.newStartTime,
+            newStartTime:
+              payload.newStartTime instanceof Date ? payload.newStartTime.toISOString() : payload.newStartTime,
             newEndTime: payload.newEndTime instanceof Date ? payload.newEndTime.toISOString() : payload.newEndTime,
           },
         }
@@ -1005,12 +995,6 @@ const managerScheduleSlice = createSlice({
     },
 
     // Modal actions
-    setNewGardenAppointmentModalOpen: (state, action: PayloadAction<boolean>) => {
-      state.newGardenAppointmentModalOpen = action.payload
-    },
-    setNewGardenAppointmentType: (state, action: PayloadAction<"full-day" | "hourly" | "trial" | null>) => {
-      state.newGardenAppointmentType = action.payload
-    },
     setShowAppointmentTypeSelection: (state, action: PayloadAction<boolean>) => {
       state.showAppointmentTypeSelection = action.payload
     },
@@ -1116,29 +1100,11 @@ const managerScheduleSlice = createSlice({
     ) => {
       state.pinnedAppointmentDropDetails = action.payload
     },
-    setPinnedAppointmentDropAction: (
-      state,
-      action: PayloadAction<"proposal" | "move" | "new" | null>
-    ) => {
+    setPinnedAppointmentDropAction: (state, action: PayloadAction<"proposal" | "move" | "new" | null>) => {
       state.pinnedAppointmentDropAction = action.payload
     },
-    setPinnedAppointmentDropRemoveFromPinned: (
-      state,
-      action: PayloadAction<boolean>
-    ) => {
+    setPinnedAppointmentDropRemoveFromPinned: (state, action: PayloadAction<boolean>) => {
       state.pinnedAppointmentDropRemoveFromPinned = action.payload
-    },
-    setGardenEditOpen: (state, action: PayloadAction<boolean>) => {
-      state.gardenEditOpen = action.payload
-    },
-    setEditingGardenAppointment: (state, action: PayloadAction<ManagerAppointment | null>) => {
-      state.editingGardenAppointment = action.payload
-    },
-    setGardenEditLoading: (state, action: PayloadAction<boolean>) => {
-      state.gardenEditLoading = action.payload
-    },
-    setUpdateCustomerGarden: (state, action: PayloadAction<boolean>) => {
-      state.updateCustomerGarden = action.payload
     },
     setGroomingEditOpen: (state, action: PayloadAction<boolean>) => {
       state.groomingEditOpen = action.payload
@@ -1225,9 +1191,6 @@ const managerScheduleSlice = createSlice({
     setShowWaitingListColumn: (state, action: PayloadAction<boolean>) => {
       state.showWaitingListColumn = action.payload
     },
-    setShowGardenColumn: (state, action: PayloadAction<boolean>) => {
-      state.showGardenColumn = action.payload
-    },
 
     // Reset all modals
     closeAllModals: (state) => {
@@ -1237,7 +1200,6 @@ const managerScheduleSlice = createSlice({
       state.isConstraintDetailsOpen = false
       state.showBusinessAppointmentModal = false
       state.showWaitlistDropDialog = false
-      state.newGardenAppointmentModalOpen = false
       state.showServiceTypeSelectionModal = false
       state.showDogAppointmentsModal = false
       state.showPaymentModal = false
@@ -1360,8 +1322,6 @@ export const {
   setIsStationOrderSaving,
   setIsLoadingAppointment,
   // Modals
-  setNewGardenAppointmentModalOpen,
-  setNewGardenAppointmentType,
   setShowAppointmentTypeSelection,
   setShowServiceTypeSelectionModal,
   setShowDogAppointmentsModal,
@@ -1386,11 +1346,6 @@ export const {
   setPinnedAppointmentDropDetails,
   setPinnedAppointmentDropAction,
   setPinnedAppointmentDropRemoveFromPinned,
-  // Garden edit modal actions
-  setGardenEditOpen,
-  setEditingGardenAppointment,
-  setGardenEditLoading,
-  setUpdateCustomerGarden,
   // Grooming edit modal actions
   setGroomingEditOpen,
   setEditingGroomingAppointment,
@@ -1423,7 +1378,6 @@ export const {
   // Column visibility
   setShowPinnedAppointmentsColumn,
   setShowWaitingListColumn,
-  setShowGardenColumn,
   // Reset
   closeAllModals,
 } = managerScheduleSlice.actions

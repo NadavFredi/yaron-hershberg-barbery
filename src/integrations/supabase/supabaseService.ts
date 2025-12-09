@@ -1397,6 +1397,22 @@ export async function getSingleManagerAppointment(
   serviceType: "grooming"
 ): Promise<{ success: boolean; appointment?: ManagerAppointment; error?: string }> {
   try {
+    // Check if this is a proposed meeting UUID by checking if it exists in proposed_meetings table
+    // Proposed meetings use their actual UUID (not prefixed) when pinned
+    const { data: proposedMeeting } = await supabase
+      .from("proposed_meetings")
+      .select("id")
+      .eq("id", appointmentId)
+      .maybeSingle()
+
+    if (proposedMeeting) {
+      // This is a proposed meeting - it should be fetched via proposed meetings API
+      return {
+        success: false,
+        error: "Cannot fetch proposed meeting via getSingleManagerAppointment. Use proposed meetings API instead.",
+      }
+    }
+
     // Removed garden - barbery system only has grooming appointments
     const tableName = "grooming_appointments"
 

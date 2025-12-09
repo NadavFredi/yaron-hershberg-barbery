@@ -8,6 +8,7 @@ import {
   type PinReason,
 } from "./pinnedAppointmentsApi"
 import { useLazyGetManagerAppointmentQuery } from "@/store/services/supabaseApi"
+import { supabase } from "@/integrations/supabase/client"
 import type { ManagerAppointment, ManagerScheduleData } from "../types"
 
 interface UsePinnedAppointmentsOptions {
@@ -48,9 +49,17 @@ export function usePinnedAppointments({ scheduleData }: UsePinnedAppointmentsOpt
       
       const missingPins = pinnedAppointments.filter((pin) => {
         const key = `${pin.appointment_id}-${pin.appointment_type}`
-        const existsInSchedule = allAppointments.some(
-          (apt) => apt.id === pin.appointment_id && apt.serviceType === pin.appointment_type
-        )
+        // For proposed meetings (UUID stored), check both the UUID and prefixed ID
+        // For regular appointments, check by ID
+        const existsInSchedule = allAppointments.some((apt) => {
+          if (apt.serviceType === pin.appointment_type) {
+            // Match by regular ID
+            if (apt.id === pin.appointment_id) return true
+            // For proposed meetings, also match by proposedMeetingId (UUID)
+            if (apt.isProposedMeeting && apt.proposedMeetingId === pin.appointment_id) return true
+          }
+          return false
+        })
         return !existsInSchedule
       })
 
@@ -62,6 +71,21 @@ export function usePinnedAppointments({ scheduleData }: UsePinnedAppointmentsOpt
       const pinsToRemove: string[] = []
       
       for (const pin of missingPins) {
+        // Check if this is a proposed meeting UUID (try to fetch from proposed_meetings)
+        // Proposed meetings are stored with their actual UUID (not prefixed) when pinned
+        const { data: proposedMeeting } = await supabase
+          .from("proposed_meetings")
+          .select("id")
+          .eq("id", pin.appointment_id)
+          .maybeSingle()
+        
+        if (proposedMeeting) {
+          // This is a proposed meeting - it should be in schedule data
+          // If not found, it might have been deleted, but we don't auto-unpin proposed meetings
+          // as they might just not be loaded yet
+          continue
+        }
+        
         const serviceType = pin.appointment_type === "daycare" ? "garden" : "grooming"
         try {
           const appointment = await fetchManagerAppointment(
@@ -122,9 +146,16 @@ export function usePinnedAppointments({ scheduleData }: UsePinnedAppointmentsOpt
       const key = `${pin.appointment_id}-${pin.appointment_type}`
       
       // First try to find in schedule data
-      let appointment = allAppointments.find(
-        (apt) => apt.id === pin.appointment_id && apt.serviceType === pin.appointment_type
-      )
+      // For proposed meetings, check both the UUID and the prefixed ID
+      let appointment = allAppointments.find((apt) => {
+        if (apt.serviceType === pin.appointment_type) {
+          // Match by regular ID
+          if (apt.id === pin.appointment_id) return true
+          // For proposed meetings, also match by proposedMeetingId
+          if (apt.isProposedMeeting && apt.proposedMeetingId === pin.appointment_id) return true
+        }
+        return false
+      })
       
       // If not found, try fetched appointments
       if (!appointment) {
@@ -138,22 +169,37 @@ export function usePinnedAppointments({ scheduleData }: UsePinnedAppointmentsOpt
     return map
   }, [pinnedAppointments, scheduleData, fetchedAppointments])
 
+  // Get the actual ID to use for pinning (real UUID for proposed meetings, regular ID for others)
+  const getPinId = useCallback((appointment: ManagerAppointment): string => {
+    // For proposed meetings, use the actual UUID from proposedMeetingId instead of the prefixed ID
+    if (appointment.isProposedMeeting && appointment.proposedMeetingId) {
+      return appointment.proposedMeetingId
+    }
+    return appointment.id
+  }, [])
+
   // Check if an appointment is pinned
   const isAppointmentPinned = useCallback((appointment: ManagerAppointment): boolean => {
-    const key = `${appointment.id}-${appointment.serviceType}`
+    const pinId = getPinId(appointment)
+    const key = `${pinId}-${appointment.serviceType}`
     return pinnedAppointmentsMap.has(key)
-  }, [pinnedAppointmentsMap])
+  }, [pinnedAppointmentsMap, getPinId])
 
   // Get pin ID for an appointment
-  const getPinId = useCallback((appointment: ManagerAppointment): string | undefined => {
-    const key = `${appointment.id}-${appointment.serviceType}`
+  const getPinRecordId = useCallback((appointment: ManagerAppointment): string | undefined => {
+    const pinId = getPinId(appointment)
+    const key = `${pinId}-${appointment.serviceType}`
     return pinnedAppointmentsMap.get(key)
-  }, [pinnedAppointmentsMap])
+  }, [pinnedAppointmentsMap, getPinId])
 
   // Pin appointment handler
   const handlePinAppointment = useCallback(async (appointment: ManagerAppointment, reason?: PinReason) => {
+    // Use actual UUID for proposed meetings, regular ID for others
+    const pinId = getPinId(appointment)
+    
     console.log('[handlePinAppointment] Starting pin operation:', {
       appointmentId: appointment.id,
+      pinId: pinId,
       appointmentType: appointment.serviceType,
       reason: reason || "quick_access",
     })
@@ -161,7 +207,7 @@ export function usePinnedAppointments({ scheduleData }: UsePinnedAppointmentsOpt
     try {
       console.log('[handlePinAppointment] Calling pinAppointment mutation...')
       const result = await pinAppointment({
-        appointment_id: appointment.id,
+        appointment_id: pinId, // Use the real UUID for proposed meetings
         appointment_type: appointment.serviceType,
         reason: reason || "quick_access",
       }).unwrap()
@@ -194,12 +240,12 @@ export function usePinnedAppointments({ scheduleData }: UsePinnedAppointmentsOpt
 
   // Unpin appointment handler
   const handleUnpinAppointment = useCallback(async (appointment: ManagerAppointment) => {
-    const pinId = getPinId(appointment)
-    if (!pinId) return
+    const pinRecordId = getPinRecordId(appointment)
+    if (!pinRecordId) return
 
     try {
       await unpinAppointment({
-        pinId,
+        pinId: pinRecordId,
       }).unwrap()
       
       toast({
@@ -216,7 +262,7 @@ export function usePinnedAppointments({ scheduleData }: UsePinnedAppointmentsOpt
         variant: "destructive",
       })
     }
-  }, [getPinId, unpinAppointment, refetchPinned, toast])
+  }, [getPinRecordId, unpinAppointment, refetchPinned, toast])
 
   // Unpin by pin ID handler
   const handleUnpinById = useCallback(async (pinId: string) => {
@@ -255,23 +301,23 @@ export function usePinnedAppointments({ scheduleData }: UsePinnedAppointmentsOpt
     }
   }, [updatePinnedAppointment, refetchPinned, toast])
 
-  return {
-    // Data
-    pinnedAppointments,
-    pinnedAppointmentsAppointmentsMap,
-    isLoadingPinned,
-    
-    // Computed values
-    isAppointmentPinned,
-    getPinId,
-    
-    // Handlers
-    handlePinAppointment,
-    handleUnpinAppointment,
-    handleUnpinById,
-    handleUpdatePinnedTargetDate,
-    
-    // Refetch
-    refetchPinned,
-  }
+    return {
+      // Data
+      pinnedAppointments,
+      pinnedAppointmentsAppointmentsMap,
+      isLoadingPinned,
+      
+      // Computed values
+      isAppointmentPinned,
+      getPinId: getPinRecordId, // Return the pin record ID getter for backward compatibility
+      
+      // Handlers
+      handlePinAppointment,
+      handleUnpinAppointment,
+      handleUnpinById,
+      handleUpdatePinnedTargetDate,
+      
+      // Refetch
+      refetchPinned,
+    }
 }

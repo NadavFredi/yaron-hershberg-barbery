@@ -1,8 +1,6 @@
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { format } from "date-fns"
 import {
-  setNewGardenAppointmentModalOpen,
-  setNewGardenAppointmentType,
   setShowServiceTypeSelectionModal,
 } from "@/store/slices/managerScheduleSlice"
 import { supabaseApi, useGetManagerScheduleQuery } from "@/store/services/supabaseApi"
@@ -12,7 +10,7 @@ import { ServiceTypeSelectionModal } from "@/components/dialogs/manager-schedule
 export function StandaloneServiceTypeSelectionModal() {
   const dispatch = useAppDispatch()
   const { toast } = useToast()
-  
+
   const showServiceTypeSelectionModal = useAppSelector(
     (state) => state.managerSchedule.showServiceTypeSelectionModal
   )
@@ -21,7 +19,7 @@ export function StandaloneServiceTypeSelectionModal() {
 
   const { data } = useGetManagerScheduleQuery({
     date: format(selectedDateObj, "yyyy-MM-dd"),
-    serviceType: "both",
+    serviceType: "grooming",
   })
 
   const stations = data?.stations || []
@@ -46,15 +44,10 @@ export function StandaloneServiceTypeSelectionModal() {
         dispatch(
           supabaseApi.util.updateQueryData(
             "getManagerSchedule",
-            { date: format(selectedDateObj, "yyyy-MM-dd"), serviceType: "both" },
+            { date: format(selectedDateObj, "yyyy-MM-dd"), serviceType: "grooming" },
             (draft) => draft
           )
         )
-      }}
-      onSelectGarden={() => {
-        dispatch(setNewGardenAppointmentType("hourly"))
-        dispatch(setNewGardenAppointmentModalOpen(true))
-        dispatch(setShowServiceTypeSelectionModal(false))
       }}
     />
   )

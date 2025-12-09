@@ -1,5 +1,4 @@
 import { StandaloneServiceTypeSelectionModal } from "./StandaloneServiceTypeSelectionModal"
-import { StandaloneNewGardenAppointmentModal } from "./StandaloneNewGardenAppointmentModal"
 import { StandalonePaymentModal } from "./StandalonePaymentModal"
 import { StandaloneAppointmentTypeSelectionModal } from "./StandaloneAppointmentTypeSelectionModal"
 import { StandalonePrivateAppointmentModal } from "./StandalonePrivateAppointmentModal"
@@ -9,7 +8,6 @@ export function AppointmentCreationModals() {
   return (
     <>
       <StandaloneServiceTypeSelectionModal />
-      <StandaloneNewGardenAppointmentModal />
       <StandalonePaymentModal />
       <StandaloneAppointmentTypeSelectionModal />
       <StandalonePrivateAppointmentModal />

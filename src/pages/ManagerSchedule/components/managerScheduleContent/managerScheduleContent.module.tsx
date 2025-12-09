@@ -13,12 +13,10 @@ import {
   setEditingConstraint,
   setEditingConstraintDefaultTimes,
   setEditingConstraintStationIds,
-  setEditingGardenAppointment,
   setEditingGroomingAppointment,
   setEditingPersonalAppointment,
   setEditingProposedMeeting,
   setFinalizedDragTimes,
-  setGardenEditOpen,
   setGroomingEditOpen,
   setPersonalAppointmentEditOpen,
   setHighlightedSlots,
@@ -43,8 +41,6 @@ import {
   setPinnedAppointmentDropDetails,
   setPinnedAppointmentDropAction,
   setPinnedAppointmentDropRemoveFromPinned,
-  setNewGardenAppointmentModalOpen,
-  setNewGardenAppointmentType,
   setShowBusinessAppointmentModal,
   setPrefillBusinessCustomer,
   setPrefillBusinessDog,
@@ -118,7 +114,6 @@ export function useManagerScheduleContent() {
   const pixelsPerMinuteScale = useAppSelector((state) => state.managerSchedule.pixelsPerMinuteScale)
   const showPinnedAppointmentsColumn = useAppSelector((state) => state.managerSchedule.showPinnedAppointmentsColumn)
   const showWaitingListColumn = useAppSelector((state) => state.managerSchedule.showWaitingListColumn)
-  const showGardenColumn = useAppSelector((state) => state.managerSchedule.showGardenColumn)
   const draggedAppointment = useAppSelector((state) => state.managerSchedule.draggedAppointment)
   const draggedConstraint = useAppSelector((state) => state.managerSchedule.draggedConstraint)
   const draggedWaitlistEntry = useAppSelector((state) => state.managerSchedule.draggedWaitlistEntry)
@@ -134,7 +129,7 @@ export function useManagerScheduleContent() {
   // Data fetching
   const { data, isLoading: isScheduleLoading, isFetching: isScheduleFetching } = useGetManagerScheduleQuery({
     date: formattedDate,
-    serviceType: "both",
+    serviceType: "grooming",
   })
 
   const { data: constraints = [] } = useGetStationConstraintsQuery(
@@ -352,104 +347,6 @@ export function useManagerScheduleContent() {
     [selectedDateStr, data, intervalMinutes, pixelsPerMinuteScale, optimisticAppointments, globalEndHour]
   )
 
-  // Compute garden appointments
-  const gardenAppointments = useMemo(() => {
-    if (shouldHideAllStations) {
-      return { fullDay: [] as ManagerAppointment[], hourly: [] as ManagerAppointment[], trial: [] as ManagerAppointment[] }
-    }
-    if (!data?.appointments) {
-      return { fullDay: [] as ManagerAppointment[], hourly: [] as ManagerAppointment[], trial: [] as ManagerAppointment[] }
-    }
-
-    const fullDayAppointments: ManagerAppointment[] = []
-    const hourlyAppointments: ManagerAppointment[] = []
-    const trialAppointments: ManagerAppointment[] = []
-
-    const isGardenStationVisible = visibleStationIds.length === 0 || visibleStationIds.includes('garden-station')
-
-    for (const appointment of data.appointments) {
-      // Filter out cancelled appointments
-      if (isCancelledAppointment(appointment)) {
-        continue
-      }
-
-      const isGardenAppointment = appointment.serviceType === "garden"
-      const isVisibleGardenStation = visibleStationIds.length === 0 ||
-        visibleStationIds.includes(appointment.stationId) ||
-        (appointment.stationId.startsWith('garden-') && isGardenStationVisible)
-
-      if (isGardenAppointment && isVisibleGardenStation) {
-        if (serviceFilter === "grooming") {
-          continue
-        }
-
-        const appointmentStartDate = parseISODate(appointment.startDateTime)
-        const appointmentEndDate = parseISODate(appointment.endDateTime)
-
-        if (!appointmentStartDate || !appointmentEndDate) {
-          continue
-        }
-
-        const currentDayStart = startOfDay(selectedDate)
-        const currentDayEnd = addHours(currentDayStart, 24)
-
-        const isWithinCurrentDay = (
-          (appointmentStartDate >= currentDayStart && appointmentStartDate < currentDayEnd) ||
-          (appointmentEndDate >= currentDayStart && appointmentEndDate < currentDayEnd) ||
-          (appointmentStartDate < currentDayStart && appointmentEndDate >= currentDayEnd)
-        )
-
-        if (!isWithinCurrentDay) {
-          continue
-        }
-
-        if (appointment.gardenIsTrial) {
-          trialAppointments.push(appointment)
-        } else if (appointment.gardenAppointmentType === "full-day") {
-          fullDayAppointments.push(appointment)
-        } else {
-          hourlyAppointments.push(appointment)
-        }
-      }
-    }
-
-    const sortByStart = (a: ManagerAppointment, b: ManagerAppointment) =>
-      a.startDateTime.localeCompare(b.startDateTime)
-
-    fullDayAppointments.sort(sortByStart)
-    hourlyAppointments.sort(sortByStart)
-    trialAppointments.sort(sortByStart)
-
-    return { fullDay: fullDayAppointments, hourly: hourlyAppointments, trial: trialAppointments }
-  }, [data?.appointments, visibleStationIds, serviceFilter, selectedDate, shouldHideAllStations])
-
-  const gardenSections = useMemo(() => ([
-    {
-      id: 'garden-full-day',
-      title: 'גן - יום מלא',
-      badgeLabel: 'יום מלא',
-      appointments: gardenAppointments.fullDay,
-    },
-    {
-      id: 'garden-hourly',
-      title: 'גן - שעתי',
-      badgeLabel: 'שעתי',
-      appointments: gardenAppointments.hourly,
-    },
-    {
-      id: 'garden-trial',
-      title: 'גן - ניסיון',
-      badgeLabel: 'ניסיון',
-      appointments: gardenAppointments.trial,
-    },
-  ]), [gardenAppointments])
-
-  const shouldShowGardenColumns = useMemo(() => {
-    if (shouldHideAllStations) return false
-    if (serviceFilter === "grooming") return false
-    // Show garden column if enabled in database settings, regardless of appointments
-    return showGardenColumn
-  }, [serviceFilter, shouldHideAllStations, showGardenColumn])
 
   // Compute grouped appointments
   const groupedAppointments = useMemo(() => {
@@ -513,13 +410,12 @@ export function useManagerScheduleContent() {
   }, [data?.appointments, optimisticAppointments, visibleStationIds, serviceFilter, selectedDate, shouldHideAllStations])
 
   // Compute visible stations - show all filtered stations (no pagination)
-  const gardenColumnCount = shouldShowGardenColumns ? 1 : 0
   const visibleStations = filteredStations // Show all stations, no window pagination
 
-  // Compute grid template columns - station/garden columns expand but never shrink below the standard width
-  // Order: TimeAxis -> Pinned -> Waiting -> Garden/Stations (direction: rtl will place TimeAxis on the right)
+  // Compute grid template columns - station columns expand but never shrink below the standard width
+  // Order: TimeAxis -> Pinned -> Waiting -> Stations (direction: rtl will place TimeAxis on the right)
   const timeAxisWidth = 70
-  const scheduledColumnCount = gardenColumnCount + visibleStations.length
+  const scheduledColumnCount = visibleStations.length
   const gridColumnParts: string[] = [`${timeAxisWidth}px`]
   if (showPinnedAppointmentsColumn) {
     gridColumnParts.push(`${PINNED_APPOINTMENTS_COLUMN_WIDTH}px`)
@@ -1033,44 +929,6 @@ export function useManagerScheduleContent() {
     dispatch(setShowProposedMeetingModal(true))
   }, [dispatch])
 
-  const openGardenEditModal = useCallback((appointment: ManagerAppointment, targetColumnId?: string) => {
-    const dates = getAppointmentDates(appointment)
-    if (!dates) {
-      toast({
-        title: "שגיאה בעריכת התור",
-        description: "לא ניתן לפתוח את עריכת התור בגלל נתוני זמן חסרים או לא תקינים.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // If targetColumnId is provided, determine the target appointment type
-    let updatedAppointment = { ...appointment }
-    if (targetColumnId) {
-      if (targetColumnId === 'garden-full-day') {
-        updatedAppointment = {
-          ...appointment,
-          gardenAppointmentType: 'full-day',
-          gardenIsTrial: false,
-        }
-      } else if (targetColumnId === 'garden-trial') {
-        updatedAppointment = {
-          ...appointment,
-          gardenAppointmentType: 'hourly', // Trial appointments use hourly type but with isTrial flag
-          gardenIsTrial: true,
-        }
-      } else if (targetColumnId === 'garden-hourly') {
-        updatedAppointment = {
-          ...appointment,
-          gardenAppointmentType: 'hourly',
-          gardenIsTrial: false,
-        }
-      }
-    }
-
-    dispatch(setEditingGardenAppointment(updatedAppointment))
-    dispatch(setGardenEditOpen(true))
-  }, [dispatch, toast])
 
   // Resize handlers
   const handleResizeMove = useCallback((event: PointerEvent) => {
@@ -1182,11 +1040,8 @@ export function useManagerScheduleContent() {
     // Use updated appointment (with optimistic changes)
     const appointmentToEdit = updatedAppointment
 
-    // Open the correct modal based on service type and appointment type
-    if (resizeState.appointment.serviceType === "garden") {
-      dispatch(setEditingGardenAppointment(appointmentToEdit))
-      dispatch(setGardenEditOpen(true))
-    } else if (resizeState.appointment.isPersonalAppointment || resizeState.appointment.appointmentType === "private") {
+    // Open the correct modal based on appointment type
+    if (resizeState.appointment.isPersonalAppointment || resizeState.appointment.appointmentType === "private") {
       // For personal appointments, open the personal appointment edit modal
       const startDate = parseISODate(appointmentToEdit.startDateTime)
       if (!startDate) {
@@ -1628,14 +1483,9 @@ export function useManagerScheduleContent() {
         return
       }
 
-      // Allow drop on stations or garden columns
+      // Allow drop on stations
       const targetStationId = over.id as string
       const targetStation = stations.find(station => station.id === targetStationId)
-
-      // Also check for garden columns
-      if (over.data?.current?.type === 'garden-column') {
-        return
-      }
 
       if (targetStation && draggedPinnedAppointment.appointment.serviceType === targetStation.serviceType) {
         return
@@ -1696,51 +1546,13 @@ export function useManagerScheduleContent() {
         return
       }
 
-      // Check if dropping on a station or garden column (not on pinned column)
+      // Check if dropping on a station (not on pinned column)
       const isDroppingOnPinnedColumn =
         over?.data?.current?.type === 'pinned-appointments-column' ||
         over?.id === 'pinned-appointments-column'
 
       if (isDroppingOnPinnedColumn) {
         // Dropping back on pinned column - just cancel
-        dispatch(setDraggedPinnedAppointment({ pin: null, appointment: null, cancelled: false }))
-        return
-      }
-
-      // Check if dropping on a garden column
-      if (over?.data?.current?.type === 'garden-column') {
-        const targetColumnId = over.data.current.columnId as string
-        const appointment = draggedPinnedAppointment.appointment
-
-        // Only allow garden appointments to be dropped on garden columns
-        if (appointment.serviceType !== 'garden') {
-          dispatch(setDraggedPinnedAppointment({ pin: null, appointment: null, cancelled: false }))
-          return
-        }
-
-        // Calculate target times based on highlighted slots or default
-        const targetTimeSlot = highlightedSlots?.startTimeSlot
-        if (targetTimeSlot === undefined) {
-          dispatch(setDraggedPinnedAppointment({ pin: null, appointment: null, cancelled: false }))
-          return
-        }
-
-        const targetMinutes = targetTimeSlot * intervalMinutes
-        const newStartTime = addMinutes(timeline.start, targetMinutes)
-        const originalStart = new Date(appointment.startDateTime)
-        const originalEnd = new Date(appointment.endDateTime)
-        const durationMinutes = differenceInMinutes(originalEnd, originalStart)
-        const newEndTime = addMinutes(newStartTime, durationMinutes)
-
-        // Show the drop dialog
-        dispatch(setPinnedAppointmentDropDetails({
-          pin: draggedPinnedAppointment.pin,
-          appointment,
-          targetStationId: targetColumnId,
-          targetStartTime: newStartTime.toISOString(),
-          targetEndTime: newEndTime.toISOString(),
-        }))
-        dispatch(setShowPinnedAppointmentDropDialog(true))
         dispatch(setDraggedPinnedAppointment({ pin: null, appointment: null, cancelled: false }))
         return
       }
@@ -1897,38 +1709,6 @@ export function useManagerScheduleContent() {
       return
     }
 
-    // Check if dropping on a garden column
-    if (over?.data?.current?.type === 'garden-column') {
-      const targetColumnId = over.data.current.columnId as string
-
-      // Only allow garden appointments to be dropped on garden columns
-      if (draggedAppointment.appointment.serviceType !== 'garden') {
-        dispatch(setDraggedAppointment({ appointment: null, cancelled: false }))
-        return
-      }
-
-      const isTrialTarget = targetColumnId === 'garden-trial'
-      const newGardenIsTrial = isTrialTarget
-      const fallbackType = draggedAppointment.appointment.gardenAppointmentType ?? 'hourly'
-      const newGardenAppointmentType = isTrialTarget
-        ? fallbackType
-        : targetColumnId === 'garden-full-day'
-          ? 'full-day'
-          : 'hourly'
-
-      const currentType = draggedAppointment.appointment.gardenAppointmentType ?? fallbackType
-      const currentTrial = !!draggedAppointment.appointment.gardenIsTrial
-
-      if (currentType === newGardenAppointmentType && currentTrial === newGardenIsTrial) {
-        dispatch(setDraggedAppointment({ appointment: null, cancelled: false }))
-        return
-      }
-
-      // For garden appointments, open the unified garden edit modal instead of the simple move confirmation
-      openGardenEditModal(draggedAppointment.appointment, targetColumnId)
-      dispatch(setDraggedAppointment({ appointment: null, cancelled: false }))
-      return
-    }
 
     // Check if dropping on pinned appointments column
     // Check both the data type and the ID to be more robust
@@ -2240,7 +2020,7 @@ export function useManagerScheduleContent() {
           // Add proposed meeting metadata for pre-filling
           // Removed dog references - barbery system doesn't use dogs
           proposedTitle: `תור עבור ${appointment.clientName}`,
-          proposedSummary: `תור ${appointment.serviceType === "grooming" ? "תספורת" : "גן"} עבור ${appointment.clientName}`,
+          proposedSummary: `תור תספורת עבור ${appointment.clientName}`,
           proposedNotes: appointment.internalNotes || appointment.customerNotes || "",
         }
 
@@ -2267,88 +2047,39 @@ export function useManagerScheduleContent() {
         const currentStation = stations.find(s => s.id === appointment.stationId)
 
         if (targetStation && currentStation) {
-          if (appointment.serviceType === "garden") {
-            // For garden appointments, open garden edit modal with new times
-            // Determine the target appointment type from targetStationId
-            let gardenAppointmentType: 'full-day' | 'hourly' = 'hourly'
-            let gardenIsTrial = false
-
-            if (targetStationId === 'garden-full-day') {
-              gardenAppointmentType = 'full-day'
-              gardenIsTrial = false
-            } else if (targetStationId === 'garden-trial') {
-              gardenAppointmentType = 'hourly' // Trial appointments use hourly type but with isTrial flag
-              gardenIsTrial = true
-            } else if (targetStationId === 'garden-hourly') {
-              gardenAppointmentType = 'hourly'
-              gardenIsTrial = false
-            }
-
-            // We need to update the appointment with new times and type
-            const updatedAppointment = {
-              ...appointment,
-              startDateTime: targetStart.toISOString(),
-              endDateTime: targetEnd.toISOString(),
-              stationId: targetStationId,
-              gardenAppointmentType,
-              gardenIsTrial,
-            }
-            dispatch(setEditingGardenAppointment(updatedAppointment))
-            dispatch(setGardenEditOpen(true))
-          } else {
-            // For grooming appointments, show move confirmation
-            dispatch(setMoveDetails({
-              appointment,
-              oldStation: currentStation,
-              newStation: targetStation,
-              oldStartTime: new Date(appointment.startDateTime),
-              oldEndTime: new Date(appointment.endDateTime),
-              newStartTime: targetStart,
-              newEndTime: targetEnd,
-            }))
-            dispatch(setMoveConfirmationOpen(true))
-          }
+          // For grooming appointments, show move confirmation
+          dispatch(setMoveDetails({
+            appointment,
+            oldStation: currentStation,
+            newStation: targetStation,
+            oldStartTime: new Date(appointment.startDateTime),
+            oldEndTime: new Date(appointment.endDateTime),
+            newStartTime: targetStart,
+            newEndTime: targetEnd,
+          }))
+          dispatch(setMoveConfirmationOpen(true))
         }
       }
       handleRemoveFromPinned()
     } else if (pinnedAppointmentDropAction === "new") {
       // Create a new appointment
-      if (appointment.serviceType === "garden") {
-        // For garden appointments, determine type from target column
-        const isGardenColumn = targetStationId.startsWith("garden-")
-        let appointmentType: "full-day" | "hourly" | "trial" = "hourly"
-        if (targetStationId === "garden-full-day") {
-          appointmentType = "full-day"
-        } else if (targetStationId === "garden-trial") {
-          appointmentType = "trial"
-        }
-
-        dispatch(setNewGardenAppointmentType(appointmentType))
-        dispatch(setFinalizedDragTimes({
-          startTime: targetStart,
-          endTime: targetEnd,
-          stationId: targetStationId,
+      // For grooming appointments, use business appointment modal
+      dispatch(setFinalizedDragTimes({
+        startTime: targetStart,
+        endTime: targetEnd,
+        stationId: targetStationId,
+      }))
+      // Prefill with customer from the pinned appointment
+      // Removed dog prefill - barbery system doesn't use dogs
+      if (appointment.clientId) {
+        dispatch(setPrefillBusinessCustomer({
+          id: appointment.clientId,
+          fullName: appointment.clientName,
+          phone: appointment.clientPhone,
+          email: appointment.clientEmail,
         }))
-        dispatch(setNewGardenAppointmentModalOpen(true))
-      } else {
-        // For grooming appointments, use business appointment modal
-        dispatch(setFinalizedDragTimes({
-          startTime: targetStart,
-          endTime: targetEnd,
-          stationId: targetStationId,
-        }))
-        // Prefill with customer from the pinned appointment
-        // Removed dog prefill - barbery system doesn't use dogs
-        if (appointment.clientId) {
-          dispatch(setPrefillBusinessCustomer({
-            id: appointment.clientId,
-            fullName: appointment.clientName,
-            phone: appointment.clientPhone,
-            email: appointment.clientEmail,
-          }))
-        }
-        dispatch(setShowBusinessAppointmentModal(true))
       }
+      dispatch(setShowBusinessAppointmentModal(true))
       handleRemoveFromPinned()
     }
 
@@ -2356,7 +2087,7 @@ export function useManagerScheduleContent() {
     dispatch(setPinnedAppointmentDropAction(null))
     dispatch(setPinnedAppointmentDropDetails(null))
     dispatch(setPinnedAppointmentDropRemoveFromPinned(false))
-  }, [pinnedAppointmentDropAction, pinnedAppointmentDropDetails, pinnedAppointmentDropRemoveFromPinned, pinnedAppointmentsHook, stations, dispatch, handleOpenProposedMeetingEditor, openGardenEditModal])
+  }, [pinnedAppointmentDropAction, pinnedAppointmentDropDetails, pinnedAppointmentDropRemoveFromPinned, pinnedAppointmentsHook, stations, dispatch, handleOpenProposedMeetingEditor])
 
   // Scroll synchronization handlers
   const syncHorizontalScroll = useCallback(
@@ -2419,12 +2150,8 @@ export function useManagerScheduleContent() {
     stations,
     filteredStations,
     timeline,
-    gardenAppointments,
-    gardenSections,
-    shouldShowGardenColumns,
     groupedAppointments,
     constraintsByStation,
-    gardenColumnCount,
     visibleStations,
     gridTemplateColumns,
     scheduledColumnCount,
@@ -2468,7 +2195,6 @@ export function useManagerScheduleContent() {
     // Handlers
     handleAppointmentClick,
     handleOpenProposedMeetingEditor,
-    openGardenEditModal,
     handleResizeMove,
     finalizeResize,
     handleResizeEnd,

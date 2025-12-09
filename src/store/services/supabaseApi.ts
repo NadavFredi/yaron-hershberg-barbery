@@ -43,7 +43,7 @@ import type {
 
 export type PendingAppointmentRequest = {
   id: string
-  serviceType: "grooming" | "garden"
+  serviceType: "grooming"
   createdAt: string
   startAt: string | null
   endAt: string | null
@@ -271,7 +271,6 @@ export const supabaseApi = createApi({
     // Removed "Dog" tag - barbery system doesn't use dogs
     "Availability",
     "WaitingList",
-    "GardenAppointment",
     "ManagerSchedule",
     "Customer",
     "Worker",
@@ -399,7 +398,7 @@ export const supabaseApi = createApi({
 
     getAppointmentOrders: builder.query<
       { orders: Array<{ id: string; status: string | null; total: number | null }> },
-      { appointmentId: string; serviceType: "grooming" | "garden" }
+      { appointmentId: string; serviceType: "grooming" }
     >({
       async queryFn({ appointmentId, serviceType }) {
         try {
@@ -434,13 +433,18 @@ export const supabaseApi = createApi({
           id: string
           startAt: string
           status: string | null
-          serviceType: "grooming" | "garden"
+          serviceType: "grooming"
         }>
       },
       { clientId: string }
     >({
       async queryFn({ clientId }) {
         try {
+          // Return empty result if clientId is undefined or invalid
+          if (!clientId || clientId === "undefined") {
+            return { data: { appointments: [] } }
+          }
+
           // Removed daycare - barbery system only has grooming appointments
           const groomingResult = await supabase
             .from("grooming_appointments")
@@ -472,48 +476,6 @@ export const supabaseApi = createApi({
       },
       providesTags: (_result, _error, arg) => [{ type: "Appointment", id: `client-${arg.clientId}` }],
       keepUnusedDataFor: 300,
-    }),
-
-    getDogGardenAppointments: builder.query({
-      async queryFn(_dogId: string) {
-        try {
-          // Removed daycare - barbery system doesn't have daycare appointments
-          // Return empty array
-          const data: never[] = []
-          const error = null
-
-          if (error) {
-            return { error: { status: "SUPABASE_ERROR", data: error.message } }
-          }
-
-          // Transform to expected format
-          const appointments = (data || []).map((apt) => ({
-            id: apt.id,
-            dogId,
-            dogName: "", // Will be filled by getMergedAppointments
-            date: apt.start_at ? apt.start_at.split("T")[0] : "",
-            time: apt.start_at ? apt.start_at.split("T")[1]?.slice(0, 5) : "",
-            service: "garden" as const,
-            status: apt.status || "confirmed",
-            stationId: "",
-            notes: apt.customer_notes || "",
-            gardenNotes: apt.internal_notes || "",
-            startDateTime: apt.start_at,
-            endDateTime: apt.end_at,
-            latePickupRequested: apt.late_pickup_requested || false,
-            latePickupNotes: apt.late_pickup_notes || "",
-            gardenTrimNails: apt.garden_trim_nails || false,
-            gardenBrush: apt.garden_brush || false,
-            gardenBath: apt.garden_bath || false,
-          }))
-
-          return { data: { appointments } }
-        } catch (error) {
-          console.error("Failed to fetch garden appointments:", error)
-          return { error: { status: "SUPABASE_ERROR", data: error instanceof Error ? error.message : String(error) } }
-        }
-      },
-      providesTags: ["GardenAppointment"],
     }),
 
     // getMergedAppointments removed - no dogs in barbershop
@@ -575,7 +537,7 @@ export const supabaseApi = createApi({
       }: {
         dogId: string
         stationId: string
-        serviceType?: "grooming" | "garden" | "both"
+        serviceType?: "grooming"
       }) {
         try {
           // Get the dog's breed_id
@@ -669,21 +631,6 @@ export const supabaseApi = createApi({
                 durationMinutes,
               },
             }
-          } else {
-            // For garden service, return default duration
-            const defaultGardenMinutes = 60
-            const durationSeconds = defaultGardenMinutes * 60
-
-            return {
-              data: {
-                supported: true,
-                dogId,
-                breedId,
-                stationId,
-                durationSeconds,
-                durationMinutes: defaultGardenMinutes,
-              },
-            }
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
@@ -728,13 +675,7 @@ export const supabaseApi = createApi({
         oldStationId: string
         oldStartTime: string
         oldEndTime: string
-        appointmentType: "grooming" | "garden"
-        newGardenAppointmentType?: "full-day" | "hourly"
-        newGardenIsTrial?: boolean
-        selectedHours?: { start: string; end: string }
-        gardenTrimNails?: boolean
-        gardenBrush?: boolean
-        gardenBath?: boolean
+        appointmentType: "grooming"
         latePickupRequested?: boolean
         latePickupNotes?: string
         internalNotes?: string
@@ -771,7 +712,7 @@ export const supabaseApi = createApi({
           const dogId = data?.dogId
 
           // Invalidate general tags
-          dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment", "GardenAppointment"]))
+          dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"]))
 
           // Invalidate specific dog's appointments cache if dogId is available
           if (dogId) {
@@ -791,7 +732,99 @@ export const supabaseApi = createApi({
           console.warn("Failed to invalidate cache after moveAppointment:", error)
         }
       },
-      invalidatesTags: ["ManagerSchedule", "Appointment", "GardenAppointment"],
+      invalidatesTags: ["ManagerSchedule", "Appointment"],
+    }),
+
+    updateAppointmentStatus: builder.mutation<
+      { success: boolean; message?: string; error?: string; appointment?: { id: string; status: string } },
+      {
+        appointmentId: string
+        status: string
+        appointmentType: "grooming"
+        date?: string
+        serviceType?: "grooming"
+      }
+    >({
+      async queryFn({ appointmentId, status, appointmentType }) {
+        try {
+          const { approveAppointmentByManager } = await import("@/integrations/supabase/supabaseService")
+          const result = await approveAppointmentByManager(
+            appointmentId,
+            appointmentType,
+            status as "scheduled" | "cancelled"
+          )
+          return { data: result }
+        } catch (error) {
+          console.error(`❌ [supabaseApi] updateAppointmentStatus error:`, error)
+          const message = error instanceof Error ? error.message : String(error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      async onQueryStarted({ appointmentId, status, date, serviceType }, { dispatch, queryFulfilled }) {
+        // Import extract functions
+        const { extractGroomingAppointmentId } = await import("@/lib/utils")
+        const { format } = await import("date-fns")
+
+        // Optimistically update the cache
+        const patchResults: Array<{ undo: () => void }> = []
+
+        // Helper to find appointment index (synchronous)
+        const findAppointmentIndex = (appointments: any[]) => {
+          return appointments.findIndex((apt) => {
+            return extractGroomingAppointmentId(apt.id) === appointmentId
+          })
+        }
+
+        // If specific date/serviceType provided, update that query directly
+        if (date && serviceType) {
+          const patchResult = dispatch(
+            supabaseApi.util.updateQueryData("getManagerSchedule", { date, serviceType }, (draft) => {
+              if (draft && draft.appointments) {
+                const appointmentIndex = findAppointmentIndex(draft.appointments)
+                if (appointmentIndex !== -1) {
+                  draft.appointments[appointmentIndex].status = status
+                  draft.appointments[appointmentIndex].updated_at = new Date().toISOString()
+                }
+              }
+            })
+          )
+          patchResults.push(patchResult)
+        } else {
+          // Update the most common query (both service types) for the current date
+          const currentDate = date || format(new Date(), "yyyy-MM-dd")
+          const patchResult = dispatch(
+            supabaseApi.util.updateQueryData(
+              "getManagerSchedule",
+              { date: currentDate, serviceType: serviceType || "grooming" },
+              (draft) => {
+                if (draft && draft.appointments) {
+                  const appointmentIndex = findAppointmentIndex(draft.appointments)
+                  if (appointmentIndex !== -1) {
+                    draft.appointments[appointmentIndex].status = status
+                    draft.appointments[appointmentIndex].updated_at = new Date().toISOString()
+                  }
+                }
+              }
+            )
+          )
+          patchResults.push(patchResult)
+        }
+
+        try {
+          await queryFulfilled
+          // Invalidate tags to ensure data consistency
+          dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"]))
+        } catch (error) {
+          // Revert optimistic updates on error
+          patchResults.forEach((patchResult) => patchResult.undo())
+        }
+      },
+      invalidatesTags: ["ManagerSchedule", "Appointment"],
     }),
 
     createManagerAppointment: builder.mutation({
@@ -801,17 +834,11 @@ export const supabaseApi = createApi({
         selectedStations: string[]
         startTime: string
         endTime: string
-        appointmentType: "private" | "business" | "garden"
+        appointmentType: "private" | "business"
         groupId?: string
         customerId?: string
         dogId?: string
         isManualOverride?: boolean
-        gardenAppointmentType?: "full-day" | "hourly" | "trial"
-        services?: {
-          gardenTrimNails?: boolean
-          gardenBrush?: boolean
-          gardenBath?: boolean
-        }
         latePickupRequested?: boolean
         latePickupNotes?: string
         notes?: string
@@ -853,7 +880,7 @@ export const supabaseApi = createApi({
           const dogId = data?.dogId || params.dogId
 
           // Invalidate general tags for manager schedule and appointments
-          dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment", "GardenAppointment"]))
+          dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"]))
 
           // Invalidate specific dog's appointments cache if dogId is available
           if (dogId) {
@@ -868,7 +895,7 @@ export const supabaseApi = createApi({
           console.warn("Failed to invalidate cache after createManagerAppointment:", error)
         }
       },
-      invalidatesTags: ["ManagerSchedule", "Appointment", "GardenAppointment"],
+      invalidatesTags: ["ManagerSchedule", "Appointment"],
     }),
 
     createProposedMeeting: builder.mutation({
@@ -1016,10 +1043,7 @@ export const supabaseApi = createApi({
       invalidatesTags: ["ManagerSchedule"],
     }),
 
-    getManagerAppointment: builder.query<
-      ManagerAppointment,
-      { appointmentId: string; serviceType: "grooming" | "garden" }
-    >({
+    getManagerAppointment: builder.query<ManagerAppointment, { appointmentId: string; serviceType: "grooming" }>({
       async queryFn({ appointmentId, serviceType }) {
         try {
           const { getSingleManagerAppointment } = await import("@/integrations/supabase/supabaseService")
@@ -1055,11 +1079,8 @@ export const supabaseApi = createApi({
       keepUnusedDataFor: 300,
     }),
 
-    getManagerSchedule: builder.query<
-      ManagerScheduleData,
-      { date: string; serviceType?: "grooming" | "garden" | "both" }
-    >({
-      async queryFn({ date, serviceType = "both" }) {
+    getManagerSchedule: builder.query<ManagerScheduleData, { date: string; serviceType?: "grooming" }>({
+      async queryFn({ date, serviceType = "grooming" }) {
         try {
           const result = await fetchManagerSchedule(date, serviceType)
           return { data: result }
@@ -3176,7 +3197,6 @@ export const {
 
   // Appointments
   useGetDogAppointmentsQuery,
-  useGetDogGardenAppointmentsQuery,
   useGetMergedAppointmentsQuery,
   useGetAvailableDatesQuery,
   useGetAvailableTimesQuery,
@@ -3198,6 +3218,7 @@ export const {
   useDeleteWaitingListEntryMutation,
   useMoveAppointmentMutation,
   useCreateManagerAppointmentMutation,
+  useUpdateAppointmentStatusMutation,
   useCreateProposedMeetingMutation,
   useUpdateProposedMeetingMutation,
   useDeleteProposedMeetingMutation,

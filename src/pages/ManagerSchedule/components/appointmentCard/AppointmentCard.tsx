@@ -32,7 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn, extractGardenAppointmentId, extractGroomingAppointmentId } from "@/lib/utils"
+import { cn, extractGroomingAppointmentId } from "@/lib/utils"
 import type { ManagerAppointment } from "../../types"
 import { useAppointmentCard } from "./appointmentCard.module"
 import { useSearchParams } from "react-router-dom"
@@ -74,7 +74,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
   const [localClientApprovedArrival, setLocalClientApprovedArrival] = useState<string | null | undefined>(appointment.clientApprovedArrival)
   const cardRef = useRef<HTMLDivElement>(null)
   const [searchParams, setSearchParams] = useSearchParams()
-  
+
   // Sync local state with appointment prop when it changes
   useEffect(() => {
     console.log('[AppointmentCard] clientApprovedArrival changed:', {
@@ -85,7 +85,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
     })
     setLocalClientApprovedArrival(appointment.clientApprovedArrival)
   }, [appointment.clientApprovedArrival, appointment.id])
-  
+
   // Fetch series appointments to calculate weeks interval
   const { data: seriesData } = useGetSeriesAppointmentsQuery(
     { seriesId: appointment?.seriesId || '' },
@@ -95,25 +95,25 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
   // Calculate weeks interval from series appointments
   const weeksInterval = useMemo(() => {
     if (!seriesData?.appointments || seriesData.appointments.length < 2) return null
-    
+
     const sortedAppointments = [...seriesData.appointments].sort((a, b) =>
       new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime()
     )
-    
+
     // Calculate interval between first two appointments
     const firstDate = new Date(sortedAppointments[0].startDateTime)
     const secondDate = new Date(sortedAppointments[1].startDateTime)
     const diffMs = secondDate.getTime() - firstDate.getTime()
     const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000))
-    
+
     return diffWeeks > 0 ? diffWeeks : null
   }, [seriesData])
-  
+
   // Sync state to external map whenever it changes
   useEffect(() => {
     popoverOpenStateMap.set(appointment.id, isPopoverOpen)
   }, [isPopoverOpen, appointment.id])
-  
+
   // Restore state on mount if it was persisted
   useEffect(() => {
     const persistedState = popoverOpenStateMap.get(appointment.id)
@@ -132,23 +132,19 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
 
       // Extract the actual appointment ID based on service type
       let appointmentId: string | undefined
-      if (appointment.serviceType === "grooming") {
-        appointmentId = extractGroomingAppointmentId(
-          appointment.id,
-          appointment.groomingAppointmentId
-        )
-      } else if (appointment.serviceType === "garden") {
-        appointmentId = extractGardenAppointmentId(
-          appointment.id,
-          appointment.gardenAppointmentId
-        )
-      } else {
-        // Fallback: try to use the ID directly if it looks like a UUID
+      // All appointments are grooming appointments
+      appointmentId = extractGroomingAppointmentId(
+        appointment.id,
+        appointment.groomingAppointmentId
+      )
+
+      // Fallback: try to use the ID directly if it looks like a UUID
+      if (!appointmentId) {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
         if (uuidRegex.test(appointment.id)) {
           appointmentId = appointment.id
         } else {
-          appointmentId = appointment.groomingAppointmentId || appointment.gardenAppointmentId
+          appointmentId = appointment.groomingAppointmentId
         }
       }
 
@@ -158,9 +154,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
       }
 
       try {
-        const appointmentIdField = appointment.serviceType === "grooming"
-          ? "grooming_appointment_id"
-          : "daycare_appointment_id"
+        const appointmentIdField = "grooming_appointment_id"
 
         // Check for orders directly linked to appointment
         const idsToCheck = [appointmentId]
@@ -223,20 +217,17 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
     const checkReminderSent = async () => {
       if (!appointment) return
 
-      let appointmentId: string | undefined
-      const appointmentType = appointment.serviceType === "grooming" ? "grooming" : "daycare"
-      
-      if (appointment.serviceType === "grooming") {
-        appointmentId = extractGroomingAppointmentId(
-          appointment.id,
-          appointment.groomingAppointmentId
-        )
-      } else if (appointment.serviceType === "garden") {
-        appointmentId = extractGardenAppointmentId(
-          appointment.id,
-          appointment.gardenAppointmentId
-        )
+      // Proposed meetings don't have reminders (they're not real appointments yet)
+      if (appointment.isProposedMeeting) {
+        setHasReminderSent(false)
+        return
       }
+
+      const appointmentId = extractGroomingAppointmentId(
+        appointment.id,
+        appointment.groomingAppointmentId
+      )
+      const appointmentType = "grooming"
 
       if (!appointmentId) {
         setHasReminderSent(false)
@@ -291,29 +282,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
         shadow: "rgba(168, 85, 247, 0.5)", // purple-500 with opacity
       }
     }
-    if (appointment.serviceType === "garden") {
-      if (appointment.gardenIsTrial) {
-        return {
-          ring: "ring-amber-400",
-          border: "border-amber-500",
-          shadow: "rgba(245, 158, 11, 0.5)", // amber-500 with opacity
-        }
-      } else if (appointment.gardenAppointmentType === "full-day") {
-        return {
-          ring: "ring-green-400",
-          border: "border-green-500",
-          shadow: "rgba(34, 197, 94, 0.5)", // green-500 with opacity
-        }
-      } else {
-        // Hourly garden appointments use blue
-        return {
-          ring: "ring-blue-400",
-          border: "border-blue-500",
-          shadow: "rgba(59, 130, 246, 0.5)", // blue-500 with opacity
-        }
-      }
-    }
-    // Default: business/grooming appointments use blue
+    // Grooming appointments use blue
     return {
       ring: "ring-blue-400",
       border: "border-blue-500",
@@ -436,7 +405,6 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
     handleDuplicateAppointment,
     handlePaymentClick,
     handleOpenRescheduleProposal,
-    openGardenEditModal,
     openGroomingEditModal,
     openPersonalAppointmentEditModal,
     handleExpandCard,
@@ -458,7 +426,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
 
   const handleSendDefaultReminder = useCallback(async () => {
     if (isProcessingAction) return
-    
+
     setIsProcessingAction(true)
     try {
       if (!appointment.clientPhone || !appointment.clientName || !appointment.clientId) {
@@ -485,10 +453,10 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
       if (appointment.serviceType === "grooming") {
         appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       } else {
-        appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
+        appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       }
 
-      const appointmentType = appointment.serviceType === "garden" ? "daycare" : "grooming"
+      const appointmentType = "grooming"
 
       const { data, error } = await supabase.functions.invoke("send-appointment-reminder", {
         body: {
@@ -511,7 +479,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
       // Check if the result is successful
       const phoneDigits = appointment.clientPhone.replace(/\D/g, "")
       const result = data?.[phoneDigits]
-      
+
       if (result?.success) {
         toast({
           title: "הצלחה",
@@ -536,7 +504,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
 
   const handleReminderSelected = useCallback(async (reminder: { id: string; flow_id: string; description: string | null }) => {
     if (isProcessingAction) return
-    
+
     setIsProcessingAction(true)
     try {
       if (!appointment.clientPhone || !appointment.clientName || !appointment.clientId) {
@@ -552,10 +520,10 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
       if (appointment.serviceType === "grooming") {
         appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       } else {
-        appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
+        appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       }
 
-      const appointmentType = appointment.serviceType === "garden" ? "daycare" : "grooming"
+      const appointmentType = "grooming"
 
       const { data, error } = await supabase.functions.invoke("send-appointment-reminder", {
         body: {
@@ -578,7 +546,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
       // Check if the result is successful
       const phoneDigits = appointment.clientPhone.replace(/\D/g, "")
       const result = data?.[phoneDigits]
-      
+
       if (result?.success) {
         toast({
           title: "הצלחה",
@@ -602,28 +570,28 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
 
   const handleCustomerApprovedArrival = useCallback(async () => {
     if (isProcessingAction) return
-    
+
     setIsProcessingAction(true)
     try {
       let appointmentId: string
-      const tableName = appointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
-      
+      const tableName = "grooming_appointments"
+
       if (appointment.serviceType === "grooming") {
         appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       } else {
-        appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
+        appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       }
 
       const approvedTime = new Date().toISOString()
-      
+
       // Optimistic update - update local state immediately
       setLocalClientApprovedArrival(approvedTime)
 
       const { error } = await supabase
         .from(tableName)
-        .update({ 
+        .update({
           client_approved_arrival: approvedTime,
-          client_confirmed_arrival: true 
+          client_confirmed_arrival: true
         })
         .eq("id", appointmentId)
 
@@ -643,7 +611,6 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
         supabaseApi.util.invalidateTags([
           { type: 'ManagerSchedule', id: 'LIST' },
           'Appointment',
-          'GardenAppointment'
         ])
       )
     } catch (error) {
@@ -660,16 +627,16 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
 
   const handleCustomerNotApprovedArrival = useCallback(async () => {
     if (isProcessingAction) return
-    
+
     setIsProcessingAction(true)
     try {
       let appointmentId: string
-      const tableName = appointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
-      
+      const tableName = "grooming_appointments"
+
       if (appointment.serviceType === "grooming") {
         appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       } else {
-        appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
+        appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       }
 
       // Optimistic update - update local state immediately
@@ -677,9 +644,9 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
 
       const { error } = await supabase
         .from(tableName)
-        .update({ 
+        .update({
           client_approved_arrival: null,
-          client_confirmed_arrival: false 
+          client_confirmed_arrival: false
         })
         .eq("id", appointmentId)
 
@@ -699,7 +666,6 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
         supabaseApi.util.invalidateTags([
           { type: 'ManagerSchedule', id: 'LIST' },
           'Appointment',
-          'GardenAppointment'
         ])
       )
     } catch (error) {
@@ -716,7 +682,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
 
   const handleSendCompletionMessage = useCallback(() => {
     if (isProcessingAction) return
-    
+
     // Open the dog ready modal instead of sending directly
     dispatch(setDogReadyModalAppointment(appointment))
     dispatch(setShowDogReadyModal(true))
@@ -725,16 +691,16 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
 
   const handleTreatmentStarted = useCallback(async () => {
     if (isProcessingAction) return
-    
+
     setIsProcessingAction(true)
     try {
       let appointmentId: string
-      const tableName = appointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
-      
+      const tableName = "grooming_appointments"
+
       if (appointment.serviceType === "grooming") {
         appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       } else {
-        appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
+        appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       }
 
       // Use appointment start_at as default
@@ -755,7 +721,6 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
         supabaseApi.util.invalidateTags([
           { type: 'ManagerSchedule', id: 'LIST' },
           'Appointment',
-          'GardenAppointment'
         ])
       )
     } catch (error) {
@@ -772,16 +737,16 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
 
   const handleTreatmentEnded = useCallback(async () => {
     if (isProcessingAction) return
-    
+
     setIsProcessingAction(true)
     try {
       let appointmentId: string
-      const tableName = appointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
-      
+      const tableName = "grooming_appointments"
+
       if (appointment.serviceType === "grooming") {
         appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       } else {
-        appointmentId = extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
+        appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       }
 
       // Check if treatment_started_at exists, if not use appointment start_at
@@ -819,7 +784,6 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
         supabaseApi.util.invalidateTags([
           { type: 'ManagerSchedule', id: 'LIST' },
           'Appointment',
-          'GardenAppointment'
         ])
       )
     } catch (error) {
@@ -896,17 +860,13 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
         !isExpanded && "overflow-hidden"
       )}>
         <div className="flex items-center justify-between gap-2 text-xs">
-          {appointment.serviceType !== "garden" || appointment.gardenAppointmentType !== "full-day" ? (
+          {(
             <span className={cn(
               "text-gray-600",
               isDragging && highlightedSlots && draggedAppointment.appointment && draggedAppointment.appointment.id === appointment.id && "font-medium",
               isResizing && "font-medium text-blue-700"
             )}>
               {timeRangeLabel}
-            </span>
-          ) : (
-            <span className="text-gray-600 font-medium">
-              יום מלא
             </span>
           )}
           <div className="flex items-center gap-1">
@@ -929,7 +889,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
               </>
             ) : (
               <>
-                {appointment.serviceType !== "garden" && (
+                {(
                   <Popover open={isCheckmarkMenuOpen} onOpenChange={setIsCheckmarkMenuOpen} modal={false}>
                     <PopoverTrigger asChild>
                       <button
@@ -1152,13 +1112,9 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
             {!isProposedMeeting && appointment.hasCrossServiceAppointment && (
               <div
                 className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 text-purple-600"
-                title={appointment.serviceType === "garden" ? "יש גם תור למספרה" : "יש גם תור לגן"}
+                title="יש גם תור לגן"
               >
-                {appointment.serviceType === "garden" ? (
-                  <Scissors className="h-3 w-3" />
-                ) : (
-                  <Bone className="h-3 w-3" />
-                )}
+                <Bone className="h-3 w-3" />
               </div>
             )}
             {!isProposedMeeting && (
@@ -1179,7 +1135,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                   </div>
                 </PopoverTrigger>
                 {hasPaidOrder && paidSum > 0 && (
-                  <PopoverContent 
+                  <PopoverContent
                     className="w-auto p-2 text-sm text-right"
                     side="top"
                     align="end"
@@ -1212,11 +1168,11 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                 )}
               </div>
             )}
-            <Popover 
-              open={isPopoverOpen} 
+            <Popover
+              open={isPopoverOpen}
               onOpenChange={(open) => {
                 const isOpeningWindow = popoverOpeningWindowMap.get(appointment.id) ?? false
-                
+
                 // Handle opens and closes
                 if (open) {
                   // Opening - set flag and state
@@ -1279,19 +1235,19 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                 onInteractOutside={(e) => {
                   const target = e.target as HTMLElement
                   const isOpeningWindow = popoverOpeningWindowMap.get(appointment.id) ?? false
-                  
+
                   // Prevent closing during the opening window
                   if (isOpeningWindow) {
                     e.preventDefault()
                     return
                   }
-                  
+
                   // Check if clicking on the card itself
                   if (cardRef.current && cardRef.current.contains(target)) {
                     // Check if it's the trigger button itself (should toggle)
                     const triggerButton = cardRef.current.querySelector('button[data-dnd-kit-no-drag]')
                     const isTriggerButton = triggerButton && (triggerButton === target || triggerButton.contains(target))
-                    
+
                     if (isTriggerButton) {
                       // Allow the close - PopoverTrigger will handle the toggle
                       return
@@ -1301,7 +1257,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                       return
                     }
                   }
-                  
+
                   // Clicking truly outside - manually close since modal={false}
                   setIsPopoverOpen(false)
                   popoverOpenStateMap.set(appointment.id, false)
@@ -1333,8 +1289,6 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                   onEdit={() => {
                     if (appointment.isPersonalAppointment || appointment.appointmentType === "private") {
                       openPersonalAppointmentEditModal()
-                    } else if (appointment.serviceType === "garden") {
-                      openGardenEditModal()
                     } else {
                       openGroomingEditModal()
                     }
@@ -1442,30 +1396,6 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
               )}
             </>
           )}
-          {appointment.serviceType === "garden" && (appointment.gardenTrimNails || appointment.gardenBrush || appointment.gardenBath || appointment.latePickupRequested) && (
-            <div className="flex items-center gap-1 mt-1">
-              {appointment.gardenTrimNails && (
-                <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-100 text-orange-600" title="גזירת ציפורניים">
-                  <Scissors className="h-3 w-3" />
-                </div>
-              )}
-              {appointment.gardenBrush && (
-                <div className="flex items-center justify-center w-4 h-4 rounded-full bg-pink-100 text-pink-600" title="סירוק">
-                  <Wand2 className="h-3 w-3" />
-                </div>
-              )}
-              {appointment.gardenBath && (
-                <div className="flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600" title="רחצה">
-                  <Droplets className="h-3 w-3" />
-                </div>
-              )}
-              {appointment.latePickupRequested && (
-                <div className="flex items-center justify-center w-4 h-4 rounded-full bg-yellow-100 text-yellow-600" title="איסוף מאוחר">
-                  <Clock className="h-3 w-3" />
-                </div>
-              )}
-            </div>
-          )}
         </div>
         {subscriptionName && (
           <div className="mt-1 text-xs text-gray-600" title={subscriptionName}>
@@ -1515,12 +1445,8 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
       <OrderDetailsModal
         open={isOrderDetailsModalOpen}
         onOpenChange={setIsOrderDetailsModalOpen}
-        appointmentId={
-          appointment.serviceType === "grooming"
-            ? extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
-            : extractGardenAppointmentId(appointment.id, appointment.gardenAppointmentId)
-        }
-        serviceType={appointment.serviceType === "grooming" ? "grooming" : "daycare"}
+        appointmentId={extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)}
+        serviceType="grooming"
       />
       <SelectReminderDialog
         open={isSelectReminderDialogOpen}

@@ -4,14 +4,11 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
   setShowPinnedAppointmentsColumn,
   setShowWaitingListColumn,
-  setShowGardenColumn,
   setVisibleStationIds,
   setStationOrderIds,
   setSelectedDate,
 } from "@/store/slices/managerScheduleSlice"
-import {
-  EMPTY_STATIONS_OVERRIDE_PARAM,
-} from "../constants"
+import { EMPTY_STATIONS_OVERRIDE_PARAM } from "../constants"
 import { supabase } from "@/integrations/supabase/client"
 import { format } from "date-fns"
 
@@ -44,16 +41,16 @@ export function useManagerSchedulePersistence() {
     const dateParam = searchParams.get("date")
     const selectedDateObj = new Date(selectedDate)
     const currentDateStr = !isNaN(selectedDateObj.getTime()) ? format(selectedDateObj, "yyyy-MM-dd") : null
-    
+
     // Track if URL date changed
     const urlDateChanged = dateParam !== lastUrlDateRef.current
     const reduxDateChanged = currentDateStr !== lastReduxDateRef.current
-    
+
     if (dateParam) {
       const parsedDate = new Date(dateParam)
       if (!isNaN(parsedDate.getTime())) {
         const urlDateStr = format(parsedDate, "yyyy-MM-dd")
-        
+
         // If URL date differs from Redux date and URL changed, update Redux to match URL
         // This handles both initial load and browser navigation
         if (urlDateStr !== currentDateStr && urlDateChanged) {
@@ -75,7 +72,7 @@ export function useManagerSchedulePersistence() {
         return
       }
     }
-    
+
     // No date in URL on first initialization - set URL to current Redux date
     if (!dateInitializedRef.current && currentDateStr) {
       console.log(`[DateSync] No URL date, setting URL to Redux date: ${currentDateStr}`)
@@ -98,7 +95,6 @@ export function useManagerSchedulePersistence() {
   useEffect(() => {
     dispatch(setShowPinnedAppointmentsColumn(false))
     dispatch(setShowWaitingListColumn(false))
-    dispatch(setShowGardenColumn(false))
   }, [dispatch]) // Only run on mount
 
   // Initialize stations: use URL override if explicitly passed, otherwise load daily config from DB
@@ -226,20 +222,20 @@ export function useManagerSchedulePersistence() {
     if (!dateInitializedRef.current) {
       return
     }
-    
+
     const selectedDateObj = new Date(selectedDate)
     if (isNaN(selectedDateObj.getTime())) {
       return
     }
-    
+
     const currentDateStr = format(selectedDateObj, "yyyy-MM-dd")
     const urlDateStr = searchParams.get("date")
     const reduxDateChanged = currentDateStr !== lastReduxDateRef.current
-    
+
     // Only sync to URL if Redux date changed and differs from URL date
     // This means the user changed the date, not the URL
     if (reduxDateChanged && urlDateStr !== currentDateStr) {
-      console.log(`[DateSync] Redux date changed to ${currentDateStr}, updating URL from ${urlDateStr || 'none'}`)
+      console.log(`[DateSync] Redux date changed to ${currentDateStr}, updating URL from ${urlDateStr || "none"}`)
       // Remove highlightAppointment when date changes
       updateURLParams({ date: currentDateStr, highlightAppointment: null })
       lastUrlDateRef.current = currentDateStr
@@ -257,10 +253,8 @@ export function useManagerSchedulePersistence() {
 
   // Update URL when serviceFilter changes
   useEffect(() => {
-    if (serviceFilter !== "both") {
+    if (serviceFilter) {
       updateURLParams({ filter: serviceFilter })
-    } else {
-      updateURLParams({ filter: null })
     }
   }, [serviceFilter, searchParams, setSearchParams])
 }

@@ -15,7 +15,6 @@ import {
   DuplicateSuccessModal,
   ManagerConstraintEditDialog,
   ManagerDuplicateStationDialog,
-  ManagerGardenEditModal,
   ManagerGroomingEditModal,
   ManagerPersonalAppointmentEditModal,
   ManagerProposedMeetingModal,
@@ -55,9 +54,6 @@ const ManagerSchedule = () => {
   )
   const showWaitingListColumn = useAppSelector(
     (state) => state.managerSchedule.showWaitingListColumn
-  )
-  const showGardenColumn = useAppSelector(
-    (state) => state.managerSchedule.showGardenColumn
   )
 
   // Data fetching and management
@@ -99,13 +95,11 @@ const ManagerSchedule = () => {
 
   const {
 
-    shouldShowGardenColumns: shouldShowGardenColumnsFromStations,
   } = useManagerScheduleStations({
     data,
     serviceFilter,
     showWaitingListColumn,
     showPinnedAppointmentsColumn,
-    showGardenColumn,
     visibleStationIds,
     hasUrlStationsOverride,
   })
@@ -140,7 +134,6 @@ const ManagerSchedule = () => {
       <DuplicateSeriesModal />
       <DuplicateSuccessModal />
       <DeleteProposedMeetingDialog />
-      <ManagerGardenEditModal />
       <ManagerGroomingEditModal />
       <ManagerPersonalAppointmentEditModal />
       <WaitlistDropDialog />

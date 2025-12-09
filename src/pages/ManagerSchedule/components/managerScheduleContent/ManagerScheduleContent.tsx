@@ -4,9 +4,7 @@
 import { DragOverlay } from "@dnd-kit/core"
 import { DndContext } from "@dnd-kit/core"
 import { useAppDispatch } from "@/store/hooks.ts"
-import { setNewGardenAppointmentModalOpen, setNewGardenAppointmentType } from "@/store/slices/managerScheduleSlice.ts"
 import { WaitingListColumn } from "@/pages/ManagerSchedule/components/waitingListColumn"
-import { GardenColumn } from "@/pages/ManagerSchedule/components/gardenColumn/GardenColumn.tsx"
 import { DroppableStationColumn } from "@/pages/ManagerSchedule/components/stationColumn/DroppableStationColumn.tsx"
 import { PinnedAppointmentsColumn } from "@/pages/ManagerSchedule/pinnedAppointments/PinnedAppointmentsColumn.tsx"
 import { ScheduleHeader } from "../ScheduleHeader.tsx"
@@ -30,8 +28,6 @@ export function ManagerScheduleContent() {
     constraints,
     stationWorkingHours,
     timeline,
-    gardenSections,
-    shouldShowGardenColumns,
     groupedAppointments,
     visibleStations,
     gridTemplateColumns,
@@ -70,12 +66,11 @@ export function ManagerScheduleContent() {
 
   const isUnpinMode = !showPinnedAppointmentsColumn
   const timeAxisWidth = 70
-  const gardenColumnCount = shouldShowGardenColumns ? 1 : 0
   const minimumGridWidth =
     timeAxisWidth +
     (showPinnedAppointmentsColumn ? PINNED_APPOINTMENTS_COLUMN_WIDTH : 0) +
     (showWaitingListColumn ? WAITLIST_COLUMN_WIDTH : 0) +
-    (gardenColumnCount + visibleStations.length) * STANDARD_COLUMN_WIDTH
+    visibleStations.length * STANDARD_COLUMN_WIDTH
 
   return (
     <div className={`relative flex items-start gap-6 w-full overflow-x-auto custom-scrollbar ${isUnpinMode ? 'h-full flex-col' : 'overflow-y-visible'}`} dir="rtl">
@@ -124,7 +119,7 @@ export function ManagerScheduleContent() {
             >
               {/* Current time indicator - spans across all columns from time axis to end */}
               <CurrentTimeIndicator timeline={timeline} selectedDate={selectedDate} />
-              
+
               <div
                 className="grid min-w-max"
                 style={{
@@ -136,85 +131,53 @@ export function ManagerScheduleContent() {
                 {/* Time axis column - first in DOM, RTL will place it on the right */}
                 <TimeAxis />
 
-              {/* Pinned appointments column */}
-              {showPinnedAppointmentsColumn && (
-                <PinnedAppointmentsColumn
-                  pinnedAppointments={pinnedAppointmentsHook.pinnedAppointments}
-                  appointmentsMap={pinnedAppointmentsHook.pinnedAppointmentsAppointmentsMap}
-                  isLoading={pinnedAppointmentsHook.isLoadingPinned}
-                  onUnpin={pinnedAppointmentsHook.handleUnpinById}
-                  onAppointmentClick={handleAppointmentClick}
-                  timelineHeight={timeline.height}
-                />
-              )}
+                {/* Pinned appointments column */}
+                {showPinnedAppointmentsColumn && (
+                  <PinnedAppointmentsColumn
+                    pinnedAppointments={pinnedAppointmentsHook.pinnedAppointments}
+                    appointmentsMap={pinnedAppointmentsHook.pinnedAppointmentsAppointmentsMap}
+                    isLoading={pinnedAppointmentsHook.isLoadingPinned}
+                    onUnpin={pinnedAppointmentsHook.handleUnpinById}
+                    onAppointmentClick={handleAppointmentClick}
+                    timelineHeight={timeline.height}
+                  />
+                )}
 
-              {/* Waiting list column */}
-              {showWaitingListColumn && (
-                <WaitingListColumn
-                  selectedDate={selectedDate}
-                  timelineHeight={timeline.height}
-                />
-              )}
+                {/* Waiting list column */}
+                {showWaitingListColumn && (
+                  <WaitingListColumn
+                    selectedDate={selectedDate}
+                    timelineHeight={timeline.height}
+                  />
+                )}
 
-              {/* Garden columns */}
-              {shouldShowGardenColumns && (
-                <GardenColumn
-                  sections={gardenSections.map(section => ({
-                    ...section,
-                    badgeClassName: section.id === 'garden-full-day' ? 'border-green-200 bg-green-100 text-green-700' :
-                      section.id === 'garden-hourly' ? 'border-blue-200 bg-blue-100 text-blue-700' :
-                        'border-amber-200 bg-amber-100 text-amber-700',
-                    indicatorClassName: section.id === 'garden-full-day' ? 'bg-emerald-500' :
-                      section.id === 'garden-hourly' ? 'bg-blue-500' : 'bg-amber-500',
-                    titleBackgroundClassName: section.id === 'garden-full-day' ? 'bg-green-50' :
-                      section.id === 'garden-hourly' ? 'bg-blue-50' : 'bg-amber-50',
-                    dropZoneClassName: section.id === 'garden-full-day' ? 'border-green-200 bg-green-50' :
-                      section.id === 'garden-hourly' ? 'border-blue-200 bg-blue-50' : 'border-amber-200 bg-amber-50',
-                    dropZoneHoverClassName: section.id === 'garden-full-day' ? 'border-emerald-400 bg-green-100' :
-                      section.id === 'garden-hourly' ? 'border-blue-400 bg-blue-100' : 'border-amber-400 bg-amber-100',
-                  }))}
-                  timeline={timeline}
-                  pixelsPerMinuteScale={pixelsPerMinuteScale}
-                  resizingPreview={resizingPreview}
-                  handleCreateGardenAppointment={(sectionId) => {
-                    let appointmentType: 'full-day' | 'hourly' | 'trial' = 'hourly'
-                    if (sectionId === 'garden-full-day') {
-                      appointmentType = 'full-day'
-                    } else if (sectionId === 'garden-trial') {
-                      appointmentType = 'trial'
-                    }
-                    dispatch(setNewGardenAppointmentType(appointmentType))
-                    dispatch(setNewGardenAppointmentModalOpen(true))
-                  }}
-                  renderAppointmentCard={renderAppointmentCard}
-                />
-              )}
+                {/* Garden columns */}
 
-              {/* Station columns */}
-              {visibleStations.map((station) => (
-                <DroppableStationColumn
-                  key={station.id}
-                  station={station}
-                  timeline={timeline}
-                  intervalMinutes={intervalMinutes}
-                  pixelsPerMinuteScale={pixelsPerMinuteScale}
-                  appointments={groupedAppointments.get(station.id) ?? []}
-                  stationConstraints={constraints.filter(c => c.station_id === station.id)}
-                  hasWorkingHours={(stationWorkingHours[station.id] ?? []).length > 0}
-                  highlightedSlots={highlightedSlots}
-                  dragToCreate={dragToCreate}
-                  onCreateDragStart={handleCreateDragStart}
-                  isSlotWithinWorkingHours={isSlotWithinWorkingHours}
-                  isSlotGenerallyUnavailable={isSlotGenerallyUnavailable}
-                  isSlotCoveredByActiveConstraint={isSlotCoveredByActiveConstraint}
-                  isSlotEmptyButRestricted={isSlotEmptyButRestricted}
-                  renderConstraintBlock={renderConstraintBlock}
-                  resizingPreview={resizingPreview}
-                  renderAppointmentCard={renderAppointmentCard}
-                  selectedDate={selectedDate}
-                  isAppointmentMenuOpen={isAppointmentMenuOpen}
-                />
-              ))}
+                {/* Station columns */}
+                {visibleStations.map((station) => (
+                  <DroppableStationColumn
+                    key={station.id}
+                    station={station}
+                    timeline={timeline}
+                    intervalMinutes={intervalMinutes}
+                    pixelsPerMinuteScale={pixelsPerMinuteScale}
+                    appointments={groupedAppointments.get(station.id) ?? []}
+                    stationConstraints={constraints.filter(c => c.station_id === station.id)}
+                    hasWorkingHours={(stationWorkingHours[station.id] ?? []).length > 0}
+                    highlightedSlots={highlightedSlots}
+                    dragToCreate={dragToCreate}
+                    onCreateDragStart={handleCreateDragStart}
+                    isSlotWithinWorkingHours={isSlotWithinWorkingHours}
+                    isSlotGenerallyUnavailable={isSlotGenerallyUnavailable}
+                    isSlotCoveredByActiveConstraint={isSlotCoveredByActiveConstraint}
+                    isSlotEmptyButRestricted={isSlotEmptyButRestricted}
+                    renderConstraintBlock={renderConstraintBlock}
+                    resizingPreview={resizingPreview}
+                    renderAppointmentCard={renderAppointmentCard}
+                    selectedDate={selectedDate}
+                    isAppointmentMenuOpen={isAppointmentMenuOpen}
+                  />
+                ))}
               </div>
             </div>
           </div>
