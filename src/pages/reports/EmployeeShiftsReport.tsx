@@ -143,6 +143,7 @@ export default function EmployeeShiftsReport() {
 
             // Build worker filter query
             // Join with profiles table (workers are stored in profiles with role="worker")
+            // Use !worker_id to specify which foreign key relationship to use (since there are multiple FKs to profiles)
             let shiftsQuery = supabase
                 .from("worker_attendance_logs")
                 .select(`
@@ -150,7 +151,7 @@ export default function EmployeeShiftsReport() {
                     worker_id,
                     clock_in,
                     clock_out,
-                    profiles (
+                    profiles!worker_id (
                         id,
                         full_name,
                         worker_is_active
@@ -166,6 +167,8 @@ export default function EmployeeShiftsReport() {
 
             const { data: shifts, error: shiftsError } = await shiftsQuery.order("clock_in", { ascending: false })
 
+            // Only throw if there's an actual database error
+            // Empty results (shifts = []) are not an error
             if (shiftsError) {
                 throw shiftsError
             }
@@ -243,12 +246,18 @@ export default function EmployeeShiftsReport() {
             })
         } catch (error) {
             console.error("Failed to fetch shifts data:", error)
-            toast({
-                title: "שגיאה",
-                description: "לא ניתן היה לטעון נתוני משמרות. ודא שיש טבלת worker_attendance במערכת.",
-                variant: "destructive",
-            })
-            // Set empty data on error
+            // Only show toast for actual database errors, not for empty results
+            // Supabase Postgres errors have a 'code' property (e.g., '42P01' for table not found)
+            // Check if it's a real database error by looking for the code property
+            const isDatabaseError = error && typeof error === "object" && "code" in error
+            if (isDatabaseError) {
+                toast({
+                    title: "שגיאה",
+                    description: "לא ניתן היה לטעון נתוני משמרות. ודא שיש טבלת worker_attendance במערכת.",
+                    variant: "destructive",
+                })
+            }
+            // Set empty data on error (or if no results)
             setShiftsData({
                 totalShifts: 0,
                 totalHours: 0,

@@ -625,17 +625,79 @@ export default function ServicesListPage() {
         setInlineEditValue("")
     }
 
-    const saveSubActionEdit = async (subActionId: string, field: string, value: string | number) => {
-        if (!editingField) return
+    // Check if there are any dirty/unsaved changes
+    const hasDirtyChanges = () => {
+        const hasActiveEdit = editingField !== null
+        const hasDrafts = Array.from(draftSubActions.values()).some(arr => arr.length > 0)
+        const hasPending = Array.from(pendingSubActions.values()).some(arr => arr.length > 0)
+        return hasActiveEdit || hasDrafts || hasPending
+    }
 
-        // Optimistic update
+    // Save all dirty changes at once
+    const handleSaveAll = async () => {
+        try {
+            // Save current inline edit if any
+            if (editingField) {
+                if (editingField.subActionId) {
+                    // Find the sub-action
+                    const service = services.find(s => s.service_sub_actions?.some(sa => sa.id === editingField.subActionId))
+                    if (service) {
+                        const subAction = service.service_sub_actions?.find(sa => sa.id === editingField.subActionId)
+                        if (subAction) {
+                            await saveSubActionEdit(subAction.id, editingField.field, inlineEditValue)
+                        }
+                    }
+                } else {
+                    // Find the service
+                    const service = services.find(s => s.id === editingField.serviceId)
+                    if (service) {
+                        await saveInlineEdit(service)
+                    }
+                }
+            }
+
+            // Save all pending sub-actions for all services
+            for (const [serviceId, pending] of pendingSubActions.entries()) {
+                if (pending.length > 0) {
+                    await handleSaveAllPendingSubActions(serviceId)
+                }
+            }
+
+            toast({
+                title: "הצלחה",
+                description: "כל השינויים נשמרו בהצלחה",
+            })
+        } catch (error: unknown) {
+            console.error("Error saving all changes:", error)
+            const errorMessage = error instanceof Error ? error.message : "לא ניתן לשמור את כל השינויים"
+            toast({
+                title: "שגיאה",
+                description: errorMessage,
+                variant: "destructive",
+            })
+        }
+    }
+
+
+    const saveSubActionEdit = async (subActionId: string, field: string, value: string | number) => {
+        // Only proceed if we're actually editing THIS specific sub-action field
+        if (!editingField ||
+            !editingField.subActionId ||
+            editingField.subActionId !== subActionId ||
+            editingField.field !== field) {
+            return
+        }
+
+        // Optimistic update - ONLY update the sub-action, NOT the service
         const previousServices = queryClient.getQueryData<Service[]>(["services"])
         let optimisticServices = previousServices
 
         if (previousServices) {
             optimisticServices = previousServices.map((s) => {
-                if (s.service_sub_actions) {
+                // Only update services that contain this sub-action
+                if (s.service_sub_actions && s.service_sub_actions.some(sa => sa.id === subActionId)) {
                     const updatedSubActions = s.service_sub_actions.map((sa) => {
+                        // Only update the specific sub-action that matches
                         if (sa.id === subActionId) {
                             if (field === "name") {
                                 return { ...sa, name: String(value).trim() }
@@ -647,8 +709,10 @@ export default function ServicesListPage() {
                         }
                         return sa
                     })
+                    // Return service with updated sub-actions, but DON'T modify service fields
                     return { ...s, service_sub_actions: updatedSubActions }
                 }
+                // Return service unchanged if it doesn't contain this sub-action
                 return s
             })
 
@@ -789,7 +853,10 @@ export default function ServicesListPage() {
     }
 
     const saveInlineEdit = async (service: Service) => {
-        if (!editingField) return
+        // Only proceed if we're editing a service field (not a sub-action)
+        if (!editingField || editingField.subActionId || editingField.serviceId !== service.id) {
+            return
+        }
 
         // Optimistic update
         const previousServices = queryClient.getQueryData<Service[]>(["services"])
@@ -1178,9 +1245,23 @@ export default function ServicesListPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {/* Search */}
-                    <div className="mb-4">
-                        <div className="relative">
+                    {/* Search and Save All */}
+                    <div className="mb-4 flex items-center gap-4">
+                        {hasDirtyChanges() && (
+                            <Button
+                                onClick={handleSaveAll}
+                                disabled={updateService.isPending || createSubAction.isPending || updateSubAction.isPending}
+                                className="shrink-0"
+                            >
+                                {updateService.isPending || createSubAction.isPending || updateSubAction.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                                ) : (
+                                    <Save className="h-4 w-4 ml-2" />
+                                )}
+                                שמור הכל
+                            </Button>
+                        )}
+                        <div className="relative flex-1 max-w-md">
                             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                             <Input
                                 placeholder="חפש שירות..."
