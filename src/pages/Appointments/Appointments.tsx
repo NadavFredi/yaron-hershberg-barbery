@@ -483,7 +483,7 @@ export default function Appointments() {
 
     // Fetch appointments by customer_id - barbery system doesn't use dogs
     const { data: clientAppointmentHistory, isFetching: isFetchingAppointments, isLoading: isLoadingAppointments } = supabaseApi.useGetClientAppointmentHistoryQuery(
-        ownerId ?? skipToken,
+        ownerId ? { clientId: ownerId } : skipToken,
         { skip: !ownerId }
     )
 
@@ -499,6 +499,9 @@ export default function Appointments() {
             service: apt.serviceType,
             status: apt.status || 'pending',
             startDateTime: apt.startAt,
+            endDateTime: apt.endAt,
+            notes: apt.notes ?? undefined,
+            stationId: apt.stationId ?? undefined,
         }))
     }, [clientAppointmentHistory])
 

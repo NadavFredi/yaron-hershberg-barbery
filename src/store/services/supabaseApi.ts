@@ -420,8 +420,11 @@ export const supabaseApi = createApi({
         appointments: Array<{
           id: string
           startAt: string
+          endAt?: string
           status: string | null
           serviceType: "grooming"
+          notes?: string | null
+          stationId?: string | null
         }>
       },
       { clientId: string }
@@ -436,7 +439,7 @@ export const supabaseApi = createApi({
           // Query from the consolidated appointments table
           const appointmentsResult = await supabase
             .from("appointments")
-            .select("id, start_at, status, service_id")
+            .select("id, start_at, end_at, status, service_id, customer_notes, station_id")
             .eq("customer_id", clientId)
             .order("start_at", { ascending: true })
 
@@ -447,8 +450,11 @@ export const supabaseApi = createApi({
           const appointments = (appointmentsResult.data || []).map((apt) => ({
             id: apt.id as string,
             startAt: apt.start_at as string,
+            endAt: apt.end_at as string,
             status: (apt as { status?: string }).status ?? null,
             serviceType: "grooming" as const, // All appointments in barbery system are grooming
+            notes: (apt as { customer_notes?: string | null }).customer_notes ?? null,
+            stationId: (apt as { station_id?: string | null }).station_id ?? null,
           }))
 
           return { data: { appointments } }
