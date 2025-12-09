@@ -15,7 +15,9 @@ import {
   Ticket,
   BarChart3,
   Bell,
-  Wrench
+  Wrench,
+  FolderTree,
+  List
 } from "lucide-react"
 
 interface ManagerSubnavProps {
@@ -65,6 +67,25 @@ export const APPOINTMENT_CHILD_LINKS: ManagerNavChild[] = [
   }
 ]
 
+export const SERVICES_CHILD_LINKS: ManagerNavChild[] = [
+  {
+    id: "service-category",
+    to: "/manager-screens?section=services&mode=service-category",
+    label: "קטגוריות שירותים",
+    icon: FolderTree,
+    match: (pathname, sectionParam, modeParam) =>
+      pathname === "/manager-screens" && sectionParam === "services" && modeParam === "service-category"
+  },
+  {
+    id: "services",
+    to: "/manager-screens?section=services&mode=services",
+    label: "שירותים",
+    icon: List,
+    match: (pathname, sectionParam, modeParam) =>
+      pathname === "/manager-screens" && sectionParam === "services" && (modeParam === "services" || modeParam === null)
+  }
+]
+
 export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
   {
     id: "appointments",
@@ -95,11 +116,12 @@ export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
   },
   {
     id: "services",
-    to: "/manager-screens?section=services",
+    to: "/manager-screens?section=services&mode=services",
     label: "שירותים",
     icon: Wrench,
     match: (pathname, sectionParam) =>
-      pathname === "/manager-screens" && sectionParam === "services"
+      pathname === "/manager-screens" && sectionParam === "services",
+    children: SERVICES_CHILD_LINKS
   },
   {
     id: "products",

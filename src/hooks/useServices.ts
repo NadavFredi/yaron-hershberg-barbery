@@ -21,6 +21,12 @@ export interface Service {
   duration?: number
   is_active: boolean
   mode: "simple" | "complicated"
+  service_category_id?: string | null
+  service_category?: {
+    id: string
+    name: string
+    variant: string
+  } | null
   created_at: string
   updated_at: string
   service_sub_actions?: ServiceSubAction[]
@@ -45,6 +51,11 @@ export const useServices = () => {
         .select(
           `
           *,
+          service_category:service_categories (
+            id,
+            name,
+            variant
+          ),
           service_sub_actions (
             id,
             service_id,
@@ -65,6 +76,9 @@ export const useServices = () => {
       // Sort sub actions by order_index
       return (data as Service[]).map((service) => ({
         ...service,
+        service_category: Array.isArray(service.service_category)
+          ? service.service_category[0] || null
+          : service.service_category || null,
         service_sub_actions: service.service_sub_actions?.sort((a, b) => a.order_index - b.order_index),
       }))
     },
@@ -151,6 +165,7 @@ export const useCreateService = () => {
       duration?: number
       is_active?: boolean
       mode?: "simple" | "complicated"
+      service_category_id?: string
     }) => {
       const { data, error } = await supabase
         .from("services")
@@ -184,6 +199,7 @@ export const useUpdateService = () => {
       duration,
       is_active,
       mode,
+      service_category_id,
     }: {
       serviceId: string
       name?: string
@@ -192,6 +208,7 @@ export const useUpdateService = () => {
       duration?: number
       is_active?: boolean
       mode?: "simple" | "complicated"
+      service_category_id?: string | null
     }) => {
       const updateData: any = {}
       if (name !== undefined) updateData.name = name
@@ -200,6 +217,7 @@ export const useUpdateService = () => {
       if (duration !== undefined) updateData.duration = duration
       if (is_active !== undefined) updateData.is_active = is_active
       if (mode !== undefined) updateData.mode = mode
+      if (service_category_id !== undefined) updateData.service_category_id = service_category_id
 
       const { data, error } = await supabase.from("services").update(updateData).eq("id", serviceId).select().single()
 

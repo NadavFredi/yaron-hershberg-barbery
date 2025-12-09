@@ -44,6 +44,8 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SERVICE_CATEGORY_VARIANTS } from "@/lib/serviceCategoryVariants"
+import { useServiceCategories } from "@/hooks/useServiceCategories"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
@@ -415,6 +417,7 @@ export default function ServicesListPage() {
     const { toast } = useToast()
     const queryClient = useQueryClient()
     const { data: services = [], isLoading, refetch } = useServices()
+    const { data: categories = [] } = useServiceCategories()
     const createService = useCreateService()
     const updateService = useUpdateService()
     const createSubAction = useCreateServiceSubAction()
@@ -422,6 +425,7 @@ export default function ServicesListPage() {
     const deleteSubAction = useDeleteServiceSubAction()
 
     const [searchTerm, setSearchTerm] = useState("")
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     // Edit dialog removed - using inline editing instead
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -436,6 +440,7 @@ export default function ServicesListPage() {
         duration: 0,
         is_active: true,
         mode: "simple" as "simple" | "complicated",
+        service_category_id: null as string | null,
     })
 
     // Sub actions state (for complicated mode)
@@ -474,9 +479,11 @@ export default function ServicesListPage() {
         })
     )
 
-    const filteredServices = services.filter((service) =>
-        service.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const filteredServices = services.filter((service) => {
+        const matchesSearch = service.name.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesCategory = !selectedCategoryId || service.service_category_id === selectedCategoryId
+        return matchesSearch && matchesCategory
+    })
 
     const handleAdd = () => {
         setFormData({
@@ -485,7 +492,8 @@ export default function ServicesListPage() {
             base_price: 0,
             duration: 0,
             is_active: true,
-            mode: "simple"
+            mode: "simple",
+            service_category_id: null,
         })
         setSubActions([])
         setIsAddDialogOpen(true)
@@ -534,6 +542,7 @@ export default function ServicesListPage() {
                 duration: formData.mode === "simple" ? formData.duration : undefined,
                 is_active: formData.is_active,
                 mode: formData.mode,
+                service_category_id: formData.service_category_id || undefined,
             })
             const serviceId = created.id
 
@@ -556,7 +565,7 @@ export default function ServicesListPage() {
                 description: "השירות נוסף בהצלחה",
             })
             setIsAddDialogOpen(false)
-            setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple" })
+            setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple", service_category_id: null })
             setSubActions([])
         } catch (error: unknown) {
             console.error("Error saving service:", error)
@@ -1245,8 +1254,8 @@ export default function ServicesListPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {/* Search and Save All */}
-                    <div className="mb-4 flex items-center gap-4">
+                    {/* Search, Filter and Save All */}
+                    <div className="mb-4 flex items-center gap-4 flex-wrap">
                         {hasDirtyChanges() && (
                             <Button
                                 onClick={handleSaveAll}
@@ -1261,7 +1270,7 @@ export default function ServicesListPage() {
                                 שמור הכל
                             </Button>
                         )}
-                        <div className="relative flex-1 max-w-md">
+                        <div className="relative flex-1 max-w-md min-w-[200px]">
                             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                             <Input
                                 placeholder="חפש שירות..."
@@ -1280,6 +1289,25 @@ export default function ServicesListPage() {
                                 </button>
                             )}
                         </div>
+                        <Select value={selectedCategoryId || "all"} onValueChange={(value) => setSelectedCategoryId(value === "all" ? null : value)}>
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="כל הקטגוריות" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">כל הקטגוריות</SelectItem>
+                                {categories.map((category) => {
+                                    const variant = SERVICE_CATEGORY_VARIANTS[category.variant as keyof typeof SERVICE_CATEGORY_VARIANTS]
+                                    return (
+                                        <SelectItem key={category.id} value={category.id}>
+                                            <div className="flex items-center gap-2">
+                                                <div className={cn("h-3 w-3 rounded-full", variant.bg)} />
+                                                <span>{category.name}</span>
+                                            </div>
+                                        </SelectItem>
+                                    )
+                                })}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     {/* Table */}
@@ -1288,6 +1316,7 @@ export default function ServicesListPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="text-right">שם השירות</TableHead>
+                                    <TableHead className="text-right">קטגוריה</TableHead>
                                     <TableHead className="text-right">סוג</TableHead>
                                     <TableHead className="text-right">משך זמן</TableHead>
                                     <TableHead className="text-right">תיאור</TableHead>
@@ -1299,7 +1328,7 @@ export default function ServicesListPage() {
                             <TableBody>
                                 {filteredServices.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                                        <TableCell colSpan={8} className="text-center text-gray-500 py-8">
                                             {services.length === 0
                                                 ? "אין שירותים במערכת. הוסף שירות חדש כדי להתחיל."
                                                 : "לא נמצאו שירותים התואמים את החיפוש."}
@@ -1325,10 +1354,11 @@ export default function ServicesListPage() {
                                             ? (service.service_sub_actions || []).length
                                             : 0
 
-                                        const isEditingName = editingField?.serviceId === service.id && editingField.field === "name"
-                                        const isEditingDescription = editingField?.serviceId === service.id && editingField.field === "description"
-                                        const isEditingPrice = editingField?.serviceId === service.id && editingField.field === "base_price"
-                                        const isEditingDuration = editingField?.serviceId === service.id && editingField.field === "duration" && serviceMode === "simple"
+                                        // Only show as editing if editing THIS service field (not a sub-action)
+                                        const isEditingName = editingField?.serviceId === service.id && editingField.field === "name" && !editingField.subActionId
+                                        const isEditingDescription = editingField?.serviceId === service.id && editingField.field === "description" && !editingField.subActionId
+                                        const isEditingPrice = editingField?.serviceId === service.id && editingField.field === "base_price" && !editingField.subActionId
+                                        const isEditingDuration = editingField?.serviceId === service.id && editingField.field === "duration" && serviceMode === "simple" && !editingField.subActionId
 
                                         return (
                                             <>
@@ -1403,6 +1433,23 @@ export default function ServicesListPage() {
                                                                 </span>
                                                             )}
                                                         </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {service.service_category ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <div
+                                                                    className={cn(
+                                                                        "h-3 w-3 rounded-full",
+                                                                        SERVICE_CATEGORY_VARIANTS[service.service_category.variant as keyof typeof SERVICE_CATEGORY_VARIANTS]?.bg || "bg-gray-400"
+                                                                    )}
+                                                                />
+                                                                <span className="text-sm">
+                                                                    {service.service_category.name}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-sm text-gray-400">ללא קטגוריה</span>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell>
                                                         <Badge variant={serviceMode === "simple" ? "default" : "secondary"}>
@@ -1663,7 +1710,7 @@ export default function ServicesListPage() {
                                                                 {/* Save All / Cancel All buttons - only show if there are pending sub-actions */}
                                                                 {(pendingSubActions.get(service.id) || []).length > 0 && (
                                                                     <TableRow>
-                                                                        <TableCell colSpan={7} className="p-2">
+                                                                        <TableCell colSpan={8} className="p-2">
                                                                             <div className="flex items-center gap-2 justify-end">
                                                                                 <Button
                                                                                     variant="outline"
@@ -1689,10 +1736,67 @@ export default function ServicesListPage() {
                                                                     </TableRow>
                                                                 )}
 
-                                                                {/* Plus icon at bottom - ALWAYS at the bottom when adding */}
-                                                                {isAddingSubAction && (
+                                                                {/* Save All / Cancel All buttons for drafts - on same line as "add new row" */}
+                                                                {isAddingSubAction && (draftSubActions.get(service.id) || []).length > 0 && (
                                                                     <TableRow className="bg-gray-50/50">
-                                                                        <TableCell colSpan={7} className="p-2">
+                                                                        <TableCell colSpan={8} className="p-2">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    onClick={async () => {
+                                                                                        try {
+                                                                                            // First, move all drafts to pending
+                                                                                            const drafts = draftSubActions.get(service.id) || []
+                                                                                            for (const draft of drafts) {
+                                                                                                if (!draft.name.trim() || draft.duration <= 0) {
+                                                                                                    continue
+                                                                                                }
+                                                                                                handleSaveDraftSubAction(service.id, draft.tempId)
+                                                                                            }
+                                                                                            // Wait a bit for state to update, then save all pending
+                                                                                            setTimeout(async () => {
+                                                                                                await handleSaveAllPendingSubActions(service.id)
+                                                                                            }, 200)
+                                                                                        } catch (error) {
+                                                                                            console.error("Error saving all drafts:", error)
+                                                                                        }
+                                                                                    }}
+                                                                                    disabled={createSubAction.isPending}
+                                                                                    className="shrink-0"
+                                                                                >
+                                                                                    {createSubAction.isPending ? (
+                                                                                        <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                                                                                    ) : (
+                                                                                        <Save className="h-4 w-4 ml-2" />
+                                                                                    )}
+                                                                                    שמור הכל
+                                                                                </Button>
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    onClick={handleCancelAddingSubAction}
+                                                                                    className="shrink-0"
+                                                                                >
+                                                                                    ביטול הכל
+                                                                                </Button>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    onClick={() => handleStartAddingSubAction(service.id)}
+                                                                                    className="flex-1 justify-start"
+                                                                                >
+                                                                                    <Plus className="h-4 w-4 ml-2" />
+                                                                                    הוסף שורה נוספת
+                                                                                </Button>
+                                                                            </div>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                )}
+
+                                                                {/* Plus icon at bottom - ALWAYS at the bottom when adding (if no drafts) */}
+                                                                {isAddingSubAction && (draftSubActions.get(service.id) || []).length === 0 && (
+                                                                    <TableRow className="bg-gray-50/50">
+                                                                        <TableCell colSpan={8} className="p-2">
                                                                             <Button
                                                                                 variant="ghost"
                                                                                 size="sm"
@@ -1709,7 +1813,7 @@ export default function ServicesListPage() {
                                                         )}
                                                         {!isAddingSubAction && (
                                                             <TableRow className="bg-gray-50/50">
-                                                                <TableCell colSpan={7} className="p-2">
+                                                                <TableCell colSpan={8} className="p-2">
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="sm"
@@ -1738,7 +1842,7 @@ export default function ServicesListPage() {
             <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
                 if (!open) {
                     setIsAddDialogOpen(false)
-                    setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple" })
+                    setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple", service_category_id: null })
                     setSubActions([])
                 }
             }}>
@@ -1781,6 +1885,31 @@ export default function ServicesListPage() {
                                 placeholder="0"
                                 dir="rtl"
                             />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="service_category">קטגוריה</Label>
+                            <Select
+                                value={formData.service_category_id || "none"}
+                                onValueChange={(value) => setFormData({ ...formData, service_category_id: value === "none" ? null : value })}
+                            >
+                                <SelectTrigger dir="rtl">
+                                    <SelectValue placeholder="בחר קטגוריה (אופציונלי)" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">ללא קטגוריה</SelectItem>
+                                    {categories.map((category) => {
+                                        const variant = SERVICE_CATEGORY_VARIANTS[category.variant as keyof typeof SERVICE_CATEGORY_VARIANTS]
+                                        return (
+                                            <SelectItem key={category.id} value={category.id}>
+                                                <div className="flex items-center gap-2">
+                                                    <div className={cn("h-3 w-3 rounded-full", variant.bg)} />
+                                                    <span>{category.name}</span>
+                                                </div>
+                                            </SelectItem>
+                                        )
+                                    })}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="mode">סוג שירות *</Label>
@@ -1935,7 +2064,7 @@ export default function ServicesListPage() {
                     <DialogFooter dir="ltr">
                         <Button variant="outline" onClick={() => {
                             setIsAddDialogOpen(false)
-                            setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple" })
+                            setFormData({ name: "", description: "", base_price: 0, duration: 0, is_active: true, mode: "simple", service_category_id: null })
                             setSubActions([])
                         }}>
                             ביטול
