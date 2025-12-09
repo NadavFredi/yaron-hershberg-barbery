@@ -187,14 +187,15 @@ export default function ServiceCategoriesPage() {
                               dir="rtl"
                             />
                           ) : (
-                            <div className="flex items-center gap-2 justify-end">
-                              <span className="font-medium text-right">{category.name}</span>
+                            <div className="flex items-center gap-2 justify-start">
                               <div
                                 className={cn(
                                   "h-4 w-4 rounded-full shrink-0",
                                   variant.bg
                                 )}
                               />
+                              <span className="font-medium text-right">{category.name}</span>
+
                             </div>
                           )}
                         </TableCell>
@@ -205,10 +206,8 @@ export default function ServiceCategoriesPage() {
                               onVariantChange={setEditVariant}
                             />
                           ) : (
-                            <div className="flex items-center gap-2 justify-end">
-                              <span className={cn("text-sm text-right", variant.text)}>
-                                {variant.name}
-                              </span>
+                            <div className="flex items-center gap-2 justify-  ">
+
                               <div
                                 className={cn(
                                   "h-6 w-6 rounded border-2 shrink-0",
@@ -216,6 +215,9 @@ export default function ServiceCategoriesPage() {
                                   variant.border
                                 )}
                               />
+                              <span className={cn("text-sm text-right", variant.text)}>
+                                {variant.name}
+                              </span>
                             </div>
                           )}
                         </TableCell>

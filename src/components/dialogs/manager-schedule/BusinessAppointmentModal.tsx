@@ -227,7 +227,7 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                             onTimesChange={handleTimesUpdate}
                             theme="blue"
                             endTimeMode="editable"
-                            hideSaveCancelButtons={true}
+                            hideSaveCancelButtons
                             disableEndTime={false}
                         >
                         </AppointmentDetailsSection>
