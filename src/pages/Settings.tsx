@@ -54,10 +54,16 @@ export default function Settings() {
     useEffect(() => {
         const urlSection = searchParams.get("mode")
         if (urlSection && VALID_SECTIONS.includes(urlSection as SectionId)) {
+            console.log("[Settings] Section changed from URL:", urlSection)
             isUserNavigationRef.current = true
             setActiveSection(urlSection)
         }
     }, [searchParams])
+
+    // Debug: Log active section changes
+    useEffect(() => {
+        console.log("[Settings] Active section updated:", activeSection, "Mode param:", searchParams.get("mode"))
+    }, [activeSection, searchParams])
 
     useEffect(() => {
         // Wait for auth to initialize before checking manager role

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Trash2, Loader2, Edit2, Save, X, Eye, Star } from "lucide-react"
+import { Plus, Trash2, Loader2, Edit2, Save, X, Eye, Star, Pencil } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
@@ -57,6 +57,8 @@ export default function ServiceCategoriesPage() {
   const [servicesModalOpen, setServicesModalOpen] = useState(false)
   const [servicesModalCategory, setServicesModalCategory] = useState<ServiceCategoryWithServices | null>(null)
   const [isEditingServices, setIsEditingServices] = useState(false)
+  const [editingVariantCategoryId, setEditingVariantCategoryId] = useState<string | null>(null)
+  const [tempVariant, setTempVariant] = useState<ServiceCategoryVariant | null>(null)
 
   const handleCreate = async () => {
     if (!newName.trim()) {
@@ -291,10 +293,23 @@ export default function ServiceCategoriesPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setDemoVariant(category.variant)}
-                                className="h-6 px-2 text-xs shrink-0"
+                                className="h-6 w-6 p-0 shrink-0"
+                                title="צפה בדמו"
                               >
-                                <Eye className="h-3 w-3 ml-1" />
-                                צפה בדמו
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingVariantCategoryId(category.id)
+                                  setTempVariant(category.variant)
+                                }}
+                                className="h-6 w-6 p-0 shrink-0"
+                                title="ערוך ווריאנט"
+                              >
+                                <Pencil className="h-3 w-3" />
                               </Button>
                             </div>
                           )}
@@ -547,6 +562,37 @@ export default function ServiceCategoriesPage() {
         />
       )}
 
+      {/* Edit Variant Modal */}
+      {editingVariantCategoryId && tempVariant !== null && (
+        <EditVariantModal
+          currentVariant={tempVariant}
+          onSave={async (newVariant) => {
+            try {
+              await updateCategory.mutateAsync({
+                categoryId: editingVariantCategoryId,
+                variant: newVariant,
+              })
+              setEditingVariantCategoryId(null)
+              setTempVariant(null)
+              toast({
+                title: "הצלחה",
+                description: "ווריאנט הצבע עודכן בהצלחה",
+              })
+            } catch (error) {
+              toast({
+                title: "שגיאה",
+                description: error instanceof Error ? error.message : "לא ניתן לעדכן את ווריאנט הצבע",
+                variant: "destructive",
+              })
+            }
+          }}
+          onClose={() => {
+            setEditingVariantCategoryId(null)
+            setTempVariant(null)
+          }}
+        />
+      )}
+
       {/* Services Modal */}
       {servicesModalCategory && (
         <CategoryServicesModal
@@ -730,7 +776,7 @@ function VariantDemoModal({ variant, onClose }: VariantDemoModalProps) {
   const variantConfig = SERVICE_CATEGORY_VARIANTS[variant]
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]" dir="rtl">
         <DialogHeader className="text-right">
           <DialogTitle className="text-right">תצוגה מקדימה: {variantConfig.name}</DialogTitle>
@@ -794,6 +840,141 @@ interface CategoryServicesModalProps {
   isOpen: boolean
   isEditing: boolean
   onClose: () => void
+}
+
+interface EditVariantModalProps {
+  currentVariant: ServiceCategoryVariant
+  onSave: (variant: ServiceCategoryVariant) => Promise<void>
+  onClose: () => void
+}
+
+function EditVariantModal({ currentVariant, onSave, onClose }: EditVariantModalProps) {
+  const [selectedVariant, setSelectedVariant] = useState<ServiceCategoryVariant>(currentVariant)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (selectedVariant === currentVariant) {
+      onClose()
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      await onSave(selectedVariant)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const selectedVariantConfig = SERVICE_CATEGORY_VARIANTS[selectedVariant]
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogHeader className="text-right">
+          <DialogTitle className="text-right">ערוך ווריאנט צבע</DialogTitle>
+          <DialogDescription className="text-right">
+            בחר ווריאנט צבע חדש וצפה בתצוגה מקדימה
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-6 py-4">
+          {/* Variants Grid - 6 per row */}
+          <div>
+            <Label className="text-base font-medium mb-3 block text-right">ווריאנטים זמינים:</Label>
+            <div className="grid grid-cols-6 gap-1.5">
+              {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant) => {
+                const isSelected = selectedVariant === variant.id
+                return (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    onClick={() => setSelectedVariant(variant.id)}
+                    className={cn(
+                      "p-1 rounded border transition-all hover:scale-105",
+                      isSelected
+                        ? cn("border-2", variant.border, "ring-1", variant.ring)
+                        : "border-gray-200 hover:border-gray-300"
+                    )}
+                  >
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div
+                        className={cn(
+                          "h-5 w-5 rounded-full",
+                          variant.bg
+                        )}
+                      />
+                      <span className={cn("text-[10px] font-medium text-center leading-tight", variant.text)}>
+                        {variant.name}
+                      </span>
+                      {isSelected && (
+                        <div className={cn("text-[9px] leading-tight text-center", variant.text)}>✓</div>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Preview Section */}
+          <div className="space-y-3">
+            <Label className="text-base font-medium text-right">תצוגה מקדימה:</Label>
+            <div
+              className={cn(
+                "rounded-lg border-2 p-4 space-y-3",
+                selectedVariantConfig.border
+              )}
+            >
+              <div className="space-y-2">
+                <div
+                  className={cn(
+                    "rounded-lg px-4 py-3 text-white font-medium text-right",
+                    selectedVariantConfig.bg
+                  )}
+                >
+                  כותרת עם רקע צבעוני
+                </div>
+                <div
+                  className={cn(
+                    "rounded-lg px-4 py-3 border-2 text-right",
+                    selectedVariantConfig.bgLight,
+                    selectedVariantConfig.border,
+                    selectedVariantConfig.text
+                  )}
+                >
+                  כותרת עם רקע בהיר
+                </div>
+                <div
+                  className={cn(
+                    "rounded-lg px-4 py-2 border text-right",
+                    selectedVariantConfig.border,
+                    selectedVariantConfig.text
+                  )}
+                >
+                  כותרת עם מסגרת
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <DialogFooter className="flex-row-reverse gap-2 sm:justify-end">
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                שומר...
+              </>
+            ) : (
+              "שמור"
+            )}
+          </Button>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+            ביטול
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function CategoryServicesModal({ category, isOpen, isEditing, onClose }: CategoryServicesModalProps) {

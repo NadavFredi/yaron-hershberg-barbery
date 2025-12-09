@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -1477,25 +1477,25 @@ export default function ServicesListPage() {
                                         const isEditingDuration = editingField?.serviceId === service.id && editingField.field === "duration" && serviceMode === "simple" && !editingField.subActionId
                                         const isEditingCategory = editingCategoryId === service.id
 
-                                        return (
-                                            <Fragment key={service.id}>
-                                                <TableRow
-                                                    className={cn(serviceMode === "complicated" && "cursor-pointer")}
-                                                    onClick={(e) => {
-                                                        // Only toggle if clicking on the row itself, not on interactive elements
-                                                        const target = e.target as HTMLElement
-                                                        if (serviceMode === "complicated" &&
-                                                            !target.closest('button') &&
-                                                            !target.closest('input') &&
-                                                            !target.closest('textarea') &&
-                                                            !target.closest('[role="checkbox"]')) {
-                                                            toggleExpanded(service.id)
-                                                        }
-                                                    }}
-                                                >
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            <Button
+                                        const serviceRows = [
+                                            <TableRow
+                                                key={`${service.id}-main`}
+                                                className={cn(serviceMode === "complicated" && "cursor-pointer")}
+                                                onClick={(e) => {
+                                                    // Only toggle if clicking on the row itself, not on interactive elements
+                                                    const target = e.target as HTMLElement
+                                                    if (serviceMode === "complicated" &&
+                                                        !target.closest('button') &&
+                                                        !target.closest('input') &&
+                                                        !target.closest('textarea') &&
+                                                        !target.closest('[role="checkbox"]')) {
+                                                        toggleExpanded(service.id)
+                                                    }
+                                                }}
+                                            >
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Button
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 onClick={() => toggleExpanded(service.id)}
@@ -1800,200 +1800,208 @@ export default function ServicesListPage() {
                                                             </Button>
                                                         </div>
                                                     </TableCell>
-                                                </TableRow>
-                                                {isExpanded && (
-                                                    <>
-                                                        {serviceMode === "complicated" && service.service_sub_actions && service.service_sub_actions.length > 0 && (
-                                                            <DndContext
-                                                                sensors={sensors}
-                                                                collisionDetection={closestCenter}
-                                                                onDragEnd={handleDragEndExisting(service.id)}
+                                            </TableRow>
+                                        ]
+
+                                        if (isExpanded) {
+                                            if (serviceMode === "complicated" && service.service_sub_actions && service.service_sub_actions.length > 0) {
+                                                serviceRows.push(
+                                                    <DndContext
+                                                        key={`${service.id}-existing-subactions`}
+                                                        sensors={sensors}
+                                                        collisionDetection={closestCenter}
+                                                        onDragEnd={handleDragEndExisting(service.id)}
+                                                    >
+                                                        <SortableContext
+                                                            items={(service.service_sub_actions || []).sort((a, b) => a.order_index - b.order_index).map(sa => sa.id)}
+                                                            strategy={verticalListSortingStrategy}
+                                                        >
+                                                            {(service.service_sub_actions || []).sort((a, b) => a.order_index - b.order_index).map((subAction) => (
+                                                                <ExistingSubActionRow
+                                                                    key={subAction.id}
+                                                                    subAction={subAction}
+                                                                    onUpdateActive={(checked) => {
+                                                                        handleSubActionActiveChange(subAction.id, checked)
+                                                                    }}
+                                                                    onDelete={() => {
+                                                                        deleteSubAction.mutateAsync(subAction.id)
+                                                                    }}
+                                                                    editingField={editingField}
+                                                                    onStartEdit={(subActionId, field, value) => {
+                                                                        startInlineEdit(service.id, field, value, subActionId)
+                                                                    }}
+                                                                    onSaveEdit={saveSubActionEdit}
+                                                                    onCancelEdit={cancelInlineEdit}
+                                                                    inlineEditValue={inlineEditValue}
+                                                                    setInlineEditValue={setInlineEditValue}
+                                                                />
+                                                            ))}
+                                                        </SortableContext>
+                                                    </DndContext>
+                                                )
+                                            }
+
+                                            if (isAddingSubAction) {
+                                                serviceRows.push(
+                                                    ...((draftSubActions.get(service.id) || []).map((draft) => (
+                                                        <DraftSubActionRow
+                                                            key={draft.tempId}
+                                                            draft={draft}
+                                                            onUpdate={(updatedDraft) => handleUpdateDraftSubAction(service.id, draft.tempId, updatedDraft)}
+                                                            onSave={() => handleSaveDraftSubAction(service.id, draft.tempId)}
+                                                            onCancel={() => handleCancelDraftSubAction(service.id, draft.tempId)}
+                                                        />
+                                                    )))
+                                                )
+
+                                                if ((pendingSubActions.get(service.id) || []).length > 0) {
+                                                    serviceRows.push(
+                                                        <DndContext
+                                                            key={`${service.id}-pending-subactions`}
+                                                            sensors={sensors}
+                                                            collisionDetection={closestCenter}
+                                                            onDragEnd={handleDragEnd(service.id)}
+                                                        >
+                                                            <SortableContext
+                                                                items={(pendingSubActions.get(service.id) || []).map(sa => sa.tempId)}
+                                                                strategy={verticalListSortingStrategy}
                                                             >
-                                                                <SortableContext
-                                                                    items={(service.service_sub_actions || []).sort((a, b) => a.order_index - b.order_index).map(sa => sa.id)}
-                                                                    strategy={verticalListSortingStrategy}
-                                                                >
-                                                                    {(service.service_sub_actions || []).sort((a, b) => a.order_index - b.order_index).map((subAction) => (
-                                                                        <ExistingSubActionRow
-                                                                            key={subAction.id}
-                                                                            subAction={subAction}
-                                                                            onUpdateActive={(checked) => {
-                                                                                handleSubActionActiveChange(subAction.id, checked)
-                                                                            }}
-                                                                            onDelete={() => {
-                                                                                deleteSubAction.mutateAsync(subAction.id)
-                                                                            }}
-                                                                            editingField={editingField}
-                                                                            onStartEdit={(subActionId, field, value) => {
-                                                                                startInlineEdit(service.id, field, value, subActionId)
-                                                                            }}
-                                                                            onSaveEdit={saveSubActionEdit}
-                                                                            onCancelEdit={cancelInlineEdit}
-                                                                            inlineEditValue={inlineEditValue}
-                                                                            setInlineEditValue={setInlineEditValue}
-                                                                        />
-                                                                    ))}
-                                                                </SortableContext>
-                                                            </DndContext>
-                                                        )}
-                                                        {isAddingSubAction && (
-                                                            <>
-                                                                {/* Draft sub-action rows - multiple can exist */}
-                                                                {(draftSubActions.get(service.id) || []).map((draft) => (
-                                                                    <DraftSubActionRow
-                                                                        key={draft.tempId}
-                                                                        draft={draft}
-                                                                        onUpdate={(updatedDraft) => handleUpdateDraftSubAction(service.id, draft.tempId, updatedDraft)}
-                                                                        onSave={() => handleSaveDraftSubAction(service.id, draft.tempId)}
-                                                                        onCancel={() => handleCancelDraftSubAction(service.id, draft.tempId)}
+                                                                {(pendingSubActions.get(service.id) || []).map((pendingSubAction) => (
+                                                                    <PendingSubActionRow
+                                                                        key={pendingSubAction.tempId}
+                                                                        subAction={pendingSubAction}
+                                                                        onRemove={() => handleRemovePendingSubAction(service.id, pendingSubAction.tempId)}
                                                                     />
                                                                 ))}
-
-                                                                {/* Pending sub-actions list with drag and drop */}
-                                                                {(pendingSubActions.get(service.id) || []).length > 0 && (
-                                                                    <DndContext
-                                                                        sensors={sensors}
-                                                                        collisionDetection={closestCenter}
-                                                                        onDragEnd={handleDragEnd(service.id)}
+                                                            </SortableContext>
+                                                        </DndContext>
+                                                    )
+                                                    serviceRows.push(
+                                                        <TableRow key={`${service.id}-pending-actions`}>
+                                                            <TableCell colSpan={9} className="p-2">
+                                                                <div className="flex items-center gap-2 justify-end">
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={handleCancelAddingSubAction}
                                                                     >
-                                                                        <SortableContext
-                                                                            items={(pendingSubActions.get(service.id) || []).map(sa => sa.tempId)}
-                                                                            strategy={verticalListSortingStrategy}
-                                                                        >
-                                                                            {(pendingSubActions.get(service.id) || []).map((pendingSubAction) => (
-                                                                                <PendingSubActionRow
-                                                                                    key={pendingSubAction.tempId}
-                                                                                    subAction={pendingSubAction}
-                                                                                    onRemove={() => handleRemovePendingSubAction(service.id, pendingSubAction.tempId)}
-                                                                                />
-                                                                            ))}
-                                                                        </SortableContext>
-                                                                    </DndContext>
-                                                                )}
+                                                                        ביטול הכל
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={() => handleSaveAllPendingSubActions(service.id)}
+                                                                        disabled={createSubAction.isPending}
+                                                                    >
+                                                                        {createSubAction.isPending ? (
+                                                                            <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                                                                        ) : (
+                                                                            <Save className="h-4 w-4 ml-2" />
+                                                                        )}
+                                                                        שמור הכל ({pendingSubActions.get(service.id)?.length || 0})
+                                                                    </Button>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                }
 
-                                                                {/* Save All / Cancel All buttons - only show if there are pending sub-actions */}
-                                                                {(pendingSubActions.get(service.id) || []).length > 0 && (
-                                                                    <TableRow>
-                                                                        <TableCell colSpan={9} className="p-2">
-                                                                            <div className="flex items-center gap-2 justify-end">
-                                                                                <Button
-                                                                                    variant="outline"
-                                                                                    size="sm"
-                                                                                    onClick={handleCancelAddingSubAction}
-                                                                                >
-                                                                                    ביטול הכל
-                                                                                </Button>
-                                                                                <Button
-                                                                                    size="sm"
-                                                                                    onClick={() => handleSaveAllPendingSubActions(service.id)}
-                                                                                    disabled={createSubAction.isPending}
-                                                                                >
-                                                                                    {createSubAction.isPending ? (
-                                                                                        <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                                                                                    ) : (
-                                                                                        <Save className="h-4 w-4 ml-2" />
-                                                                                    )}
-                                                                                    שמור הכל ({pendingSubActions.get(service.id)?.length || 0})
-                                                                                </Button>
-                                                                            </div>
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                )}
-
-                                                                {/* Save All / Cancel All buttons for drafts - on same line as "add new row" */}
-                                                                {isAddingSubAction && (draftSubActions.get(service.id) || []).length > 0 && (
-                                                                    <TableRow className="bg-gray-50/50">
-                                                                        <TableCell colSpan={9} className="p-2">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="sm"
-                                                                                    onClick={() => handleStartAddingSubAction(service.id)}
-                                                                                    className="flex-1 justify-start"
-                                                                                >
-                                                                                    <Plus className="h-4 w-4 ml-2" />
-                                                                                    הוסף שורה נוספת
-                                                                                </Button>
-                                                                                <Button
-                                                                                    variant="outline"
-                                                                                    size="sm"
-                                                                                    onClick={handleCancelAddingSubAction}
-                                                                                    className="shrink-0"
-                                                                                >
-                                                                                    ביטול הכל
-                                                                                </Button>
-                                                                                <Button
-                                                                                    size="sm"
-                                                                                    onClick={async () => {
-                                                                                        try {
-                                                                                            // First, move all drafts to pending
-                                                                                            const drafts = draftSubActions.get(service.id) || []
-                                                                                            for (const draft of drafts) {
-                                                                                                if (!draft.name.trim() || draft.duration <= 0) {
-                                                                                                    continue
-                                                                                                }
-                                                                                                handleSaveDraftSubAction(service.id, draft.tempId)
-                                                                                            }
-                                                                                            // Wait a bit for state to update, then save all pending
-                                                                                            setTimeout(async () => {
-                                                                                                await handleSaveAllPendingSubActions(service.id)
-                                                                                            }, 200)
-                                                                                        } catch (error) {
-                                                                                            console.error("Error saving all drafts:", error)
-                                                                                        }
-                                                                                    }}
-                                                                                    disabled={createSubAction.isPending}
-                                                                                    className="shrink-0"
-                                                                                >
-                                                                                    {createSubAction.isPending ? (
-                                                                                        <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                                                                                    ) : (
-                                                                                        <Save className="h-4 w-4 ml-2" />
-                                                                                    )}
-                                                                                    שמור הכל
-                                                                                </Button>
-                                                                            </div>
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                )}
-
-                                                                {/* Plus icon at bottom - ALWAYS at the bottom when adding (if no drafts) */}
-                                                                {isAddingSubAction && (draftSubActions.get(service.id) || []).length === 0 && (
-                                                                    <TableRow className="bg-gray-50/50">
-                                                                        <TableCell colSpan={9} className="p-2">
-                                                                            <Button
-                                                                                variant="ghost"
-                                                                                size="sm"
-                                                                                onClick={() => handleStartAddingSubAction(service.id)}
-                                                                                className="w-full justify-start"
-                                                                            >
-                                                                                <Plus className="h-4 w-4 ml-2" />
-                                                                                הוסף שורה נוספת
-                                                                            </Button>
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                )}
-                                                            </>
-                                                        )}
-                                                        {!isAddingSubAction && (
-                                                            <TableRow className="bg-gray-50/50">
-                                                                <TableCell colSpan={9} className="p-2">
+                                                if ((draftSubActions.get(service.id) || []).length > 0) {
+                                                    serviceRows.push(
+                                                        <TableRow key={`${service.id}-draft-actions`} className="bg-gray-50/50">
+                                                            <TableCell colSpan={9} className="p-2">
+                                                                <div className="flex items-center gap-2">
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="sm"
                                                                         onClick={() => handleStartAddingSubAction(service.id)}
-                                                                        className="w-full justify-start"
+                                                                        className="flex-1 justify-start"
                                                                     >
                                                                         <Plus className="h-4 w-4 ml-2" />
-                                                                        הוסף פעולת משנה
+                                                                        הוסף שורה נוספת
                                                                     </Button>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </Fragment>
-                                        )
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={handleCancelAddingSubAction}
+                                                                        className="shrink-0"
+                                                                    >
+                                                                        ביטול הכל
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                // First, move all drafts to pending
+                                                                                const drafts = draftSubActions.get(service.id) || []
+                                                                                for (const draft of drafts) {
+                                                                                    if (!draft.name.trim() || draft.duration <= 0) {
+                                                                                        continue
+                                                                                    }
+                                                                                    handleSaveDraftSubAction(service.id, draft.tempId)
+                                                                                }
+                                                                                // Wait a bit for state to update, then save all pending
+                                                                                setTimeout(async () => {
+                                                                                    await handleSaveAllPendingSubActions(service.id)
+                                                                                }, 200)
+                                                                            } catch (error) {
+                                                                                console.error("Error saving all drafts:", error)
+                                                                            }
+                                                                        }}
+                                                                        disabled={createSubAction.isPending}
+                                                                        className="shrink-0"
+                                                                    >
+                                                                        {createSubAction.isPending ? (
+                                                                            <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                                                                        ) : (
+                                                                            <Save className="h-4 w-4 ml-2" />
+                                                                        )}
+                                                                        שמור הכל
+                                                                    </Button>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                }
+
+                                                if ((draftSubActions.get(service.id) || []).length === 0) {
+                                                    serviceRows.push(
+                                                        <TableRow key={`${service.id}-add-row`} className="bg-gray-50/50">
+                                                            <TableCell colSpan={9} className="p-2">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleStartAddingSubAction(service.id)}
+                                                                    className="w-full justify-start"
+                                                                >
+                                                                    <Plus className="h-4 w-4 ml-2" />
+                                                                    הוסף שורה נוספת
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        if (!isAddingSubAction && isExpanded) {
+                                            serviceRows.push(
+                                                <TableRow key={`${service.id}-add-subaction`} className="bg-gray-50/50">
+                                                    <TableCell colSpan={9} className="p-2">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleStartAddingSubAction(service.id)}
+                                                            className="w-full justify-start"
+                                                        >
+                                                            <Plus className="h-4 w-4 ml-2" />
+                                                            הוסף פעולת משנה
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        }
+
+                                        return serviceRows
                                     })
                                 )}
                             </TableBody>
@@ -2420,4 +2428,3 @@ function CategoryAutocomplete({
         </div>
     )
 }
-

@@ -743,6 +743,18 @@ export async function getManagerSchedule(
         ? service.service_categories[0]
         : service?.service_categories
 
+      // Debug logging for variant extraction
+      console.log("[getManagerSchedule] Appointment variant debug:", {
+        appointmentId: apt.id,
+        hasService: !!service,
+        serviceId: service?.id,
+        serviceData: service,
+        hasServiceCategory: !!serviceCategory,
+        serviceCategoryData: serviceCategory,
+        variant: serviceCategory?.variant,
+        appointmentKind: apt.appointment_kind,
+      })
+
       const hasCrossService = combinedGroomingIds.has(apt.id)
 
       appointments.push({
@@ -778,6 +790,14 @@ export async function getManagerSchedule(
         ...(apt.created_at && { created_at: apt.created_at }),
         ...(apt.updated_at && { updated_at: apt.updated_at }),
       } as any)
+
+      // Log the final appointment object to verify variant is set
+      const lastAppointment = appointments[appointments.length - 1]
+      console.log("[getManagerSchedule] Final appointment variant:", {
+        appointmentId: lastAppointment.id,
+        appointmentType: lastAppointment.appointmentType,
+        serviceCategoryVariant: lastAppointment.serviceCategoryVariant,
+      })
     }
 
     // Include proposed meetings for the day so managers can see held slots

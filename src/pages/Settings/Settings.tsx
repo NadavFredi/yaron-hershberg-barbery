@@ -7,8 +7,9 @@ import AdminLayout from "@/components/layout/AdminLayout"
 import { SettingsWorkingHoursSection } from "@/components/settings/SettingsWorkingHoursSection/SettingsWorkingHoursSection"
 import { SettingsStationsSection } from "@/components/settings/SettingsStationsSection/SettingsStationsSection"
 import { SettingsStationsPerDaySection } from "@/components/settings/SettingsStationsPerDaySection/SettingsStationsPerDaySection"
+import { SettingsServiceStationMatrixSection } from "@/components/settings/SettingsServiceStationMatrixSection/SettingsServiceStationMatrixSection"
 import { SettingsConstraintsSection } from "@/components/settings/SettingsConstraintsSection/SettingsConstraintsSection"
-const VALID_SECTIONS = ["working-hours", "stations", "stations-per-day", "constraints"] as const
+const VALID_SECTIONS = ["working-hours", "stations", "stations-per-day", "service-station-matrix", "constraints"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function Settings() {
@@ -86,6 +87,7 @@ export default function Settings() {
                     {activeSection === "working-hours" && <SettingsWorkingHoursSection />}
                     {activeSection === "stations" && <SettingsStationsSection />}
                     {activeSection === "stations-per-day" && <SettingsStationsPerDaySection />}
+                    {activeSection === "service-station-matrix" && <SettingsServiceStationMatrixSection />}
                     {activeSection === "constraints" && <SettingsConstraintsSection />}
                 </div>
             </div>
