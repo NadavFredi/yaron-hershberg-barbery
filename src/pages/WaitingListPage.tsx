@@ -187,23 +187,10 @@ export default function WaitingListPage() {
         return [...new Set((data || []).map(c => c.full_name).filter(Boolean))] as string[]
     }
 
+    // Removed searchDogNames - no dogs in barbershop
     const searchDogNames = async (searchTerm: string): Promise<string[]> => {
-        const trimmedTerm = searchTerm.trim()
-        let query = supabase
-            .from("dogs")
-            .select("name")
-            .not("name", "is", null)
-
-        if (trimmedTerm.length >= 2) {
-            query = query.ilike("name", `%${trimmedTerm}%`).limit(10)
-        } else {
-            query = query.order("name", { ascending: true }).limit(5)
-        }
-
-        const { data, error } = await query
-
-        if (error) throw error
-        return [...new Set((data || []).map(d => d.name).filter(Boolean))] as string[]
+        // No dogs in barbershop - return empty array
+        return []
     }
 
     const searchEmails = async (searchTerm: string): Promise<string[]> => {

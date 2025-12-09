@@ -109,12 +109,23 @@ async function callLocalFunction(functionName: string, params: Record<string, an
   try {
     const url = `${host}/functions/v1/${functionName}`
 
+    // Get the current user's session token for authentication
+    let authToken = import.meta.env.VITE_SUPABASE_ANON_KEY || ""
+    if (supabase) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        authToken = session.access_token
+      }
+    }
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || "",
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ""}`,
+        Authorization: `Bearer ${authToken}`,
       },
       body: JSON.stringify(params),
     })

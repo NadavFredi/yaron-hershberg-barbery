@@ -46,11 +46,19 @@ async function resolveCustomerId(req: Request, explicitCustomerId?: string | nul
   })
 
   const { data: userData, error: userError } = await userClient.auth.getUser()
-  if (userError || !userData.user) {
-    throw new Error("Unable to resolve authenticated user for customer mapping")
+  if (userError) {
+    console.error("[reserve-appointment] Error getting user:", userError.message)
+    throw new Error(`Unable to resolve authenticated user: ${userError.message}`)
+  }
+
+  if (!userData.user) {
+    console.error("[reserve-appointment] No user data returned from getUser()")
+    throw new Error("Unable to resolve authenticated user for customer mapping - invalid or expired token")
   }
 
   const authUserId = userData.user.id
+  console.log(`[reserve-appointment] Resolving customer for authenticated user: ${authUserId}`)
+
   const { data: customer, error: customerError } = await adminClient
     .from("customers")
     .select("id")
@@ -58,13 +66,18 @@ async function resolveCustomerId(req: Request, explicitCustomerId?: string | nul
     .maybeSingle()
 
   if (customerError) {
+    console.error(`[reserve-appointment] Error querying customer:`, customerError.message)
     throw new Error(`Failed to resolve customer by user: ${customerError.message}`)
   }
 
   if (!customer?.id) {
-    throw new Error("No customer record found for the authenticated user")
+    console.warn(
+      `[reserve-appointment] No customer found for user ${authUserId}. User may need to complete profile setup.`
+    )
+    throw new Error("No customer record found for the authenticated user. Please ensure your profile is set up.")
   }
 
+  console.log(`[reserve-appointment] Resolved customer ID: ${customer.id}`)
   return customer.id
 }
 
@@ -178,7 +191,7 @@ serve(async (req) => {
         message: requiresApproval ? "הפגישה ממתינה לאישור" : "נקבע תור בהצלחה",
         data: appointment,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     )
   } catch (error) {
     console.error("Error processing reservation:", error)
@@ -187,7 +200,7 @@ serve(async (req) => {
         success: false,
         error: error instanceof Error ? error.message : "Internal server error",
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 },
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     )
   }
 })

@@ -259,19 +259,16 @@ export default function AppointmentsSection() {
 
     const fetchFilterOptions = useCallback(async () => {
         try {
-            const [{ data: customerTypeData, error: customerTypeError }, { data: dogCategoryData, error: dogCategoryError }] =
-                await Promise.all([
-                    supabase.from("customer_types").select("id, name").order("priority", { ascending: true }),
-                    supabase.from("dog_categories").select("id, name").order("name"),
-                ])
+            const { data: customerTypeData, error: customerTypeError } =
+                await supabase.from("customer_types").select("id, name").order("priority", { ascending: true })
 
-            if (customerTypeError || dogCategoryError) {
-                throw customerTypeError || dogCategoryError
+            if (customerTypeError) {
+                throw customerTypeError
             }
 
             setCustomerTypes(customerTypeData || [])
-            setDogCategory1Options([]) // dog_types was consolidated into dog_categories
-            setDogCategory2Options(dogCategoryData || [])
+            setDogCategory1Options([]) // No dogs in barbershop
+            setDogCategory2Options([]) // No dogs in barbershop
         } catch (fetchError) {
             console.error("Failed to fetch filter options:", fetchError)
             toast({
@@ -445,7 +442,7 @@ export default function AppointmentsSection() {
 
             return haystack.includes(normalized)
         })
-    }, [appointments, searchTerm, showOnlyFuture, customerCategoryFilter, dogCategory1Filter, dogCategory2Filter, selectedStationIds])
+    }, [appointments, searchTerm, showOnlyFuture, customerCategoryFilter, selectedStationIds])
 
     const stats = useMemo(() => {
         return filteredAppointments.reduce(
@@ -919,7 +916,7 @@ export default function AppointmentsSection() {
                             </div>
                         </div>
 
-                        <div className="grid gap-4 md:grid-cols-4">
+                        <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="customer-category">קטגוריית לקוח</Label>
                                 <Select
@@ -934,38 +931,6 @@ export default function AppointmentsSection() {
                                         {customerTypes.map((type) => (
                                             <SelectItem key={type.id} value={type.id}>
                                                 {type.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="dog-cat1">קטגוריית כלב 1</Label>
-                                <Select value={dogCategory1Filter} onValueChange={setDogCategory1Filter}>
-                                    <SelectTrigger id="dog-cat1">
-                                        <SelectValue placeholder="כל הקטגוריות" />
-                                    </SelectTrigger>
-                                    <SelectContent dir="rtl">
-                                        <SelectItem value="all">כל הקטגוריות</SelectItem>
-                                        {dogCategory1Options.map((item) => (
-                                            <SelectItem key={item.id} value={item.id}>
-                                                {item.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="dog-cat2">קטגוריית כלב 2</Label>
-                                <Select value={dogCategory2Filter} onValueChange={setDogCategory2Filter}>
-                                    <SelectTrigger id="dog-cat2">
-                                        <SelectValue placeholder="כל הקטגוריות" />
-                                    </SelectTrigger>
-                                    <SelectContent dir="rtl">
-                                        <SelectItem value="all">כל הקטגוריות</SelectItem>
-                                        {dogCategory2Options.map((item) => (
-                                            <SelectItem key={item.id} value={item.id}>
-                                                {item.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
