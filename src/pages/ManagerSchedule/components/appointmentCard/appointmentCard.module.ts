@@ -54,6 +54,7 @@ import { getStatusStyle, SERVICE_STYLES } from "../../constants"
 import { extractGroomingAppointmentId } from "@/lib/utils"
 import { cancelAppointment } from "@/pages/Appointments/Appointments.module"
 import { approveAppointmentByManager } from "@/integrations/supabase/supabaseService"
+import { SERVICE_CATEGORY_VARIANTS, type ServiceCategoryVariant } from "@/lib/serviceCategoryVariants"
 
 interface UseAppointmentCardParams {
   appointment: ManagerAppointment
@@ -138,6 +139,15 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
     if (appointment.appointmentType === "private") {
       return "bg-purple-100 border-purple-300"
     }
+    // For business appointments, use service category variant colors if available
+    if (appointment.appointmentType === "business" && appointment.serviceCategoryVariant) {
+      const variant = appointment.serviceCategoryVariant as ServiceCategoryVariant
+      const variantConfig = SERVICE_CATEGORY_VARIANTS[variant]
+      if (variantConfig) {
+        return `${variantConfig.bgLight} ${variantConfig.border}`
+      }
+    }
+    // Fallback to default service style
     return serviceStyle.card
   }
 

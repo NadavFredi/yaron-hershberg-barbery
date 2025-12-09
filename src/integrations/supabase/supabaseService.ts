@@ -711,7 +711,12 @@ export async function getManagerSchedule(
         created_at,
         updated_at,
         stations(id, name),
-        customers(id, full_name, phone, email, classification)
+        customers(id, full_name, phone, email, classification),
+        services(
+          id,
+          service_category_id,
+          service_categories(id, variant)
+        )
       `
       )
       .gte("start_at", dayStart.toISOString())
@@ -733,6 +738,10 @@ export async function getManagerSchedule(
     for (const apt of groomingAppointments) {
       const station = Array.isArray(apt.stations) ? apt.stations[0] : apt.stations
       const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
+      const service = Array.isArray(apt.services) ? apt.services[0] : apt.services
+      const serviceCategory = Array.isArray(service?.service_categories)
+        ? service.service_categories[0]
+        : service?.service_categories
 
       const hasCrossService = combinedGroomingIds.has(apt.id)
 
@@ -765,6 +774,7 @@ export async function getManagerSchedule(
         managerApprovedArrival: apt.manager_approved_arrival || null,
         treatmentStartedAt: apt.treatment_started_at || null,
         treatmentEndedAt: apt.treatment_ended_at || null,
+        serviceCategoryVariant: serviceCategory?.variant || null,
         ...(apt.created_at && { created_at: apt.created_at }),
         ...(apt.updated_at && { updated_at: apt.updated_at }),
       } as any)

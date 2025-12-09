@@ -92,6 +92,7 @@ export interface ManagerAppointment {
   managerApprovedArrival?: string | null
   treatmentStartedAt?: string | null
   treatmentEndedAt?: string | null
+  serviceCategoryVariant?: string | null
 }
 
 export interface ManagerScheduleData {

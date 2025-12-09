@@ -87,7 +87,7 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                 onInteractOutside={(e) => {
                     const target = e.target as HTMLElement
                     if (!target) return
-                    
+
                     // Check the composed path (includes shadow DOM and portals)
                     const path = e.composedPath ? e.composedPath() : []
                     const isInPickerPortal = path.some((node) => {
@@ -101,13 +101,13 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                         }
                         return false
                     })
-                    
+
                     // Also check the target directly
                     const isInDatePicker = target.closest("[data-date-picker-portal]") !== null
                     const isInTimePicker = target.closest("[data-time-picker-portal]") !== null
                     const isDatePickerElement = target.hasAttribute("data-date-picker-portal")
                     const isTimePickerElement = target.hasAttribute("data-time-picker-portal")
-                    
+
                     if (isInPickerPortal || isInDatePicker || isInTimePicker || isDatePickerElement || isTimePickerElement) {
                         e.preventDefault()
                         // Don't stop propagation - let the click reach the picker buttons
@@ -116,7 +116,7 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                 onPointerDownOutside={(e) => {
                     const target = e.target as HTMLElement
                     if (!target) return
-                    
+
                     // Check the composed path (includes shadow DOM and portals)
                     const path = e.composedPath ? e.composedPath() : []
                     const isInPickerPortal = path.some((node) => {
@@ -130,13 +130,13 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                         }
                         return false
                     })
-                    
+
                     // Also check the target directly
                     const isInDatePicker = target.closest("[data-date-picker-portal]") !== null
                     const isInTimePicker = target.closest("[data-time-picker-portal]") !== null
                     const isDatePickerElement = target.hasAttribute("data-date-picker-portal")
                     const isTimePickerElement = target.hasAttribute("data-time-picker-portal")
-                    
+
                     if (isInPickerPortal || isInDatePicker || isInTimePicker || isDatePickerElement || isTimePickerElement) {
                         e.preventDefault()
                         // Don't stop propagation - let the click reach the picker buttons
@@ -293,83 +293,85 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                         </div>
 
                         {/* Time Selection */}
-                        <div className="grid grid-cols-3 gap-4" dir="rtl">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 text-right block">
-                                    שעת התחלה
-                                </label>
-                                <TimePickerInput
-                                    value={groomingEditForm.startTime}
-                                    onChange={(time) => setGroomingEditForm(prev => ({
-                                        ...prev,
-                                        startTime: time
-                                    }))}
-                                    intervalMinutes={15}
-                                    wrapperClassName="w-full"
-                                    className="px-3 py-2 border border-gray-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 text-right block">
-                                    שעת סיום
-                                </label>
-                                <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-right bg-gray-50 text-gray-600 flex items-center">
-                                    {editingGroomingAppointment && (() => {
-                                        try {
-                                            // Validate inputs
-                                            if (!groomingEditForm.startTime || !groomingEditForm.date) {
+                        <div className="space-y-4" dir="rtl">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 text-right block">
+                                        שעת התחלה
+                                    </label>
+                                    <TimePickerInput
+                                        value={groomingEditForm.startTime}
+                                        onChange={(time) => setGroomingEditForm(prev => ({
+                                            ...prev,
+                                            startTime: time
+                                        }))}
+                                        intervalMinutes={15}
+                                        wrapperClassName="w-full"
+                                        className="px-3 py-2 border border-gray-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 text-right block">
+                                        שעת סיום
+                                    </label>
+                                    <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-right bg-gray-50 text-gray-600 flex items-center">
+                                        {editingGroomingAppointment && (() => {
+                                            try {
+                                                // Validate inputs
+                                                if (!groomingEditForm.startTime || !groomingEditForm.date) {
+                                                    // Fallback to original end time
+                                                    return format(new Date(editingGroomingAppointment.endDateTime), 'HH:mm')
+                                                }
+
+                                                // Calculate end time from start time + duration
+                                                const timeParts = groomingEditForm.startTime.split(':')
+                                                if (timeParts.length !== 2) {
+                                                    return format(new Date(editingGroomingAppointment.endDateTime), 'HH:mm')
+                                                }
+
+                                                const [startHour, startMinute] = timeParts.map(Number)
+                                                if (isNaN(startHour) || isNaN(startMinute)) {
+                                                    return format(new Date(editingGroomingAppointment.endDateTime), 'HH:mm')
+                                                }
+
+                                                const startDateTime = new Date(
+                                                    groomingEditForm.date.getFullYear(),
+                                                    groomingEditForm.date.getMonth(),
+                                                    groomingEditForm.date.getDate(),
+                                                    startHour,
+                                                    startMinute
+                                                )
+
+                                                // Validate the date
+                                                if (isNaN(startDateTime.getTime())) {
+                                                    return format(new Date(editingGroomingAppointment.endDateTime), 'HH:mm')
+                                                }
+
+                                                let durationMinutes: number
+                                                if (pendingResizeState && pendingResizeState.appointment.id === editingGroomingAppointment.id) {
+                                                    durationMinutes = pendingResizeState.newDuration
+                                                } else {
+                                                    durationMinutes = Math.round(
+                                                        (new Date(editingGroomingAppointment.endDateTime).getTime() -
+                                                            new Date(editingGroomingAppointment.startDateTime).getTime()) / (1000 * 60)
+                                                    )
+                                                }
+
+                                                const calculatedEndTime = addMinutes(startDateTime, durationMinutes)
+
+                                                // Validate the calculated end time
+                                                if (isNaN(calculatedEndTime.getTime())) {
+                                                    return format(new Date(editingGroomingAppointment.endDateTime), 'HH:mm')
+                                                }
+
+                                                return format(calculatedEndTime, 'HH:mm')
+                                            } catch (error) {
+                                                console.error('Error calculating end time:', error)
                                                 // Fallback to original end time
                                                 return format(new Date(editingGroomingAppointment.endDateTime), 'HH:mm')
                                             }
-
-                                            // Calculate end time from start time + duration
-                                            const timeParts = groomingEditForm.startTime.split(':')
-                                            if (timeParts.length !== 2) {
-                                                return format(new Date(editingGroomingAppointment.endDateTime), 'HH:mm')
-                                            }
-
-                                            const [startHour, startMinute] = timeParts.map(Number)
-                                            if (isNaN(startHour) || isNaN(startMinute)) {
-                                                return format(new Date(editingGroomingAppointment.endDateTime), 'HH:mm')
-                                            }
-
-                                            const startDateTime = new Date(
-                                                groomingEditForm.date.getFullYear(),
-                                                groomingEditForm.date.getMonth(),
-                                                groomingEditForm.date.getDate(),
-                                                startHour,
-                                                startMinute
-                                            )
-
-                                            // Validate the date
-                                            if (isNaN(startDateTime.getTime())) {
-                                                return format(new Date(editingGroomingAppointment.endDateTime), 'HH:mm')
-                                            }
-
-                                            let durationMinutes: number
-                                            if (pendingResizeState && pendingResizeState.appointment.id === editingGroomingAppointment.id) {
-                                                durationMinutes = pendingResizeState.newDuration
-                                            } else {
-                                                durationMinutes = Math.round(
-                                                    (new Date(editingGroomingAppointment.endDateTime).getTime() -
-                                                        new Date(editingGroomingAppointment.startDateTime).getTime()) / (1000 * 60)
-                                                )
-                                            }
-
-                                            const calculatedEndTime = addMinutes(startDateTime, durationMinutes)
-
-                                            // Validate the calculated end time
-                                            if (isNaN(calculatedEndTime.getTime())) {
-                                                return format(new Date(editingGroomingAppointment.endDateTime), 'HH:mm')
-                                            }
-
-                                            return format(calculatedEndTime, 'HH:mm')
-                                        } catch (error) {
-                                            console.error('Error calculating end time:', error)
-                                            // Fallback to original end time
-                                            return format(new Date(editingGroomingAppointment.endDateTime), 'HH:mm')
-                                        }
-                                    })()}
+                                        })()}
+                                    </div>
                                 </div>
                             </div>
                             <div className="space-y-2">

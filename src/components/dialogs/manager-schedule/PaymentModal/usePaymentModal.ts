@@ -901,25 +901,15 @@ export const usePaymentModal = ({
       const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
 
       // Fetch appointments from API for the same day
-      const [groomingResult, daycareResult] = await Promise.all([
-        supabase
-          .from("grooming_appointments")
-          .select("id, amount_due, status")
-          .eq("customer_id", cartData.customer_id)
-          .gte("start_at", dayStart.toISOString())
-          .lte("start_at", dayEnd.toISOString())
-          .neq("status", "cancelled"),
-        supabase
-          .from("daycare_appointments")
-          .select("id, amount_due, status")
-          .eq("customer_id", cartData.customer_id)
-          .gte("start_at", dayStart.toISOString())
-          .lte("start_at", dayEnd.toISOString())
-          .neq("status", "cancelled"),
-      ])
+      const groomingResult = await supabase
+        .from("grooming_appointments")
+        .select("id, amount_due, status")
+        .eq("customer_id", cartData.customer_id)
+        .gte("start_at", dayStart.toISOString())
+        .lte("start_at", dayEnd.toISOString())
+        .neq("status", "cancelled")
 
       if (groomingResult.error) throw groomingResult.error
-      if (daycareResult.error) throw daycareResult.error
 
       // Filter out cancelled appointments (including Hebrew statuses)
       const isCancelledStatus = (status: string | null | undefined): boolean => {
@@ -933,7 +923,7 @@ export const usePaymentModal = ({
         )
       }
 
-      const allAppointmentIds = (groomingData || [])
+      const allAppointmentIds = (groomingResult.data || [])
         .filter((apt) => !isCancelledStatus(apt.status))
         .map((apt) => ({ id: apt.id, serviceType: "grooming" as const, amountDue: apt.amount_due || 0 }))
 
