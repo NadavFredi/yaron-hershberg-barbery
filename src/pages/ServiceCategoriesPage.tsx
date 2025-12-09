@@ -149,14 +149,14 @@ export default function ServiceCategoriesPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>קטגוריות שירותים</CardTitle>
-              <CardDescription>נהל קטגוריות שירותים וצבעים</CardDescription>
-            </div>
             <Button onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="ml-2 h-4 w-4" />
               קטגוריה חדשה
             </Button>
+            <div className="text-right">
+              <CardTitle>קטגוריות שירותים</CardTitle>
+              <CardDescription>נהל קטגוריות שירותים וצבעים</CardDescription>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -183,18 +183,18 @@ export default function ServiceCategoriesPage() {
                             <Input
                               value={editName}
                               onChange={(e) => setEditName(e.target.value)}
-                              className="w-full"
+                              className="w-full text-right"
                               dir="rtl"
                             />
                           ) : (
                             <div className="flex items-center gap-2 justify-end">
+                              <span className="font-medium text-right">{category.name}</span>
                               <div
                                 className={cn(
-                                  "h-4 w-4 rounded-full",
+                                  "h-4 w-4 rounded-full shrink-0",
                                   variant.bg
                                 )}
                               />
-                              <span className="font-medium">{category.name}</span>
                             </div>
                           )}
                         </TableCell>
@@ -206,12 +206,12 @@ export default function ServiceCategoriesPage() {
                             />
                           ) : (
                             <div className="flex items-center gap-2 justify-end">
-                              <span className={cn("text-sm", variant.text)}>
+                              <span className={cn("text-sm text-right", variant.text)}>
                                 {variant.name}
                               </span>
                               <div
                                 className={cn(
-                                  "h-6 w-6 rounded border-2",
+                                  "h-6 w-6 rounded border-2 shrink-0",
                                   variant.bg,
                                   variant.border
                                 )}
@@ -220,13 +220,13 @@ export default function ServiceCategoriesPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-gray-600 text-right">
                             {category.services_count || 0}
                           </span>
                         </TableCell>
-                        <TableCell className="text-left">
+                        <TableCell className="text-right">
                           {isEditing ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 justify-end">
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -243,7 +243,7 @@ export default function ServiceCategoriesPage() {
                               </Button>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 justify-end">
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -278,35 +278,34 @@ export default function ServiceCategoriesPage() {
       </Card>
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>יצירת קטגוריה חדשה</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="sm:max-w-[500px]" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle className="text-right">יצירת קטגוריה חדשה</DialogTitle>
+            <DialogDescription className="text-right">
               הזן שם לקטגוריה ובחר ווריאנט צבע
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">שם הקטגוריה</Label>
+              <Label htmlFor="name" className="text-right">שם הקטגוריה</Label>
               <Input
                 id="name"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="לדוגמה: תספורות, טיפוח"
+                className="text-right"
+                dir="rtl"
               />
             </div>
             <div className="space-y-2">
-              <Label>ווריאנט צבע</Label>
+              <Label className="text-right">ווריאנט צבע</Label>
               <VariantSelector
                 selectedVariant={newVariant}
                 onVariantChange={setNewVariant}
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              ביטול
-            </Button>
+          <DialogFooter className="flex-row-reverse gap-2">
             <Button onClick={handleCreate} disabled={createCategory.isPending}>
               {createCategory.isPending ? (
                 <>
@@ -316,6 +315,9 @@ export default function ServiceCategoriesPage() {
               ) : (
                 "צור"
               )}
+            </Button>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              ביטול
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -355,30 +357,30 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
     <>
       <div className="flex items-center gap-2">
         <Select value={selectedVariant} onValueChange={onVariantChange} className="flex-1">
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full" dir="rtl">
             <SelectValue>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 justify-end">
+                <span className="text-right">{selectedVariantConfig.name}</span>
                 <div
                   className={cn(
-                    "h-4 w-4 rounded-full",
+                    "h-4 w-4 rounded-full shrink-0",
                     selectedVariantConfig.bg
                   )}
                 />
-                <span>{selectedVariantConfig.name}</span>
               </div>
             </SelectValue>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent dir="rtl">
             {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant) => (
               <SelectItem key={variant.id} value={variant.id}>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 justify-end">
+                  <span className="text-right">{variant.name}</span>
                   <div
                     className={cn(
-                      "h-4 w-4 rounded-full",
+                      "h-4 w-4 rounded-full shrink-0",
                       variant.bg
                     )}
                   />
-                  <span>{variant.name}</span>
                 </div>
               </SelectItem>
             ))}
@@ -397,17 +399,17 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
       </div>
 
       <Dialog open={isDemoModalOpen} onOpenChange={setIsDemoModalOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>בחר ווריאנט צבע</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle className="text-right">בחר ווריאנט צבע</DialogTitle>
+            <DialogDescription className="text-right">
               בחר ווריאנט צבע וצפה בתצוגה מקדימה
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-4">
             {/* Variants Grid - 6 per row */}
             <div>
-              <Label className="text-base font-medium mb-3 block">ווריאנטים זמינים:</Label>
+              <Label className="text-base font-medium mb-3 block text-right">ווריאנטים זמינים:</Label>
               <div className="grid grid-cols-6 gap-1.5">
                 {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant) => {
                   const isSelected = tempSelectedVariant === variant.id
@@ -430,11 +432,11 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
                             variant.bg
                           )}
                         />
-                        <span className={cn("text-xs font-medium", variant.text)}>
+                        <span className={cn("text-xs font-medium text-center", variant.text)}>
                           {variant.name}
                         </span>
                         {isSelected && (
-                          <div className={cn("text-[10px] leading-tight", variant.text)}>✓ נבחר</div>
+                          <div className={cn("text-[10px] leading-tight text-center", variant.text)}>✓ נבחר</div>
                         )}
                       </div>
                     </button>
@@ -445,7 +447,7 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
 
             {/* Preview Section */}
             <div className="space-y-3">
-              <Label className="text-base font-medium">תצוגה מקדימה:</Label>
+              <Label className="text-base font-medium text-right">תצוגה מקדימה:</Label>
               <div
                 className={cn(
                   "rounded-lg border-2 p-4 space-y-3",
@@ -455,7 +457,7 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
                 <div className="space-y-2">
                   <div
                     className={cn(
-                      "rounded-lg px-4 py-3 text-white font-medium",
+                      "rounded-lg px-4 py-3 text-white font-medium text-right",
                       tempVariantConfig.bg
                     )}
                   >
@@ -463,7 +465,7 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
                   </div>
                   <div
                     className={cn(
-                      "rounded-lg px-4 py-3 border-2",
+                      "rounded-lg px-4 py-3 border-2 text-right",
                       tempVariantConfig.bgLight,
                       tempVariantConfig.border,
                       tempVariantConfig.text
@@ -473,7 +475,7 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
                   </div>
                   <div
                     className={cn(
-                      "rounded-lg px-4 py-2 border",
+                      "rounded-lg px-4 py-2 border text-right",
                       tempVariantConfig.border,
                       tempVariantConfig.text
                     )}
@@ -484,12 +486,12 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCancelDemo}>
-              ביטול
-            </Button>
+          <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
             <Button onClick={handleChooseVariant}>
               בחר
+            </Button>
+            <Button variant="outline" onClick={handleCancelDemo}>
+              ביטול
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
@@ -11,8 +11,10 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { type Customer, CustomerSearchInput } from "@/components/CustomerSearchInput"
 import { useServices } from "@/hooks/useServices"
+import { useServiceCategories } from "@/hooks/useServiceCategories"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { AutocompleteFilter } from "@/components/AutocompleteFilter"
 
 type ManagerStation = AppointmentStation
 
@@ -41,6 +43,8 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
 }) => {
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
     const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
+    const [serviceInputValue, setServiceInputValue] = useState<string>("")
     const [appointmentTimes, setAppointmentTimes] = useState<FinalizedDragTimes | null>(() => finalizedDragTimes ? {
         startTime: finalizedDragTimes.startTime ? new Date(finalizedDragTimes.startTime) : null,
         endTime: finalizedDragTimes.endTime ? new Date(finalizedDragTimes.endTime) : null,
@@ -49,14 +53,25 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
     const [createManagerAppointment, { isLoading: isCreatingAppointment }] = useCreateManagerAppointmentMutation()
     const { toast } = useToast()
     const { data: services = [], isLoading: isLoadingServices } = useServices()
+    const { data: categories = [], isLoading: isLoadingCategories } = useServiceCategories()
 
 
+
+    // Filter services by selected category
+    const filteredServices = useMemo(() => {
+        if (!selectedCategoryId) {
+            return services
+        }
+        return services.filter((service) => service.service_category_id === selectedCategoryId)
+    }, [services, selectedCategoryId])
 
     // Reset states when modal closes
     useEffect(() => {
         if (!open) {
             setSelectedCustomer(null)
             setSelectedServiceId(null)
+            setSelectedCategoryId(null)
+            setServiceInputValue("")
         }
     }, [open])
 
@@ -89,6 +104,42 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
 
     const handleClearCustomer = () => {
         setSelectedCustomer(null)
+    }
+
+    // Search function for AutocompleteFilter
+    const searchServices = (term: string): Promise<string[]> => {
+        if (!filteredServices.length) {
+            return Promise.resolve([])
+        }
+
+        const needle = term.trim().toLowerCase()
+        if (!needle) {
+            return Promise.resolve(filteredServices.slice(0, 10).map((service) => service.name))
+        }
+
+        return Promise.resolve(
+            filteredServices
+                .filter((service) => service.name.toLowerCase().includes(needle))
+                .slice(0, 10)
+                .map((service) => service.name)
+        )
+    }
+
+    const handleServiceSelect = (serviceName: string) => {
+        setServiceInputValue(serviceName)
+        const service = filteredServices.find((s) => s.name === serviceName)
+        if (service) {
+            setSelectedServiceId(service.id)
+        } else {
+            setSelectedServiceId(null)
+        }
+    }
+
+    const handleCategoryChange = (categoryId: string | null) => {
+        setSelectedCategoryId(categoryId)
+        // Clear service selection when category changes
+        setSelectedServiceId(null)
+        setServiceInputValue("")
     }
 
     const handleTimesUpdate = (times: FinalizedDragTimes) => {
@@ -189,23 +240,46 @@ export const BusinessAppointmentModal: React.FC<BusinessAppointmentModalProps> =
                             />
 
                             <div className="space-y-2">
-                                <Label htmlFor="service-select">שירות</Label>
+                                <Label htmlFor="service-category-select">קטגוריית שירות (אופציונלי)</Label>
                                 <Select
-                                    value={selectedServiceId || ""}
-                                    onValueChange={(value) => setSelectedServiceId(value || null)}
-                                    disabled={isLoadingServices}
+                                    value={selectedCategoryId || "none"}
+                                    onValueChange={(value) => handleCategoryChange(value === "none" ? null : value)}
+                                    disabled={isLoadingCategories}
                                 >
-                                    <SelectTrigger id="service-select" dir="rtl">
-                                        <SelectValue placeholder={isLoadingServices ? "טוען שירותים..." : "בחר שירות"} />
+                                    <SelectTrigger id="service-category-select" dir="rtl">
+                                        <SelectValue placeholder={isLoadingCategories ? "טוען קטגוריות..." : "כל הקטגוריות"} />
                                     </SelectTrigger>
                                     <SelectContent dir="rtl">
-                                        {services.map((service) => (
-                                            <SelectItem key={service.id} value={service.id}>
-                                                {service.name}
+                                        <SelectItem value="none">כל הקטגוריות</SelectItem>
+                                        {categories.map((category) => (
+                                            <SelectItem key={category.id} value={category.id}>
+                                                {category.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="service-select">שירות</Label>
+                                <AutocompleteFilter
+                                    value={serviceInputValue}
+                                    onChange={(value) => {
+                                        setServiceInputValue(value)
+                                        if (!value.trim()) {
+                                            setSelectedServiceId(null)
+                                            return
+                                        }
+                                    }}
+                                    onSelect={handleServiceSelect}
+                                    placeholder={isLoadingServices ? "טוען שירותים..." : "הקלידו את שם השירות..."}
+                                    className="w-full"
+                                    searchFn={searchServices}
+                                    minSearchLength={1}
+                                    debounceMs={150}
+                                    initialLoadOnMount
+                                    initialResultsLimit={10}
+                                />
                             </div>
                         </div>
                     </div>
