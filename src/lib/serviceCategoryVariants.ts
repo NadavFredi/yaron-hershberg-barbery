@@ -20,6 +20,16 @@ export type ServiceCategoryVariant =
   | "slate"
   | "gray"
   | "zinc"
+  | "stone"
+  | "neutral"
+  | "blue-gray"
+  | "warm-gray"
+  | "cool-gray"
+  | "true-gray"
+  | "red-orange"
+  | "yellow-green"
+  | "blue-green"
+  | "purple-blue"
 
 export interface ServiceCategoryVariantConfig {
   id: ServiceCategoryVariant
@@ -253,6 +263,116 @@ export const SERVICE_CATEGORY_VARIANTS: Record<ServiceCategoryVariant, ServiceCa
     textLight: "text-zinc-50",
     border: "border-zinc-200",
     ring: "ring-zinc-500",
+  },
+  stone: {
+    id: "stone",
+    name: "אבן",
+    bg: "bg-stone-600",
+    bgLight: "bg-stone-50",
+    bgHover: "hover:bg-stone-700",
+    text: "text-stone-600",
+    textLight: "text-stone-50",
+    border: "border-stone-200",
+    ring: "ring-stone-500",
+  },
+  neutral: {
+    id: "neutral",
+    name: "ניטרלי",
+    bg: "bg-neutral-600",
+    bgLight: "bg-neutral-50",
+    bgHover: "hover:bg-neutral-700",
+    text: "text-neutral-600",
+    textLight: "text-neutral-50",
+    border: "border-neutral-200",
+    ring: "ring-neutral-500",
+  },
+  "blue-gray": {
+    id: "blue-gray",
+    name: "כחול-אפור",
+    bg: "bg-slate-500",
+    bgLight: "bg-slate-50",
+    bgHover: "hover:bg-slate-600",
+    text: "text-slate-600",
+    textLight: "text-slate-50",
+    border: "border-slate-200",
+    ring: "ring-slate-400",
+  },
+  "warm-gray": {
+    id: "warm-gray",
+    name: "אפור חם",
+    bg: "bg-stone-500",
+    bgLight: "bg-stone-50",
+    bgHover: "hover:bg-stone-600",
+    text: "text-stone-600",
+    textLight: "text-stone-50",
+    border: "border-stone-200",
+    ring: "ring-stone-400",
+  },
+  "cool-gray": {
+    id: "cool-gray",
+    name: "אפור קר",
+    bg: "bg-gray-500",
+    bgLight: "bg-gray-50",
+    bgHover: "hover:bg-gray-600",
+    text: "text-gray-600",
+    textLight: "text-gray-50",
+    border: "border-gray-200",
+    ring: "ring-gray-400",
+  },
+  "true-gray": {
+    id: "true-gray",
+    name: "אפור אמיתי",
+    bg: "bg-neutral-500",
+    bgLight: "bg-neutral-50",
+    bgHover: "hover:bg-neutral-600",
+    text: "text-neutral-600",
+    textLight: "text-neutral-50",
+    border: "border-neutral-200",
+    ring: "ring-neutral-400",
+  },
+  "red-orange": {
+    id: "red-orange",
+    name: "אדום-כתום",
+    bg: "bg-orange-500",
+    bgLight: "bg-orange-50",
+    bgHover: "hover:bg-orange-600",
+    text: "text-orange-600",
+    textLight: "text-orange-50",
+    border: "border-orange-200",
+    ring: "ring-orange-400",
+  },
+  "yellow-green": {
+    id: "yellow-green",
+    name: "צהוב-ירוק",
+    bg: "bg-lime-500",
+    bgLight: "bg-lime-50",
+    bgHover: "hover:bg-lime-600",
+    text: "text-lime-600",
+    textLight: "text-lime-50",
+    border: "border-lime-200",
+    ring: "ring-lime-400",
+  },
+  "blue-green": {
+    id: "blue-green",
+    name: "כחול-ירוק",
+    bg: "bg-teal-500",
+    bgLight: "bg-teal-50",
+    bgHover: "hover:bg-teal-600",
+    text: "text-teal-600",
+    textLight: "text-teal-50",
+    border: "border-teal-200",
+    ring: "ring-teal-400",
+  },
+  "purple-blue": {
+    id: "purple-blue",
+    name: "סגול-כחול",
+    bg: "bg-indigo-500",
+    bgLight: "bg-indigo-50",
+    bgHover: "hover:bg-indigo-600",
+    text: "text-indigo-600",
+    textLight: "text-indigo-50",
+    border: "border-indigo-200",
+    ring: "ring-indigo-400",
   },
 }
 

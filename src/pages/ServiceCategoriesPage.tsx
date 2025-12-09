@@ -405,10 +405,10 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-4">
-            {/* Variants Grid - 5 per row */}
+            {/* Variants Grid - 6 per row */}
             <div>
               <Label className="text-base font-medium mb-3 block">ווריאנטים זמינים:</Label>
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-6 gap-1.5">
                 {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant) => {
                   const isSelected = tempSelectedVariant === variant.id
                   return (
