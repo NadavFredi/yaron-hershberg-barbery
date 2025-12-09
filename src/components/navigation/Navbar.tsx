@@ -912,10 +912,10 @@ export function Navbar({ isManager }: NavbarProps) {
                         <div className="flex items-center justify-between gap-4 py-3 xl:hidden">
                             <Link to="/" className="flex items-center gap-3">
                                 <div className="w-10 h-10 shrink-0">
-                                    <img src={logoImage} alt="B LOVED Logo" className="w-full h-full object-contain" />
+                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <div>
-                                    <h1 className="text-lg font-bold text-gray-900 leading-tight">B LOVED</h1>
+                                    <h1 className="text-lg font-bold text-gray-900 leading-tight">Yaron Hershberg</h1>
                                     <p className="text-xs text-gray-600 leading-tight">מספרה מקצועית</p>
                                 </div>
                             </Link>
@@ -948,10 +948,10 @@ export function Navbar({ isManager }: NavbarProps) {
                         <div className="hidden xl:grid xl:grid-cols-[auto,1fr,auto] xl:items-center xl:gap-6 py-4">
                             <Link to={user ? "/setup-appointment" : "/"} className="flex items-center gap-3">
                                 <div className="w-12 h-12 shrink-0">
-                                    <img src={logoImage} alt="B LOVED Logo" className="w-full h-full object-contain" />
+                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <div>
-                                    <h1 className="text-2xl font-bold text-gray-900 leading-tight">B LOVED</h1>
+                                    <h1 className="text-2xl font-bold text-gray-900 leading-tight">Yaron Hershberg</h1>
                                     <p className="text-sm text-gray-600 leading-tight">מספרה מקצועית</p>
                                 </div>
                             </Link>

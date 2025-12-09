@@ -1124,11 +1124,26 @@ export const supabaseApi = createApi({
           const rangeStartIso = params?.rangeStart ?? defaultRangeStart.toISOString()
           const rangeEndIso = params?.rangeEnd ?? nowIso
 
-          const { data: workerRows, error: workerError } = await supabase
+          let workerQuery = supabase
             .from("profiles")
             .select("id, full_name, email, phone_number, worker_is_active, created_at, role")
             .eq("role", "worker")
-            .order("full_name", { ascending: true })
+
+          // Filter by active status if includeInactive is false
+          if (!includeInactive) {
+            workerQuery = workerQuery.eq("worker_is_active", true)
+          }
+
+          workerQuery = workerQuery.order("full_name", { ascending: true })
+
+          const { data: workerRows, error: workerError } = await workerQuery
+
+          console.log("🔍 [supabaseApi.getWorkers] Query result", {
+            workerCount: workerRows?.length ?? 0,
+            includeInactive,
+            error: workerError,
+            sampleWorker: workerRows?.[0],
+          })
 
           if (workerError) {
             console.error("❌ [supabaseApi.getWorkers] Failed to load worker profiles", workerError)
