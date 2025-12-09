@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -125,9 +126,25 @@ interface ExistingSubActionRowProps {
     subAction: ServiceSubAction
     onUpdateActive: (checked: boolean) => void
     onDelete: () => void
+    editingField: { serviceId: string; field: string; subActionId?: string } | null
+    onStartEdit: (subActionId: string, field: string, value: string | number) => void
+    onSaveEdit: (subActionId: string, field: string, value: string | number) => void
+    onCancelEdit: () => void
+    inlineEditValue: string
+    setInlineEditValue: (value: string) => void
 }
 
-function ExistingSubActionRow({ subAction, onUpdateActive, onDelete }: ExistingSubActionRowProps) {
+function ExistingSubActionRow({
+    subAction,
+    onUpdateActive,
+    onDelete,
+    editingField,
+    onStartEdit,
+    onSaveEdit,
+    onCancelEdit,
+    inlineEditValue,
+    setInlineEditValue
+}: ExistingSubActionRowProps) {
     const {
         attributes,
         listeners,
@@ -139,36 +156,149 @@ function ExistingSubActionRow({ subAction, onUpdateActive, onDelete }: ExistingS
 
     const style = {
         transform: CSS.Transform.toString(transform),
-        transition,
+        transition: isDragging ? "none" : transition,
+        opacity: isDragging ? 0.8 : 1,
     }
+
+    const isEditingName = editingField?.subActionId === subAction.id && editingField.field === "name"
+    const isEditingDescription = editingField?.subActionId === subAction.id && editingField.field === "description"
+    const isEditingDuration = editingField?.subActionId === subAction.id && editingField.field === "duration"
 
     return (
         <TableRow
             ref={setNodeRef}
             style={style}
-            className={cn("bg-gray-50/50", isDragging && "opacity-50")}
+            className={cn("bg-gray-50/50", isDragging && "opacity-50 z-50")}
         >
-            <TableCell className="pl-12">
+            <TableCell className="pl-12 w-fit">
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        className="cursor-grab active:cursor-grabbing"
+                        className="cursor-grab active:cursor-grabbing flex-shrink-0"
                         {...attributes}
                         {...listeners}
                     >
                         <GripVertical className="h-4 w-4 text-gray-400" />
                     </button>
-                    <span className="text-sm">{subAction.name}</span>
+                    {isEditingName ? (
+                        <div className="flex items-center gap-1">
+                            <Input
+                                value={inlineEditValue}
+                                onChange={(e) => setInlineEditValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        onSaveEdit(subAction.id, "name", inlineEditValue)
+                                    } else if (e.key === "Escape") {
+                                        onCancelEdit()
+                                    }
+                                }}
+                                className="h-7 text-sm w-auto min-w-[100px] hover:ring-2 hover:ring-primary/20 transition-all"
+                                autoFocus
+                                dir="rtl"
+                            />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onSaveEdit(subAction.id, "name", inlineEditValue)}
+                                className="h-5 w-5 p-0"
+                            >
+                                <Check className="h-3 w-3 text-green-600" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={onCancelEdit}
+                                className="h-5 w-5 p-0"
+                            >
+                                <X className="h-3 w-3 text-red-600" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <span
+                            className="text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors whitespace-nowrap"
+                            onClick={() => onStartEdit(subAction.id, "name", subAction.name)}
+                        >
+                            {subAction.name}
+                        </span>
+                    )}
                 </div>
             </TableCell>
             <TableCell>
                 <span className="text-xs text-gray-500">פעולת משנה</span>
             </TableCell>
             <TableCell>
-                <span className="text-sm">{subAction.duration} דקות</span>
+                {isEditingDuration ? (
+                    <div className="flex items-center gap-1">
+                        <div className="hover:ring-2 hover:ring-primary/20 rounded-md transition-all">
+                            <DurationInput
+                                value={parseInt(inlineEditValue) || 0}
+                                onChange={(minutes) => {
+                                    setInlineEditValue(String(minutes))
+                                    onSaveEdit(subAction.id, "duration", minutes)
+                                }}
+                                className="h-7 w-24"
+                            />
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onCancelEdit}
+                            className="h-5 w-5 p-0"
+                        >
+                            <X className="h-3 w-3 text-red-600" />
+                        </Button>
+                    </div>
+                ) : (
+                    <span
+                        className="text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors"
+                        onClick={() => onStartEdit(subAction.id, "duration", subAction.duration)}
+                    >
+                        {subAction.duration} דקות
+                    </span>
+                )}
             </TableCell>
-            <TableCell className="text-gray-600 text-sm">
-                {subAction.description || "-"}
+            <TableCell>
+                {isEditingDescription ? (
+                    <div className="flex items-center gap-1">
+                        <Input
+                            value={inlineEditValue}
+                            onChange={(e) => setInlineEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    onSaveEdit(subAction.id, "description", inlineEditValue)
+                                } else if (e.key === "Escape") {
+                                    onCancelEdit()
+                                }
+                            }}
+                            className="h-7 text-sm w-auto min-w-[150px] hover:ring-2 hover:ring-primary/20 transition-all"
+                            autoFocus
+                            dir="rtl"
+                        />
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSaveEdit(subAction.id, "description", inlineEditValue)}
+                            className="h-5 w-5 p-0"
+                        >
+                            <Check className="h-3 w-3 text-green-600" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onCancelEdit}
+                            className="h-5 w-5 p-0"
+                        >
+                            <X className="h-3 w-3 text-red-600" />
+                        </Button>
+                    </div>
+                ) : (
+                    <span
+                        className="text-gray-600 text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors"
+                        onClick={() => onStartEdit(subAction.id, "description", subAction.description || "")}
+                    >
+                        {subAction.description || "-"}
+                    </span>
+                )}
             </TableCell>
             <TableCell></TableCell>
             <TableCell>
@@ -198,6 +328,7 @@ function ExistingSubActionRow({ subAction, onUpdateActive, onDelete }: ExistingS
 
 export default function ServicesListPage() {
     const { toast } = useToast()
+    const queryClient = useQueryClient()
     const { data: services = [], isLoading, refetch } = useServices()
     const createService = useCreateService()
     const updateService = useUpdateService()
@@ -229,7 +360,7 @@ export default function ServicesListPage() {
     const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set())
 
     // Inline editing state
-    const [editingField, setEditingField] = useState<{ serviceId: string; field: string } | null>(null)
+    const [editingField, setEditingField] = useState<{ serviceId: string; field: string; subActionId?: string } | null>(null)
     const [inlineEditValue, setInlineEditValue] = useState<string>("")
 
     // Inline sub-action creation state - accumulate multiple before saving
@@ -495,14 +626,54 @@ export default function ServicesListPage() {
         setExpandedServices(newExpanded)
     }
 
-    const startInlineEdit = (serviceId: string, field: string, currentValue: string | number) => {
-        setEditingField({ serviceId, field })
+    const startInlineEdit = (serviceId: string, field: string, currentValue: string | number, subActionId?: string) => {
+        setEditingField({ serviceId, field, subActionId })
         setInlineEditValue(String(currentValue))
     }
 
     const cancelInlineEdit = () => {
         setEditingField(null)
         setInlineEditValue("")
+    }
+
+    const saveSubActionEdit = async (subActionId: string, field: string, value: string | number) => {
+        if (!editingField) return
+
+        try {
+            const updateData: {
+                name?: string
+                description?: string | null
+                duration?: number
+            } = {}
+
+            if (field === "name") {
+                updateData.name = String(value).trim()
+            } else if (field === "description") {
+                updateData.description = String(value).trim() || null
+            } else if (field === "duration") {
+                updateData.duration = Number(value)
+            }
+
+            await updateSubAction.mutateAsync({
+                subActionId,
+                ...updateData,
+            })
+
+            toast({
+                title: "הצלחה",
+                description: "פעולת המשנה עודכנה בהצלחה",
+            })
+
+            cancelInlineEdit()
+        } catch (error: unknown) {
+            console.error("Error updating sub-action:", error)
+            const errorMessage = error instanceof Error ? error.message : "לא ניתן לעדכן את פעולת המשנה"
+            toast({
+                title: "שגיאה",
+                description: errorMessage,
+                variant: "destructive",
+            })
+        }
     }
 
     const saveInlineEdit = async (service: Service) => {
@@ -693,36 +864,85 @@ export default function ServicesListPage() {
         const { active, over } = event
         if (!over || active.id === over.id) return
 
-        const service = services.find(s => s.id === serviceId)
+        // Get fresh data from cache to ensure we have the latest
+        const currentServices = queryClient.getQueryData<Service[]>(["services"]) || services
+        const service = currentServices.find(s => s.id === serviceId)
         if (!service || !service.service_sub_actions) return
 
-        const subActions = [...service.service_sub_actions]
+        const subActions = [...service.service_sub_actions].sort((a, b) => a.order_index - b.order_index)
         const oldIndex = subActions.findIndex(sa => sa.id === active.id)
         const newIndex = subActions.findIndex(sa => sa.id === over.id)
 
         if (oldIndex === -1 || newIndex === -1) return
+
+        // Save previous state for rollback
+        const previousServices = queryClient.getQueryData<Service[]>(["services"])
 
         // Reorder locally
         const updated = [...subActions]
         const [moved] = updated.splice(oldIndex, 1)
         updated.splice(newIndex, 0, moved)
 
-        // Update order_index for all affected sub-actions
-        try {
-            for (let i = 0; i < updated.length; i++) {
-                if (updated[i].order_index !== i) {
-                    await updateSubAction.mutateAsync({
-                        subActionId: updated[i].id,
-                        order_index: i,
-                    })
+        // Update order_index for reordered items
+        const reorderedSubActions = updated.map((sa, index) => ({
+            ...sa,
+            order_index: index,
+        }))
+
+        // Optimistically update the cache immediately - this must happen synchronously
+        if (previousServices) {
+            const optimisticServices = previousServices.map((s) => {
+                if (s.id === serviceId) {
+                    return {
+                        ...s,
+                        service_sub_actions: reorderedSubActions,
+                    }
                 }
-            }
-            toast({
-                title: "הצלחה",
-                description: "סדר הפעולות עודכן בהצלחה",
+                return s
             })
+
+            // Set the data immediately - this triggers a re-render with the new order
+            queryClient.setQueryData<Service[]>(["services"], optimisticServices)
+        }
+
+        // Update order_index for all affected sub-actions in the background
+        try {
+            // Update all sub-actions that need their order_index changed
+            const updates = reorderedSubActions
+                .map((sa, index) => ({
+                    subActionId: sa.id,
+                    order_index: index,
+                    originalIndex: subActions.findIndex(orig => orig.id === sa.id),
+                }))
+                .filter((update) => {
+                    // Only update if order_index actually changed
+                    return update.originalIndex !== update.order_index
+                })
+
+            // Batch update all sub-actions
+            if (updates.length > 0) {
+                await Promise.all(
+                    updates.map((update) =>
+                        updateSubAction.mutateAsync({
+                            subActionId: update.subActionId,
+                            order_index: update.order_index,
+                        })
+                    )
+                )
+            }
+
+            // Silently refetch in background to ensure sync (without showing loading)
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["services"] })
+            }, 100)
         } catch (error: unknown) {
             console.error("Error reordering sub-actions:", error)
+
+            // Revert optimistic update on error
+            if (previousServices) {
+                queryClient.setQueryData<Service[]>(["services"], previousServices)
+            }
+
             const errorMessage = error instanceof Error ? error.message : "לא ניתן לעדכן את הסדר"
             toast({
                 title: "שגיאה",
@@ -887,7 +1107,7 @@ export default function ServicesListPage() {
                                                                                 cancelInlineEdit()
                                                                             }
                                                                         }}
-                                                                        className="h-8 w-32"
+                                                                        className="h-8 w-auto min-w-[100px] hover:ring-2 hover:ring-primary/20 transition-all"
                                                                         autoFocus
                                                                         dir="rtl"
                                                                     />
@@ -996,7 +1216,7 @@ export default function ServicesListPage() {
                                                                             cancelInlineEdit()
                                                                         }
                                                                     }}
-                                                                    className="h-8 w-40"
+                                                                    className="h-8 w-auto min-w-[150px] hover:ring-2 hover:ring-primary/20 transition-all"
                                                                     autoFocus
                                                                     dir="rtl"
                                                                 />
@@ -1040,7 +1260,7 @@ export default function ServicesListPage() {
                                                                             cancelInlineEdit()
                                                                         }
                                                                     }}
-                                                                    className="h-8 w-24"
+                                                                    className="h-8 w-auto min-w-[80px] hover:ring-2 hover:ring-primary/20 transition-all"
                                                                     autoFocus
                                                                     dir="rtl"
                                                                 />
@@ -1117,10 +1337,10 @@ export default function ServicesListPage() {
                                                                 onDragEnd={handleDragEndExisting(service.id)}
                                                             >
                                                                 <SortableContext
-                                                                    items={service.service_sub_actions.map(sa => sa.id)}
+                                                                    items={(service.service_sub_actions || []).sort((a, b) => a.order_index - b.order_index).map(sa => sa.id)}
                                                                     strategy={verticalListSortingStrategy}
                                                                 >
-                                                                    {service.service_sub_actions.map((subAction) => (
+                                                                    {(service.service_sub_actions || []).sort((a, b) => a.order_index - b.order_index).map((subAction) => (
                                                                         <ExistingSubActionRow
                                                                             key={subAction.id}
                                                                             subAction={subAction}
@@ -1133,6 +1353,14 @@ export default function ServicesListPage() {
                                                                             onDelete={() => {
                                                                                 deleteSubAction.mutateAsync(subAction.id)
                                                                             }}
+                                                                            editingField={editingField}
+                                                                            onStartEdit={(subActionId, field, value) => {
+                                                                                startInlineEdit(service.id, field, value, subActionId)
+                                                                            }}
+                                                                            onSaveEdit={saveSubActionEdit}
+                                                                            onCancelEdit={cancelInlineEdit}
+                                                                            inlineEditValue={inlineEditValue}
+                                                                            setInlineEditValue={setInlineEditValue}
                                                                         />
                                                                     ))}
                                                                 </SortableContext>
@@ -1148,7 +1376,7 @@ export default function ServicesListPage() {
                                                                                 value={newSubAction.name}
                                                                                 onChange={(e) => setNewSubAction({ ...newSubAction, name: e.target.value })}
                                                                                 placeholder="שם הפעולה *"
-                                                                                className="flex-1"
+                                                                                className="w-auto min-w-[120px] max-w-[200px] hover:ring-2 hover:ring-primary/20 transition-all"
                                                                                 dir="rtl"
                                                                                 onKeyDown={(e) => {
                                                                                     if (e.key === "Enter") {
@@ -1157,16 +1385,18 @@ export default function ServicesListPage() {
                                                                                 }}
                                                                             />
                                                                             <div className="w-32">
-                                                                                <DurationInput
-                                                                                    value={newSubAction.duration}
-                                                                                    onChange={(minutes) => setNewSubAction({ ...newSubAction, duration: minutes })}
-                                                                                />
+                                                                                <div className="hover:ring-2 hover:ring-primary/20 rounded-md transition-all">
+                                                                                    <DurationInput
+                                                                                        value={newSubAction.duration}
+                                                                                        onChange={(minutes) => setNewSubAction({ ...newSubAction, duration: minutes })}
+                                                                                    />
+                                                                                </div>
                                                                             </div>
                                                                             <Input
                                                                                 value={newSubAction.description}
                                                                                 onChange={(e) => setNewSubAction({ ...newSubAction, description: e.target.value })}
                                                                                 placeholder="תיאור (אופציונלי)"
-                                                                                className="flex-1"
+                                                                                className="flex-1 hover:ring-2 hover:ring-primary/20 transition-all"
                                                                                 dir="rtl"
                                                                                 onKeyDown={(e) => {
                                                                                     if (e.key === "Enter") {

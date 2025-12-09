@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { supabaseApi, useGetManagerScheduleQuery } from "@/store/services/supabaseApi"
 import { DuplicateStationDialog } from "@/components/dialogs/settings/stations/DuplicateStationDialog"
 import { format } from "date-fns"
+import { useQueryClient } from "@tanstack/react-query"
 import {
     setIsDuplicateStationDialogOpen,
     setStationToDuplicate,
@@ -13,6 +14,7 @@ import {
 export function ManagerDuplicateStationDialog() {
     const dispatch = useAppDispatch()
     const { toast } = useToast()
+    const queryClient = useQueryClient()
 
     const open = useAppSelector((state) => state.managerSchedule.isDuplicateStationDialogOpen)
     const stationToDuplicate = useAppSelector((state) => state.managerSchedule.stationToDuplicate)
@@ -181,10 +183,12 @@ export function ManagerDuplicateStationDialog() {
 
             // Refresh schedule data
             await refetch()
+            // Invalidate RTK Query cache
             dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Station"]))
-            // Refetch station working hours to update gray slots immediately
-            // RTK Query will automatically refetch when tags are invalidated
             dispatch(supabaseApi.util.invalidateTags(["StationWorkingHours", "ShiftRestrictions"]))
+            // Invalidate React Query cache
+            queryClient.invalidateQueries({ queryKey: ['stations'] })
+            queryClient.invalidateQueries({ queryKey: ['services-with-stats'] })
 
             dispatch(setIsDuplicateStationDialogOpen(false))
             dispatch(setStationToDuplicate(null))

@@ -211,6 +211,7 @@ const WEEKDAYS = [
 export function SettingsStationsSection() {
     const { toast } = useToast()
     const dispatch = useAppDispatch()
+    const queryClient = useQueryClient()
     const [stations, setStations] = useState<Station[]>([])
     const [stationWorkingHours, setStationWorkingHours] = useState<Record<string, StationWorkingHour[]>>({})
     const [unavailabilities, setUnavailabilities] = useState<Record<string, StationUnavailability[]>>({})
@@ -997,8 +998,12 @@ export function SettingsStationsSection() {
                     description: `הנתונים הועתקו ל-${params.targetStationIds.length} עמדות בהצלחה`,
                 })
 
-                // Invalidate ManagerSchedule cache
-                dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule"]))
+                // Invalidate RTK Query cache
+                dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Station"]))
+                dispatch(supabaseApi.util.invalidateTags(["StationWorkingHours", "ShiftRestrictions"]))
+                // Invalidate React Query cache
+                queryClient.invalidateQueries({ queryKey: ['stations'] })
+                queryClient.invalidateQueries({ queryKey: ['services-with-stats'] })
 
                 setIsDuplicateDialogOpen(false)
                 setStationToDuplicate(null)
@@ -1014,8 +1019,12 @@ export function SettingsStationsSection() {
                     : "הנתונים הועתקו לעמדה הקיימת בהצלחה",
             })
 
-            // Invalidate ManagerSchedule cache so the calendar board reflects the changes immediately
-            dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule"]))
+            // Invalidate RTK Query cache so the calendar board reflects the changes immediately
+            dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Station"]))
+            dispatch(supabaseApi.util.invalidateTags(["StationWorkingHours", "ShiftRestrictions"]))
+            // Invalidate React Query cache
+            queryClient.invalidateQueries({ queryKey: ['stations'] })
+            queryClient.invalidateQueries({ queryKey: ['services-with-stats'] })
 
             setIsDuplicateDialogOpen(false)
             setStationToDuplicate(null)

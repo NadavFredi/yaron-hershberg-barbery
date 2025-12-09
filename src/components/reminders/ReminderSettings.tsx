@@ -36,6 +36,8 @@ interface ReminderRow {
     displayOrder: number
     isManual: boolean
     isDefault: boolean
+    specificTime: string | null // Time in HH:mm format (e.g., "18:00")
+    sendCondition: "send_only_if_not_approved" | "send_anyway" | null
     originalReminder?: {
         id: string
         day_type: string
@@ -47,6 +49,8 @@ interface ReminderRow {
         display_order: number
         is_manual: boolean
         is_default: boolean
+        specific_time: string | null
+        send_condition: "send_only_if_not_approved" | "send_anyway" | null
     }
 }
 
@@ -143,6 +147,8 @@ export default function ReminderSettings() {
                     displayOrder: reminder.display_order,
                     isManual: isManual,
                     isDefault: reminder.is_default === true,
+                    specificTime: reminder.specific_time || null,
+                    sendCondition: (reminder.send_condition as "send_only_if_not_approved" | "send_anyway" | null) || null,
                     originalReminder: {
                         id: reminder.id,
                         day_type: reminder.day_type,
@@ -154,6 +160,8 @@ export default function ReminderSettings() {
                         display_order: reminder.display_order,
                         is_manual: isManual,
                         is_default: reminder.is_default === true,
+                        specific_time: reminder.specific_time || null,
+                        send_condition: (reminder.send_condition as "send_only_if_not_approved" | "send_anyway" | null) || null,
                     },
                 }
 
@@ -205,6 +213,8 @@ export default function ReminderSettings() {
             displayOrder: dayType === "regular" ? regularRows.length : dayType === "sunday" ? sundayRows.length : manualRows.length,
             isManual: isManual,
             isDefault: false,
+            specificTime: null,
+            sendCondition: null,
         }
 
         if (dayType === "regular") {
@@ -451,6 +461,8 @@ export default function ReminderSettings() {
                     display_order: row.isManual ? row.displayOrder : index, // Manual reminders keep their order
                     is_manual: row.isManual,
                     is_default: row.isManual ? row.isDefault : false, // Only manual reminders can be default
+                    specific_time: row.specificTime && row.specificTime.trim() ? row.specificTime.trim() : null,
+                    send_condition: row.sendCondition || null,
                 }
             })
 
@@ -491,6 +503,8 @@ export default function ReminderSettings() {
                             display_order: r.display_order,
                             is_manual: r.is_manual,
                             is_default: r.is_default,
+                            specific_time: r.specific_time,
+                            send_condition: r.send_condition,
                         }))
                     )
 
@@ -544,13 +558,14 @@ export default function ReminderSettings() {
                                         <TableHead className="w-24 text-center text-purple-900">ברירת מחדל</TableHead>
                                         <TableHead className="text-purple-900">מזהה זרימה (Flow ID)</TableHead>
                                         <TableHead className="text-purple-900">תיאור (אופציונלי)</TableHead>
+                                        <TableHead className="w-[180px] text-purple-900">תנאי שליחה</TableHead>
                                         <TableHead className="w-32 text-center text-purple-900">פעולות</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {rows.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                                            <TableCell colSpan={6} className="text-center text-slate-500 py-8">
                                                 אין תזכורות ידניות. לחץ על "הוסף שורה" כדי להוסיף תזכורת חדשה.
                                             </TableCell>
                                         </TableRow>
@@ -598,14 +613,20 @@ export default function ReminderSettings() {
                                                     />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Input
-                                                        type="text"
-                                                        value={row.description}
-                                                        onChange={(e) => updateRow("manual", row.id, { description: e.target.value })}
-                                                        placeholder="תיאור קצר (אופציונלי)"
-                                                        dir="rtl"
-                                                        className="h-9 text-sm text-right"
-                                                    />
+                                                    <Select
+                                                        value={row.sendCondition || "send_anyway"}
+                                                        onValueChange={(value: "send_only_if_not_approved" | "send_anyway") => {
+                                                            updateRow("manual", row.id, { sendCondition: value })
+                                                        }}
+                                                    >
+                                                        <SelectTrigger className="h-9 text-right text-sm">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent align="end">
+                                                            <SelectItem value="send_anyway">שלח בכל מקרה</SelectItem>
+                                                            <SelectItem value="send_only_if_not_approved">שלח רק אם לא מאושר</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
                                                 </TableCell>
                                                 <TableCell className="text-center">
                                                     <div className="flex items-center justify-center gap-1">
@@ -722,11 +743,19 @@ export default function ReminderSettings() {
                                             dayType === "regular" ? "text-blue-900" : "text-green-900"
                                         )}>זמן לפני התור</TableHead>
                                         <TableHead className={cn(
+                                            "w-[140px]",
+                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                        )}>שעה ספציפית</TableHead>
+                                        <TableHead className={cn(
                                             dayType === "regular" ? "text-blue-900" : "text-green-900"
                                         )}>מזהה זרימה (Flow ID)</TableHead>
                                         <TableHead className={cn(
                                             dayType === "regular" ? "text-blue-900" : "text-green-900"
                                         )}>תיאור (אופציונלי)</TableHead>
+                                        <TableHead className={cn(
+                                            "w-[180px]",
+                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                        )}>תנאי שליחה</TableHead>
                                         <TableHead className={cn(
                                             "w-32 text-center",
                                             dayType === "regular" ? "text-blue-900" : "text-green-900"
@@ -736,7 +765,7 @@ export default function ReminderSettings() {
                                 <TableBody>
                                     {rows.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center text-slate-500 py-8">
+                                            <TableCell colSpan={7} className="text-center text-slate-500 py-8">
                                                 אין תזכורות. לחץ על "הוסף שורה" כדי להוסיף תזכורת חדשה.
                                             </TableCell>
                                         </TableRow>
@@ -800,6 +829,18 @@ export default function ReminderSettings() {
                                                     </TableCell>
                                                     <TableCell>
                                                         <Input
+                                                            type="time"
+                                                            value={row.specificTime || ""}
+                                                            onChange={(e) => updateRow(dayType, row.id, { specificTime: e.target.value || null })}
+                                                            placeholder="HH:mm"
+                                                            dir="ltr"
+                                                            disabled={!isEnabled}
+                                                            className="h-9 text-sm"
+                                                            title="שעה ספציפית לשליחת התזכורת (למשל: 18:00). אם לא מוגדר, התזכורת תישלח יחסית לזמן התור."
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Input
                                                             type="text"
                                                             value={row.flowId}
                                                             onChange={(e) => updateRow(dayType, row.id, { flowId: e.target.value })}
@@ -819,6 +860,23 @@ export default function ReminderSettings() {
                                                             disabled={!isEnabled}
                                                             className="h-9 text-sm text-right"
                                                         />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Select
+                                                            value={row.sendCondition || "send_anyway"}
+                                                            onValueChange={(value: "send_only_if_not_approved" | "send_anyway") => {
+                                                                updateRow(dayType, row.id, { sendCondition: value })
+                                                            }}
+                                                            disabled={!isEnabled}
+                                                        >
+                                                            <SelectTrigger className="h-9 text-right text-sm">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent align="end">
+                                                                <SelectItem value="send_anyway">שלח בכל מקרה</SelectItem>
+                                                                <SelectItem value="send_only_if_not_approved">שלח רק אם לא מאושר</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
                                                     </TableCell>
                                                     <TableCell className="text-center">
                                                         <div className="flex items-center justify-center gap-1">
