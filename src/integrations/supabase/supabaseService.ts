@@ -714,6 +714,7 @@ export async function getManagerSchedule(
         customers(id, full_name, phone, email, classification),
         services(
           id,
+          name,
           service_category_id,
           service_categories(id, variant)
         )
@@ -748,6 +749,7 @@ export async function getManagerSchedule(
         appointmentId: apt.id,
         hasService: !!service,
         serviceId: service?.id,
+        serviceName: service?.name,
         serviceData: service,
         hasServiceCategory: !!serviceCategory,
         serviceCategoryData: serviceCategory,
@@ -787,6 +789,7 @@ export async function getManagerSchedule(
         treatmentStartedAt: apt.treatment_started_at || null,
         treatmentEndedAt: apt.treatment_ended_at || null,
         serviceCategoryVariant: serviceCategory?.variant || null,
+        serviceName: service?.name || undefined,
         ...(apt.created_at && { created_at: apt.created_at }),
         ...(apt.updated_at && { updated_at: apt.updated_at }),
       } as any)
@@ -797,6 +800,7 @@ export async function getManagerSchedule(
         appointmentId: lastAppointment.id,
         appointmentType: lastAppointment.appointmentType,
         serviceCategoryVariant: lastAppointment.serviceCategoryVariant,
+        serviceName: lastAppointment.serviceName,
       })
     }
 

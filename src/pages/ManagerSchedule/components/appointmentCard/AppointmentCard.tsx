@@ -1366,6 +1366,11 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                   </Badge>
                 )}
               </div>
+              {appointment.serviceName && (
+                <div className="text-xs text-gray-700 font-medium">
+                  סוג שירות: <span className="text-gray-900">{appointment.serviceName}</span>
+                </div>
+              )}
               {clientName && (
                 <div className="text-xs text-gray-600">
                   <button

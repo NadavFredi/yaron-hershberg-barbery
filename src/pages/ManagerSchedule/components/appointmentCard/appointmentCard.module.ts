@@ -119,10 +119,10 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
 
   const height = isExpanded && isSmallCard ? Math.max(originalHeight, 150) : originalHeight
 
-  const dogName = appointment.serviceName ?? ""
+  const dogName = ""
 
   const hasOtherServiceAppointment = false
-  const breedName = appointment.serviceName ?? undefined
+  const breedName = undefined
   const crossServiceIndicator = undefined
   const rawClassification = appointment.clientClassification ?? ""
   const classification = rawClassification.trim() ? rawClassification.trim() : undefined
