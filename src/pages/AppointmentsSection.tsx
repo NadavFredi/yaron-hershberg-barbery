@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom"
 import { addDays, endOfDay, format, startOfDay, subDays } from "date-fns"
 import { Loader2, RefreshCw, Search, MoreHorizontal, CalendarClock, CheckCircle2, XCircle, Calendar as CalendarIcon } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
-import type { ManagerAppointment, ManagerDog } from "./ManagerSchedule/types"
+import type { ManagerAppointment } from "./ManagerSchedule/types"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import type { DateRange } from "react-day-picker"
@@ -52,26 +52,6 @@ interface OptionItem {
     name: string
 }
 
-type CategorizedDog = ManagerDog & {
-    category1Ids?: string[]
-    category1Names?: string[]
-    category2Ids?: string[]
-    category2Names?: string[]
-    customerTypeName?: string
-}
-
-interface RawBreedRecord {
-    id?: string
-    name?: string | null
-}
-
-interface RawDogRecord {
-    id: string
-    name?: string | null
-    customer_id?: string | null
-    breed_id?: string | null
-    breeds?: RawBreedRecord | RawBreedRecord[] | null
-}
 
 interface RawCustomerRecord {
     id?: string
@@ -108,15 +88,9 @@ interface GroomingAppointmentRow {
     internal_notes?: string | null
     station_id?: string | null
     customer_id: string
-    dogs?: RawDogRecord | RawDogRecord[] | null
     customers?: RawCustomerRecord | RawCustomerRecord[] | null
     stations?: RawStationRecord | RawStationRecord[] | null
     services?: RawServiceRecord | RawServiceRecord[] | null
-}
-
-interface BreedDogCategoryRow {
-    breed_id: string
-    dog_category?: { id?: string | null; name?: string | null } | null
 }
 
 const getFirst = <T,>(value: T | T[] | null | undefined): T | null => {
@@ -132,14 +106,12 @@ const normalizeOption = (item?: { id?: string | null; name?: string | null } | n
     }
 }
 
-const SERVICE_LABELS: Record<"grooming" | "garden", string> = {
+const SERVICE_LABELS: Record<"grooming", string> = {
     grooming: "מספרה",
-    garden: "גן",
 }
 
-const SERVICE_BADGES: Record<"grooming" | "garden", string> = {
+const SERVICE_BADGES: Record<"grooming", string> = {
     grooming: "bg-blue-50 text-blue-700 border border-blue-200",
-    garden: "bg-emerald-50 text-emerald-700 border border-emerald-200",
 }
 
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
@@ -167,7 +139,6 @@ const STATUS_OPTIONS: Array<{ value: AppointmentStatus | "all"; label: string }>
 const SERVICE_OPTIONS: Array<{ value: ServiceFilter; label: string }> = [
     { value: "all", label: "כל השירותים" },
     { value: "grooming", label: "מספרה" },
-    { value: "garden", label: "גן" },
 ]
 
 const formatDate = (value?: string, pattern = "dd/MM/yyyy HH:mm") => {
@@ -208,14 +179,9 @@ export default function AppointmentsSection() {
     const [rowActionLoading, setRowActionLoading] = useState<string | null>(null)
     const [selectedAppointment, setSelectedAppointment] = useState<EnrichedAppointment | null>(null)
     const [customerTypes, setCustomerTypes] = useState<OptionItem[]>([])
-    const [dogCategory1Options, setDogCategory1Options] = useState<OptionItem[]>([])
-    const [dogCategory2Options, setDogCategory2Options] = useState<OptionItem[]>([])
     const [customerCategoryFilter, setCustomerCategoryFilter] = useState<string>("all")
-    const [dogCategory1Filter, setDogCategory1Filter] = useState<string>("all")
-    const [dogCategory2Filter, setDogCategory2Filter] = useState<string>("all")
     const [selectedStationIds, setSelectedStationIds] = useState<string[]>([])
     const [isAppointmentSheetOpen, setIsAppointmentSheetOpen] = useState(false)
-    const [showAllDogAppointments, setShowAllDogAppointments] = useState(false)
     const appliedModeRef = useRef<string | null>(null)
 
     const { data: stations = [], isLoading: isLoadingStations } = useStations()
@@ -267,8 +233,6 @@ export default function AppointmentsSection() {
             }
 
             setCustomerTypes(customerTypeData || [])
-            setDogCategory1Options([]) // No dogs in barbershop
-            setDogCategory2Options([]) // No dogs in barbershop
         } catch (fetchError) {
             console.error("Failed to fetch filter options:", fetchError)
             toast({
@@ -288,7 +252,6 @@ export default function AppointmentsSection() {
         setError(null)
         try {
             const shouldFetchGrooming = serviceFilter === "all" || serviceFilter === "grooming"
-            const shouldFetchGarden = serviceFilter === "all" || serviceFilter === "garden"
             const fromIso = startDate ? startOfDay(startDate).toISOString() : undefined
             const toIso = endDate ? endOfDay(endDate).toISOString() : undefined
 
@@ -371,7 +334,7 @@ export default function AppointmentsSection() {
                     internalNotes: apt.internal_notes || undefined,
                     appointmentType: apt.appointment_kind === "personal" ? "private" : "business",
                     price: apt.amount_due ? Number(apt.amount_due) : undefined,
-                    dogs: [],
+                    dogs: [], // No dogs in barbershop
                     clientId: apt.customer_id,
                     clientName: customer?.full_name || undefined,
                     clientClassification: customer?.classification || undefined,
@@ -467,26 +430,15 @@ export default function AppointmentsSection() {
                 // Calculate payment
                 const payment = appointment.price != null && appointment.price > 0 ? appointment.price : 0
 
-                if (appointment.serviceType === "grooming") {
-                    acc.grooming.count += 1
-                    acc.grooming.payments += payment
-                    acc.grooming.durationMinutes += durationMinutes
-                } else {
-                    acc.garden.count += 1
-                    acc.garden.payments += payment
-                    acc.garden.durationMinutes += durationMinutes
-                }
+                acc.grooming.count += 1
+                acc.grooming.payments += payment
+                acc.grooming.durationMinutes += durationMinutes
 
                 return acc
             },
             {
                 total: 0,
                 grooming: {
-                    count: 0,
-                    payments: 0,
-                    durationMinutes: 0,
-                },
-                garden: {
                     count: 0,
                     payments: 0,
                     durationMinutes: 0,
@@ -524,7 +476,7 @@ export default function AppointmentsSection() {
         setStatusFilter((prev) => (prev === targetStatus ? "all" : targetStatus))
     }
 
-    const handleToggleServiceCard = (targetService: Extract<ServiceFilter, "grooming" | "garden">) => {
+    const handleToggleServiceCard = (targetService: Extract<ServiceFilter, "grooming">) => {
         setServiceFilter((prev) => (prev === targetService ? "all" : targetService))
     }
 
@@ -547,8 +499,6 @@ export default function AppointmentsSection() {
         })
         setShowOnlyFuture(true)
         setCustomerCategoryFilter("all")
-        setDogCategory1Filter("all")
-        setDogCategory2Filter("all")
         setSelectedStationIds([])
     }
 
@@ -592,14 +542,6 @@ export default function AppointmentsSection() {
         }
     }
 
-    const handleShowDogAppointments = (_dogId: string, dogName: string) => {
-        setSearchTerm(dogName)
-        toast({
-            title: "סינון לפי כלב",
-            description: `מציג נתונים עבור ${dogName}`,
-        })
-    }
-
     const groomingCards = [
         {
             id: "grooming-count",
@@ -633,45 +575,6 @@ export default function AppointmentsSection() {
             border: "border-blue-300",
             hoverBg: "hover:bg-blue-50",
             activeContainer: "bg-blue-500 border-blue-500 shadow-lg",
-            activeText: "text-white",
-            isActive: false,
-            onClick: () => { },
-        },
-    ]
-
-    const gardenCards = [
-        {
-            id: "garden-count",
-            label: "גן - כמות",
-            value: stats.garden.count,
-            accent: "text-emerald-600",
-            border: "border-emerald-300",
-            hoverBg: "hover:bg-emerald-50",
-            activeContainer: "bg-emerald-500 border-emerald-500 shadow-lg",
-            activeText: "text-white",
-            isActive: serviceFilter === "garden",
-            onClick: () => handleToggleServiceCard("garden"),
-        },
-        {
-            id: "garden-hours",
-            label: "גן - שעות",
-            value: formatDurationFromMinutes(stats.garden.durationMinutes),
-            accent: "text-emerald-600",
-            border: "border-emerald-300",
-            hoverBg: "hover:bg-emerald-50",
-            activeContainer: "bg-emerald-500 border-emerald-500 shadow-lg",
-            activeText: "text-white",
-            isActive: false,
-            onClick: () => { },
-        },
-        {
-            id: "garden-payments",
-            label: "גן - תשלומים",
-            value: `₪${stats.garden.payments.toLocaleString("he-IL")}`,
-            accent: "text-emerald-600",
-            border: "border-emerald-300",
-            hoverBg: "hover:bg-emerald-50",
-            activeContainer: "bg-emerald-500 border-emerald-500 shadow-lg",
             activeText: "text-white",
             isActive: false,
             onClick: () => { },
@@ -780,7 +683,7 @@ export default function AppointmentsSection() {
                         תורים
                     </h1>
                     <p className="text-slate-600">
-                        ניהול מרוכז של כל התורים במספרה ובגן – חיפוש, סינון וביצוע פעולות מהירות.
+                        ניהול מרוכז של כל התורים במספרה – חיפוש, סינון וביצוע פעולות מהירות.
                     </p>
                 </div>
 
@@ -895,7 +798,7 @@ export default function AppointmentsSection() {
                                         id="search"
                                         value={searchTerm}
                                         onChange={(event) => setSearchTerm(event.target.value)}
-                                        placeholder="חיפוש לפי שם כלב, לקוח, תחנה או הערות"
+                                        placeholder="חיפוש לפי לקוח, תחנה או הערות"
                                         className="pl-10"
                                     />
                                 </div>
@@ -1002,45 +905,6 @@ export default function AppointmentsSection() {
                         </div>
                     )}
 
-                    {/* Garden Stats */}
-                    {(serviceFilter === "all" || serviceFilter === "garden") && (
-                        <div>
-                            <h3 className="text-sm font-semibold text-slate-700 mb-2">גן</h3>
-                            <div className="grid gap-3 sm:grid-cols-3">
-                                {gardenCards.map((card) => (
-                                    <button
-                                        key={card.id}
-                                        type="button"
-                                        onClick={card.onClick}
-                                        className={cn(
-                                            "rounded-2xl px-4 py-3 text-right transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
-                                            card.isActive
-                                                ? cn("border-2 text-white", card.activeContainer)
-                                                : cn("border-2 bg-white opacity-95", card.border, card.hoverBg)
-                                        )}
-                                    >
-                                        <p
-                                            className={cn(
-                                                "text-sm font-medium transition-colors duration-200",
-                                                card.isActive ? card.activeText : card.accent,
-                                            )}
-                                        >
-                                            {card.label}
-                                        </p>
-                                        <p
-                                            className={cn(
-                                                "text-2xl font-bold transition-colors duration-200",
-                                                card.isActive ? card.activeText : card.accent,
-                                            )}
-                                        >
-                                            {card.value}
-                                        </p>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
                     {/* Status Stats */}
                     <div>
                         <h3 className="text-sm font-semibold text-slate-700 mb-2">סטטוסים</h3>
@@ -1104,7 +968,6 @@ export default function AppointmentsSection() {
                                         <TableHead className="text-right text-slate-600 font-semibold">תאריך ושעה</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold">סוג שירות</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold">לקוח</TableHead>
-                                        <TableHead className="text-right text-slate-600 font-semibold">כלב</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold">סטטוס</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold hidden lg:table-cell">תחנה / הערות</TableHead>
                                         <TableHead className="text-right text-slate-600 font-semibold w-[60px]">פעולות</TableHead>
@@ -1112,7 +975,6 @@ export default function AppointmentsSection() {
                                 </TableHeader>
                                 <TableBody>
                                     {filteredAppointments.map((appointment) => {
-                                        const primaryDog = appointment.dogs?.[0] as ManagerDog | undefined
                                         return (
                                             <TableRow
                                                 key={`${appointment.sourceTable}-${appointment.id}`}
@@ -1147,18 +1009,6 @@ export default function AppointmentsSection() {
                                                         {appointment.clientName || "—"}
                                                     </button>
                                                     <div className="text-xs text-slate-500">{appointment.clientPhone || appointment.clientEmail || "—"}</div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {primaryDog ? (
-                                                        <span className="font-medium">
-                                                            {primaryDog.name || "—"}
-                                                        </span>
-                                                    ) : (
-                                                        <div className="font-medium text-slate-500">—</div>
-                                                    )}
-                                                    <div className="text-xs text-slate-500">
-                                                        {primaryDog?.breed || "ללא ציון"}
-                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge
