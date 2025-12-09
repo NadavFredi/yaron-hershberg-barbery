@@ -10,9 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Pencil, Trash2, Loader2, Eye, ChevronLeft, ChevronRight, AlertCircle, Copy, GripVertical } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
-import { useAppDispatch } from "@/store/hooks"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { supabaseApi } from "@/store/services/supabaseApi"
 import { useQueryClient } from "@tanstack/react-query"
+import { setVisibleStationIds } from "@/store/slices/managerScheduleSlice"
 import { Badge } from "@/components/ui/badge"
 import { StationUnavailabilityDialog } from "@/components/dialogs/settings/stations/StationUnavailabilityDialog"
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core"
@@ -213,6 +214,7 @@ export function SettingsStationsSection() {
     const { toast } = useToast()
     const dispatch = useAppDispatch()
     const queryClient = useQueryClient()
+    const visibleStationIds = useAppSelector((state) => state.managerSchedule.visibleStationIds)
     const [stations, setStations] = useState<Station[]>([])
     const [stationWorkingHours, setStationWorkingHours] = useState<Record<string, StationWorkingHour[]>>({})
     const [unavailabilities, setUnavailabilities] = useState<Record<string, StationUnavailability[]>>({})
@@ -1021,6 +1023,20 @@ export function SettingsStationsSection() {
             // Invalidate React Query cache and refetch immediately
             await queryClient.invalidateQueries({ queryKey: ['stations'] })
             await queryClient.invalidateQueries({ queryKey: ['services-with-stats'] })
+
+            // Automatically show the new station on the manager schedule page
+            if (params.mode === "new" && targetStationId) {
+                // Add the new station to visible stations
+                // If no stations are currently visible, make this the only visible station
+                // Otherwise, add it to the existing visible stations
+                const updatedVisibleIds = visibleStationIds.length === 0
+                    ? [targetStationId]
+                    : visibleStationIds.includes(targetStationId)
+                        ? visibleStationIds
+                        : [...visibleStationIds, targetStationId]
+
+                dispatch(setVisibleStationIds(updatedVisibleIds))
+            }
 
             toast({
                 title: "הצלחה",

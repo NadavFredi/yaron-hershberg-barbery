@@ -28,7 +28,7 @@ import { TimePickerInput } from "@/components/TimePickerInput"
 interface SentReminder {
     id: string
     appointment_id: string
-    appointment_type: "grooming" | "daycare"
+    appointment_type: "grooming"
     reminder_id: string
     customer_id: string
     sent_at: string
@@ -55,7 +55,7 @@ interface SentReminder {
     reminder?: {
         id: string
         description: string | null
-        day_type: "regular" | "sunday"
+        day_type: "regular" | "sunday" | "manual"
     }
 }
 
@@ -439,7 +439,6 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
                                 <SelectContent align="end">
                                     <SelectItem value="all">הכל</SelectItem>
                                     <SelectItem value="grooming">תספורת</SelectItem>
-                                    <SelectItem value="daycare">גן</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -509,9 +508,8 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
                                     <TableRow>
                                         <TableCell
                                             colSpan={
-                                                12 -
+                                                9 -
                                                 (hideColumns.customerCategory ? 1 : 0) -
-                                                (hideColumns.breed ? 1 : 0) -
                                                 (hideColumns.flowId ? 1 : 0)
                                             }
                                             className="text-center text-slate-500 py-8"
@@ -548,16 +546,8 @@ export default function SentRemindersTable({ customerId, hideColumns = {}, onNav
                                                 </TableCell>
                                             )}
                                             <TableCell className="text-right">
-                                                {reminder.appointment?.dog?.name || "לא זמין"}
-                                            </TableCell>
-                                            {!hideColumns.breed && (
-                                                <TableCell className="text-right">
-                                                    {reminder.appointment?.dog?.breed?.name || "לא זמין"}
-                                                </TableCell>
-                                            )}
-                                            <TableCell className="text-right">
-                                                <Badge variant={reminder.appointment_type === "grooming" ? "default" : "secondary"}>
-                                                    {reminder.appointment_type === "grooming" ? "תספורת" : "גן"}
+                                                <Badge variant="default">
+                                                    תספורת
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">

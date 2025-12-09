@@ -129,7 +129,7 @@ export function UserOnboarding({ userEmail, onBackToAuth }: UserOnboardingProps)
                             <CardContent>
                                 <div
                                     style={{ width: "100%", height: "500px" }}
-                                    data-fillout-id="2yoqoMhKjaus"
+                                    data-fillout-id="i1rmEvjoTCus"
                                     data-fillout-embed-type="standard"
                                     data-fillout-inherit-parameters
                                     data-fillout-dynamic-resize

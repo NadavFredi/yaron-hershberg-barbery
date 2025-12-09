@@ -31,7 +31,7 @@ const experienceOptions: Record<ExperienceId, ExperienceOption> = {
         subtitle: "טיפוח שמרגיש כמו ספא",
         description: "גלו כיצד אנחנו הופכים כל תספורת לחוויה רגועה ומפנקת - מהשיטות ועד המוצרים המיוחדים.",
         icon: <Scissors className="h-6 w-6" />,
-        filloutId: "jjExQ3PQZZus",
+        filloutId: "i1rmEvjoTCus",
         accent: "from-sky-50 to-blue-100"
     },
     pricing: {
