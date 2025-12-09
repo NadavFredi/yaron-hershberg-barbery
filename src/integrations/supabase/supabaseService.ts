@@ -46,25 +46,7 @@ const asSingle = <T>(value: T | T[] | null | undefined): T | null => {
   return value ?? null
 }
 
-export interface DogRecord {
-  id: string
-  name: string
-  breed: string
-  size: string
-  isSmall: boolean
-  ownerId: string
-  image_url?: string | null
-  gender?: "male" | "female" | null
-  hasAppointmentHistory?: boolean
-  hasBeenToGarden?: boolean
-  // Garden suitability fields
-  questionnaireSuitableForGarden?: boolean // האם נמצא מתאים לגן מהשאלון
-  staffApprovedForGarden?: string // האם מתאים לגן מילוי צוות (נמצא מתאים/נמצא לא מתאים/empty)
-  hasRegisteredToGardenBefore?: boolean // האם הכלב נרשם בעבר לגן
-  requiresSpecialApproval?: boolean
-  groomingMinPrice?: number | null
-  groomingMaxPrice?: number | null
-}
+// Removed DogRecord interface - barbery system doesn't use dogs/breeds
 
 export interface AppointmentRecord {
   id: string
@@ -90,12 +72,7 @@ export interface AvailableTime {
   stationId: string
 }
 
-export interface GardenQuestionnaireStatus {
-  required: boolean
-  completed: boolean
-  formUrl?: string
-  message?: string
-}
+// Removed GardenQuestionnaireStatus - barbery system doesn't have garden
 
 export interface AvailableDatesResult {
   availableDates: AvailableDate[]
@@ -1473,7 +1450,6 @@ export async function getSingleManagerAppointment(
     const managerDog: ManagerDog = {
       id: "",
       name: "",
-      breed: undefined,
       ownerId: appointmentData.customer_id,
       clientClassification: customer?.classification,
       clientName: customer?.full_name,

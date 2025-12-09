@@ -17,7 +17,7 @@ import { OrderDetailsModal } from "@/components/dialogs/manager-schedule/Payment
 import { MessagingActions } from "@/components/sheets/MessagingActions"
 import { AppointmentActionsMenu } from "@/pages/ManagerSchedule/components/appointmentCard/AppointmentActionsMenu"
 import { ImageGalleryModal } from "@/components/dialogs/ImageGalleryModal"
-import { cn, extractGardenAppointmentId, extractGroomingAppointmentId } from "@/lib/utils"
+import { cn, extractGroomingAppointmentId } from "@/lib/utils"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
@@ -267,18 +267,10 @@ export const AppointmentDetailsSheet = ({
             }
 
             // Extract the actual appointment ID based on service type
-            let appointmentId: string | null = null
-            if (selectedAppointment.serviceType === "grooming") {
-                appointmentId = extractGroomingAppointmentId(
-                    selectedAppointment.id,
-                    selectedAppointment.groomingAppointmentId
-                )
-            } else if (selectedAppointment.serviceType === "garden") {
-                appointmentId = extractGardenAppointmentId(
-                    selectedAppointment.id,
-                    selectedAppointment.gardenAppointmentId
-                )
-            }
+            const appointmentId = extractGroomingAppointmentId(
+                selectedAppointment.id,
+                selectedAppointment.groomingAppointmentId
+            )
 
             if (!appointmentId) {
                 setSessionImagesCount(0)
@@ -362,19 +354,11 @@ export const AppointmentDetailsSheet = ({
                 return
             }
 
-            // Extract the actual appointment ID based on service type
-            let appointmentId: string | undefined
-            if (selectedAppointment.serviceType === "grooming") {
-                appointmentId = extractGroomingAppointmentId(
-                    selectedAppointment.id,
-                    selectedAppointment.groomingAppointmentId
-                )
-            } else {
-                appointmentId = extractGardenAppointmentId(
-                    selectedAppointment.id,
-                    selectedAppointment.gardenAppointmentId
-                )
-            }
+            // Extract the actual appointment ID
+            const appointmentId = extractGroomingAppointmentId(
+                selectedAppointment.id,
+                selectedAppointment.groomingAppointmentId
+            )
 
             if (!appointmentId) return
 
@@ -816,7 +800,7 @@ export const AppointmentDetailsSheet = ({
         try {
             // grooming_notes column doesn't exist - skipping update
             console.log("⚠️ [AppointmentDetailsSheet] grooming_notes column removed, skipping save")
-            
+
             toast({
                 title: "הערות נשמרו",
                 description: "הערות התספורת עודכנו בהצלחה",
@@ -995,19 +979,11 @@ export const AppointmentDetailsSheet = ({
     const handleUnlinkFromSeries = async () => {
         if (!selectedAppointment) return
 
-        // Extract the actual appointment ID based on service type
-        let appointmentId: string | undefined
-        if (selectedAppointment.serviceType === "grooming") {
-            appointmentId = extractGroomingAppointmentId(
-                selectedAppointment.id,
-                selectedAppointment.groomingAppointmentId
-            )
-        } else {
-            appointmentId = extractGardenAppointmentId(
-                selectedAppointment.id,
-                selectedAppointment.gardenAppointmentId
-            )
-        }
+        // Extract the actual appointment ID
+        const appointmentId = extractGroomingAppointmentId(
+            selectedAppointment.id,
+            selectedAppointment.groomingAppointmentId
+        )
 
         if (!appointmentId) {
             toast({
@@ -2106,12 +2082,8 @@ export const AppointmentDetailsSheet = ({
                     open={isOrderDetailsModalOpen}
                     onOpenChange={setIsOrderDetailsModalOpen}
                     cartId={null}
-                    appointmentId={
-                        selectedAppointment.serviceType === "grooming"
-                            ? extractGroomingAppointmentId(selectedAppointment.id, selectedAppointment.groomingAppointmentId)
-                            : extractGardenAppointmentId(selectedAppointment.id, selectedAppointment.gardenAppointmentId)
-                    }
-                    serviceType={selectedAppointment.serviceType === "grooming" ? "grooming" : "daycare"}
+                    appointmentId={extractGroomingAppointmentId(selectedAppointment.id, selectedAppointment.groomingAppointmentId)}
+                    serviceType="grooming"
                 />
             )}
 
@@ -2195,11 +2167,6 @@ export const AppointmentDetailsSheet = ({
                                     refreshAppointmentId = extractGroomingAppointmentId(
                                         selectedAppointment.id,
                                         selectedAppointment.groomingAppointmentId
-                                    )
-                                } else if (selectedAppointment.serviceType === "garden") {
-                                    refreshAppointmentId = extractGardenAppointmentId(
-                                        selectedAppointment.id,
-                                        selectedAppointment.gardenAppointmentId
                                     )
                                 }
 

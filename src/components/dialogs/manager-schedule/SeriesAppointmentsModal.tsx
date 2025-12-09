@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn, extractGroomingAppointmentId, extractGardenAppointmentId } from "@/lib/utils"
+import { cn, extractGroomingAppointmentId } from "@/lib/utils"
 import { useAppDispatch } from "@/store/hooks"
 import { setSelectedAppointment, setIsDetailsOpen } from "@/store/slices/managerScheduleSlice"
 import { useToast } from "@/components/ui/use-toast"
@@ -222,10 +222,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
         const uniqueClients = new Map<string, { phone: string; name: string; fields: Record<string, string> }>()
         for (const apt of appointmentsWithPhones) {
             const normalizedPhone = apt.clientPhone!.replace(/\D/g, "")
-            const isGarden = apt.serviceType === 'garden'
-            const dateFieldId = isGarden
-                ? getManyChatCustomFieldId("GARDEN_DATE_APPOINTMENT")
-                : getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
+            const dateFieldId = getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
             const appointmentDate = format(new Date(apt.startDateTime), 'dd/MM/yyyy')
 
             const fields: Record<string, string> = {}
@@ -284,7 +281,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                 const tableName = appointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
                 const appointmentId = appointment.serviceType === "grooming"
                     ? extractGroomingAppointmentId(appointment.id, (appointment as any).groomingAppointmentId)
-                    : extractGardenAppointmentId(appointment.id, (appointment as any).gardenAppointmentId)
+                    : extractGroomingAppointmentId(appointment.id, (appointment as any).groomingAppointmentId)
 
                 const { error } = await supabase
                     .from(tableName)
@@ -331,7 +328,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
             for (const apt of appointmentsToDelete) {
                 const appointmentId = apt.serviceType === "grooming"
                     ? extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
-                    : extractGardenAppointmentId(apt.id, (apt as any).gardenAppointmentId)
+                    : extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
                 const { error } = await supabase
                     .from(tableName)
                     .delete()
@@ -377,7 +374,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                 const tableName = apt.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
                 const appointmentId = apt.serviceType === "grooming"
                     ? extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
-                    : extractGardenAppointmentId(apt.id, (apt as any).gardenAppointmentId)
+                    : extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
 
                 const { error } = await supabase
                     .from(tableName)
@@ -421,7 +418,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                 const tableName = apt.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
                 const appointmentId = apt.serviceType === "grooming"
                     ? extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
-                    : extractGardenAppointmentId(apt.id, (apt as any).gardenAppointmentId)
+                    : extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
 
                 const { error } = await supabase
                     .from(tableName)
@@ -465,7 +462,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                 const tableName = apt.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
                 const appointmentId = apt.serviceType === "grooming"
                     ? extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
-                    : extractGardenAppointmentId(apt.id, (apt as any).gardenAppointmentId)
+                    : extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
 
                 const { error } = await supabase
                     .from(tableName)
@@ -520,7 +517,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                 const tableName = apt.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
                 const appointmentId = apt.serviceType === "grooming"
                     ? extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
-                    : extractGardenAppointmentId(apt.id, (apt as any).gardenAppointmentId)
+                    : extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
 
                 const { error } = await supabase
                     .from(tableName)

@@ -228,10 +228,10 @@ export function MoveConfirmationDialog() {
 
             // Send ManyChat flow if customer checkbox is checked
             // Skip for personal/private appointments as they don't have real customers
-            if (updateCustomer && 
-                !moveDetails.appointment.isPersonalAppointment && 
+            if (updateCustomer &&
+                !moveDetails.appointment.isPersonalAppointment &&
                 moveDetails.appointment.appointmentType !== "private" &&
-                moveDetails.appointment.clientPhone && 
+                moveDetails.appointment.clientPhone &&
                 moveDetails.appointment.clientName) {
                 try {
                     console.log("📱 [MoveConfirmationDialog] Sending appointment updated notification:", {
@@ -244,14 +244,9 @@ export function MoveConfirmationDialog() {
                     if (!flowId) {
                         console.error("❌ [MoveConfirmationDialog] ManyChat flow ID not configured for APPIONTMENT_UPDATED")
                     } else {
-                        // Determine which fields to set based on service type
-                        const isGarden = moveDetails.appointment.serviceType === 'garden'
-                        const dateFieldId = isGarden 
-                            ? getManyChatCustomFieldId("GARDEN_DATE_APPOINTMENT")
-                            : getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
-                        const hourFieldId = isGarden 
-                            ? undefined 
-                            : getManyChatCustomFieldId("BARBER_HOUR_APPOINTMENT")
+                        // Use barber fields for all appointments
+                        const dateFieldId = getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
+                        const hourFieldId = getManyChatCustomFieldId("BARBER_HOUR_APPOINTMENT")
 
                         // Format date and time for ManyChat
                         const appointmentDate = format(finalStartTime, 'dd/MM/yyyy')

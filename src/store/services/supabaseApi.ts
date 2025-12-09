@@ -529,121 +529,6 @@ export const supabaseApi = createApi({
       providesTags: ["Appointment"],
     }),
 
-    getBreedStationDuration: builder.query({
-      async queryFn({
-        dogId,
-        stationId,
-        serviceType = "grooming",
-      }: {
-        dogId: string
-        stationId: string
-        serviceType?: "grooming"
-      }) {
-        try {
-          // Get the dog's breed_id
-          const { data: dogData, error: dogError } = await supabase
-            .from("dogs")
-            .select("breed_id")
-            .eq("id", dogId)
-            .single()
-
-          if (dogError || !dogData) {
-            throw new Error(`Dog with ID ${dogId} not found: ${dogError?.message || "Unknown error"}`)
-          }
-
-          if (!dogData.breed_id) {
-            console.warn("⚠️ [supabaseApi] Dog has no breed_id, returning unsupported duration", {
-              dogId,
-              stationId,
-            })
-            return {
-              data: {
-                supported: false,
-                dogId,
-                breedId: null,
-                stationId,
-                message: "לכלב לא מוגדר גזע. אנא הגדר גזע לכלב לפני קביעת התור.",
-              },
-            }
-          }
-
-          const breedId = dogData.breed_id
-
-          if (serviceType === "grooming") {
-            // Fetch station-breed rule (single source of truth for grooming durations)
-            const { data: ruleData, error: ruleError } = await supabase
-              .from("station_breed_rules")
-              .select("duration_modifier_minutes, is_active")
-              .eq("station_id", stationId)
-              .eq("breed_id", breedId)
-              .maybeSingle()
-
-            if (ruleError) {
-              throw new Error(`Failed to fetch station-breed configuration: ${ruleError.message}`)
-            }
-
-            if (!ruleData || !ruleData.is_active) {
-              console.warn("⚠️ [supabaseApi] No active station_breed_rules entry found", {
-                dogId,
-                breedId,
-                stationId,
-              })
-              return {
-                data: {
-                  supported: false,
-                  dogId,
-                  breedId,
-                  stationId,
-                  message: "העמדה שנבחרה אינה תומכת בשירות זה.",
-                },
-              }
-            }
-
-            const durationMinutes = ruleData.duration_modifier_minutes ?? null
-
-            if (durationMinutes === null || durationMinutes <= 0) {
-              console.warn("⚠️ [supabaseApi] station_breed_rules returned invalid duration", {
-                dogId,
-                breedId,
-                stationId,
-                durationMinutes,
-              })
-              return {
-                data: {
-                  supported: false,
-                  dogId,
-                  breedId,
-                  stationId,
-                  message: "לא הוגדר משך תספורת עבור הגזע בעמדה זו.",
-                },
-              }
-            }
-
-            const durationSeconds = durationMinutes * 60
-
-            return {
-              data: {
-                supported: true,
-                dogId,
-                breedId,
-                stationId,
-                durationSeconds,
-                durationMinutes,
-              },
-            }
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          return {
-            error: {
-              status: "SUPABASE_ERROR",
-              data: message,
-            },
-          }
-        }
-      },
-    }),
-
     deleteWaitingListEntry: builder.mutation({
       async queryFn(entryId: string) {
         try {
@@ -3213,8 +3098,6 @@ export const {
   useLazySearchManagerScheduleQuery,
   useGetGroupAppointmentsQuery,
   useGetSeriesAppointmentsQuery,
-  useGetBreedStationDurationQuery,
-  useLazyGetBreedStationDurationQuery,
   useDeleteWaitingListEntryMutation,
   useMoveAppointmentMutation,
   useCreateManagerAppointmentMutation,

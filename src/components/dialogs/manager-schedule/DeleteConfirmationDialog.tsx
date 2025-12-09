@@ -216,24 +216,19 @@ export function DeleteConfirmationDialog() {
         const uniqueClients = new Map<string, { phone: string; name: string; fields: Record<string, string> }>()
         for (const apt of appointmentsWithPhones) {
             const normalizedPhone = apt.clientPhone!.replace(/\D/g, "") // Normalize to digits only
-            
-            // Determine which date field to use based on service type
-            const isGarden = apt.serviceType === 'garden'
-            const dateFieldId = isGarden 
-                ? getManyChatCustomFieldId("GARDEN_DATE_APPOINTMENT")
-                : getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
-            
-            // For grooming appointments, also get hour and dog name fields
-            const hourFieldId = !isGarden ? getManyChatCustomFieldId("BARBER_HOUR_APPOINTMENT") : null
-            const dogNameField = !isGarden ? getManyChatCustomFieldId("DOG_NAME") : null
-            
+
+            // Use barber fields for all appointments
+            const dateFieldId = getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
+            const hourFieldId = getManyChatCustomFieldId("BARBER_HOUR_APPOINTMENT")
+            const dogNameField = getManyChatCustomFieldId("DOG_NAME")
+
             // Format appointment date (dd/MM/yyyy)
             const appointmentDate = format(new Date(apt.startDateTime), 'dd/MM/yyyy')
             // Format appointment time (HH:mm)
             const appointmentTime = format(new Date(apt.startDateTime), 'HH:mm')
             // Get dog name
             const dogName = apt.dogs?.[0]?.name || "כלב ללא שם"
-            
+
             // Build fields object
             const fields: Record<string, string> = {}
             if (dateFieldId) {
@@ -248,7 +243,7 @@ export function DeleteConfirmationDialog() {
                     fields[dogNameField] = dogName
                 }
             }
-            
+
             if (!uniqueClients.has(normalizedPhone)) {
                 uniqueClients.set(normalizedPhone, {
                     phone: normalizedPhone,
@@ -313,7 +308,7 @@ export function DeleteConfirmationDialog() {
         try {
             // Collect appointment IDs to delete based on selections
             const appointmentIdsToDelete: string[] = []
-            
+
             // If deleting group, use selected group appointments (which may include current)
             if (hasGroupId && deleteGroup) {
                 if (selectedGroupAppointments.length > 0) {
@@ -343,7 +338,7 @@ export function DeleteConfirmationDialog() {
 
             // Remove duplicates
             const uniqueAppointmentIds = [...new Set(appointmentIdsToDelete)]
-            
+
             // If no appointments selected, don't proceed
             if (uniqueAppointmentIds.length === 0) {
                 toast({
@@ -360,7 +355,7 @@ export function DeleteConfirmationDialog() {
                 // Multiple appointments deletion
                 for (const aptId of uniqueAppointmentIds) {
                     // Find the appointment details for this ID (check all lists including current appointment)
-                    const apt = 
+                    const apt =
                         allGroupAppointments.find(a => a.id === aptId) ||
                         allSeriesAppointments.find(a => a.id === aptId) ||
                         selectableGroupAppointments.find(a => a.id === aptId) ||
@@ -407,7 +402,7 @@ export function DeleteConfirmationDialog() {
             // Collect all deleted appointments for ManyChat flow
             const deletedAppointments: ManagerAppointment[] = []
             for (const aptId of uniqueAppointmentIds) {
-                const apt = 
+                const apt =
                     allGroupAppointments.find(a => a.id === aptId) ||
                     allSeriesAppointments.find(a => a.id === aptId) ||
                     selectableGroupAppointments.find(a => a.id === aptId) ||
@@ -443,7 +438,7 @@ export function DeleteConfirmationDialog() {
             }
             // Also collect from all deleted appointments if multiple
             for (const aptId of uniqueAppointmentIds) {
-                const apt = 
+                const apt =
                     allGroupAppointments.find(a => a.id === aptId) ||
                     allSeriesAppointments.find(a => a.id === aptId) ||
                     selectableGroupAppointments.find(a => a.id === aptId) ||
@@ -484,7 +479,7 @@ export function DeleteConfirmationDialog() {
             // Refresh the data even on error to ensure UI is up-to-date
             // Invalidate comprehensive cache tags
             await dispatch(supabaseApi.util.invalidateTags(['ManagerSchedule', 'Appointment', 'GardenAppointment']))
-            
+
             // Also invalidate dog-specific caches if we have the appointment data
             if (appointmentToDelete?.dogs?.[0]?.id) {
                 await dispatch(
@@ -692,8 +687,8 @@ export function DeleteConfirmationDialog() {
                                 <span>מוחק...</span>
                             </div>
                         ) : (
-                            (hasGroupId && deleteGroup) || (hasSeriesId && deleteSeries) 
-                                ? 'מחק תורים נבחרים' 
+                            (hasGroupId && deleteGroup) || (hasSeriesId && deleteSeries)
+                                ? 'מחק תורים נבחרים'
                                 : 'מחק תור'
                         )}
                     </Button>

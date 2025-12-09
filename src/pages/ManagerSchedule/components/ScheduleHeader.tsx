@@ -318,7 +318,6 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
 
   const scheduleSearchEntries = useMemo<ScheduleSearchEntry[]>(() => {
     const entries: ScheduleSearchEntry[] = []
-    const appointmentDogIds = new Set<string>()
 
     remoteScheduleSearchResults.appointments.forEach((appointment) => {
       const appointmentDate = parseISODate(appointment.startDateTime)
@@ -327,23 +326,14 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
       }
 
       const isPersonal = appointment.isPersonalAppointment ?? false
-      const dog = appointment.dogs?.[0]
       const ownerName = appointment.clientName
 
       let entityType: ScheduleSearchResultType = "appointment"
       if (isPersonal) {
         entityType = "personal"
-      } else if (dog) {
-        entityType = "dog"
       } else if (ownerName) {
         entityType = "client"
       }
-
-      appointment.dogs?.forEach((appointmentDog) => {
-        if (appointmentDog?.id) {
-          appointmentDogIds.add(appointmentDog.id)
-        }
-      })
 
       const searchParts = [
         appointment.clientName,
@@ -352,8 +342,6 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
         appointment.notes,
         appointment.internalNotes,
         appointment.stationName,
-        dog?.name,
-        dog?.breed,
         appointment.serviceName,
         appointment.personalAppointmentDescription,
       ].filter(Boolean)
@@ -380,42 +368,7 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
       })
     })
 
-    remoteScheduleSearchResults.dogs.forEach(({ dog, owner }) => {
-      if (!dog || appointmentDogIds.has(dog.id)) {
-        return
-      }
-      const clientDetails = owner
-        ? {
-          name: owner.name,
-          classification: owner.classification,
-          phone: owner.phone,
-          email: owner.email,
-          address: owner.address,
-        }
-        : undefined
-
-      const searchParts = [
-        dog.name,
-        dog.breed,
-        owner?.name,
-        owner?.phone,
-        owner?.email,
-      ].filter(Boolean)
-
-      const searchText = searchParts.join(" ").toLowerCase()
-
-      entries.push({
-        id: `dog-${dog.id}`,
-        dog,
-        ownerName: owner?.name,
-        serviceType: "grooming",
-        serviceLabel: "מספרה",
-        entityType: "dog",
-        clientDetails,
-        searchText,
-        dateLabel: "",
-      })
-    })
+    // Removed dog search results - barbery system doesn't use dogs
 
     remoteScheduleSearchResults.clients.forEach((client) => {
       const clientDetails = {

@@ -151,24 +151,19 @@ export function CancelConfirmationDialog() {
         const uniqueClients = new Map<string, { phone: string; name: string; fields: Record<string, string> }>()
         for (const apt of appointmentsWithPhones) {
             const normalizedPhone = apt.clientPhone!.replace(/\D/g, "") // Normalize to digits only
-            
-            // Determine which date field to use based on service type
-            const isGarden = apt.serviceType === 'garden'
-            const dateFieldId = isGarden 
-                ? getManyChatCustomFieldId("GARDEN_DATE_APPOINTMENT")
-                : getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
-            
-            // For grooming appointments, also get hour and dog name fields
-            const hourFieldId = !isGarden ? getManyChatCustomFieldId("BARBER_HOUR_APPOINTMENT") : null
-            const dogNameField = !isGarden ? getManyChatCustomFieldId("DOG_NAME") : null
-            
+
+            // Use barber fields for all appointments
+            const dateFieldId = getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
+            const hourFieldId = getManyChatCustomFieldId("BARBER_HOUR_APPOINTMENT")
+            const dogNameField = getManyChatCustomFieldId("DOG_NAME")
+
             // Format appointment date (dd/MM/yyyy)
             const appointmentDate = format(new Date(apt.startDateTime), 'dd/MM/yyyy')
             // Format appointment time (HH:mm)
             const appointmentTime = format(new Date(apt.startDateTime), 'HH:mm')
             // Get dog name
             const dogName = apt.dogs?.[0]?.name || "כלב ללא שם"
-            
+
             // Build fields object
             const fields: Record<string, string> = {}
             if (dateFieldId) {
@@ -183,7 +178,7 @@ export function CancelConfirmationDialog() {
                     fields[dogNameField] = dogName
                 }
             }
-            
+
             if (!uniqueClients.has(normalizedPhone)) {
                 uniqueClients.set(normalizedPhone, {
                     phone: normalizedPhone,
@@ -289,7 +284,7 @@ export function CancelConfirmationDialog() {
 
             // Collect all cancelled appointments for ManyChat flow
             const cancelledAppointments: ManagerAppointment[] = []
-            
+
             // If canceling group, collect all selected appointments
             if (cancelGroup && selectedAppointmentIds && selectedAppointmentIds.length > 0) {
                 for (const aptId of selectedAppointmentIds) {
@@ -299,7 +294,7 @@ export function CancelConfirmationDialog() {
                     }
                 }
             }
-            
+
             // Always include the current appointment being cancelled
             if (!cancelledAppointments.find(apt => apt.id === appointmentToCancel.id)) {
                 cancelledAppointments.push(appointmentToCancel)

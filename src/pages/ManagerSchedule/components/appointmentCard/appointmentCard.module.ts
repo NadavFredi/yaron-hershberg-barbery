@@ -51,7 +51,7 @@ import {
 import { buildTimeline, getAppointmentDates, parseISODate, PIXELS_PER_MINUTE_SCALE } from "../../managerSchedule.module"
 import type { ClientDetails, ManagerAppointment, ManagerDog } from "../../types.ts"
 import { getStatusStyle, SERVICE_STYLES } from "../../constants"
-import { extractGroomingAppointmentId, extractGardenAppointmentId } from "@/lib/utils"
+import { extractGroomingAppointmentId } from "@/lib/utils"
 import { cancelAppointment } from "@/pages/Appointments/Appointments.module"
 import { approveAppointmentByManager } from "@/integrations/supabase/supabaseService"
 
@@ -112,51 +112,20 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
   const isResizing = Boolean(previewEndDate)
   const isExpanded = expandedAppointmentCards.includes(appointment.id)
 
-  const originalHeight =
-    appointment.serviceType === "garden" ? 140 : Math.max(1, displayedDurationMinutes * pixelsPerMinute)
+  const originalHeight = Math.max(1, displayedDurationMinutes * pixelsPerMinute)
 
   const isSmallCard = originalHeight < 100
 
   const height = isExpanded && isSmallCard ? Math.max(originalHeight, 150) : originalHeight
 
-  const primaryDog = appointment.dogs[0]
-  const dogName = primaryDog?.name ?? "ללא שיוך לכלב"
-  const rawBreedName = primaryDog?.breed ?? appointment.serviceName ?? ""
+  // Removed dog/breed references - barbery system doesn't use dogs
+  const dogName = appointment.serviceName ?? ""
 
-  // Check if same dog has the other service type appointment on the same day
-  const hasOtherServiceAppointment = useMemo(() => {
-    if (!data?.appointments || !primaryDog?.id || appointment.isProposedMeeting) {
-      return false
-    }
-
-    // For grooming appointments, check if there's also a garden appointment
-    // For garden appointments, check if there's also a grooming appointment
-    const targetServiceType = appointment.serviceType === "grooming" ? "garden" : "grooming"
-
-    return data.appointments.some((apt: ManagerAppointment) => {
-      if (apt.id === appointment.id || apt.isProposedMeeting) return false
-      if (apt.serviceType !== targetServiceType) return false
-      const aptDog = apt.dogs?.[0]
-      return aptDog?.id === primaryDog.id
-    })
-  }, [data?.appointments, primaryDog?.id, appointment.id, appointment.serviceType, appointment.isProposedMeeting])
-
-  // Get base breed name and separate indicator
-  const breedName = rawBreedName?.trim() ? rawBreedName.trim() : undefined
-
-  const crossServiceIndicator = useMemo(() => {
-    if (!hasOtherServiceAppointment) {
-      return undefined
-    }
-
-    if (appointment.serviceType === "grooming") {
-      return "+ גן"
-    } else if (appointment.serviceType === "garden") {
-      return "+ תספורת"
-    }
-    return undefined
-  }, [hasOtherServiceAppointment, appointment.serviceType])
-  const rawClassification = appointment.clientClassification ?? primaryDog?.clientClassification ?? ""
+  // Removed dog/breed references - barbery system doesn't use dogs
+  const hasOtherServiceAppointment = false
+  const breedName = appointment.serviceName ?? undefined
+  const crossServiceIndicator = undefined
+  const rawClassification = appointment.clientClassification ?? ""
   const classification = rawClassification.trim() ? rawClassification.trim() : undefined
   const serviceStyle = SERVICE_STYLES[appointment.serviceType]
   const isProposedMeeting = Boolean(appointment.isProposedMeeting)
@@ -170,15 +139,6 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
     }
     if (appointment.appointmentType === "private") {
       return "bg-purple-100 border-purple-300"
-    }
-    if (appointment.serviceType === "garden") {
-      if (appointment.gardenIsTrial) {
-        return "bg-amber-100 border-amber-300"
-      } else if (appointment.gardenAppointmentType === "full-day") {
-        return "bg-green-100 border-green-300"
-      } else {
-        return "bg-blue-100 border-blue-300"
-      }
     }
     return serviceStyle.card
   }
@@ -211,7 +171,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
         : `${originalTimeRangeLabel} ← ${previewRangeLabel}`
   }
 
-  const clientName = appointment.clientName ?? primaryDog?.clientName
+  const clientName = appointment.clientName
   const clientPhone = appointment.clientPhone
 
   // Check if this is the first appointment for this owner (not cancelled or deleted)
@@ -300,7 +260,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
   const { data: appointmentOrders } = useGetAppointmentOrdersQuery(
     {
       appointmentId: actualGroomingId || appointment.id,
-      serviceType: appointment.serviceType === "grooming" ? "grooming" : "garden",
+      serviceType: "grooming",
     },
     { skip: !actualGroomingId || appointment.isProposedMeeting }
   )
@@ -335,7 +295,6 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
         setSelectedDog({
           id: dog.id,
           name: dog.name,
-          breed: dog.breed,
           clientClassification: dog.clientClassification,
           owner: dog.clientName
             ? {
@@ -601,8 +560,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
               apt.serviceType === "grooming"
                 ? extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
                 : null
-            const actualGardenId =
-              apt.serviceType === "garden" ? extractGardenAppointmentId(apt.id, (apt as any).gardenAppointmentId) : null
+            const actualGardenId = null
 
             return {
               cart_id: cartId,
@@ -657,8 +615,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
             apt.serviceType === "grooming"
               ? extractGroomingAppointmentId(apt.id, (apt as any).groomingAppointmentId)
               : null,
-          daycare_appointment_id:
-            apt.serviceType === "garden" ? extractGardenAppointmentId(apt.id, (apt as any).gardenAppointmentId) : null,
+          daycare_appointment_id: null,
           appointment_price: apt.amountDue,
         }))
 
@@ -769,35 +726,84 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
   // Approval handlers
   const handleApproveAppointment = useCallback(async () => {
     try {
-      let appointmentId: string
-      const appointmentType = appointment.serviceType === "grooming" ? "grooming" : "garden"
+      const appointmentType = "grooming"
+      const appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
 
-      if (appointment.serviceType === "grooming") {
-        appointmentId = extractGroomingAppointmentId(appointment.id)
-      } else {
-        appointmentId = extractGardenAppointmentId(appointment.id)
+      // Store original status for potential rollback
+      const originalStatus = appointment.status
+
+      // Helper function to update appointment in cache
+      const updateAppointmentInCache = (draft: any, newStatus: string) => {
+        if (!draft || !draft.appointments) {
+          console.warn("[handleApproveAppointment] No draft or appointments found")
+          return false
+        }
+
+        // Try multiple matching strategies
+        // First, try by direct ID match (most reliable)
+        let appointmentIndex = draft.appointments.findIndex((apt: ManagerAppointment) => apt.id === appointment.id)
+
+        // If not found by direct ID, try by extracted ID
+        if (appointmentIndex === -1) {
+          appointmentIndex = draft.appointments.findIndex((apt: ManagerAppointment) => {
+            if (apt.serviceType === "grooming") {
+              const aptId = extractGroomingAppointmentId(apt.id)
+              return aptId === appointmentId
+            }
+            return false
+          })
+        }
+
+        if (appointmentIndex !== -1) {
+          const oldStatus = draft.appointments[appointmentIndex].status
+          draft.appointments[appointmentIndex].status = newStatus
+          draft.appointments[appointmentIndex].updated_at = new Date().toISOString()
+          console.log(
+            `[handleApproveAppointment] Updated appointment ${appointment.id} from ${oldStatus} to ${newStatus}`
+          )
+          return true
+        } else {
+          console.warn(
+            `[handleApproveAppointment] Appointment ${appointment.id} (extracted: ${appointmentId}) not found in cache. Total appointments: ${draft.appointments.length}`
+          )
+          return false
+        }
       }
 
-      // Optimistically update Redux cache immediately
-      dispatch(
-        supabaseApi.util.updateQueryData(
-          "getManagerSchedule",
-          { date: formattedDate, serviceType: "both" },
-          (draft) => {
-            if (draft && draft.appointments) {
-              const appointmentIndex = draft.appointments.findIndex(
-                (apt) =>
-                  (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
-                  (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
-              )
-              if (appointmentIndex !== -1) {
-                draft.appointments[appointmentIndex].status = "scheduled"
-                draft.appointments[appointmentIndex].updated_at = new Date().toISOString()
-              }
-            }
+      // Optimistically update Redux cache immediately - update all cached queries
+      const patchResults: Array<{ undo: () => void }> = []
+
+      // Helper to try updating a query and collect the patch result
+      const tryUpdateQuery = (queryParams: { date: string; serviceType?: "grooming" | "both" }) => {
+        try {
+          const patchResult = dispatch(
+            supabaseApi.util.updateQueryData("getManagerSchedule", queryParams, (draft) => {
+              const updated = updateAppointmentInCache(draft, "scheduled")
+              return draft // Always return draft for Immer
+            })
+          )
+          if (patchResult) {
+            patchResults.push(patchResult)
+            console.log(`[handleApproveAppointment] Updated cache for query:`, queryParams)
+          } else {
+            console.warn(`[handleApproveAppointment] No cache entry found for query:`, queryParams)
           }
-        )
-      )
+        } catch (error) {
+          console.error(
+            `[handleApproveAppointment] Error updating cache for query ${JSON.stringify(queryParams)}:`,
+            error
+          )
+        }
+      }
+
+      // Update the query that's currently being used (with "both" serviceType)
+      tryUpdateQuery({ date: formattedDate, serviceType: "both" })
+
+      // Also update with "grooming" serviceType in case that's what's cached
+      tryUpdateQuery({ date: formattedDate, serviceType: "grooming" })
+
+      // Also try without serviceType (uses default)
+      tryUpdateQuery({ date: formattedDate })
 
       const result = await approveAppointmentByManager(appointmentId, appointmentType, "scheduled")
 
@@ -807,29 +813,13 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
           description: result.message || "התור אושר בהצלחה",
         })
         // Invalidate cache to refresh the schedule (ensures data consistency)
-        dispatch(
-          supabaseApi.util.invalidateTags([{ type: "ManagerSchedule", id: "LIST" }, "Appointment", "GardenAppointment"])
-        )
+        // But do it after a short delay to let the optimistic update be visible
+        setTimeout(() => {
+          dispatch(supabaseApi.util.invalidateTags([{ type: "ManagerSchedule", id: "LIST" }, "Appointment"]))
+        }, 1000)
       } else {
-        // Revert optimistic update on error
-        dispatch(
-          supabaseApi.util.updateQueryData(
-            "getManagerSchedule",
-            { date: formattedDate, serviceType: "both" },
-            (draft) => {
-              if (draft && draft.appointments) {
-                const appointmentIndex = draft.appointments.findIndex(
-                  (apt) =>
-                    (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
-                    (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
-                )
-                if (appointmentIndex !== -1) {
-                  draft.appointments[appointmentIndex].status = appointment.status
-                }
-              }
-            }
-          )
-        )
+        // Revert optimistic updates on error
+        patchResults.forEach((patch) => patch.undo())
         toast({
           title: "שגיאה",
           description: result.error || "לא ניתן לאשר את התור",
@@ -837,31 +827,32 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
         })
       }
     } catch (error) {
-      // Revert optimistic update on error
-      let appointmentId: string
-      if (appointment.serviceType === "grooming") {
-        appointmentId = extractGroomingAppointmentId(appointment.id)
-      } else {
-        appointmentId = extractGardenAppointmentId(appointment.id)
+      // Revert optimistic updates on error
+      const appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
+
+      const revertUpdate = (draft: any) => {
+        if (!draft || !draft.appointments) return
+        const appointmentIndex = draft.appointments.findIndex((apt: ManagerAppointment) => apt.id === appointment.id)
+        if (appointmentIndex !== -1) {
+          draft.appointments[appointmentIndex].status = appointment.status
+        }
       }
+
       dispatch(
         supabaseApi.util.updateQueryData(
           "getManagerSchedule",
           { date: formattedDate, serviceType: "both" },
-          (draft) => {
-            if (draft && draft.appointments) {
-              const appointmentIndex = draft.appointments.findIndex(
-                (apt) =>
-                  (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
-                  (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
-              )
-              if (appointmentIndex !== -1) {
-                draft.appointments[appointmentIndex].status = appointment.status
-              }
-            }
-          }
+          revertUpdate
         )
       )
+      dispatch(
+        supabaseApi.util.updateQueryData(
+          "getManagerSchedule",
+          { date: formattedDate, serviceType: "grooming" },
+          revertUpdate
+        )
+      )
+
       console.error("Error approving appointment:", error)
       toast({
         title: "שגיאה",
@@ -873,13 +864,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
 
   const handleDeclineAppointment = useCallback(async () => {
     try {
-      let appointmentId: string
-
-      if (appointment.serviceType === "grooming") {
-        appointmentId = extractGroomingAppointmentId(appointment.id)
-      } else {
-        appointmentId = extractGardenAppointmentId(appointment.id)
-      }
+      const appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
 
       // Optimistically update Redux cache immediately
       dispatch(
@@ -889,9 +874,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
           (draft) => {
             if (draft && draft.appointments) {
               const appointmentIndex = draft.appointments.findIndex(
-                (apt) =>
-                  (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
-                  (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
+                (apt) => apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId
               )
               if (appointmentIndex !== -1) {
                 draft.appointments[appointmentIndex].status = "cancelled"
@@ -920,9 +903,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
             (draft) => {
               if (draft && draft.appointments) {
                 const appointmentIndex = draft.appointments.findIndex(
-                  (apt) =>
-                    (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
-                    (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
+                  (apt) => apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId
                 )
                 if (appointmentIndex !== -1) {
                   draft.appointments[appointmentIndex].status = appointment.status
@@ -939,12 +920,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
       }
     } catch (error) {
       // Revert optimistic update on error
-      let appointmentId: string
-      if (appointment.serviceType === "grooming") {
-        appointmentId = extractGroomingAppointmentId(appointment.id)
-      } else {
-        appointmentId = extractGardenAppointmentId(appointment.id)
-      }
+      const appointmentId = extractGroomingAppointmentId(appointment.id, appointment.groomingAppointmentId)
       dispatch(
         supabaseApi.util.updateQueryData(
           "getManagerSchedule",
@@ -952,9 +928,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
           (draft) => {
             if (draft && draft.appointments) {
               const appointmentIndex = draft.appointments.findIndex(
-                (apt) =>
-                  (apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId) ||
-                  (apt.serviceType === "garden" && extractGardenAppointmentId(apt.id) === appointmentId)
+                (apt) => apt.serviceType === "grooming" && extractGroomingAppointmentId(apt.id) === appointmentId
               )
               if (appointmentIndex !== -1) {
                 draft.appointments[appointmentIndex].status = appointment.status
@@ -993,9 +967,7 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
     originalHeight,
     isSmallCard,
     height,
-    primaryDog,
     dogName,
-    rawBreedName,
     breedName,
     crossServiceIndicator,
     classification,

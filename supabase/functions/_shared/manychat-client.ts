@@ -122,14 +122,8 @@ export const MANYCHAT_CUSTOM_FIELDS: Record<string, ManyChatCustomField> = {
     type: "text",
     description: "",
   },
-  GARDEN_DATE_APPOINTMENT: {
-    id: "13530715",
-    name: "garden_date_appointment",
-    type: "text",
-    description: "",
-  },
   BARBER_DATE_APPOINTMENT: {
-    id: "13530717",
+    id: "14008196",
     name: "barber_date_appointment",
     type: "text",
     description: "",
@@ -141,8 +135,8 @@ export const MANYCHAT_CUSTOM_FIELDS: Record<string, ManyChatCustomField> = {
     description: "",
   },
   BARBER_HOUR_APPOINTMENT: {
-    id: "13530728",
-    name: "barber_hour_appointment",
+    id: "13701535",
+    name: "Barber_Hour_appointment",
     type: "text",
     description: "",
   },
@@ -165,7 +159,7 @@ export const MANYCHAT_CUSTOM_FIELDS: Record<string, ManyChatCustomField> = {
     description: "",
   },
   EMAIL: {
-    id: "13581191",
+    id: "13711552",
     name: "email",
     type: "text",
     description: "",
@@ -173,12 +167,6 @@ export const MANYCHAT_CUSTOM_FIELDS: Record<string, ManyChatCustomField> = {
   MEETING_RECORD_ID: {
     id: "13581070",
     name: "meeting_record_id",
-    type: "text",
-    description: "",
-  },
-  IF_WAS_ON_GARDEN_AND_SUITABLE_TO_IT: {
-    id: "13562478",
-    name: "If was on garden and suitable to it",
     type: "text",
     description: "",
   },
@@ -192,6 +180,42 @@ export const MANYCHAT_CUSTOM_FIELDS: Record<string, ManyChatCustomField> = {
     id: "dog_name",
     name: "dog_name",
     type: "text",
+    description: "",
+  },
+  AGENT_REPLAY: {
+    id: "13746876",
+    name: "Agent_replay",
+    type: "text",
+    description: "",
+  },
+  AVOID_AI: {
+    id: "13767424",
+    name: "avoid_ai",
+    type: "text",
+    description: "",
+  },
+  CLIENT_NAME: {
+    id: "13701533",
+    name: "Client_name",
+    type: "text",
+    description: "",
+  },
+  SUBJECT_NAME_AIRTABLE: {
+    id: "13755131",
+    name: "Subject_name_airtable",
+    type: "text",
+    description: "",
+  },
+  TREATMENT_RECORD_ID: {
+    id: "13801242",
+    name: "treatment_record_id",
+    type: "text",
+    description: "",
+  },
+  PRICE_LIST_SENT: {
+    id: "13797292",
+    name: "האם נשלח מחירון",
+    type: "boolean",
     description: "",
   },
 } as const

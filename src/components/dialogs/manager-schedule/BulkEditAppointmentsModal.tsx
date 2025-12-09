@@ -8,7 +8,7 @@ import { format, addMinutes } from "date-fns"
 import { he } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from "@/integrations/supabase/client"
-import { extractGroomingAppointmentId, extractGardenAppointmentId } from "@/lib/utils"
+import { extractGroomingAppointmentId } from "@/lib/utils"
 import type { ManagerAppointment } from "@/pages/ManagerSchedule/types"
 
 interface ManagerStation {
@@ -44,7 +44,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
     const [isSaving, setIsSaving] = useState(false)
     const [updateCustomer, setUpdateCustomer] = useState(false)
     const [dialogContentElement, setDialogContentElement] = useState<HTMLDivElement | null>(null)
-    
+
     // Initialize form with first appointment's values
     const initialForm = useMemo(() => {
         if (appointments.length === 0) {
@@ -57,11 +57,11 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                 groomingNotes: ""
             }
         }
-        
+
         const firstAppointment = appointments[0]
         const startDate = new Date(firstAppointment.startDateTime)
         const endDate = new Date(firstAppointment.endDateTime)
-        
+
         return {
             startTime: format(startDate, "HH:mm"),
             endTime: format(endDate, "HH:mm"),
@@ -71,14 +71,14 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
             groomingNotes: (firstAppointment as any).groomingNotes || ""
         }
     }, [appointments])
-    
+
     const [form, setForm] = useState<BulkEditForm>(initialForm)
-    
+
     // Reset form when appointments change
     useEffect(() => {
         setForm(initialForm)
     }, [initialForm])
-    
+
     // Calculate duration from start and end time
     const duration = useMemo(() => {
         if (!form.startTime || !form.endTime) return 0
@@ -96,7 +96,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
             return 0
         }
     }, [form.startTime, form.endTime])
-    
+
     const handleSave = async () => {
         if (!form.startTime || !form.endTime) {
             toast({
@@ -106,7 +106,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
             })
             return
         }
-        
+
         if (duration <= 0) {
             toast({
                 title: "שגיאה",
@@ -115,7 +115,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
             })
             return
         }
-        
+
         setIsSaving(true)
         try {
             // Update each appointment
@@ -123,67 +123,65 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                 const appointmentDate = new Date(appointment.startDateTime)
                 const [startHours, startMinutes] = form.startTime.split(':').map(Number)
                 const [endHours, endMinutes] = form.endTime.split(':').map(Number)
-                
+
                 // Create new start and end times with the same date
                 const newStartTime = new Date(appointmentDate)
                 newStartTime.setHours(startHours, startMinutes, 0, 0)
-                
+
                 const newEndTime = new Date(appointmentDate)
                 newEndTime.setHours(endHours, endMinutes, 0, 0)
-                
+
                 // If end time is before start time, add a day
                 if (newEndTime < newStartTime) {
                     newEndTime.setDate(newEndTime.getDate() + 1)
                 }
-                
-                const tableName = appointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
-                const appointmentId = appointment.serviceType === "grooming"
-                    ? extractGroomingAppointmentId(appointment.id, (appointment as any).groomingAppointmentId)
-                    : extractGardenAppointmentId(appointment.id, (appointment as any).gardenAppointmentId)
-                
+
+                const tableName = "grooming_appointments"
+                const appointmentId = extractGroomingAppointmentId(appointment.id, (appointment as any).groomingAppointmentId)
+
                 // Prepare update data
                 const updateData: any = {
                     start_at: newStartTime.toISOString(),
                     end_at: newEndTime.toISOString(),
                 }
-                
+
                 // Update station if provided (empty string means keep existing, "none" means remove)
                 if (form.stationId === "none") {
                     updateData.station_id = null
                 } else if (form.stationId) {
                     updateData.station_id = form.stationId
                 }
-                
+
                 // Update notes if provided
                 if (form.notes !== undefined) {
                     updateData.customer_notes = form.notes.trim() || null
                 }
-                
+
                 if (form.internalNotes !== undefined) {
                     updateData.internal_notes = form.internalNotes.trim() || null
                 }
-                
+
                 // Note: grooming_notes column doesn't exist - skipping update
                 // if (appointment.serviceType === "grooming" && form.groomingNotes !== undefined) {
                 //     updateData.grooming_notes = form.groomingNotes.trim() || null
                 // }
-                
+
                 const { error } = await supabase
                     .from(tableName)
                     .update(updateData)
                     .eq("id", appointmentId)
-                
+
                 if (error) {
                     console.error(`Error updating appointment ${appointment.id}:`, error)
                     throw error
                 }
             }
-            
+
             toast({
                 title: "הצלחה",
                 description: `${appointments.length} תורים עודכנו בהצלחה`,
             })
-            
+
             onSuccess()
             onOpenChange(false)
         } catch (error) {
@@ -197,29 +195,29 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
             setIsSaving(false)
         }
     }
-    
+
     // Group appointments by service type
     const groomingAppointments = appointments.filter(apt => apt.serviceType === "grooming")
     const gardenAppointments = appointments.filter(apt => apt.serviceType === "garden")
-    
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent 
-                className="sm:max-w-[700px] max-h-[90vh] flex flex-col p-6" 
+            <DialogContent
+                className="sm:max-w-[700px] max-h-[90vh] flex flex-col p-6"
                 dir="rtl"
                 ref={setDialogContentElement}
                 onInteractOutside={(e) => {
                     // Prevent closing when clicking on TimePickerInput portal
                     const target = e.target as HTMLElement
                     if (!target) return
-                    
+
                     // Check if click is inside the time picker portal
                     const timePickerPortal = target.closest('[data-time-picker-portal]')
                     if (timePickerPortal) {
                         e.preventDefault()
                         return
                     }
-                    
+
                     // Also check if the target itself is the portal
                     if (target.hasAttribute('data-time-picker-portal')) {
                         e.preventDefault()
@@ -230,7 +228,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                     // Also prevent on pointer down to catch all interaction types
                     const target = e.target as HTMLElement
                     if (!target) return
-                    
+
                     const timePickerPortal = target.closest('[data-time-picker-portal]')
                     if (timePickerPortal || target.hasAttribute('data-time-picker-portal')) {
                         e.preventDefault()
@@ -246,14 +244,14 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                     <X className="h-4 w-4" />
                     <span className="sr-only">Close</span>
                 </button>
-                
+
                 <DialogHeader className="text-right flex-shrink-0">
                     <DialogTitle className="text-right">עריכת תורים מרובים</DialogTitle>
                     <DialogDescription className="text-right">
                         עריכת {appointments.length} תורים - שעות, עמדה והערות
                     </DialogDescription>
                 </DialogHeader>
-                
+
                 <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                     <div className="flex-1 min-h-0 overflow-y-auto pr-2 pl-2">
                         <div className="space-y-4" dir="rtl">
@@ -277,7 +275,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                     ))}
                                 </select>
                             </div>
-                            
+
                             {/* Time Selection */}
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="space-y-2">
@@ -315,7 +313,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             {/* Customer Notes */}
                             <div className="space-y-2 border-b pb-4">
                                 <label className="text-sm font-medium text-gray-700 text-right flex items-center gap-2">
@@ -334,7 +332,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                     הערות אלו נראות גם ללקוח וגם לצוות
                                 </p>
                             </div>
-                            
+
                             {/* Additional Notes - Collapsible sections */}
                             <Accordion type="multiple" className="w-full">
                                 <AccordionItem value="internal-notes" className="border-b">
@@ -368,7 +366,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                         </div>
                                     </AccordionContent>
                                 </AccordionItem>
-                                
+
                                 {groomingAppointments.length > 0 && (
                                     <AccordionItem value="grooming-notes" className="border-b">
                                         <AccordionTrigger className="text-right hover:no-underline py-3">
@@ -403,7 +401,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                     </AccordionItem>
                                 )}
                             </Accordion>
-                            
+
                             {/* Appointments List */}
                             <div className="space-y-2 border-t pt-4">
                                 <label className="text-sm font-medium text-gray-700 text-right block">
@@ -432,7 +430,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                         </div>
                     </div>
                 </div>
-                
+
                 {/* Update Customer Checkbox */}
                 <div className="py-4 border-t border-gray-200 flex-shrink-0" dir="rtl">
                     <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-md p-3">
@@ -450,7 +448,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                         <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
                     </div>
                 </div>
-                
+
                 <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-start sm:space-x-2 sm:space-x-reverse flex-shrink-0">
                     <Button
                         onClick={handleSave}

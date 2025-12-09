@@ -53,37 +53,11 @@ interface GroomingAppointmentFields {
   "מזהה קבוצת תורים"?: string
 }
 
-interface GardenAppointmentFields {
-  "מועד התור": string
-  "מועד סיום התור"?: string
-  לקוח?: string[]
-  עמדה?: string[]
-  "עמדת עבודה"?: string[]
-  סטטוס?: string
-  "סטטוס התור"?: string
-  "סטטוס תשלום"?: string
-  הערות?: string
-  "הערות ובקשות לתור"?: string
-  "הערות צוות פנימי"?: string
-  "סוג שירות"?: string
-  לקוח?: string[]
-  "שם לקוח"?: string
-  כרטיסייה?: string
-  "שם כרטיסייה"?: string
-  "סוג כרטיסייה"?: string
-  "תור לגן"?: string[]
-  "מזהה רשומה"?: string
-  "מספר רשומה"?: string
-  "האם תור אישי"?: boolean
-  "תיאור תור אישי"?: string
-  "מזהה קבוצת תורים"?: string
-}
-
 interface AppointmentData {
   id: string
   startDateTime: string
   endDateTime: string
-  serviceType: "grooming" | "garden"
+  serviceType: "grooming"
   treatments: Array<{ name: string }>
   clientName?: string
   appointmentGroupId?: string
@@ -130,29 +104,7 @@ async function fetchAppointmentFromAirtable(appointmentId: string): Promise<Appo
       }
     }
   } catch (_error) {
-    console.log("No grooming appointment found, trying garden appointments...")
-  }
-
-  // Try garden appointments
-  try {
-    const gardenResponse = await fetch(
-      `https://api.airtable.com/v0/${config.baseId}/תורים לגן?filterByFormula={מזהה רשומה}='${appointmentId}'`,
-      {
-        headers: {
-          Authorization: `Bearer ${config.pat}`,
-        },
-      }
-    )
-
-    if (gardenResponse.ok) {
-      const gardenData = await gardenResponse.json()
-      if (gardenData.records && gardenData.records.length > 0) {
-        const record = gardenData.records[0] as AirtableRecord<GardenAppointmentFields>
-        return convertGardenRecordToAppointmentData(record)
-      }
-    }
-  } catch (_error) {
-    console.log("No garden appointment found either")
+    console.log("No grooming appointment found")
   }
 
   return null
@@ -165,23 +117,6 @@ function convertGroomingRecordToAppointmentData(record: AirtableRecord<GroomingA
     startDateTime: record.fields["מועד התור"],
     endDateTime: record.fields["מועד סיום התור"] || record.fields["מועד התור"],
     serviceType: "grooming",
-    treatments: record.fields.לקוח?.map((treatmentId) => ({ name: treatmentId })) || [],
-    clientName: record.fields["שם לקוח"],
-    appointmentGroupId: record.fields["מזהה קבוצת תורים"],
-    stationId: record.fields["עמדת עבודה"]?.[0],
-    stationName: record.fields["עמדה"]?.[0],
-    notes: record.fields["הערות ובקשות לתור"],
-    internalNotes: record.fields["הערות צוות פנימי"],
-  }
-}
-
-// Helper function to convert garden record to appointment data
-function convertGardenRecordToAppointmentData(record: AirtableRecord<GardenAppointmentFields>): AppointmentData {
-  return {
-    id: record.id,
-    startDateTime: record.fields["מועד התור"],
-    endDateTime: record.fields["מועד סיום התור"] || record.fields["מועד התור"],
-    serviceType: "garden",
     treatments: record.fields.לקוח?.map((treatmentId) => ({ name: treatmentId })) || [],
     clientName: record.fields["שם לקוח"],
     appointmentGroupId: record.fields["מזהה קבוצת תורים"],

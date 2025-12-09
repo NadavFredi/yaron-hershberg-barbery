@@ -165,13 +165,6 @@ export interface AvailableDate {
   availableTimes: AvailableTime[]
 }
 
-export interface GardenQuestionnaireStatus {
-  required: boolean
-  completed: boolean
-  formUrl?: string
-  message?: string
-}
-
 export interface AvailabilityResponse {
   success: boolean
   mode: "date"
@@ -179,6 +172,5 @@ export interface AvailabilityResponse {
     month: number
     year: number
     availableDates: AvailableDate[]
-    gardenQuestionnaire?: GardenQuestionnaireStatus
   }
 }
