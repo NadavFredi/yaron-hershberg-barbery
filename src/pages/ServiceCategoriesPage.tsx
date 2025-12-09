@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   SERVICE_CATEGORY_VARIANTS,
   SERVICE_CATEGORY_VARIANTS_ARRAY,
@@ -666,65 +667,83 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
       </div>
 
       <Dialog open={isDemoModalOpen} onOpenChange={setIsDemoModalOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto" dir="rtl">
           <DialogHeader className="text-right">
-            <DialogTitle className="text-right">בחר ווריאנט צבע</DialogTitle>
-            <DialogDescription className="text-right">
+            <DialogTitle className="text-right text-lg">בחר ווריאנט צבע</DialogTitle>
+            <DialogDescription className="text-right text-sm">
               בחר ווריאנט צבע וצפה בתצוגה מקדימה
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-6 py-4">
-            {/* Variants Grid - 6 per row */}
-            <div>
-              <Label className="text-base font-medium mb-3 block text-right">ווריאנטים זמינים:</Label>
-              <div className="grid grid-cols-6 gap-1.5">
-                {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant) => {
+          <div className="space-y-3 py-3">
+            {/* Selected Variant Indicator */}
+            {tempVariantConfig && (
+              <div className="flex items-center justify-end gap-2 pb-2 border-b">
+                <span className="text-xs text-gray-600">נבחר:</span>
+                <div className={cn("h-4 w-4 rounded-full", tempVariantConfig.bg)} />
+                <span className={cn("text-sm font-medium", tempVariantConfig.text)}>
+                  {tempVariantConfig.name}
+                </span>
+              </div>
+            )}
+            {/* Variants Grid - Numbered grid, 10 per row */}
+            <div className="grid grid-cols-10 gap-1 max-h-[60vh] overflow-y-auto pr-2">
+              <TooltipProvider>
+                {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant, index) => {
+                  const row = Math.floor(index / 10) + 1
+                  const col = (index % 10) + 1
+                  const position = `${row},${col}`
                   const isSelected = tempSelectedVariant === variant.id
                   return (
-                    <button
-                      key={variant.id}
-                      type="button"
-                      onClick={() => setTempSelectedVariant(variant.id)}
-                      className={cn(
-                        "p-1 rounded border transition-all hover:scale-105",
-                        isSelected
-                          ? cn("border-2", variant.border, "ring-1", variant.ring)
-                          : "border-gray-200 hover:border-gray-300"
-                      )}
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <div
+                    <Tooltip key={variant.id}>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => setTempSelectedVariant(variant.id)}
                           className={cn(
-                            "h-5 w-5 rounded-full",
-                            variant.bg
+                            "relative p-1 rounded border transition-all hover:scale-110 aspect-square",
+                            isSelected
+                              ? cn("border-2", variant.border, "ring-1", variant.ring)
+                              : "border-gray-200 hover:border-gray-300"
                           )}
-                        />
-                        <span className={cn("text-[10px] font-medium text-center leading-tight", variant.text)}>
-                          {variant.name}
-                        </span>
-                        {isSelected && (
-                          <div className={cn("text-[9px] leading-tight text-center", variant.text)}>✓</div>
-                        )}
-                      </div>
-                    </button>
+                        >
+                          <div className="flex flex-col items-center justify-center h-full">
+                            <div
+                              className={cn(
+                                "h-5 w-5 rounded-full mb-0.5",
+                                variant.bg
+                              )}
+                            />
+                            <span className="text-[9px] font-mono text-gray-500 leading-none">
+                              {position}
+                            </span>
+                            {isSelected && (
+                              <div className={cn("absolute top-0.5 right-0.5 text-[10px] leading-none", variant.text)}>✓</div>
+                            )}
+                          </div>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="font-medium">{variant.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   )
                 })}
-              </div>
+              </TooltipProvider>
             </div>
 
-            {/* Preview Section */}
-            <div className="space-y-3">
-              <Label className="text-base font-medium text-right">תצוגה מקדימה:</Label>
+            {/* Preview Section - Compact */}
+            <div className="space-y-2 border-t pt-3">
+              <Label className="text-xs font-medium text-right text-gray-600">תצוגה מקדימה:</Label>
               <div
                 className={cn(
-                  "rounded-lg border-2 p-4 space-y-3",
+                  "rounded-lg border-2 p-2 space-y-2",
                   tempVariantConfig.border
                 )}
               >
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div
                     className={cn(
-                      "rounded-lg px-4 py-3 text-white font-medium text-right",
+                      "rounded px-2 py-1.5 text-white text-xs font-medium text-right",
                       tempVariantConfig.bg
                     )}
                   >
@@ -732,7 +751,7 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
                   </div>
                   <div
                     className={cn(
-                      "rounded-lg px-4 py-3 border-2 text-right",
+                      "rounded px-2 py-1.5 border-2 text-xs text-right",
                       tempVariantConfig.bgLight,
                       tempVariantConfig.border,
                       tempVariantConfig.text
@@ -742,7 +761,7 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
                   </div>
                   <div
                     className={cn(
-                      "rounded-lg px-4 py-2 border text-right",
+                      "rounded px-2 py-1 border text-xs text-right",
                       tempVariantConfig.border,
                       tempVariantConfig.text
                     )}
@@ -870,65 +889,83 @@ function EditVariantModal({ currentVariant, onSave, onClose }: EditVariantModalP
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto" dir="rtl">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto" dir="rtl">
         <DialogHeader className="text-right">
-          <DialogTitle className="text-right">ערוך ווריאנט צבע</DialogTitle>
-          <DialogDescription className="text-right">
+          <DialogTitle className="text-right text-lg">ערוך ווריאנט צבע</DialogTitle>
+          <DialogDescription className="text-right text-sm">
             בחר ווריאנט צבע חדש וצפה בתצוגה מקדימה
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-6 py-4">
-          {/* Variants Grid - 6 per row */}
-          <div>
-            <Label className="text-base font-medium mb-3 block text-right">ווריאנטים זמינים:</Label>
-            <div className="grid grid-cols-6 gap-1.5">
-              {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant) => {
+        <div className="space-y-3 py-3">
+          {/* Selected Variant Indicator */}
+          {selectedVariantConfig && (
+            <div className="flex items-center  gap-2 pb-2 border-b">
+              <span className="text-xs text-gray-600">נבחר:</span>
+              <div className={cn("h-4 w-4 rounded-full", selectedVariantConfig.bg)} />
+              <span className={cn("text-sm font-medium", selectedVariantConfig.text)}>
+                {selectedVariantConfig.name}
+              </span>
+            </div>
+          )}
+          {/* Variants Grid - Numbered grid, 10 per row */}
+          <div className="grid grid-cols-10 gap-1 max-h-[50vh] overflow-y-auto pr-2">
+            <TooltipProvider>
+              {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant, index) => {
+                const row = Math.floor(index / 10) + 1
+                const col = (index % 10) + 1
+                const position = `${row},${col}`
                 const isSelected = selectedVariant === variant.id
                 return (
-                  <button
-                    key={variant.id}
-                    type="button"
-                    onClick={() => setSelectedVariant(variant.id)}
-                    className={cn(
-                      "p-1 rounded border transition-all hover:scale-105",
-                      isSelected
-                        ? cn("border-2", variant.border, "ring-1", variant.ring)
-                        : "border-gray-200 hover:border-gray-300"
-                    )}
-                  >
-                    <div className="flex flex-col items-center gap-0.5">
-                      <div
+                  <Tooltip key={variant.id}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVariant(variant.id)}
                         className={cn(
-                          "h-5 w-5 rounded-full",
-                          variant.bg
+                          "relative p-1 rounded border transition-all hover:scale-110 aspect-square",
+                          isSelected
+                            ? cn("border-2", variant.border, "ring-1", variant.ring)
+                            : "border-gray-200 hover:border-gray-300"
                         )}
-                      />
-                      <span className={cn("text-[10px] font-medium text-center leading-tight", variant.text)}>
-                        {variant.name}
-                      </span>
-                      {isSelected && (
-                        <div className={cn("text-[9px] leading-tight text-center", variant.text)}>✓</div>
-                      )}
-                    </div>
-                  </button>
+                      >
+                        <div className="flex flex-col items-center justify-center h-full">
+                          <div
+                            className={cn(
+                              "h-5 w-5 rounded-full mb-0.5",
+                              variant.bg
+                            )}
+                          />
+                          <span className="text-[9px] font-mono text-gray-500 leading-none">
+                            {position}
+                          </span>
+                          {isSelected && (
+                            <div className={cn("absolute top-0.5 right-0.5 text-[10px] leading-none", variant.text)}>✓</div>
+                          )}
+                        </div>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p className="font-medium">{variant.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 )
               })}
-            </div>
+            </TooltipProvider>
           </div>
 
-          {/* Preview Section */}
-          <div className="space-y-3">
-            <Label className="text-base font-medium text-right">תצוגה מקדימה:</Label>
+          {/* Preview Section - Compact */}
+          <div className="space-y-2 border-t pt-3">
+            <Label className="text-xs font-medium text-right text-gray-600">תצוגה מקדימה:</Label>
             <div
               className={cn(
-                "rounded-lg border-2 p-4 space-y-3",
+                "rounded-lg border-2 p-2 space-y-2",
                 selectedVariantConfig.border
               )}
             >
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div
                   className={cn(
-                    "rounded-lg px-4 py-3 text-white font-medium text-right",
+                    "rounded px-2 py-1.5 text-white text-xs font-medium text-right",
                     selectedVariantConfig.bg
                   )}
                 >
@@ -936,7 +973,7 @@ function EditVariantModal({ currentVariant, onSave, onClose }: EditVariantModalP
                 </div>
                 <div
                   className={cn(
-                    "rounded-lg px-4 py-3 border-2 text-right",
+                    "rounded px-2 py-1.5 border-2 text-xs text-right",
                     selectedVariantConfig.bgLight,
                     selectedVariantConfig.border,
                     selectedVariantConfig.text
@@ -946,7 +983,7 @@ function EditVariantModal({ currentVariant, onSave, onClose }: EditVariantModalP
                 </div>
                 <div
                   className={cn(
-                    "rounded-lg px-4 py-2 border text-right",
+                    "rounded px-2 py-1 border text-xs text-right",
                     selectedVariantConfig.border,
                     selectedVariantConfig.text
                   )}

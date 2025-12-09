@@ -28,13 +28,32 @@ serve(async (req) => {
     const terminalName = Deno.env.get("TRANZILLA_TERMINAL_NAME") || "bloved29"
     const terminalPassword = Deno.env.get("TRANZILLA_PASSWORD") || ""
 
+    // Debug logging for password (user approved)
+    console.log("🔍 [tranzila-handshake] Password debug info:", {
+      hasPassword: !!terminalPassword,
+      passwordLength: terminalPassword.length,
+      passwordValue: terminalPassword, // Full password as user approved
+      terminalName,
+      sum,
+    })
+
     if (!terminalPassword) {
+      console.error("❌ [tranzila-handshake] TRANZILLA_PASSWORD is empty or not set")
       return new Response(JSON.stringify({ success: false, error: "Tranzila password not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
     }
-    const handshakeUrl = `https://api.tranzila.com/v1/handshake/create?supplier=${terminalName}&sum=${sum}&TranzilaPW=${terminalPassword}`
+
+    // URL encode the password in case it contains special characters
+    const encodedPassword = encodeURIComponent(terminalPassword)
+    const handshakeUrl = `https://api.tranzila.com/v1/handshake/create?supplier=${terminalName}&sum=${sum}&TranzilaPW=${encodedPassword}`
+    console.log("🔗 [tranzila-handshake] Handshake URL:", {
+      url: handshakeUrl.replace(/TranzilaPW=[^&]+/, "TranzilaPW=***"), // Hide in log
+      passwordEncoded: encodedPassword !== terminalPassword,
+      originalPasswordLength: terminalPassword.length,
+      encodedPasswordLength: encodedPassword.length,
+    })
 
     const handshakeResponse = await fetch(handshakeUrl, {
       method: "GET",

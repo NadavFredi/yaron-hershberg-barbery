@@ -66,9 +66,10 @@ export function ManagerScheduleContent() {
 
   const isUnpinMode = !showPinnedAppointmentsColumn
   const timeAxisWidth = 70
+  const pinnedColumnWidth = showPinnedAppointmentsColumn ? Math.max(PINNED_APPOINTMENTS_COLUMN_WIDTH, 320) : 0
   const minimumGridWidth =
     timeAxisWidth +
-    (showPinnedAppointmentsColumn ? PINNED_APPOINTMENTS_COLUMN_WIDTH : 0) +
+    pinnedColumnWidth +
     (showWaitingListColumn ? WAITLIST_COLUMN_WIDTH : 0) +
     visibleStations.length * STANDARD_COLUMN_WIDTH
 

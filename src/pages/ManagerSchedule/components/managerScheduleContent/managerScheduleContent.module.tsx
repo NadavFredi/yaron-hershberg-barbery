@@ -418,7 +418,9 @@ export function useManagerScheduleContent() {
   const scheduledColumnCount = visibleStations.length
   const gridColumnParts: string[] = [`${timeAxisWidth}px`]
   if (showPinnedAppointmentsColumn) {
-    gridColumnParts.push(`${PINNED_APPOINTMENTS_COLUMN_WIDTH}px`)
+    // Use a fixed width that accommodates the content (search bar, filters, cards)
+    // Must match ScheduleHeader exactly
+    gridColumnParts.push(`${Math.max(PINNED_APPOINTMENTS_COLUMN_WIDTH, 320)}px`)
   }
   if (showWaitingListColumn) {
     gridColumnParts.push(`${WAITLIST_COLUMN_WIDTH}px`)

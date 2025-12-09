@@ -199,7 +199,9 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
   const gridColumnParts: string[] = [`${timeAxisWidth}px`]
   // Order MUST match ManagerScheduleContent: TimeAxis -> Pinned -> WaitingList -> Stations
   if (showPinnedAppointmentsColumn) {
-    gridColumnParts.push(`${PINNED_APPOINTMENTS_COLUMN_WIDTH}px`)
+    // Use a fixed width that accommodates the content (search bar, filters, cards)
+    // The content needs more space than the standard column width
+    gridColumnParts.push(`${Math.max(PINNED_APPOINTMENTS_COLUMN_WIDTH, 320)}px`)
   }
   if (showWaitingListColumn) {
     gridColumnParts.push(`${WAITLIST_COLUMN_WIDTH}px`)
@@ -213,9 +215,10 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
     gridColumnParts.push(scheduledTemplate)
   }
   const gridTemplateColumns = gridColumnParts.join(" ")
+  const pinnedColumnWidth = showPinnedAppointmentsColumn ? Math.max(PINNED_APPOINTMENTS_COLUMN_WIDTH, 320) : 0
   const minimumGridWidth =
     timeAxisWidth +
-    (showPinnedAppointmentsColumn ? PINNED_APPOINTMENTS_COLUMN_WIDTH : 0) +
+    pinnedColumnWidth +
     (showWaitingListColumn ? WAITLIST_COLUMN_WIDTH : 0) +
     scheduledColumnCount * STANDARD_COLUMN_WIDTH
 
@@ -1158,7 +1161,7 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
 
   const columnsHeader = (
     <div className="sticky top-[60px] right-0 z-20 bg-white border-b border-slate-200 mb-2 rounded-t-lg py-0.5 px-1">
-      <div className="grid" dir="rtl" style={{ gridTemplateColumns, width: '100%', minWidth: `max(100%, ${minimumGridWidth}px)` }}>
+      <div className="grid min-w-max" dir="rtl" style={{ gridTemplateColumns, width: 'max-content', minWidth: `${minimumGridWidth}px` }}>
         {columnsHeaderContent}
       </div>
     </div>

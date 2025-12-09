@@ -85,6 +85,19 @@ interface AppointmentsData {
         serviceType: string
         sourceTable: string
         customerName?: string
+        serviceName?: string
+        serviceId?: string
+    }>
+    byServiceType: Array<{
+        serviceName: string
+        serviceId: string
+        count: number
+    }>
+    byServiceByDate: Array<{
+        serviceName: string
+        serviceId: string
+        date: string
+        count: number
     }>
 }
 
@@ -152,6 +165,7 @@ export default function AppointmentsReport() {
                       station_id,
                       amount_due,
                       customer_id,
+                      service_id,
                       stations (
                           id,
                           name
@@ -159,6 +173,10 @@ export default function AppointmentsReport() {
                       customers (
                           id,
                           full_name
+                      ),
+                      services (
+                          id,
+                          name
                       )
                   `
                 )
@@ -216,6 +234,8 @@ export default function AppointmentsReport() {
             const byCreationDateMap: Record<string, number> = {}
             const byModifyDateMap: Record<string, number> = {}
             const byStationByDateMap: Record<string, Record<string, { count: number; worth: number; paid: number; activeHours: number }>> = {}
+            const byServiceTypeMap: Record<string, { serviceName: string; serviceId: string; count: number }> = {}
+            const byServiceByDateMap: Record<string, Record<string, number>> = {}
             const enrichedAppointments: AppointmentsData["allAppointments"] = []
 
             // Stats for grooming (only service in barbershop)
@@ -312,6 +332,28 @@ export default function AppointmentsReport() {
                 byStationByDateMap[stationId][dateKey].paid += paid
                 byStationByDateMap[stationId][dateKey].activeHours += durationMinutes
 
+                // Group by service type
+                const serviceId = apt.service_id ? String(apt.service_id) : "no-service"
+                const serviceName = apt.services?.name || "ללא שירות"
+
+                if (!byServiceTypeMap[serviceId]) {
+                    byServiceTypeMap[serviceId] = {
+                        serviceName,
+                        serviceId,
+                        count: 0,
+                    }
+                }
+                byServiceTypeMap[serviceId].count += 1
+
+                // Group by service by date
+                if (!byServiceByDateMap[serviceId]) {
+                    byServiceByDateMap[serviceId] = {}
+                }
+                if (!byServiceByDateMap[serviceId][dateKey]) {
+                    byServiceByDateMap[serviceId][dateKey] = 0
+                }
+                byServiceByDateMap[serviceId][dateKey] += 1
+
                 // Store enriched appointment for detail modal
                 enrichedAppointments.push({
                     id: apt.id,
@@ -327,6 +369,8 @@ export default function AppointmentsReport() {
                     serviceType: apt.serviceType,
                     sourceTable: apt.sourceTable,
                     customerName: apt.customers?.full_name,
+                    serviceName,
+                    serviceId,
                 })
             })
 
@@ -431,6 +475,32 @@ export default function AppointmentsReport() {
                 byGardenByDate: [], // No daycare in barbershop
                 byGardenServiceType: [], // No daycare in barbershop
                 allAppointments: enrichedAppointments,
+                byServiceType: Object.values(byServiceTypeMap).sort((a, b) => b.count - a.count),
+                byServiceByDate: (() => {
+                    const result: AppointmentsData["byServiceByDate"] = []
+                    Object.entries(byServiceByDateMap).forEach(([serviceId, dates]) => {
+                        const service = byServiceTypeMap[serviceId]
+                        if (service) {
+                            Object.entries(dates).forEach(([date, count]) => {
+                                result.push({
+                                    serviceName: service.serviceName,
+                                    serviceId,
+                                    date: format(new Date(date), "dd/MM"),
+                                    count,
+                                })
+                            })
+                        }
+                    })
+                    return result.sort((a, b) => {
+                        // Sort by date first, then by service name
+                        const dateA = new Date(a.date.split("/").reverse().join("-"))
+                        const dateB = new Date(b.date.split("/").reverse().join("-"))
+                        if (dateA.getTime() !== dateB.getTime()) {
+                            return dateA.getTime() - dateB.getTime()
+                        }
+                        return a.serviceName.localeCompare(b.serviceName)
+                    })
+                })(),
             })
         } catch (error) {
             console.error("Failed to fetch appointments data:", error)
@@ -1161,6 +1231,226 @@ export default function AppointmentsReport() {
                                                         color: "#f59e0b",
                                                     },
                                                 ],
+                                                credits: { enabled: false },
+                                            }
+                                        })()}
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Service Types Pie Chart */}
+                    {appointmentsData.byServiceType.length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>התפלגות סוגי שירותים</CardTitle>
+                                <CardDescription>חלוקת תורים לפי סוגי שירותים בתאריכים שנבחרו</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="h-96">
+                                    <HighchartsReact
+                                        highcharts={Highcharts}
+                                        options={{
+                                            chart: {
+                                                type: "pie",
+                                                backgroundColor: "transparent",
+                                                style: { fontFamily: "inherit" },
+                                            },
+                                            title: { text: null },
+                                            tooltip: {
+                                                useHTML: true,
+                                                formatter: function (this: any) {
+                                                    const percentage = ((this.y / appointmentsData.totalAppointments) * 100).toFixed(1)
+                                                    return `
+                                                        <div style="font-weight: 600; margin-bottom: 8px;">${this.point.name}</div>
+                                                        <div style="margin: 4px 0;">
+                                                            <span style="font-weight: 500;">כמות תורים:</span>
+                                                            <span style="font-weight: 600; margin-right: 8px;">${this.y.toLocaleString("he-IL")}</span>
+                                                        </div>
+                                                        <div style="margin: 4px 0;">
+                                                            <span style="font-weight: 500;">אחוז:</span>
+                                                            <span style="font-weight: 600; margin-right: 8px;">${percentage}%</span>
+                                                        </div>
+                                                    `
+                                                },
+                                            },
+                                            legend: {
+                                                enabled: true,
+                                                align: "center",
+                                                verticalAlign: "bottom",
+                                                itemStyle: { fontSize: "13px", fontWeight: "500" },
+                                                margin: 30,
+                                                padding: 15,
+                                                itemMarginBottom: 10,
+                                            },
+                                            plotOptions: {
+                                                pie: {
+                                                    allowPointSelect: true,
+                                                    cursor: "pointer",
+                                                    dataLabels: {
+                                                        enabled: true,
+                                                        format: "{point.name}: {point.y} ({point.percentage:.1f}%)",
+                                                        style: { fontSize: "12px", fontWeight: "500" },
+                                                    },
+                                                    showInLegend: true,
+                                                    point: {
+                                                        events: {
+                                                            click: function (this: any) {
+                                                                if (!appointmentsData) return
+                                                                const serviceName = this.name
+                                                                const filtered = appointmentsData.allAppointments.filter(
+                                                                    (apt) => apt.serviceName === serviceName
+                                                                )
+                                                                setDetailModalTitle(`פרטי תורים - ${serviceName}`)
+                                                                setDetailModalDescription(`סה"כ ${filtered.length} תורים`)
+                                                                setDetailModalData(filtered)
+                                                                setDetailModalOpen(true)
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                            series: [
+                                                {
+                                                    name: "כמות תורים",
+                                                    data: appointmentsData.byServiceType.map((service, index) => {
+                                                        const colors = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#a855f7", "#ef4444", "#14b8a6", "#f97316"]
+                                                        return {
+                                                            name: service.serviceName,
+                                                            y: service.count,
+                                                            color: colors[index % colors.length],
+                                                        }
+                                                    }),
+                                                },
+                                            ],
+                                            credits: { enabled: false },
+                                        }}
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Service Distribution by Date - Multiple Line Charts */}
+                    {appointmentsData.byServiceByDate.length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>התפלגות שירותים לפי יום</CardTitle>
+                                <CardDescription>קו נפרד לכל שירות - כמות תורים לפי יום</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="h-96">
+                                    <HighchartsReact
+                                        highcharts={Highcharts}
+                                        options={(() => {
+                                            const services = Array.from(new Set(appointmentsData.byServiceByDate.map((d) => d.serviceName)))
+                                            const dates = Array.from(new Set(appointmentsData.byServiceByDate.map((d) => d.date))).sort((a, b) => {
+                                                const [dayA, monthA] = a.split("/").map(Number)
+                                                const [dayB, monthB] = b.split("/").map(Number)
+                                                const currentYear = new Date().getFullYear()
+                                                const dateA = new Date(currentYear, monthA - 1, dayA)
+                                                const dateB = new Date(currentYear, monthB - 1, dayB)
+                                                return dateA.getTime() - dateB.getTime()
+                                            })
+
+                                            const colors = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#a855f7", "#ef4444", "#14b8a6", "#f97316"]
+
+                                            const series = services.map((serviceName, index) => {
+                                                const data = dates.map((date) => {
+                                                    const item = appointmentsData.byServiceByDate.find(
+                                                        (d) => d.serviceName === serviceName && d.date === date
+                                                    )
+                                                    return item ? item.count : 0
+                                                })
+
+                                                return {
+                                                    name: serviceName,
+                                                    data,
+                                                    color: colors[index % colors.length],
+                                                }
+                                            })
+
+                                            return {
+                                                chart: {
+                                                    type: "line",
+                                                    backgroundColor: "transparent",
+                                                    style: { fontFamily: "inherit" },
+                                                },
+                                                title: { text: null },
+                                                xAxis: {
+                                                    categories: dates,
+                                                    labels: { style: { fontSize: "12px", fontWeight: "500" } },
+                                                },
+                                                yAxis: {
+                                                    title: {
+                                                        text: "כמות תורים",
+                                                        style: { fontSize: "13px", fontWeight: "600" },
+                                                    },
+                                                    labels: {
+                                                        formatter: function (this: any) {
+                                                            return this.value.toLocaleString("he-IL")
+                                                        },
+                                                        style: { fontSize: "12px" },
+                                                    },
+                                                },
+                                                tooltip: {
+                                                    shared: true,
+                                                    useHTML: true,
+                                                    formatter: function (this: any) {
+                                                        let tooltip = `<div style="font-weight: 600; margin-bottom: 8px;">${this.x}</div>`
+                                                        this.points?.forEach((point: any) => {
+                                                            const value = point.y || 0
+                                                            tooltip += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0; direction: rtl;">
+                                                                <span style="display: inline-flex; align-items: center; gap: 6px; color: ${point.color}; font-weight: 600;">
+                                                                    <span style="color: ${point.color};">●</span>
+                                                                    <span>${point.series.name}</span>
+                                                                </span>
+                                                                <span style="font-weight: 600; color: #111827;">${value.toLocaleString("he-IL")} תורים</span>
+                                                            </div>`
+                                                        })
+                                                        return tooltip
+                                                    },
+                                                },
+                                                legend: {
+                                                    enabled: true,
+                                                    align: "center",
+                                                    verticalAlign: "bottom",
+                                                    itemStyle: { fontSize: "13px", fontWeight: "500" },
+                                                    margin: 30,
+                                                    padding: 15,
+                                                    itemMarginBottom: 10,
+                                                },
+                                                plotOptions: {
+                                                    line: {
+                                                        marker: {
+                                                            radius: 4,
+                                                            lineWidth: 2,
+                                                        },
+                                                        lineWidth: 3,
+                                                        cursor: "pointer",
+                                                        point: {
+                                                            events: {
+                                                                click: function (this: any) {
+                                                                    const serviceName = this.series.name
+                                                                    const date = this.category
+                                                                    if (!appointmentsData) return
+
+                                                                    const filtered = appointmentsData.allAppointments.filter((apt) => {
+                                                                        const aptDate = format(new Date(apt.start_at), "dd/MM")
+                                                                        return apt.serviceName === serviceName && aptDate === date
+                                                                    })
+
+                                                                    setDetailModalTitle(`פרטי תורים - ${serviceName} - ${date}`)
+                                                                    setDetailModalDescription(`סה"כ ${filtered.length} תורים`)
+                                                                    setDetailModalData(filtered)
+                                                                    setDetailModalOpen(true)
+                                                                },
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                                series,
                                                 credits: { enabled: false },
                                             }
                                         })()}
