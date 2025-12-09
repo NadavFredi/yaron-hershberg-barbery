@@ -1429,6 +1429,7 @@ export default function ServicesListPage() {
                                     <TableHead className="text-right">קטגוריה</TableHead>
                                     <TableHead className="text-right">סוג</TableHead>
                                     <TableHead className="text-right">משך זמן</TableHead>
+                                    <TableHead className="text-right">משך זמן פעיל</TableHead>
                                     <TableHead className="text-right">תיאור</TableHead>
                                     <TableHead className="text-right">מחיר בסיס</TableHead>
                                     <TableHead className="text-right">סטטוס</TableHead>
@@ -1438,7 +1439,7 @@ export default function ServicesListPage() {
                             <TableBody>
                                 {filteredServices.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                                        <TableCell colSpan={9} className="text-center text-gray-500 py-8">
                                             {services.length === 0
                                                 ? "אין שירותים במערכת. הוסף שירות חדש כדי להתחיל."
                                                 : "לא נמצאו שירותים התואמים את החיפוש."}
@@ -1452,6 +1453,11 @@ export default function ServicesListPage() {
                                         const isAddingSubAction = addingSubActionTo === service.id
 
                                         const totalDuration = serviceMode === "complicated"
+                                            ? (service.service_sub_actions || [])
+                                                .reduce((sum, sa) => sum + sa.duration, 0)
+                                            : (service.duration ?? 0)
+
+                                        const activeDuration = serviceMode === "complicated"
                                             ? (service.service_sub_actions || [])
                                                 .filter(sa => sa.is_active)
                                                 .reduce((sum, sa) => sum + sa.duration, 0)
@@ -1658,6 +1664,15 @@ export default function ServicesListPage() {
                                                             </span>
                                                         )}
                                                     </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <span className="text-gray-600">
+                                                            {activeDuration > 0 ? (
+                                                                <span>{activeDuration} דקות</span>
+                                                            ) : (
+                                                                <span className="text-gray-400">לא הוגדר</span>
+                                                            )}
+                                                        </span>
+                                                    </TableCell>
                                                     <TableCell>
                                                         {isEditingDescription ? (
                                                             <div className="flex items-center gap-1">
@@ -1860,7 +1875,7 @@ export default function ServicesListPage() {
                                                                 {/* Save All / Cancel All buttons - only show if there are pending sub-actions */}
                                                                 {(pendingSubActions.get(service.id) || []).length > 0 && (
                                                                     <TableRow>
-                                                                        <TableCell colSpan={8} className="p-2">
+                                                                        <TableCell colSpan={9} className="p-2">
                                                                             <div className="flex items-center gap-2 justify-end">
                                                                                 <Button
                                                                                     variant="outline"
@@ -1889,8 +1904,25 @@ export default function ServicesListPage() {
                                                                 {/* Save All / Cancel All buttons for drafts - on same line as "add new row" */}
                                                                 {isAddingSubAction && (draftSubActions.get(service.id) || []).length > 0 && (
                                                                     <TableRow className="bg-gray-50/50">
-                                                                        <TableCell colSpan={8} className="p-2">
+                                                                        <TableCell colSpan={9} className="p-2">
                                                                             <div className="flex items-center gap-2">
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    onClick={() => handleStartAddingSubAction(service.id)}
+                                                                                    className="flex-1 justify-start"
+                                                                                >
+                                                                                    <Plus className="h-4 w-4 ml-2" />
+                                                                                    הוסף שורה נוספת
+                                                                                </Button>
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    onClick={handleCancelAddingSubAction}
+                                                                                    className="shrink-0"
+                                                                                >
+                                                                                    ביטול הכל
+                                                                                </Button>
                                                                                 <Button
                                                                                     size="sm"
                                                                                     onClick={async () => {
@@ -1921,23 +1953,6 @@ export default function ServicesListPage() {
                                                                                     )}
                                                                                     שמור הכל
                                                                                 </Button>
-                                                                                <Button
-                                                                                    variant="outline"
-                                                                                    size="sm"
-                                                                                    onClick={handleCancelAddingSubAction}
-                                                                                    className="shrink-0"
-                                                                                >
-                                                                                    ביטול הכל
-                                                                                </Button>
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="sm"
-                                                                                    onClick={() => handleStartAddingSubAction(service.id)}
-                                                                                    className="flex-1 justify-start"
-                                                                                >
-                                                                                    <Plus className="h-4 w-4 ml-2" />
-                                                                                    הוסף שורה נוספת
-                                                                                </Button>
                                                                             </div>
                                                                         </TableCell>
                                                                     </TableRow>
@@ -1946,7 +1961,7 @@ export default function ServicesListPage() {
                                                                 {/* Plus icon at bottom - ALWAYS at the bottom when adding (if no drafts) */}
                                                                 {isAddingSubAction && (draftSubActions.get(service.id) || []).length === 0 && (
                                                                     <TableRow className="bg-gray-50/50">
-                                                                        <TableCell colSpan={8} className="p-2">
+                                                                        <TableCell colSpan={9} className="p-2">
                                                                             <Button
                                                                                 variant="ghost"
                                                                                 size="sm"
@@ -1963,7 +1978,7 @@ export default function ServicesListPage() {
                                                         )}
                                                         {!isAddingSubAction && (
                                                             <TableRow className="bg-gray-50/50">
-                                                                <TableCell colSpan={8} className="p-2">
+                                                                <TableCell colSpan={9} className="p-2">
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="sm"

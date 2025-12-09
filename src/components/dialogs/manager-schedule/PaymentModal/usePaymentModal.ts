@@ -396,11 +396,10 @@ export const usePaymentModal = ({
     setIsSavingPrice(true)
     try {
       const price = parseFloat(appointmentPrice) || 0
-      const tableName = appointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
 
       // Update amount_due directly using PostgREST
       const { error: updateError } = await supabase
-        .from(tableName)
+        .from("grooming_appointments")
         .update({ amount_due: price })
         .eq("id", appointment.id)
 
@@ -934,14 +933,9 @@ export const usePaymentModal = ({
         )
       }
 
-      const allAppointmentIds = [
-        ...(groomingResult.data || [])
-          .filter((apt) => !isCancelledStatus(apt.status))
-          .map((apt) => ({ id: apt.id, serviceType: "grooming" as const, amountDue: apt.amount_due || 0 })),
-        ...(daycareResult.data || [])
-          .filter((apt) => !isCancelledStatus(apt.status))
-          .map((apt) => ({ id: apt.id, serviceType: "garden" as const, amountDue: apt.amount_due || 0 })),
-      ]
+      const allAppointmentIds = (groomingData || [])
+        .filter((apt) => !isCancelledStatus(apt.status))
+        .map((apt) => ({ id: apt.id, serviceType: "grooming" as const, amountDue: apt.amount_due || 0 }))
 
       // Fetch full appointment data and create cart appointments
       const appointmentsWithData: CartAppointment[] = []
@@ -959,7 +953,7 @@ export const usePaymentModal = ({
             .from("cart_appointments")
             .select("id, appointment_price")
             .eq("cart_id", cartIdToFetch)
-            .or(`grooming_appointment_id.eq.${apt.id},daycare_appointment_id.eq.${apt.id}`)
+            .eq("grooming_appointment_id", apt.id)
             .maybeSingle()
 
           const finalPrice =
@@ -970,8 +964,8 @@ export const usePaymentModal = ({
           appointmentsWithData.push({
             id: existingCartAppt?.id || `temp_${apt.id}`,
             cart_id: cartIdToFetch,
-            grooming_appointment_id: apt.serviceType === "grooming" ? apt.id : null,
-            daycare_appointment_id: apt.serviceType === "garden" ? apt.id : null,
+            grooming_appointment_id: apt.id,
+            daycare_appointment_id: null,
             appointment_price: finalPrice,
             appointment: appointmentData,
           })
@@ -1980,14 +1974,6 @@ export const usePaymentModal = ({
               .eq("id", ca.grooming_appointment_id)
               .single()
             directAppointmentPrice += groomingAppt?.amount_due || 0
-          }
-          if (ca.daycare_appointment_id) {
-            const { data: daycareAppt } = await supabase
-              .from("daycare_appointments")
-              .select("amount_due")
-              .eq("id", ca.daycare_appointment_id)
-              .single()
-            directAppointmentPrice += daycareAppt?.amount_due || 0
           }
         }
       }

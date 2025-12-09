@@ -33,13 +33,6 @@ import {
 } from "@/lib/serviceCategoryVariants"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 export default function ServiceCategoriesPage() {
   const queryClient = useQueryClient()
@@ -475,7 +468,7 @@ export default function ServiceCategoriesPage() {
               />
             </div>
           </div>
-          <DialogFooter className="flex-row-reverse gap-2">
+          <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
             <Button onClick={handleCreate} disabled={createCategory.isPending}>
               {createCategory.isPending ? (
                 <>
@@ -602,46 +595,29 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
   return (
     <>
       <div className="flex items-center gap-2">
-        <Select value={selectedVariant} onValueChange={onVariantChange} className="flex-1">
-          <SelectTrigger className="w-full" dir="rtl">
-            <SelectValue>
-              <div className="flex items-center gap-2 justify-end">
-                <span className="text-right">{selectedVariantConfig.name}</span>
-                <div
-                  className={cn(
-                    "h-4 w-4 rounded-full shrink-0",
-                    selectedVariantConfig.bg
-                  )}
-                />
-              </div>
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent dir="rtl">
-            {SERVICE_CATEGORY_VARIANTS_ARRAY.map((variant) => (
-              <SelectItem key={variant.id} value={variant.id}>
-                <div className="flex items-center gap-2 justify-end">
-                  <span className="text-right">{variant.name}</span>
-                  <div
-                    className={cn(
-                      "h-4 w-4 rounded-full shrink-0",
-                      variant.bg
-                    )}
-                  />
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleOpenDemo}
-          className="shrink-0"
-        >
-          <Eye className="h-4 w-4 ml-1" />
-          צפה בדמו
-        </Button>
+        <div className="flex-1 flex items-center gap-2 justify-start ">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleOpenDemo}
+            className="shrink-0"
+          >
+            <Eye className="h-4 w-4 ml-1" />
+            בחר צבע
+          </Button>
+          {/* Small color circle to show current color - right next to text */}
+          <div
+            className={cn(
+              "h-5 w-5 rounded-full border border-gray-300 shrink-0",
+              selectedVariantConfig.bg
+            )}
+            title={selectedVariantConfig.name}
+          />
+          <span>{selectedVariantConfig.name}</span>
+          {/* Choose color button - close to text */}
+
+        </div>
       </div>
 
       <Dialog open={isDemoModalOpen} onOpenChange={setIsDemoModalOpen}>
@@ -732,7 +708,7 @@ function VariantSelector({ selectedVariant, onVariantChange }: VariantSelectorPr
               </div>
             </div>
           </div>
-          <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+          <DialogFooter className="flex-row-reverse gap-2 sm:justify-end">
             <Button onClick={handleChooseVariant}>
               בחר
             </Button>

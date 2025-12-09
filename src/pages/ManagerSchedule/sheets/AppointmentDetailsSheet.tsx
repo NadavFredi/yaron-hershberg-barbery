@@ -731,9 +731,8 @@ export const AppointmentDetailsSheet = ({
         setIsSavingInternalNotes(true)
         try {
             console.log("💾 [AppointmentDetailsSheet] Saving internal notes:", appointmentInternalNotes)
-            const tableName = selectedAppointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
             const { error } = await supabase
-                .from(tableName)
+                .from("grooming_appointments")
                 .update({ internal_notes: appointmentInternalNotes.trim() || null })
                 .eq("id", appointmentId)
 
@@ -821,9 +820,8 @@ export const AppointmentDetailsSheet = ({
         try {
             const notesValue = appointmentClientNotes?.trim() || null
             console.log("💾 [AppointmentDetailsSheet] Saving client notes:", notesValue)
-            const tableName = selectedAppointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
             const { error } = await supabase
-                .from(tableName)
+                .from("grooming_appointments")
                 .update({ customer_notes: notesValue })
                 .eq("id", appointmentId)
 
@@ -879,7 +877,6 @@ export const AppointmentDetailsSheet = ({
 
         try {
             console.log("💾 [AppointmentDetailsSheet] Saving all changes...")
-            const tableName = selectedAppointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
 
             // Save all notes in parallel
             const savePromises: Promise<void>[] = []
@@ -892,7 +889,7 @@ export const AppointmentDetailsSheet = ({
                             const notesValue = appointmentClientNotes?.trim() || null
                             console.log("💾 [AppointmentDetailsSheet] Saving client notes:", notesValue)
                             const { error } = await supabase
-                                .from(tableName)
+                                .from("grooming_appointments")
                                 .update({ customer_notes: notesValue })
                                 .eq("id", appointmentId)
 
@@ -913,7 +910,7 @@ export const AppointmentDetailsSheet = ({
                         try {
                             console.log("💾 [AppointmentDetailsSheet] Saving internal notes:", appointmentInternalNotes)
                             const { error } = await supabase
-                                .from(tableName)
+                                .from("grooming_appointments")
                                 .update({ internal_notes: appointmentInternalNotes.trim() || null })
                                 .eq("id", appointmentId)
 
@@ -990,9 +987,8 @@ export const AppointmentDetailsSheet = ({
                 seriesId: selectedAppointment.seriesId,
             })
 
-            const tableName = selectedAppointment.serviceType === "grooming" ? "grooming_appointments" : "daycare_appointments"
             const { error } = await supabase
-                .from(tableName)
+                .from("grooming_appointments")
                 .update({ series_id: null })
                 .eq("id", appointmentId)
 
