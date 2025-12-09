@@ -24,10 +24,10 @@ export const TotalSummarySection: React.FC<TotalSummarySectionProps> = ({
                 {/* Plus sign */}
                 <div className="text-2xl font-bold text-gray-400">+</div>
 
-                {/* Products and Garden Total */}
+                {/* Products Total */}
                 <div className="flex flex-col items-center min-w-[100px]">
                     <div className="text-2xl font-bold text-green-700">₪{productsTotal.toFixed(2)}</div>
-                    <div className="text-xs text-gray-600 mt-1">מוצרים וגן</div>
+                    <div className="text-xs text-gray-600 mt-1">מוצרים</div>
                 </div>
 
                 {/* Equals sign */}

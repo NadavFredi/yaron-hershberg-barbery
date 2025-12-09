@@ -316,7 +316,7 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
                 <Label className="text-right block text-lg font-semibold">
-                    {totalItems > 0 ? `מוצרים וגן (${totalItems})` : 'מוצרים וגן'}
+                    {totalItems > 0 ? `מוצרים (${totalItems})` : 'מוצרים'}
                 </Label>
                 <div className="flex items-center gap-2">
                     {totalItems > 0 && (

@@ -7,6 +7,7 @@ export interface ServiceCategory {
   name: string
   variant: ServiceCategoryVariant
   is_default?: boolean
+  is_favorite?: boolean
   created_at: string
   updated_at: string
 }

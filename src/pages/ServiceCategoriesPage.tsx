@@ -14,7 +14,6 @@ import {
   useUpdateServiceCategory,
   useDeleteServiceCategory,
   useServicesByCategory,
-  useDefaultServiceCategory,
   type ServiceCategoryWithServices,
 } from "@/hooks/useServiceCategories"
 import { useServices, useUpdateService, type Service } from "@/hooks/useServices"
@@ -204,7 +203,7 @@ export default function ServiceCategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="max-w-4xl mx-auto">
+      <Card className="max-w-7xl mx-auto">
         <CardHeader>
           <div className="flex items-center justify-between">
 
@@ -226,6 +225,7 @@ export default function ServiceCategoriesPage() {
                   <TableHead className="text-right">שם</TableHead>
                   <TableHead className="text-right">ווריאנט צבע</TableHead>
                   <TableHead className="text-right">מספר שירותים</TableHead>
+                  <TableHead className="text-right">is_default</TableHead>
                   <TableHead className="text-right">פעולות</TableHead>
                 </TableRow>
               </TableHeader>
@@ -255,7 +255,7 @@ export default function ServiceCategoriesPage() {
                               />
                               <span className="font-medium text-right">{category.name}</span>
                               {category.is_default && (
-                                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 mr-1" />
                               )}
                             </div>
                           )}
@@ -327,24 +327,71 @@ export default function ServiceCategoriesPage() {
                                 >
                                   <Eye className="h-3 w-3" />
                                 </Button>
-                                {isEditing && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setServicesModalCategory(category)
-                                      setIsEditingServices(true)
-                                      setServicesModalOpen(true)
-                                    }}
-                                    className="h-6 w-6 p-0"
-                                    title="נהל שירותים"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </Button>
-                                )}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setServicesModalCategory(category)
+                                    setIsEditingServices(true)
+                                    setServicesModalOpen(true)
+                                  }}
+                                  className="h-6 w-6 p-0"
+                                  title="נהל שירותים"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </Button>
                               </>
                             )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-center">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const newIsDefault = !category.is_default
+
+                                // Optimistic update
+                                queryClient.setQueryData<ServiceCategoryWithServices[]>(
+                                  ["service-categories-with-counts"],
+                                  (old) => {
+                                    if (!old) return old
+                                    return old.map((cat) => ({
+                                      ...cat,
+                                      is_default: cat.id === category.id ? newIsDefault : false,
+                                    }))
+                                  }
+                                )
+
+                                // Perform the actual update
+                                try {
+                                  await updateCategory.mutateAsync({
+                                    categoryId: category.id,
+                                    is_default: newIsDefault,
+                                  })
+                                } catch {
+                                  // Revert on error
+                                  queryClient.invalidateQueries({ queryKey: ["service-categories-with-counts"] })
+                                  toast({
+                                    title: "שגיאה",
+                                    description: "לא ניתן לעדכן את ברירת המחדל",
+                                    variant: "destructive",
+                                  })
+                                }
+                              }}
+                              className="p-0.5 hover:opacity-70 transition-opacity"
+                              title={category.is_default ? "הסר מברירת מחדל" : "הפוך לברירת מחדל"}
+                            >
+                              <Star
+                                className={cn(
+                                  "h-4 w-4",
+                                  category.is_default
+                                    ? "text-yellow-500 fill-yellow-500"
+                                    : "text-gray-300"
+                                )}
+                              />
+                            </button>
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -830,9 +877,12 @@ function CategoryServicesModal({ category, isOpen, isEditing, onClose }: Categor
         })
       }
 
-      queryClient.invalidateQueries({ queryKey: ["services"] })
-      queryClient.invalidateQueries({ queryKey: ["service-categories-with-counts"] })
-      queryClient.invalidateQueries({ queryKey: ["services-by-category", category.id] })
+      // Invalidate all relevant queries to refresh counts
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["services"] }),
+        queryClient.invalidateQueries({ queryKey: ["service-categories-with-counts"] }),
+        queryClient.invalidateQueries({ queryKey: ["services-by-category", category.id] }),
+      ])
 
       toast({
         title: "הצלחה",

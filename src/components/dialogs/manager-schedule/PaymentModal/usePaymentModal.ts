@@ -1372,7 +1372,7 @@ export const usePaymentModal = ({
     }
   }
 
-  // Save products and garden appointments together
+  // Save products appointments
   const handleSaveProductsAndGarden = async (): Promise<void> => {
     if (!providedCartId) return
 
@@ -1497,7 +1497,7 @@ export const usePaymentModal = ({
         setCartSaved(false)
       }, 3000)
     } catch (err) {
-      console.error("Error saving products and garden:", err)
+      console.error("Error saving products:", err)
       throw err
     } finally {
       setIsSavingCart(false)
@@ -2479,7 +2479,7 @@ export const usePaymentModal = ({
                         .join(", ")
                       return dogNames ? `תספורת - ${dogNames}` : `תורים (${cartAppointments.length})`
                     } else if (appointment?.serviceType === "grooming" && appointment?.dogs?.[0]?.name) {
-                      return `תספורת - ${appointment.dogs[0]?.name || ''}`
+                      return `תספורת - ${appointment.dogs[0]?.name || ""}`
                     }
                     return "תור"
                   })(),
@@ -2732,9 +2732,7 @@ export const usePaymentModal = ({
         if (appointmentPriceValue > 0) {
           const firstDog = appointment?.dogs?.[0]
           const productName =
-            appointment?.serviceType === "grooming" && firstDog?.name
-              ? `תספורת - ${firstDog.name}`
-              : "תור"
+            appointment?.serviceType === "grooming" && firstDog?.name ? `תספורת - ${firstDog.name}` : "תור"
           items.push({
             name: productName,
             type: "I",

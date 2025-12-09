@@ -430,7 +430,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             />
                         )}
 
-                        {/* Products and Garden Section */}
+                        {/* Products Section */}
                         <ProductsSection
                             orderItems={orderItems}
                             originalOrderItems={originalOrderItems}
@@ -470,14 +470,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             onUseAsTempItem={handleUseAsTempItem}
                             onSaveCart={async () => {
                                 try {
-                                    // Save both products and garden appointments together
+                                    // Save products appointments
                                     await handleSaveProductsAndGarden()
                                     toast({
                                         title: "נשמר בהצלחה",
-                                        description: "המוצרים והגן נשמרו בהצלחה",
+                                        description: "המוצרים נשמרו בהצלחה",
                                     })
                                 } catch (error) {
-                                    console.error('Failed to save products and garden:', error)
+                                    console.error('Failed to save products:', error)
                                     toast({
                                         title: "שגיאה",
                                         description: "לא הצלחנו לשמור את המוצרים והגן",

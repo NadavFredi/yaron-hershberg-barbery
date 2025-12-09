@@ -34,15 +34,23 @@ export interface StationWithConfig {
   price_adjustment: number
 }
 
-export const useServiceStationConfigs = (serviceId: string) => {
+export const useServiceStationConfigs = (serviceId: string | undefined | null) => {
+  // Validate serviceId is a non-empty string (UUID format)
+  // Ensure it's always a boolean for React Query's enabled option
+  const isValidServiceId = typeof serviceId === "string" && serviceId.trim() !== "" ? true : false
+
   return useQuery({
     queryKey: ["service-station-configs", serviceId],
     queryFn: async () => {
+      if (!isValidServiceId || !serviceId) {
+        return [] // Return empty array if serviceId is invalid
+      }
       const { data, error } = await supabase.from("service_station_matrix").select("*").eq("service_id", serviceId)
 
       if (error) throw error
       return data as ServiceStationConfig[]
     },
+    enabled: isValidServiceId, // Only run query if serviceId is valid
   })
 }
 
@@ -132,7 +140,8 @@ export const useDeleteServiceStationConfig = () => {
 export const useServiceConfiguration = (serviceId: string) => {
   const { data: services } = useServices()
   const { data: allStations } = useStations()
-  const { data: stationConfigs } = useServiceStationConfigs(serviceId)
+  // Only query if serviceId is valid (non-empty)
+  const { data: stationConfigs } = useServiceStationConfigs(serviceId || "")
   const updateStationConfigMutation = useUpdateServiceStationConfig()
 
   const service = services?.find((s) => s.id === serviceId)
