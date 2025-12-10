@@ -492,17 +492,24 @@ export default function Appointments() {
         if (!clientAppointmentHistory?.appointments) {
             return []
         }
-        return clientAppointmentHistory.appointments.map((apt) => ({
-            id: apt.id,
-            date: apt.startAt.split('T')[0],
-            time: apt.startAt.split('T')[1]?.slice(0, 5) || '',
-            service: apt.serviceType,
-            status: apt.status || 'pending',
-            startDateTime: apt.startAt,
-            endDateTime: apt.endAt,
-            notes: apt.notes ?? undefined,
-            stationId: apt.stationId ?? undefined,
-        }))
+        return clientAppointmentHistory.appointments.map((apt) => {
+            // Convert UTC time to local time for display
+            const startDate = new Date(apt.startAt)
+            const localDateStr = format(startDate, 'yyyy-MM-dd')
+            const localTimeStr = format(startDate, 'HH:mm')
+
+            return {
+                id: apt.id,
+                date: localDateStr,
+                time: localTimeStr,
+                service: apt.serviceType,
+                status: apt.status || 'pending',
+                startDateTime: apt.startAt,
+                endDateTime: apt.endAt,
+                notes: apt.notes ?? undefined,
+                stationId: apt.stationId ?? undefined,
+            }
+        })
     }, [clientAppointmentHistory])
 
     const waitingListEntries: WaitingListEntry[] = []
