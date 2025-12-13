@@ -362,6 +362,9 @@ interface ManagerScheduleState {
   // Column visibility states
   showPinnedAppointmentsColumn: boolean
   showWaitingListColumn: boolean
+
+  // Dev mode state
+  showDevId: boolean
 }
 
 const initialState: ManagerScheduleState = {
@@ -533,6 +536,9 @@ const initialState: ManagerScheduleState = {
   // Column visibility states
   showPinnedAppointmentsColumn: false,
   showWaitingListColumn: false,
+
+  // Dev mode state
+  showDevId: false,
 }
 
 const managerScheduleSlice = createSlice({
@@ -1190,6 +1196,11 @@ const managerScheduleSlice = createSlice({
     },
     setShowWaitingListColumn: (state, action: PayloadAction<boolean>) => {
       state.showWaitingListColumn = action.payload
+    },
+
+    // Dev mode
+    setShowDevId: (state, action: PayloadAction<boolean>) => {
+      state.showDevId = action.payload
     },
 
     // Reset all modals
