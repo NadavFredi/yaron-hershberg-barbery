@@ -574,7 +574,7 @@ export const ClientDetailsSheet = ({
                                             כתובת: <span className="font-medium text-gray-900">{selectedClient.address}</span>
                                         </div>
                                     )}
-                                    {hasClientId && (
+                                    {hasClientId && showDevId && (
                                         <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
                                             <span className="text-xs text-gray-500">מזהה:</span>
                                             <button
@@ -683,8 +683,8 @@ export const ClientDetailsSheet = ({
                             )}
 
 
-                            {/* Staff Notes Section - Only show in dev mode */}
-                            {hasClientId && showDevId && (
+                            {/* Staff Notes Section */}
+                            {hasClientId && (
                                 <>
                                     <Separator />
                                     <div className="space-y-2">
