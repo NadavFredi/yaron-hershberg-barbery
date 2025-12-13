@@ -23,6 +23,9 @@ import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
 import { SiWhatsapp } from "react-icons/si"
 import { WhatsAppBroadcastDialog } from "@/components/dialogs/customers/WhatsAppBroadcastDialog"
+import { useAppDispatch } from "@/store/hooks"
+import { setSelectedClient, setIsClientDetailsOpen } from "@/store/slices/managerScheduleSlice"
+import type { ClientDetails } from "@/store/slices/managerScheduleSlice"
 
 interface CustomerTypeSummary {
     id: string
@@ -42,16 +45,6 @@ interface Customer {
     customer_type_id: string | null
     customer_type: CustomerTypeSummary | null
 }
-
-type SelectedClientDetails = {
-    name: string
-    phone?: string
-    email?: string
-    classification?: string
-    customerTypeName?: string
-    address?: string
-}
-
 
 // Customer Type MultiSelect Component
 function CustomerTypeMultiSelect({
@@ -222,6 +215,7 @@ function CustomerTypeMultiSelect({
 
 export default function CustomersListPage() {
     const { toast } = useToast()
+    const dispatch = useAppDispatch()
     const [searchParams, setSearchParams] = useSearchParams()
     const customerTypeParam = searchParams.get("type")
     // Parse comma-separated types from URL
@@ -309,9 +303,6 @@ export default function CustomersListPage() {
         setSearchParams(params, { replace: true })
     }
 
-    // Sheet states
-    const [isClientDetailsOpen, setIsClientDetailsOpen] = useState(false)
-    const [selectedClientForSheet, setSelectedClientForSheet] = useState<SelectedClientDetails | null>(null)
 
     useEffect(() => {
         fetchCustomers()
@@ -917,16 +908,60 @@ export default function CustomersListPage() {
 
     // Handle customer click to open sheet
     const handleCustomerClick = async (customer: Customer) => {
-        const clientDetails = {
-            name: customer.full_name,
-            phone: customer.phone,
-            email: customer.email || undefined,
-            classification: customer.classification,
-            customerTypeName: customer.customer_type?.name,
-            address: customer.address || undefined,
+        try {
+            // Fetch the most updated customer data from the API
+            const { data: freshCustomerData, error } = await supabase
+                .from("customers")
+                .select(`
+                    id,
+                    full_name,
+                    phone,
+                    email,
+                    address,
+                    classification,
+                    customer_type_id,
+                    customer_type:customer_types (
+                        id,
+                        name
+                    )
+                `)
+                .eq("id", customer.id)
+                .single()
+
+            if (error) throw error
+
+            if (!freshCustomerData) {
+                toast({
+                    title: "שגיאה",
+                    description: "לא ניתן לטעון את פרטי הלקוח",
+                    variant: "destructive",
+                })
+                return
+            }
+
+            // Create ClientDetails object with fresh data
+            const clientDetails: ClientDetails = {
+                name: freshCustomerData.full_name || customer.full_name,
+                phone: freshCustomerData.phone || customer.phone,
+                email: freshCustomerData.email || customer.email || undefined,
+                classification: freshCustomerData.classification || customer.classification,
+                customerTypeName: (freshCustomerData.customer_type as any)?.name || customer.customer_type?.name || undefined,
+                address: freshCustomerData.address || customer.address || undefined,
+                clientId: freshCustomerData.id,
+                recordId: freshCustomerData.id,
+            }
+
+            // Set the selected client in Redux and open the sheet
+            dispatch(setSelectedClient(clientDetails))
+            dispatch(setIsClientDetailsOpen(true))
+        } catch (error) {
+            console.error("Error fetching customer data:", error)
+            toast({
+                title: "שגיאה",
+                description: "לא ניתן לטעון את פרטי הלקוח",
+                variant: "destructive",
+            })
         }
-        setSelectedClientForSheet(clientDetails)
-        setIsClientDetailsOpen(true)
     }
 
     useEffect(() => {
@@ -1663,9 +1698,6 @@ export default function CustomersListPage() {
 
             {/* Client Details Sheet */}
             <ClientDetailsSheet
-                open={isClientDetailsOpen}
-                onOpenChange={setIsClientDetailsOpen}
-                selectedClient={selectedClientForSheet}
                 data={{
                     appointments: [],
                 }}

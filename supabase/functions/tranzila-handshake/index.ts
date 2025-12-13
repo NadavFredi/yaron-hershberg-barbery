@@ -26,7 +26,7 @@ serve(async (req) => {
     }
 
     const terminalName = Deno.env.get("TRANZILLA_TERMINAL_NAME") || "bloved29"
-    const terminalPassword = Deno.env.get("TRANZILLA_PASSWORD") || ""
+    const terminalPassword = Deno.env.get("TRANZILLA_HANDSHAKE_PW") || ""
 
     // Debug logging for password (user approved)
     console.log("🔍 [tranzila-handshake] Password debug info:", {
