@@ -1858,14 +1858,10 @@ export const usePaymentModal = ({
       }
 
       // Fetch actual cart data from database to validate
-      // For debt payments, skip cart_appointments query since we don't have real appointments
-      const selectQuery = debtIdForPayment
-        ? `cart_items(quantity, unit_price)`
-        : `cart_items(quantity, unit_price), cart_appointments(appointment_price, grooming_appointment_id)`
-
+      // Always fetch both cart_items and cart_appointments to ensure we catch all items
       const { data: cartData, error: cartDataError } = await supabase
         .from("carts")
-        .select(selectQuery)
+        .select(`cart_items(quantity, unit_price), cart_appointments(appointment_price, grooming_appointment_id)`)
         .eq("id", currentCartId)
         .single()
 
@@ -1875,6 +1871,7 @@ export const usePaymentModal = ({
 
       // Calculate totals from actual database data
       const actualCartItems = (cartData?.cart_items || []) as Array<{ quantity: number; unit_price: number }>
+      // For debt payments, we still check cart_appointments but they should be empty
       const actualCartAppointments = (debtIdForPayment ? [] : cartData?.cart_appointments || []) as Array<{
         appointment_price: number
         grooming_appointment_id: string | null
@@ -1958,11 +1955,25 @@ export const usePaymentModal = ({
       const hasItemsInDB = actualCartItems.length > 0 || actualCartAppointments.length > 0
       const hasItemsInState = orderItems.length > 0 || cartAppointments.length > 0
 
-      if (totalAmount <= 0 && !hasItemsInDB && !hasItemsInState) {
+      // Also check if appointments exist in DB even if not loaded in state
+      // This handles cases where cart_appointments exist but weren't included in the query
+      let hasAppointmentsInDB = false
+      if (!hasItemsInDB && !hasItemsInState && currentCartId && !debtIdForPayment) {
+        const { data: cartApptsCheck } = await supabase
+          .from("cart_appointments")
+          .select("appointment_price")
+          .eq("cart_id", currentCartId)
+          .limit(1)
+
+        hasAppointmentsInDB = (cartApptsCheck && cartApptsCheck.length > 0) || false
+      }
+
+      if (totalAmount <= 0 && !hasItemsInDB && !hasItemsInState && !hasAppointmentsInDB) {
         console.error("❌ [PaymentModal] No items found:", {
           totalAmount,
           hasItemsInDB,
           hasItemsInState,
+          hasAppointmentsInDB,
           actualCartItems: actualCartItems.length,
           actualCartAppointments: actualCartAppointments.length,
           orderItems: orderItems.length,
@@ -1973,9 +1984,13 @@ export const usePaymentModal = ({
 
       // If totalAmount is 0 but we have items, use a minimum of 1 or recalculate from state
       const finalTotalAmount =
-        totalAmount > 0 ? totalAmount : hasItemsInState ? Math.max(productsTotal + appointmentPriceValue, 1) : 0
+        totalAmount > 0
+          ? totalAmount
+          : hasItemsInState || hasAppointmentsInDB
+          ? Math.max(productsTotal + appointmentPriceValue, 1)
+          : 0
 
-      if (finalTotalAmount <= 0) {
+      if (finalTotalAmount <= 0 && !hasAppointmentsInDB) {
         throw new Error("לא ניתן לבצע תשלום - אין פריטים או תורים בעגלה")
       }
 
@@ -2270,7 +2285,23 @@ export const usePaymentModal = ({
 
       const totalAmount = productsTotal + appointmentPriceValue
 
-      if (totalAmount <= 0) {
+      // Also check if there are appointments in the database that might not be in state
+      let hasAppointmentsInDB = false
+      if (providedCartId && totalAmount <= 0) {
+        const { data: cartApptsData } = await supabase
+          .from("cart_appointments")
+          .select("appointment_price")
+          .eq("cart_id", providedCartId)
+
+        if (cartApptsData && cartApptsData.length > 0) {
+          const appointmentsTotal = cartApptsData.reduce((sum, ca) => sum + (ca.appointment_price || 0), 0)
+          if (appointmentsTotal > 0) {
+            hasAppointmentsInDB = true
+          }
+        }
+      }
+
+      if (totalAmount <= 0 && !hasAppointmentsInDB) {
         throw new Error("לא ניתן לבצע תשלום - אין פריטים או תורים בעגלה")
       }
 

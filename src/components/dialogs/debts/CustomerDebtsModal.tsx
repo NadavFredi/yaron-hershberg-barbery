@@ -253,6 +253,8 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
                                         <TableHead className="text-right">שולם</TableHead>
                                         <TableHead className="text-right">נותר</TableHead>
                                         <TableHead className="text-right">תאריך יצירה</TableHead>
+                                        <TableHead className="text-right">תיאור</TableHead>
+                                        <TableHead className="text-right">תאריך יעד</TableHead>
                                         <TableHead className="text-right">סטטוס</TableHead>
                                         <TableHead className="text-right">פעולות</TableHead>
                                     </TableRow>
@@ -291,6 +293,24 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
                                                     <TableCell>
                                                         {new Date(debt.created_at).toLocaleDateString("he-IL")}
                                                     </TableCell>
+                                                    <TableCell className="max-w-[200px]">
+                                                        {debt.description ? (
+                                                            <span className="text-sm text-gray-700 truncate block" title={debt.description}>
+                                                                {debt.description}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-sm text-gray-400">-</span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {debt.due_date ? (
+                                                            <span className="text-sm text-gray-700">
+                                                                {new Date(debt.due_date).toLocaleDateString("he-IL")}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-sm text-gray-400">-</span>
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell>
                                                         <Badge className={getStatusColor(debt.status)}>
                                                             {getStatusLabel(debt.status)}
@@ -319,22 +339,8 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
                                                 </TableRow>
                                                 {isExpanded && (
                                                     <TableRow>
-                                                        <TableCell colSpan={7} className="bg-gray-50">
-                                                            <div className="p-4 space-y-4">
-                                                                {debt.description && (
-                                                                    <div>
-                                                                        <span className="text-sm font-medium text-gray-700">תיאור: </span>
-                                                                        <span className="text-sm text-gray-600">{debt.description}</span>
-                                                                    </div>
-                                                                )}
-                                                                {debt.due_date && (
-                                                                    <div>
-                                                                        <span className="text-sm font-medium text-gray-700">תאריך יעד: </span>
-                                                                        <span className="text-sm text-gray-600">
-                                                                            {new Date(debt.due_date).toLocaleDateString("he-IL")}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
+                                                        <TableCell colSpan={9} className="bg-gray-50">
+                                                            <div className="p-4">
                                                                 <div className="border-t pt-4">
                                                                     <div className="flex items-center justify-between mb-3">
                                                                         <h4 className="text-sm font-semibold text-gray-900">תשלומים</h4>

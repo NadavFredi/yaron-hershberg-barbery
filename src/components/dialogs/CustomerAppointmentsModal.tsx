@@ -8,8 +8,8 @@ import { he } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DatePickerInput } from "@/components/DatePickerInput"
 
 type GroomingAppointment = Database["public"]["Tables"]["grooming_appointments"]["Row"]
 type Station = Database["public"]["Tables"]["stations"]["Row"]
@@ -64,7 +64,7 @@ export function CustomerAppointmentsModal({
   const [isLoading, setIsLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all")
-  const [dateFilter, setDateFilter] = useState<string>("")
+  const [dateFilter, setDateFilter] = useState<Date | null>(null)
 
   useEffect(() => {
     if (!open || !customerId) {
@@ -125,8 +125,14 @@ export function CustomerAppointmentsModal({
 
       // Date filter
       if (dateFilter) {
-        const appointmentDate = format(new Date(apt.start_at), "yyyy-MM-dd")
-        if (appointmentDate !== dateFilter) {
+        const appointmentDate = new Date(apt.start_at)
+        const filterDate = new Date(dateFilter)
+        // Compare dates (ignore time)
+        if (
+          appointmentDate.getFullYear() !== filterDate.getFullYear() ||
+          appointmentDate.getMonth() !== filterDate.getMonth() ||
+          appointmentDate.getDate() !== filterDate.getDate()
+        ) {
           return false
         }
       }
@@ -223,12 +229,12 @@ export function CustomerAppointmentsModal({
 
           <div className="flex-1 min-w-[150px]">
             <Label className="text-xs text-gray-600 mb-1 block">תאריך</Label>
-            <Input
-              type="date"
+            <DatePickerInput
               value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="h-9"
-              dir="ltr"
+              onChange={setDateFilter}
+              placeholder="בחר תאריך..."
+              wrapperClassName="w-full"
+              displayFormat="dd/MM/yyyy"
             />
           </div>
 
