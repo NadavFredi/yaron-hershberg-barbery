@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast"
 import { CreateDebtDialog } from "@/components/dialogs/debts/CreateDebtDialog"
 import { EditDebtDialog } from "@/components/dialogs/debts/EditDebtDialog"
 import { DeleteDebtDialog } from "@/components/dialogs/debts/DeleteDebtDialog"
+import { EditPaymentDialog } from "@/components/dialogs/payments/EditPaymentDialog"
+import { PaymentDeleteConfirmationDialog } from "@/components/dialogs/payments/PaymentDeleteConfirmationDialog"
 import { PaymentModal } from "@/components/dialogs/manager-schedule/PaymentModal"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { setSelectedAppointmentForPayment, setShowPaymentModal, setDebtIdForPayment } from "@/store/slices/managerScheduleSlice"
@@ -30,6 +32,7 @@ interface Payment {
     amount: number
     status: string
     method: string | null
+    note: string | null
     created_at: string
 }
 
@@ -57,6 +60,11 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
     const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null)
     const [debtPayments, setDebtPayments] = useState<Record<string, Payment[]>>({})
     const [expandedDebts, setExpandedDebts] = useState<Set<string>>(new Set())
+    const [isEditPaymentDialogOpen, setIsEditPaymentDialogOpen] = useState(false)
+    const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
+    const [isDeletePaymentDialogOpen, setIsDeletePaymentDialogOpen] = useState(false)
+    const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null)
+    const [isDeletingPayment, setIsDeletingPayment] = useState(false)
     const { toast } = useToast()
     const dispatch = useAppDispatch()
     const showPaymentModal = useAppSelector((state) => state.managerSchedule.showPaymentModal)
@@ -133,7 +141,7 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
         try {
             const { data, error } = await supabase
                 .from("payments")
-                .select("id, amount, status, method, created_at")
+                .select("id, amount, status, method, note, created_at")
                 .eq("debt_id", debtId)
                 .order("created_at", { ascending: false })
 
@@ -233,6 +241,74 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
         dispatch(setDebtIdForPayment(debt.id))
         dispatch(setSelectedAppointmentForPayment(appointmentForPayment as any))
         dispatch(setShowPaymentModal(true))
+    }
+
+    const handleEditPayment = (payment: Payment) => {
+        setEditingPaymentId(payment.id)
+        setIsEditPaymentDialogOpen(true)
+    }
+
+    const handleEditPaymentSuccess = () => {
+        setIsEditPaymentDialogOpen(false)
+        setEditingPaymentId(null)
+        // Refresh payments for all expanded debts
+        expandedDebts.forEach(debtId => {
+            fetchDebtPayments(debtId)
+        })
+        fetchDebts() // Also refresh debt totals
+    }
+
+    const handleDeletePayment = (payment: Payment) => {
+        setPaymentToDelete(payment)
+        setIsDeletePaymentDialogOpen(true)
+    }
+
+    const handleDeletePaymentConfirm = async () => {
+        if (!paymentToDelete) return
+
+        try {
+            setIsDeletingPayment(true)
+            const { error } = await supabase
+                .from("payments")
+                .delete()
+                .eq("id", paymentToDelete.id)
+
+            if (error) throw error
+
+            toast({
+                title: "תשלום נמחק",
+                description: "התשלום נמחק בהצלחה",
+            })
+
+            setIsDeletePaymentDialogOpen(false)
+            setPaymentToDelete(null)
+
+            // Refresh payments for all expanded debts
+            expandedDebts.forEach(debtId => {
+                fetchDebtPayments(debtId)
+            })
+            fetchDebts() // Also refresh debt totals
+        } catch (error) {
+            console.error("Error deleting payment:", error)
+            toast({
+                title: "שגיאה",
+                description: "לא ניתן למחוק את התשלום",
+                variant: "destructive",
+            })
+        } finally {
+            setIsDeletingPayment(false)
+        }
+    }
+
+    const formatDateTime = (dateString: string) => {
+        const date = new Date(dateString)
+        return date.toLocaleString("he-IL", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        })
     }
 
     return (
@@ -378,20 +454,46 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
                                                                             {payments.map((payment) => (
                                                                                 <div
                                                                                     key={payment.id}
-                                                                                    className="flex items-center justify-between p-2 bg-white rounded border"
+                                                                                    className="flex items-start justify-between p-3 bg-white rounded border"
                                                                                 >
-                                                                                    <div className="flex items-center gap-4 text-sm">
-                                                                                        <span>₪{payment.amount.toFixed(2)}</span>
-                                                                                        <span className="text-gray-500">
-                                                                                            {new Date(payment.created_at).toLocaleDateString("he-IL")}
-                                                                                        </span>
-                                                                                        {payment.method && (
-                                                                                            <span className="text-gray-500">{payment.method}</span>
+                                                                                    <div className="flex-1 space-y-2">
+                                                                                        <div className="flex items-center gap-4 text-sm">
+                                                                                            <span className="font-semibold">₪{payment.amount.toFixed(2)}</span>
+                                                                                            <span className="text-gray-500">
+                                                                                                {formatDateTime(payment.created_at)}
+                                                                                            </span>
+                                                                                            {payment.method && (
+                                                                                                <span className="text-gray-500">{payment.method}</span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                        {payment.note && (
+                                                                                            <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                                                                                <span className="font-medium">הערה: </span>
+                                                                                                {payment.note}
+                                                                                            </div>
                                                                                         )}
                                                                                     </div>
-                                                                                    <Badge variant={payment.status === "paid" ? "default" : "secondary"}>
-                                                                                        {payment.status === "paid" ? "שולם" : payment.status === "partial" ? "חלקי" : "לא שולם"}
-                                                                                    </Badge>
+                                                                                    <div className="flex items-center gap-2 mr-4">
+                                                                                        <Badge variant={payment.status === "paid" ? "default" : "secondary"} className="ml-2">
+                                                                                            {payment.status === "paid" ? "שולם" : payment.status === "partial" ? "חלקי" : "לא שולם"}
+                                                                                        </Badge>
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            className="h-7 w-7"
+                                                                                            onClick={() => handleEditPayment(payment)}
+                                                                                        >
+                                                                                            <Pencil className="h-3 w-3" />
+                                                                                        </Button>
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            className="h-7 w-7 text-red-600 hover:text-red-700"
+                                                                                            onClick={() => handleDeletePayment(payment)}
+                                                                                        >
+                                                                                            <Trash2 className="h-3 w-3" />
+                                                                                        </Button>
+                                                                                    </div>
                                                                                 </div>
                                                                             ))}
                                                                         </div>
@@ -432,6 +534,32 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
                 debt={debtToDelete}
                 onConfirm={handleDeleteSuccess}
             />
+
+            {/* Edit Payment Dialog */}
+            <EditPaymentDialog
+                open={isEditPaymentDialogOpen}
+                onOpenChange={setIsEditPaymentDialogOpen}
+                paymentId={editingPaymentId || ""}
+                onSuccess={handleEditPaymentSuccess}
+            />
+
+            {/* Delete Payment Dialog */}
+            {paymentToDelete && (
+                <PaymentDeleteConfirmationDialog
+                    open={isDeletePaymentDialogOpen}
+                    onOpenChange={setIsDeletePaymentDialogOpen}
+                    payment={{
+                        id: paymentToDelete.id,
+                        amount: paymentToDelete.amount,
+                        currency: "ILS",
+                        customer: {
+                            full_name: customerName,
+                        },
+                    }}
+                    onConfirm={handleDeletePaymentConfirm}
+                    isDeleting={isDeletingPayment}
+                />
+            )}
 
             {/* Payment Modal */}
             {showPaymentModal && selectedAppointmentForPayment && (

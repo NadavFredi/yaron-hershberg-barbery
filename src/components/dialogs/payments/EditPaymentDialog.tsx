@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -16,6 +17,7 @@ interface Payment {
     status: "unpaid" | "paid" | "partial"
     method: string | null
     external_id: string | null
+    note: string | null
     created_at: string
     updated_at: string
 }
@@ -34,6 +36,13 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSuccess }: 
 
     const [paymentData, setPaymentData] = useState<Payment | null>(null)
 
+    // Initialize paymentData with note field
+    useEffect(() => {
+        if (paymentData && !('note' in paymentData)) {
+            setPaymentData({ ...paymentData, note: null })
+        }
+    }, [paymentData])
+
     useEffect(() => {
         if (open && paymentId) {
             loadPayment()
@@ -44,7 +53,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSuccess }: 
         try {
             setIsLoading(true)
             console.log("🔍 [EditPaymentDialog] Loading payment:", paymentId)
-            
+
             const { data, error } = await supabase
                 .from("payments")
                 .select("*")
@@ -106,6 +115,10 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSuccess }: 
 
             if (paymentData.external_id !== null) {
                 updatePayload.external_id = paymentData.external_id || null
+            }
+
+            if (paymentData.note !== null) {
+                updatePayload.note = paymentData.note || null
             }
 
             const { error } = await supabase
@@ -235,6 +248,19 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSuccess }: 
                             value={paymentData.external_id || ""}
                             onChange={(e) => setPaymentData({ ...paymentData, external_id: e.target.value || null })}
                             className="text-right"
+                            dir="rtl"
+                            disabled={isSaving}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-payment-note">הערות</Label>
+                        <Textarea
+                            id="edit-payment-note"
+                            placeholder="הערות על התשלום (אופציונלי)..."
+                            value={paymentData.note || ""}
+                            onChange={(e) => setPaymentData({ ...paymentData, note: e.target.value || null })}
+                            className="text-right min-h-[100px]"
                             dir="rtl"
                             disabled={isSaving}
                         />

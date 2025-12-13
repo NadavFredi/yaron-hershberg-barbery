@@ -1,10 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Clock, CheckCircle, Scissors, Loader2 } from "lucide-react"
+import { CalendarIcon, Clock, CheckCircle, Scissors, Loader2, ChevronDown } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 import { reserveAppointment } from "@/integrations/supabase/supabaseService"
 import { useGetAvailableDatesQuery, useGetAvailableTimesQuery } from "@/store/services/supabaseApi"
 import { skipToken } from "@reduxjs/toolkit/query"
@@ -37,6 +40,83 @@ const SetupAppointment: React.FC = () => {
   const [selectedTime, setSelectedTime] = useState<AvailableTime | undefined>(undefined)
   const [notes, setNotes] = useState("")
   const [isBooking, setIsBooking] = useState(false)
+  const [serviceSearchQuery, setServiceSearchQuery] = useState("")
+  const [isServicePopoverOpen, setIsServicePopoverOpen] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const listContainerRef = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  const filteredServices = useMemo(() => {
+    return serviceSearchQuery.trim()
+      ? services.filter((service) =>
+        service.name.toLowerCase().includes(serviceSearchQuery.toLowerCase())
+      )
+      : services.slice(0, 5) // Show first 5 when no search query
+  }, [services, serviceSearchQuery])
+
+  // Reset highlighted index when search changes or popover opens
+  useEffect(() => {
+    if (isServicePopoverOpen) {
+      setHighlightedIndex(-1)
+      itemRefs.current = []
+    }
+  }, [serviceSearchQuery, isServicePopoverOpen])
+
+  // Scroll highlighted item into view
+  useEffect(() => {
+    if (highlightedIndex >= 0 && itemRefs.current[highlightedIndex]) {
+      itemRefs.current[highlightedIndex]?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      })
+    }
+  }, [highlightedIndex])
+
+  const handleServiceSelect = useCallback(
+    (serviceId: string) => {
+      setSelectedServiceId(serviceId)
+      setServiceSearchQuery("")
+      setIsServicePopoverOpen(false)
+      setHighlightedIndex(-1)
+    },
+    []
+  )
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (!isServicePopoverOpen || filteredServices.length === 0) return
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault()
+          setHighlightedIndex((prev) =>
+            prev < filteredServices.length - 1 ? prev + 1 : 0
+          )
+          break
+        case "ArrowUp":
+          e.preventDefault()
+          setHighlightedIndex((prev) =>
+            prev > 0 ? prev - 1 : filteredServices.length - 1
+          )
+          break
+        case "Enter":
+          e.preventDefault()
+          if (highlightedIndex >= 0 && highlightedIndex < filteredServices.length) {
+            handleServiceSelect(filteredServices[highlightedIndex].id)
+          } else if (filteredServices.length > 0) {
+            // If nothing is highlighted, select the first item
+            handleServiceSelect(filteredServices[0].id)
+          }
+          break
+        case "Escape":
+          e.preventDefault()
+          setIsServicePopoverOpen(false)
+          setHighlightedIndex(-1)
+          break
+      }
+    },
+    [isServicePopoverOpen, filteredServices, highlightedIndex, handleServiceSelect]
+  )
 
   useEffect(() => {
     const loadServices = async () => {
@@ -176,18 +256,73 @@ const SetupAppointment: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="בחרו שירות" />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.map((service) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover
+                open={isServicePopoverOpen}
+                onOpenChange={(open) => {
+                  setIsServicePopoverOpen(open)
+                  if (!open) {
+                    setServiceSearchQuery("")
+                    setHighlightedIndex(-1)
+                  }
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                      !selectedServiceId && "text-muted-foreground"
+                    )}
+                  >
+                    <span className="truncate">
+                      {selectedServiceId
+                        ? services.find((s) => s.id === selectedServiceId)?.name || "בחרו שירות"
+                        : "בחרו שירות"}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <div className="flex items-center border-b px-3">
+                    <Input
+                      placeholder="חפש שירות..."
+                      value={serviceSearchQuery}
+                      onChange={(e) => setServiceSearchQuery(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      className="h-9 border-0 focus-visible:ring-0"
+                      autoFocus
+                    />
+                  </div>
+                  <div ref={listContainerRef} className="max-h-[300px] overflow-y-auto">
+                    {filteredServices.length === 0 ? (
+                      <div className="py-6 text-center text-sm text-muted-foreground">
+                        לא נמצאו שירותים
+                      </div>
+                    ) : (
+                      <div className="p-1">
+                        {filteredServices.map((service, index) => (
+                          <button
+                            key={service.id}
+                            ref={(el) => {
+                              itemRefs.current[index] = el
+                            }}
+                            type="button"
+                            className={cn(
+                              "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+                              selectedServiceId === service.id && "bg-accent text-accent-foreground",
+                              highlightedIndex === index && "bg-accent text-accent-foreground"
+                            )}
+                            onClick={() => handleServiceSelect(service.id)}
+                            onMouseEnter={() => setHighlightedIndex(index)}
+                          >
+                            {service.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
               {selectedServiceId && (
                 <p className="text-sm text-gray-600">
                   {services.find((s) => s.id === selectedServiceId)?.description || "שירות מספרה מקצועי בהתאמה אישית."}
