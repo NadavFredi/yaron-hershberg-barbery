@@ -50,9 +50,9 @@ export function PinnedAppointmentDropDialog() {
     if (station) return station.name
 
     // Handle garden columns
-    if (dropDetails.targetStationId === "garden-full-day") return "גן - יום מלא"
-    if (dropDetails.targetStationId === "garden-trial") return "גן - ניסיון"
-    if (dropDetails.targetStationId?.startsWith("garden-")) return "גן"
+    if (dropDetails.targetStationId === "garden-full-day") return "יום מלא"
+    if (dropDetails.targetStationId === "garden-trial") return "ניסיון"
+    if (dropDetails.targetStationId?.startsWith("garden-")) return ""
 
     return ""
   }, [scheduleData?.stations, dropDetails?.targetStationId])

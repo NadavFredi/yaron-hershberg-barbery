@@ -57,9 +57,9 @@ const getServiceName = (service: string) => {
         case "grooming":
             return "תספורת"
         case "garden":
-            return "גן"
+            return ""
         case "both":
-            return "תספורת וגן"
+            return "תספורת"
         default:
             return service
     }
@@ -117,7 +117,7 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
         text: title,
         dates: `${formattedStart}/${formattedEnd}`,
         details,
-        location: 'WagTime - מרכז טיפוח כלבים',
+        location: 'WagTime - מרכז טיפוח לקוחות',
         trp: 'false',
     })
 
@@ -358,7 +358,7 @@ export default function Appointments() {
         if (!appointmentId) {
             toast({
                 title: "לא ניתן לעדכן",
-                description: "לא נמצאה רשומת גן לעדכון.",
+                description: "לא נמצאה רשומה לעדכון.",
                 variant: "destructive",
             })
             return
@@ -679,7 +679,7 @@ export default function Appointments() {
             return (
                 <Badge className="bg-amber-100 text-amber-700 border-amber-200 flex items-center gap-1">
                     <Bone className="h-3 w-3" />
-                    <span>גן</span>
+                    <span></span>
                 </Badge>
             )
         }
@@ -689,7 +689,7 @@ export default function Appointments() {
                 <Badge className="bg-purple-100 text-purple-700 border-purple-200 flex items-center gap-1">
                     <Scissors className="h-3 w-3" />
                     <Bone className="h-3 w-3" />
-                    <span>תספורת+גן</span>
+                    <span>תספורת</span>
                 </Badge>
             )
         }
@@ -885,7 +885,7 @@ export default function Appointments() {
                     toast({
                         title: "התורים בוטלו",
                         description:
-                            result.message || `התורים (תספורת וגן) בוטלו בהצלחה`,
+                            result.message || `התורים (תספורת) בוטלו בהצלחה`,
                     })
                     invalidateAppointmentsCache()
                 } else {
@@ -1093,7 +1093,7 @@ export default function Appointments() {
 
                     toast({
                         title: "ההגעה אושרה",
-                        description: `ההגעה לתורים (תספורת וגן) אושרה בהצלחה`,
+                        description: `ההגעה לתורים (תספורת) אושרה בהצלחה`,
                     })
                     invalidateAppointmentsCache()
                 } else {
@@ -1210,8 +1210,8 @@ export default function Appointments() {
                     <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
                     <p className="mt-4 text-gray-600">טוען תורים...</p>
                     <div className="mt-4 space-y-2">
-                        <p className="text-sm text-gray-500">טוען רשימת הכלבים</p>
-                        <p className="text-sm text-gray-500">טוען תורים עבור כל כלב</p>
+                        <p className="text-sm text-gray-500">טוען רשימת הלקוחות</p>
+                        <p className="text-sm text-gray-500">טוען תורים עבור כל לקוח</p>
                     </div>
                 </div>
             </div>
@@ -1417,7 +1417,7 @@ export default function Appointments() {
                             <DialogTitle className="text-xl font-semibold text-gray-900">עדכון איסוף מאוחר</DialogTitle>
                         </div>
                         <DialogDescription className="text-xs text-gray-600 leading-relaxed text-right">
-                            ספרו לנו אם תרצו לאסוף את הכלב מאוחר יותר מהגן ביום הזה. איסוף מאוחר זמין עד 17:30.
+                            ספרו לנו אם תרצו לאסוף את הלקוח מאוחר יותר ביום הזה. איסוף מאוחר זמין עד 17:30.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -1519,12 +1519,11 @@ export default function Appointments() {
                 defaultCustomer={waitlistModalCustomer}
                 disableCustomerSelection={Boolean(waitlistModalCustomer)}
                 title={editingWaitingListEntry ? "עריכת בקשת המתנה" : "בקשת המתנה חדשה"}
-                description="בחר את הכלב וסוג השירות כדי לקבל התראה כאשר יפתח תור פנוי."
+                description="בחר את הלקוח וסוג השירות כדי לקבל התראה כאשר יפתח תור פנוי."
                 submitLabel={editingWaitingListEntry ? "עדכן בקשה" : "הוסף לרשימת המתנה"}
                 serviceScopeOptions={[
                     { value: 'grooming', label: 'תספורת' },
-                    { value: 'garden', label: 'גן' },
-                    { value: 'both', label: 'תספורת וגן' },
+                    { value: 'both', label: 'תספורת' },
                 ]}
                 initialServiceScope={waitlistModalServiceScope}
                 initialDateRanges={waitlistModalDateRanges}
@@ -1556,7 +1555,7 @@ export default function Appointments() {
                         <CardContent className="p-12 text-center">
                             <CalendarIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                             <h3 className="text-xl font-semibold text-gray-800 mb-2">אין תורים</h3>
-                            <p className="text-gray-600 mb-4">עדיין לא קבעת תורים עבור הכלבים שלך.</p>
+                            <p className="text-gray-600 mb-4">עדיין לא קבעת תורים עבור הלקוחות שלך.</p>
                             <Button
                                 onClick={() => navigate('/setup-appointment')}
                                 className="bg-blue-600 hover:bg-blue-700"
@@ -1608,7 +1607,6 @@ export default function Appointments() {
                                     <SelectContent dir="rtl">
                                         <SelectItem value="all" className="text-right">כל השירותים</SelectItem>
                                         <SelectItem value="grooming" className="text-right">תספורת</SelectItem>
-                                        <SelectItem value="garden" className="text-right">גן</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1803,7 +1801,7 @@ export default function Appointments() {
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" dir="rtl">
                                 <div className="space-y-1 text-right">
                                     <h3 className="text-lg font-semibold text-gray-800">בקשות רשימת המתנה</h3>
-                                    <p className="text-sm text-gray-500">נהל כאן את הבקשות להודעה על תורים פנויים עבור הכלבים שלך.</p>
+                                    <p className="text-sm text-gray-500">נהל כאן את הבקשות להודעה על תורים פנויים עבור הלקוחות שלך.</p>
                                 </div>
                                 {false && (
                                     <Button
@@ -1918,7 +1916,6 @@ export default function Appointments() {
                                     <SelectContent dir="rtl">
                                         <SelectItem value="all" className="text-right">כל השירותים</SelectItem>
                                         <SelectItem value="grooming" className="text-right">תספורת</SelectItem>
-                                        <SelectItem value="garden" className="text-right">גן</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

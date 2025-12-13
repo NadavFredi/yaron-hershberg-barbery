@@ -69,7 +69,7 @@ export const GroupAppointmentsList: React.FC<GroupAppointmentsListProps> = ({
                         <thead>
                             <tr className="border-b border-gray-200">
                                 <th className="text-center py-2 px-4 text-xs font-medium text-gray-700">תאריך ושעה</th>
-                                <th className="text-center py-2 px-4 text-xs font-medium text-gray-700">כלב / תור</th>
+                                <th className="text-center py-2 px-4 text-xs font-medium text-gray-700">לקוח / תור</th>
                                 <th className="text-center py-2 px-4 text-xs font-medium text-gray-700 w-12"></th>
                             </tr>
                         </thead>
@@ -78,7 +78,7 @@ export const GroupAppointmentsList: React.FC<GroupAppointmentsListProps> = ({
                                 const startDate = new Date(appointment.startDateTime)
                                 const endDate = new Date(appointment.endDateTime)
                                 const primaryDog = appointment.dogs[0]
-                                const dogName = primaryDog?.name ?? "ללא שיוך לכלב"
+                                const dogName = primaryDog?.name ?? "ללא שיוך ללקוח"
                                 const isSelected = selectedAppointments.includes(appointment.id)
                                 const isCurrentAppointment = currentAppointmentId === appointment.id
 

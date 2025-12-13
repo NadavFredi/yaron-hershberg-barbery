@@ -175,7 +175,7 @@ export function ManagerGroomingEditModal() {
             // Show success toast
             toast({
                 title: "התור עודכן בהצלחה",
-                description: `התור של ${editingGroomingAppointment.dogs[0]?.name || 'הכלב'} עודכן בהצלחה`,
+                description: `התור של ${editingGroomingAppointment.dogs[0]?.name || 'הלקוח'} עודכן בהצלחה`,
             })
 
             // Close modal and clear pending state

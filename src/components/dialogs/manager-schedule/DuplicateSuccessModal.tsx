@@ -74,7 +74,7 @@ export function DuplicateSuccessModal() {
     }
 
     const getServiceLabel = (serviceType: string) => {
-        return serviceType === 'garden' ? 'גן' : 'מספרה'
+        return serviceType === 'garden' ? '' : 'מספרה'
     }
 
     const getServiceStyle = (serviceType: string) => {

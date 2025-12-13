@@ -657,7 +657,7 @@ export const ClientDetailsSheet = ({
 
                             <Separator />
                             <div className="space-y-3">
-                                <h3 className="text-sm font-medium text-gray-900">כלבים</h3>
+                                <h3 className="text-sm font-medium text-gray-900">לקוחות</h3>
                                 <div className="space-y-2">
                                     {(() => {
                                         // Get all dogs belonging to this client from all appointments
@@ -682,7 +682,7 @@ export const ClientDetailsSheet = ({
                                         if (dogs.length === 0) {
                                             return (
                                                 <div className="text-center text-sm text-gray-500 py-4">
-                                                    אין כלבים עבור לקוח זה
+                                                    אין לקוחות עבור לקוח זה
                                                 </div>
                                             )
                                         }
@@ -698,7 +698,7 @@ export const ClientDetailsSheet = ({
                                                         onClick={() => {
                                                             const dogPayload = {
                                                                 id: dog.id,
-                                                                name: dog.name || "כלב ללא שם",
+                                                                name: dog.name || "לקוח ללא שם",
                                                                 breed: dog.breed,
                                                                 clientClassification: dog.clientClassification,
                                                                 owner: selectedClient ? {

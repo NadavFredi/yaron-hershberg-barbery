@@ -1112,7 +1112,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
             {!isProposedMeeting && appointment.hasCrossServiceAppointment && (
               <div
                 className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 text-purple-600"
-                title="יש גם תור לגן"
+                title="יש גם תור"
               >
                 <Bone className="h-3 w-3" />
               </div>

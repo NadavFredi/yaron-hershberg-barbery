@@ -10,7 +10,7 @@ const ResetPasswordPage = () => {
                         <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Yaron Hershberg</h1>
-                    <p className="text-gray-600">מספרת כלבים מקצועית</p>
+                    <p className="text-gray-600">מספרת לקוחות מקצועית</p>
                 </div>
                 <ResetPassword
                     onBackToSignIn={() => { }}

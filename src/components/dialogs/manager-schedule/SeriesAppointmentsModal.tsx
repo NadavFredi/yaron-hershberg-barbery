@@ -79,7 +79,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
     const dogName = useMemo(() => {
         if (appointments.length === 0) return null
         const primaryDog = appointments[0].dogs[0]
-        return primaryDog?.name ?? "ללא שיוך לכלב"
+        return primaryDog?.name ?? "ללא שיוך ללקוח"
     }, [appointments])
 
     // Sort appointments by date (earliest first)
@@ -564,7 +564,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
     }
 
     const getServiceLabel = (serviceType: "grooming" | "garden"): string => {
-        return serviceType === "grooming" ? "מספרה" : "גן"
+        return serviceType === "grooming" ? "מספרה" : ""
     }
 
     const allSelected = sortedAppointments.length > 0 && selectedAppointmentIds.size === sortedAppointments.length
@@ -582,7 +582,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                                     נמצאו {count} תורים בסדרה זו
                                     {dogName && (
                                         <span className="block mt-1 text-sm font-medium text-gray-900">
-                                            כלב: {dogName}
+                                            לקוח: {dogName}
                                         </span>
                                     )}
                                 </>

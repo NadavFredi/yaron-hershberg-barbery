@@ -542,7 +542,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex-1">
                                                         <div className="text-sm font-medium text-gray-900">
-                                                            {cartApt.appointment?.serviceType === "grooming" ? "תור מספרה" : "תור גן"}
+                                                            {cartApt.appointment?.serviceType === "grooming" ? "תור מספרה" : "תור"}
                                                         </div>
                                                         {cartApt.appointment && (
                                                             <div className="text-xs text-gray-500 mt-1">
@@ -551,7 +551,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                                                         )}
                                                         {cartApt.appointment?.dogs?.[0]?.name && (
                                                             <div className="text-xs text-gray-500">
-                                                                כלב: {cartApt.appointment.dogs[0].name}
+                                                                לקוח: {cartApt.appointment.dogs[0].name}
                                                             </div>
                                                         )}
                                                     </div>

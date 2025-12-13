@@ -167,7 +167,7 @@ export default function Subscriptions() {
                     <h1 className="text-3xl font-bold text-gray-900">ניהול מנויים וכרטיסיות</h1>
                     <p className="text-gray-600 max-w-3xl">
                         כאן תמצאו את כל הכרטיסיות והחבילות שרכשתם, את היתרה שנותרה ואת האפשרות לרכוש בקלות חבילות חדשות.
-                        ניהול פשוט ונוח של טיפוח שגרתי לכלבי הבית.
+                        ניהול פשוט ונוח של טיפוח שגרתי ללקוחות הבית.
                     </p>
                 </header>
 
@@ -178,7 +178,7 @@ export default function Subscriptions() {
                                 <ShoppingCart className="h-5 w-5 text-orange-500" />
                                 <div>
                                     <CardTitle className="text-xl">רכישת כרטיסיות חדשות</CardTitle>
-                                    <CardDescription>בחרו את החבילה שמתאימה לכם ולכלב שלכם</CardDescription>
+                                    <CardDescription>בחרו את החבילה שמתאימה לכם וללקוח שלכם</CardDescription>
                                 </div>
                             </div>
                         </CardHeader>
@@ -350,7 +350,7 @@ export default function Subscriptions() {
                                                                 <TableHeader>
                                                                     <TableRow>
                                                                         <TableHead className="text-right">תאריך שימוש</TableHead>
-                                                                        <TableHead className="text-right">שם הכלב</TableHead>
+                                                                        <TableHead className="text-right">שם הלקוח</TableHead>
                                                                     </TableRow>
                                                                 </TableHeader>
                                                                 <TableBody>

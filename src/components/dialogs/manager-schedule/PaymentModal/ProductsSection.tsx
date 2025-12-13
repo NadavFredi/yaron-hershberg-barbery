@@ -414,8 +414,8 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center gap-2 flex-wrap">
                                                                 <Badge variant="outline" className="text-xs px-2 py-0.5">
-                                                                    {appointment.gardenAppointmentType === 'hourly' ? 'גן שעתי' :
-                                                                        appointment.gardenIsTrial ? 'גן ניסיון' : 'גן יום מלא'}
+                                                                    {appointment.gardenAppointmentType === 'hourly' ? 'שעתי' :
+                                                                        appointment.gardenIsTrial ? 'ניסיון' : 'יום מלא'}
                                                                 </Badge>
                                                                 {appointment.dogs && appointment.dogs.length > 0 && (
                                                                     <span className="text-sm font-medium text-gray-900">

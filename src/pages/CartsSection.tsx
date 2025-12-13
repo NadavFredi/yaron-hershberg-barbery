@@ -566,7 +566,7 @@ export default function CartsSection() {
                             <div className="relative">
                                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                                 <Input
-                                    placeholder="חיפוש לפי לקוח, כלב, מוצר..."
+                                    placeholder="חיפוש לפי לקוח, מוצר..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pr-10"
@@ -598,7 +598,7 @@ export default function CartsSection() {
                                     <SelectValue>
                                         {appointmentTypeFilter === "all" ? "סוג תור: הכל" :
                                             appointmentTypeFilter === "grooming" ? "סוג תור: מספרה" :
-                                                appointmentTypeFilter === "daycare" ? "סוג תור: גן" :
+                                                appointmentTypeFilter === "daycare" ? "סוג תור: " :
                                                     "סוג תור: שניהם"}
                                     </SelectValue>
                                 </SelectTrigger>
@@ -613,7 +613,6 @@ export default function CartsSection() {
                                     <SelectItem value="daycare">
                                         <div className="flex items-center gap-2">
                                             <Home className="h-4 w-4" />
-                                            גן
                                         </div>
                                     </SelectItem>
                                     <SelectItem value="both">שניהם</SelectItem>
@@ -749,7 +748,6 @@ export default function CartsSection() {
                                                         {appointmentType === "daycare" && (
                                                             <Badge variant="outline" className="flex items-center gap-1 w-fit">
                                                                 <Home className="h-3 w-3" />
-                                                                גן
                                                             </Badge>
                                                         )}
                                                         {appointmentType === "both" && (
@@ -765,7 +763,7 @@ export default function CartsSection() {
                                                         {cart.cart_items?.length || 0} פריטים
                                                         {dogNames && (
                                                             <div className="text-xs text-gray-500 mt-1">
-                                                                כלבים: {dogNames}
+                                                                לקוחות: {dogNames}
                                                             </div>
                                                         )}
                                                     </TableCell>

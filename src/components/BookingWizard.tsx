@@ -29,11 +29,11 @@ const BookingWizard = () => {
   const calculateAvailableSlots = (date: Date) => {
     const dayOfWeek = date.getDay() === 0 ? 7 : date.getDay(); // Convert Sunday=0 to Sunday=7
     const availability = adminAvailability.find(a => a.dayOfWeek === dayOfWeek && a.isActive);
-    
+
     if (!availability) return [];
 
     // Get possible durations for this service+breed combination
-    const possibleTimes = timeMatrix.filter(tm => 
+    const possibleTimes = timeMatrix.filter(tm =>
       tm.serviceId === bookingData.serviceId && tm.breedId === bookingData.breedId
     );
 
@@ -72,7 +72,7 @@ const BookingWizard = () => {
     if (!bookingData.serviceId || !bookingData.breedId) {
       toast({
         title: "שגיאה",
-        description: "אנא בחר שירות וגזע כלב",
+        description: "אנא בחר שירות וגזע לקוח",
         variant: "destructive"
       });
       return;
@@ -134,12 +134,12 @@ const BookingWizard = () => {
       {currentStep === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-2xl">בחירת שירות וגזע הכלב</CardTitle>
+            <CardTitle className="text-center text-2xl">בחירת שירות וגזע הלקוח</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label>איזה שירות תרצו?</Label>
-              <Select value={bookingData.serviceId} onValueChange={(value) => setBookingData({...bookingData, serviceId: value})}>
+              <Select value={bookingData.serviceId} onValueChange={(value) => setBookingData({ ...bookingData, serviceId: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="בחר שירות" />
                 </SelectTrigger>
@@ -154,8 +154,8 @@ const BookingWizard = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>איזה גזע כלב יש לך?</Label>
-              <Select value={bookingData.breedId} onValueChange={(value) => setBookingData({...bookingData, breedId: value})}>
+              <Label>איזה גזע לקוח יש לך?</Label>
+              <Select value={bookingData.breedId} onValueChange={(value) => setBookingData({ ...bookingData, breedId: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="בחר גזע" />
                 </SelectTrigger>
@@ -243,8 +243,8 @@ const BookingWizard = () => {
               </p>
             )}
 
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setCurrentStep(1)}
               className="w-full"
             >
@@ -259,7 +259,7 @@ const BookingWizard = () => {
           <CardHeader>
             <CardTitle className="text-center text-2xl">פרטים אישיים</CardTitle>
             <p className="text-center text-muted-foreground">
-              {selectedService?.name} • {selectedBreed?.name}<br/>
+              {selectedService?.name} • {selectedBreed?.name}<br />
               {bookingData.selectedDate && format(bookingData.selectedDate, "PPP", { locale: he })} בשעה {bookingData.selectedTime}
             </p>
           </CardHeader>
@@ -269,7 +269,7 @@ const BookingWizard = () => {
               <Input
                 id="customerName"
                 value={bookingData.customerName || ''}
-                onChange={(e) => setBookingData({...bookingData, customerName: e.target.value})}
+                onChange={(e) => setBookingData({ ...bookingData, customerName: e.target.value })}
                 placeholder="הכנס את שמך המלא"
               />
             </div>
@@ -279,18 +279,18 @@ const BookingWizard = () => {
               <Input
                 id="customerPhone"
                 value={bookingData.customerPhone || ''}
-                onChange={(e) => setBookingData({...bookingData, customerPhone: e.target.value})}
+                onChange={(e) => setBookingData({ ...bookingData, customerPhone: e.target.value })}
                 placeholder="052-1234567"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dogName">שם הכלב *</Label>
+              <Label htmlFor="dogName">שם הלקוח *</Label>
               <Input
                 id="dogName"
                 value={bookingData.dogName || ''}
-                onChange={(e) => setBookingData({...bookingData, dogName: e.target.value})}
-                placeholder="הכנס את שם הכלב"
+                onChange={(e) => setBookingData({ ...bookingData, dogName: e.target.value })}
+                placeholder="הכנס את שם הלקוח"
               />
             </div>
 
@@ -298,8 +298,8 @@ const BookingWizard = () => {
               <Button onClick={handleBookingSubmit} className="w-full">
                 קבע תור
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setCurrentStep(2)}
                 className="w-full"
               >
@@ -320,14 +320,14 @@ const BookingWizard = () => {
             <div className="space-y-2">
               <p className="text-lg font-semibold">התור של {bookingData.dogName} נקבע</p>
               <p className="text-muted-foreground">
-                {selectedService?.name} • {selectedBreed?.name}<br/>
+                {selectedService?.name} • {selectedBreed?.name}<br />
                 {bookingData.selectedDate && format(bookingData.selectedDate, "PPP", { locale: he })} בשעה {bookingData.selectedTime}
               </p>
             </div>
             <p className="text-sm text-muted-foreground">
               אימייל אישור נשלח אליך, ונציג יצור איתך קשר לפני התור.
             </p>
-            <Button 
+            <Button
               onClick={() => {
                 setCurrentStep(1);
                 setBookingData({ serviceId: '', breedId: '' });

@@ -471,7 +471,7 @@ export const ProposedMeetingSheet = ({
                     onClick={() => setShowDogCategories((prev) => !prev)}
                   >
                     <Dog className="h-4 w-4 text-lime-600" />
-                    קטגוריות כלבים ({dogCategories.length})
+                    קטגוריות לקוחות ({dogCategories.length})
                     <ChevronDown
                       className={cn("h-4 w-4 transition-transform", showDogCategories ? "rotate-0" : "-rotate-90")}
                     />

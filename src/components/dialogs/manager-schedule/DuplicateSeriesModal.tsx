@@ -243,7 +243,7 @@ export function DuplicateSeriesModal() {
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                                 <div><span className="font-medium">תאריך מקורי:</span> {format(new Date(appointmentToDuplicate.startDateTime), 'dd/MM/yyyy', { locale: he })}</div>
                                 <div>
-                                    <span className="font-medium">כלב:</span>{' '}
+                                    <span className="font-medium">לקוח:</span>{' '}
                                     {appointmentToDuplicate.dogs[0] ? (
                                         <button
                                             type="button"
@@ -300,7 +300,7 @@ export function DuplicateSeriesModal() {
                                     )}
                                 </div>
                                 <div><span className="font-medium">זמן:</span> {format(new Date(appointmentToDuplicate.startDateTime), 'HH:mm')} - {format(new Date(appointmentToDuplicate.endDateTime), 'HH:mm')}</div>
-                                <div><span className="font-medium">שירות:</span> {appointmentToDuplicate.serviceType === 'garden' ? 'גן' : 'מספרה'}</div>
+                                <div><span className="font-medium">שירות:</span> {appointmentToDuplicate.serviceType === 'garden' ? '' : 'מספרה'}</div>
                                 {(appointmentToDuplicate.seriesId || appointmentToDuplicate.appointmentGroupId) && (
                                     <div className="col-span-2"><span className="font-medium">מזהה סדרה/קבוצה:</span> {appointmentToDuplicate.seriesId || appointmentToDuplicate.appointmentGroupId}</div>
                                 )}

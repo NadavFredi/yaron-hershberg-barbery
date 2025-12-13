@@ -635,14 +635,14 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
               const titleText =
                 result.entityType === "personal"
                   ? result.appointment?.personalAppointmentDescription || "תור אישי"
-                  : result.dog?.name || result.ownerName || "תור ללא כלב"
+                  : result.dog?.name || result.ownerName || "תור ללא לקוח"
               const secondaryText = (() => {
                 if (result.entityType === "personal") {
                   return "תור אישי ביומן ההנהלה"
                 }
                 if (!result.appointment) {
                   if (result.entityType === "dog") {
-                    return result.ownerName ? `בעלים: ${result.ownerName}` : "כלב במערכת"
+                    return result.ownerName ? `בעלים: ${result.ownerName}` : "לקוח במערכת"
                   }
                   if (result.entityType === "client") {
                     return result.clientDetails?.classification
@@ -739,7 +739,7 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 text-gray-500 hover:text-gray-900"
-                        title="פתח כרטיס כלב"
+                        title="פתח כרטיס לקוח"
                         onClick={(event) => {
                           event.preventDefault()
                           event.stopPropagation()
@@ -1007,7 +1007,7 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
                   onChange={handleSearchChange}
                   onFocus={handleSearchFocus}
                   onKeyDown={handleScheduleSearchInputKeyDown}
-                  placeholder="חיפוש תורים, לקוחות או כלבים"
+                  placeholder="חיפוש תורים או לקוחות"
                   className="flex-1 min-w-0 border-none bg-transparent text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
                   autoComplete="off"
                 />

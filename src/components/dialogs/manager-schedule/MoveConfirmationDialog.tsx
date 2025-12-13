@@ -384,16 +384,16 @@ export function MoveConfirmationDialog() {
                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                             <h3 className="text-lg font-semibold text-gray-900 mb-3">פרטי התור הנוכחיים</h3>
                             <div className="space-y-2 text-sm">
-                                <div><span className="font-medium">כלב:</span> {moveDetails.appointment.dogs[0]?.name || 'לא ידוע'}</div>
+                                <div><span className="font-medium">לקוח:</span> {moveDetails.appointment.dogs[0]?.name || 'לא ידוע'}</div>
                                 <div><span className="font-medium">לקוח:</span> {moveDetails.appointment.clientName || 'לא ידוע'}</div>
                                 <div><span className="font-medium">עמדה:</span> {moveDetails.oldStation.name}</div>
                                 <div><span className="font-medium">זמן נוכחי:</span> {format(new Date(moveDetails.appointment.startDateTime), 'HH:mm')} - {format(new Date(moveDetails.appointment.endDateTime), 'HH:mm')}</div>
                                 {moveDetails.appointment.serviceType === 'garden' && moveDetails.newGardenAppointmentType === 'hourly' && hourlyTimeSelection && (
                                     <div><span className="font-medium">זמן חדש:</span> {hourlyTimeSelection.start} - {hourlyTimeSelection.end}</div>
                                 )}
-                                <div><span className="font-medium">שירות:</span> {moveDetails.appointment.serviceType === 'garden' ? 'גן' : 'מספרה'}</div>
+                                <div><span className="font-medium">שירות:</span> {moveDetails.appointment.serviceType === 'garden' ? '' : 'מספרה'}</div>
                                 {moveDetails.appointment.serviceType === 'garden' && moveDetails.appointment.gardenAppointmentType && (
-                                    <div><span className="font-medium">סוג גן:</span> {moveDetails.appointment.gardenAppointmentType === 'full-day' ? 'יום מלא' : 'שעות ספציפיות'}</div>
+                                    <div><span className="font-medium">סוג:</span> {moveDetails.appointment.gardenAppointmentType === 'full-day' ? 'יום מלא' : 'שעות ספציפיות'}</div>
                                 )}
                                 {moveDetails.appointment.serviceType === 'garden' && (
                                     <div><span className="font-medium">תור ניסיון:</span> {moveDetails.appointment.gardenIsTrial ? 'כן' : 'לא'}</div>
@@ -409,7 +409,7 @@ export function MoveConfirmationDialog() {
                                 ? "text-lg font-semibold text-purple-900 mb-3"
                                 : "text-lg font-semibold text-blue-900 mb-3"}>פרטי התור החדשים</h3>
                             <div className="space-y-2 text-sm">
-                                <div><span className="font-medium">כלב:</span> {moveDetails.appointment.isPersonalAppointment || moveDetails.appointment.appointmentType === "private"
+                                <div><span className="font-medium">לקוח:</span> {moveDetails.appointment.isPersonalAppointment || moveDetails.appointment.appointmentType === "private"
                                     ? (moveDetails.appointment.personalAppointmentDescription || 'תור אישי')
                                     : (moveDetails.appointment.dogs[0]?.name || 'לא ידוע')}</div>
                                 <div><span className="font-medium">לקוח:</span> {moveDetails.appointment.isPersonalAppointment || moveDetails.appointment.appointmentType === "private"
@@ -448,9 +448,9 @@ export function MoveConfirmationDialog() {
                                         />
                                     </div>
                                 </div>
-                                <div><span className="font-medium">שירות:</span> {moveDetails.appointment.serviceType === 'garden' ? 'גן' : 'מספרה'}</div>
+                                <div><span className="font-medium">שירות:</span> {moveDetails.appointment.serviceType === 'garden' ? '' : 'מספרה'}</div>
                                 {moveDetails.appointment.serviceType === 'garden' && moveDetails.newGardenAppointmentType && (
-                                    <div><span className="font-medium">סוג גן:</span> {moveDetails.newGardenAppointmentType === 'full-day' ? 'יום מלא' : 'שעות ספציפיות'}</div>
+                                    <div><span className="font-medium">סוג:</span> {moveDetails.newGardenAppointmentType === 'full-day' ? 'יום מלא' : 'שעות ספציפיות'}</div>
                                 )}
                                 {moveDetails.appointment.serviceType === 'garden' && moveDetails.newGardenIsTrial !== undefined && (
                                     <div><span className="font-medium">תור ניסיון:</span> {moveDetails.newGardenIsTrial ? 'כן' : 'לא'}</div>

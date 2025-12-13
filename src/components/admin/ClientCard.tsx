@@ -68,7 +68,7 @@ const mockAppointmentHistory = [
 const statusOptions = [
   { value: 'לקוח רגיל', label: 'לקוח רגיל', color: 'bg-gray-100 text-gray-800' },
   { value: 'VIP - לקוח ותיק', label: 'VIP - לקוח ותיק', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'מנוי גן', label: 'מנוי גן', color: 'bg-green-100 text-green-800' },
+  { value: 'מנוי', label: 'מנוי', color: 'bg-green-100 text-green-800' },
   { value: 'לקוח עבר', label: 'לקוח עבר', color: 'bg-red-100 text-red-800' }
 ];
 
@@ -124,7 +124,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
             <ArrowRight className="w-4 h-4 ml-2" />
             חזרה לרשימת הלקוחות
           </Button>
-          
+
           <div className="bg-white rounded-lg p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-3xl font-bold text-gray-900">
@@ -147,7 +147,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="flex gap-6 text-gray-600">
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4" />
@@ -165,7 +165,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
         <Tabs defaultValue="appointments" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="appointments">היסטוריית תורים</TabsTrigger>
-            <TabsTrigger value="dogs">הכלבים שלי</TabsTrigger>
+            <TabsTrigger value="dogs">הלקוחות שלי</TabsTrigger>
             <TabsTrigger value="notes">הערות ופרטים</TabsTrigger>
           </TabsList>
 
@@ -187,7 +187,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                     <TableRow>
                       <TableHead>תאריך ושעה</TableHead>
                       <TableHead>שירות</TableHead>
-                      <TableHead>שם הכלב</TableHead>
+                      <TableHead>שם הלקוח</TableHead>
                       <TableHead>עמדה מטפלת</TableHead>
                       <TableHead>סטטוס</TableHead>
                     </TableRow>
@@ -220,7 +220,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <PawPrint className="w-5 h-5 text-blue-600" />
-                      שם הכלב: {dog.name}
+                      שם הלקוח: {dog.name}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -236,7 +236,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                       <Textarea
                         value={dog.notes || ''}
                         onChange={(e) => updateDogNotes(dog.id, e.target.value)}
-                        placeholder="למשל: רגיש במיוחד באוזניים, לא אוהב את המייבש, נובח כשרואה כלבים אחרים..."
+                        placeholder="למשל: רגיש במיוחד באוזניים, לא אוהב את המייבש, נובח כשרואה לקוחות אחרים..."
                         className="min-h-[100px]"
                       />
                       <Button size="sm" className="mt-2">
@@ -246,12 +246,12 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                   </CardContent>
                 </Card>
               ))}
-              
+
               <Card className="border-dashed border-2 border-gray-300">
                 <CardContent className="p-6 text-center">
                   <Button variant="outline" className="flex items-center gap-2">
                     <Plus className="w-4 h-4" />
-                    הוסף כלב חדש ללקוח
+                    הוסף לקוח חדש
                   </Button>
                 </CardContent>
               </Card>

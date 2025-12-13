@@ -958,7 +958,7 @@ export const usePaymentModal = ({
         const tempGroomingAppointments: CartAppointment[] = tempGroomingItems.map((item) => {
           // Parse item_name: "מספרה: DogName (Breed)" or "מספרה: Breed"
           const match = item.item_name?.match(/מספרה:\s*(.+?)(?:\s*\((.+?)\))?$/)
-          const dogName = match?.[1]?.trim() || "כלב"
+          const dogName = match?.[1]?.trim() || "לקוח"
           const breed = match?.[2]?.trim() || match?.[1]?.trim() || ""
 
           return {
@@ -1208,7 +1208,7 @@ export const usePaymentModal = ({
             product_id: null,
             item_name:
               appointment._tempItemName ||
-              `מספרה: ${appointment.dogs?.[0]?.name || "כלב"} (${appointment.dogs?.[0]?.breed || ""})`,
+              `מספרה: ${appointment.dogs?.[0]?.name || "לקוח"} (${appointment.dogs?.[0]?.breed || ""})`,
             quantity: 1, // Default quantity, can be enhanced later
             unit_price: ca.appointment_price,
           }

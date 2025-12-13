@@ -209,7 +209,7 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                                 dir="rtl"
                             >
                                 <div className="flex gap-1">
-                                    <span className="font-semibold text-gray-800 text-right">כלב:</span>
+                                    <span className="font-semibold text-gray-800 text-right">לקוח:</span>
                                     <span className="text-gray-700">
                                         {editingGroomingAppointment.dogs[0]?.name || 'לא זמין'}
                                     </span>
@@ -509,7 +509,7 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-right resize-none min-h-[100px]"
                                         />
                                         <p className="text-xs text-purple-600 text-right">
-                                            הערות ספציפיות לתספורת של תור זה (שונות מהערות הכלליות של הכלב)
+                                            הערות ספציפיות לתספורת של תור זה (שונות מהערות הכלליות של הלקוח)
                                         </p>
                                     </div>
                                 </AccordionContent>

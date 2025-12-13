@@ -28,9 +28,9 @@ const getServiceName = (service: string) => {
         case "grooming":
             return "תספורת"
         case "garden":
-            return "גן"
+            return ""
         case "both":
-            return "תספורת וגן"
+            return "תספורת"
         default:
             return service
     }
@@ -72,7 +72,7 @@ const generateGoogleCalendarLink = (appointment: CombinedAppointment) => {
         parseDateTime(appointment.endDateTime) ??
         new Date(appointmentStart.getTime() + 60 * 60 * 1000)
 
-    const title = `${getServiceName(appointment.service)} - ${appointment.dogName || "כלב"}`
+    const title = `${getServiceName(appointment.service)} - ${appointment.dogName || "לקוח"}`
     const details = appointment.notes ? `הערות: ${appointment.notes}` : ""
 
     const formattedStart = formatForGoogleCalendar(appointmentStart)
@@ -83,7 +83,7 @@ const generateGoogleCalendarLink = (appointment: CombinedAppointment) => {
         text: title,
         dates: `${formattedStart}/${formattedEnd}`,
         details,
-        location: 'WagTime - מרכז טיפוח כלבים',
+        location: 'WagTime - מרכז טיפוח לקוחות',
         trp: 'false',
     })
 
@@ -271,7 +271,7 @@ export function BothAppointmentCard({
 
         return {
             id,
-            label: "גן",
+            label: "",
             icon: <Bone className="h-4 w-4 text-amber-600" />,
             iconBg: "bg-amber-100",
             context,
@@ -539,35 +539,35 @@ export function BothAppointmentCard({
                                         <div className="space-y-2 text-right mr-2 ml-6">
                                             {/* Name and status badge row */}
                                             <div className="flex items-center gap-2">
-                                                <h3 className="text-lg font-semibold">תספורת וגן - {appointment.dogName}</h3>
+                                                <h3 className="text-lg font-semibold">תספורת - {appointment.dogName}</h3>
                                                 {renderStatusBadge()}
                                                 {renderLatePickupBadge()}
                                             </div>
                                             {/* Details row */}
                                             <div className="flex items-center gap-4 text-sm text-gray-600">
-                                            <div className="flex items-center gap-1">
-                                                <Calendar className="h-4 w-4" />
-                                                <span>{format(new Date(appointment.date), "dd MMM yyyy", { locale: he })}</span>
+                                                <div className="flex items-center gap-1">
+                                                    <Calendar className="h-4 w-4" />
+                                                    <span>{format(new Date(appointment.date), "dd MMM yyyy", { locale: he })}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <Clock className="h-4 w-4" />
+                                                    <span>{appointment.time}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-1">
-                                                <Clock className="h-4 w-4" />
-                                                <span>{appointment.time}</span>
-                                            </div>
+                                            {gardenExtras.length > 0 && (
+                                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                                    {gardenExtras.map((label) => (
+                                                        <Badge
+                                                            key={`${appointment.id}-main-${label}`}
+                                                            className="bg-amber-100 text-amber-800 border-amber-200 text-xs"
+                                                        >
+                                                            {label}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
-                                        {gardenExtras.length > 0 && (
-                                            <div className="flex flex-wrap items-center justify-end gap-2">
-                                                {gardenExtras.map((label) => (
-                                                    <Badge
-                                                        key={`${appointment.id}-main-${label}`}
-                                                        className="bg-amber-100 text-amber-800 border-amber-200 text-xs"
-                                                    >
-                                                        {label}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                        )}
                                     </div>
-                                </div>
                                     {/* Left side - Buttons */}
                                     <div className="hidden flex-shrink-0 items-center gap-2 sm:flex px-1 ml-2">
 

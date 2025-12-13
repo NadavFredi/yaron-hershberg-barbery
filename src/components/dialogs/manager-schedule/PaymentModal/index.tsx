@@ -469,7 +469,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     console.error('Failed to save products:', error)
                                     toast({
                                         title: "שגיאה",
-                                        description: "לא הצלחנו לשמור את המוצרים והגן",
+                                        description: "לא הצלחנו לשמור את המוצרים",
                                         variant: "destructive",
                                     })
                                 }

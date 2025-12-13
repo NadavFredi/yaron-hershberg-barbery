@@ -303,7 +303,7 @@ export function CancelConfirmationDialog() {
                 title: "התור בוטל בהצלחה",
                 description: isGroupOperation
                     ? `${selectedAppointmentIds.length} תורים בוטלו בהצלחה`
-                    : `התור של ${appointmentToCancel.dogs[0]?.name || 'הכלב'} בוטל בהצלחה`,
+                    : `התור של ${appointmentToCancel.dogs[0]?.name || 'הלקוח'} בוטל בהצלחה`,
                 variant: "default",
             })
 
@@ -364,8 +364,8 @@ export function CancelConfirmationDialog() {
                                 <div><strong>שעה:</strong> {format(new Date(appointmentToCancel.startDateTime), 'HH:mm')} - {format(new Date(appointmentToCancel.endDateTime), 'HH:mm')}</div>
                                 <div><strong>עמדה:</strong> {appointmentToCancel.stationName || 'לא זמין'}</div>
                                 <div><strong>לקוח:</strong> {appointmentToCancel.clientName || 'לא זמין'}</div>
-                                <div><strong>כלב:</strong> {appointmentToCancel.dogs[0]?.name || 'לא זמין'}</div>
-                                <div><strong>שירות:</strong> {appointmentToCancel.serviceType === 'grooming' ? 'מספרה' : 'גן'}</div>
+                                <div><strong>לקוח:</strong> {appointmentToCancel.dogs[0]?.name || 'לא זמין'}</div>
+                                <div><strong>שירות:</strong> {appointmentToCancel.serviceType === 'grooming' ? 'מספרה' : ''}</div>
                                 {hasGroupId && (
                                     <div><strong>מזהה קבוצה:</strong> {appointmentToCancel.groupAppointmentId}</div>
                                 )}

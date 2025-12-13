@@ -1334,7 +1334,7 @@ export const AppointmentDetailsSheet = ({
             <SheetContent side="right" className="w-full max-w-md overflow-y-auto" dir="rtl">
                 <SheetHeader>
                     <SheetTitle className="text-right">פרטי תור</SheetTitle>
-                    <SheetDescription className="text-right">צפו בכל הפרטים על התור, הלקוח והכלב.</SheetDescription>
+                    <SheetDescription className="text-right">צפו בכל הפרטים על התור והלקוח.</SheetDescription>
                 </SheetHeader>
 
                 {isLoading ? (

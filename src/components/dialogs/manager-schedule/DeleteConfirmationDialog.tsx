@@ -503,7 +503,7 @@ export function DeleteConfirmationDialog() {
                                 </div>
                                 <div>
                                     <div><strong>לקוח:</strong> {appointmentToDelete.clientName || 'לא זמין'}</div>
-                                    <div><strong>שירות:</strong> {appointmentToDelete.serviceType === 'grooming' ? 'מספרה' : 'גן'}</div>
+                                    <div><strong>שירות:</strong> {appointmentToDelete.serviceType === 'grooming' ? 'מספרה' : ''}</div>
                                 </div>
                             </div>
                         </div>

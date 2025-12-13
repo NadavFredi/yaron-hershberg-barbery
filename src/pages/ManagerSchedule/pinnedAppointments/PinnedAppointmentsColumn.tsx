@@ -132,7 +132,7 @@ export function PinnedAppointmentsColumn({
               <Input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="חיפוש לפי שם כלב, לקוח, גזע או טלפון"
+                placeholder="חיפוש לפי שם לקוח, גזע או טלפון"
                 className="pr-9 text-sm"
               />
               <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -186,7 +186,6 @@ export function PinnedAppointmentsColumn({
                         : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
                     )}
                   >
-                    גן
                   </button>
                 </div>
               </div>
@@ -251,7 +250,7 @@ export function PinnedAppointmentsColumn({
                                 : "border-emerald-200 bg-emerald-50 text-emerald-700"
                             )}
                           >
-                            {pin.appointment_type === "grooming" ? "מספרה" : "גן"}
+                            {pin.appointment_type === "grooming" ? "מספרה" : ""}
                           </Badge>
                         </div>
                         <DropdownMenu>

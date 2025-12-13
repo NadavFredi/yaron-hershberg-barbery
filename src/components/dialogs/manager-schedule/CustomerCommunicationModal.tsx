@@ -82,8 +82,8 @@ export const CustomerCommunicationModal: React.FC<CustomerCommunicationModalProp
                                 <Clock className="h-5 w-5 text-amber-600" />
                             </div>
                             <div className="text-right flex-1">
-                                <div className="font-semibold">הכלב יהיה מוכן בעוד X דקות</div>
-                                <div className="text-sm text-gray-500">הודע ללקוח שהכלב יהיה מוכן בקרוב</div>
+                                <div className="font-semibold">הלקוח יהיה מוכן בעוד X דקות</div>
+                                <div className="text-sm text-gray-500">הודע ללקוח שהלקוח יהיה מוכן בקרוב</div>
                             </div>
                         </div>
                     </Button>

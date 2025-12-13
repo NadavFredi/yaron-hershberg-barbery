@@ -418,7 +418,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                                             {format(startDate, "dd.MM.yyyy", { locale: he })} - {format(startDate, "HH:mm", { locale: he })}
                                                         </span>
                                                         <span className="text-xs text-gray-500">
-                                                            ({appointment.serviceType === "grooming" ? "מספרה" : "גן"})
+                                                            ({appointment.serviceType === "grooming" ? "מספרה" : ""})
                                                         </span>
                                                     </div>
                                                 </div>

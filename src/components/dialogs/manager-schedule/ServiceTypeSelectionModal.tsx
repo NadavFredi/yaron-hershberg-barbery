@@ -41,7 +41,7 @@ export const ServiceTypeSelectionModal: React.FC<ServiceTypeSelectionModalProps>
                             </div>
                             <div className="text-right flex-1">
                                 <div className="font-semibold">תור מספרה</div>
-                                <div className="text-sm text-gray-500">ניהול תור למספרת כלבים</div>
+                                <div className="text-sm text-gray-500">ניהול תור למספרת לקוחות</div>
                             </div>
                         </div>
                     </Button>
@@ -59,8 +59,8 @@ export const ServiceTypeSelectionModal: React.FC<ServiceTypeSelectionModalProps>
                                 <Flower2 className="h-5 w-5 text-green-600" />
                             </div>
                             <div className="text-right flex-1">
-                                <div className="font-semibold">תור גן</div>
-                                <div className="text-sm text-gray-500">ניהול תור לגן כלבים</div>
+                                <div className="font-semibold">תור</div>
+                                <div className="text-sm text-gray-500">ניהול תור</div>
                             </div>
                         </div>
                     </Button>
