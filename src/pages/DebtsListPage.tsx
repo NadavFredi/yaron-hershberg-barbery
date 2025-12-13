@@ -1,0 +1,433 @@
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus, Pencil, Trash2, Loader2, Search } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/integrations/supabase/client"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { AutocompleteFilter } from "@/components/AutocompleteFilter"
+import { DatePickerInput } from "@/components/DatePickerInput"
+import { CreateDebtDialog } from "@/components/dialogs/debts/CreateDebtDialog"
+import { EditDebtDialog } from "@/components/dialogs/debts/EditDebtDialog"
+import { DeleteDebtDialog } from "@/components/dialogs/debts/DeleteDebtDialog"
+
+interface Customer {
+    id: string
+    full_name: string
+    phone: string
+    email: string | null
+}
+
+interface Debt {
+    id: string
+    customer_id: string
+    original_amount: number
+    description: string | null
+    due_date: string | null
+    status: "open" | "partial" | "paid"
+    created_at: string
+    updated_at: string
+    customer: Customer
+    paid_amount?: number
+    remaining_amount?: number
+}
+
+export default function DebtsListPage() {
+    const { toast } = useToast()
+    const [debts, setDebts] = useState<Debt[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+    const [editingDebtId, setEditingDebtId] = useState<string | null>(null)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null)
+
+    // Filter states
+    const [searchTerm, setSearchTerm] = useState("")
+    const [customerFilter, setCustomerFilter] = useState("")
+    const [statusFilter, setStatusFilter] = useState<string>("all")
+    const [dateFromFilter, setDateFromFilter] = useState<Date | null>(null)
+    const [dateToFilter, setDateToFilter] = useState<Date | null>(null)
+
+    useEffect(() => {
+        fetchDebts()
+    }, [])
+
+    useEffect(() => {
+        const debounce = setTimeout(() => {
+            fetchDebts()
+        }, 300)
+
+        return () => clearTimeout(debounce)
+    }, [searchTerm, customerFilter, statusFilter, dateFromFilter, dateToFilter])
+
+    const fetchDebts = async () => {
+        try {
+            setIsLoading(true)
+            console.log("🔍 [DebtsListPage] Fetching debts...")
+
+            let query = supabase
+                .from("debts")
+                .select(`
+                    *,
+                    customer:customers(id, full_name, phone, email)
+                `)
+                .order("created_at", { ascending: false })
+
+            // Apply filters
+            if (statusFilter !== "all") {
+                query = query.eq("status", statusFilter)
+            }
+
+            if (dateFromFilter) {
+                const startOfDay = new Date(dateFromFilter)
+                startOfDay.setHours(0, 0, 0, 0)
+                query = query.gte("created_at", startOfDay.toISOString())
+            }
+
+            if (dateToFilter) {
+                const endOfDay = new Date(dateToFilter)
+                endOfDay.setHours(23, 59, 59, 999)
+                query = query.lte("created_at", endOfDay.toISOString())
+            }
+
+            const { data, error } = await query
+
+            if (error) throw error
+
+            // Calculate paid and remaining amounts for each debt
+            const debtsWithCalculations = await Promise.all(
+                (data || []).map(async (debt: any) => {
+                    const paidAmount = await calculatePaidAmount(debt.id)
+                    const remainingAmount = debt.original_amount - paidAmount
+
+                    return {
+                        ...debt,
+                        paid_amount: paidAmount,
+                        remaining_amount: remainingAmount,
+                    }
+                })
+            )
+
+            // Apply customer and search filters
+            let filteredDebts = debtsWithCalculations
+
+            if (customerFilter) {
+                filteredDebts = filteredDebts.filter((debt) =>
+                    debt.customer?.full_name?.toLowerCase().includes(customerFilter.toLowerCase()) ||
+                    debt.customer?.phone?.includes(customerFilter)
+                )
+            }
+
+            if (searchTerm) {
+                filteredDebts = filteredDebts.filter((debt) =>
+                    debt.customer?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    debt.customer?.phone?.includes(searchTerm) ||
+                    debt.description?.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+            }
+
+            setDebts(filteredDebts)
+        } catch (error) {
+            console.error("Error fetching debts:", error)
+            toast({
+                title: "שגיאה",
+                description: "לא ניתן לטעון את החובות",
+                variant: "destructive",
+            })
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const calculatePaidAmount = async (debtId: string): Promise<number> => {
+        try {
+            const { data, error } = await supabase
+                .from("payments")
+                .select("amount")
+                .eq("debt_id", debtId)
+                .in("status", ["paid", "partial"])
+
+            if (error) throw error
+
+            return (data || []).reduce((sum, payment) => sum + (payment.amount || 0), 0)
+        } catch (error) {
+            console.error("Error calculating paid amount:", error)
+            return 0
+        }
+    }
+
+    const searchCustomerNames = async (searchTerm: string): Promise<string[]> => {
+        const trimmedTerm = searchTerm.trim()
+        let query = supabase
+            .from("customers")
+            .select("full_name")
+            .not("full_name", "is", null)
+
+        if (trimmedTerm.length >= 2) {
+            query = query.ilike("full_name", `%${trimmedTerm}%`).limit(10)
+        } else {
+            query = query.order("full_name", { ascending: true }).limit(5)
+        }
+
+        const { data, error } = await query
+
+        if (error) throw error
+        return [...new Set((data || []).map(c => c.full_name).filter(Boolean))] as string[]
+    }
+
+    const getStatusLabel = (status: string) => {
+        const labels = {
+            open: "פתוח",
+            partial: "חלקי",
+            paid: "שולם",
+        }
+        return labels[status as keyof typeof labels] || status
+    }
+
+    const getStatusColor = (status: string) => {
+        const colors = {
+            open: "bg-red-100 text-red-800",
+            partial: "bg-yellow-100 text-yellow-800",
+            paid: "bg-green-100 text-green-800",
+        }
+        return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
+    }
+
+    const handleCreateSuccess = () => {
+        setIsCreateDialogOpen(false)
+        fetchDebts()
+    }
+
+    const handleEdit = (debt: Debt) => {
+        setEditingDebtId(debt.id)
+        setIsEditDialogOpen(true)
+    }
+
+    const handleEditSuccess = () => {
+        setIsEditDialogOpen(false)
+        setEditingDebtId(null)
+        fetchDebts()
+    }
+
+    const handleDelete = (debt: Debt) => {
+        setDebtToDelete(debt)
+        setIsDeleteDialogOpen(true)
+    }
+
+    const handleDeleteSuccess = () => {
+        setIsDeleteDialogOpen(false)
+        setDebtToDelete(null)
+        fetchDebts()
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="mr-4 text-gray-600">טוען...</span>
+            </div>
+        )
+    }
+
+    return (
+        <div className="space-y-6" dir="rtl">
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle>חובות</CardTitle>
+                            <CardDescription>
+                                {debts.length > 0
+                                    ? `נמצאו ${debts.length} חובות`
+                                    : "רשימת כל החובות"}
+                            </CardDescription>
+                        </div>
+                        <Button onClick={() => setIsCreateDialogOpen(true)}>
+                            <Plus className="h-4 w-4 ml-2" />
+                            הוסף חוב
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {/* Filters */}
+                    <div className="mb-6 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <Label className="text-sm mb-2 block">חיפוש</Label>
+                                <div className="relative">
+                                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                    <Input
+                                        placeholder="חפש לפי לקוח, תיאור..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pr-10"
+                                        dir="rtl"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <Label className="text-sm mb-2 block">לקוח</Label>
+                                <AutocompleteFilter
+                                    value={customerFilter}
+                                    onChange={setCustomerFilter}
+                                    placeholder="שם לקוח..."
+                                    searchFn={searchCustomerNames}
+                                    minSearchLength={0}
+                                    autoSearchOnFocus
+                                    initialLoadOnMount
+                                    initialResultsLimit={5}
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-sm mb-2 block">סטטוס</Label>
+                                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                    <SelectTrigger dir="rtl">
+                                        <SelectValue placeholder="כל הסטטוסים" />
+                                    </SelectTrigger>
+                                    <SelectContent dir="rtl">
+                                        <SelectItem value="all">כל הסטטוסים</SelectItem>
+                                        <SelectItem value="open">פתוח</SelectItem>
+                                        <SelectItem value="partial">חלקי</SelectItem>
+                                        <SelectItem value="paid">שולם</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label className="text-sm mb-2 block">מתאריך</Label>
+                                <DatePickerInput
+                                    value={dateFromFilter}
+                                    onChange={setDateFromFilter}
+                                    placeholder="בחר תאריך..."
+                                    wrapperClassName="w-full"
+                                    displayFormat="dd/MM/yyyy"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-sm mb-2 block">עד תאריך</Label>
+                                <DatePickerInput
+                                    value={dateToFilter}
+                                    onChange={setDateToFilter}
+                                    placeholder="בחר תאריך..."
+                                    wrapperClassName="w-full"
+                                    displayFormat="dd/MM/yyyy"
+                                />
+                            </div>
+                        </div>
+                        {(customerFilter || statusFilter !== "all" || dateFromFilter || dateToFilter || searchTerm) && (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setCustomerFilter("")
+                                    setStatusFilter("all")
+                                    setDateFromFilter(null)
+                                    setDateToFilter(null)
+                                    setSearchTerm("")
+                                }}
+                            >
+                                נקה סינונים
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Table */}
+                    <div className="rounded-md border">
+                        <div className="overflow-x-auto overflow-y-auto max-h-[600px] [direction:ltr] custom-scrollbar">
+                            <Table containerClassName="[direction:rtl] !overflow-visible">
+                                <TableHeader>
+                                    <TableRow className="bg-[hsl(228_36%_95%)] [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-[hsl(228_36%_95%)]">
+                                        <TableHead className="text-right">לקוח</TableHead>
+                                        <TableHead className="text-right">סכום מקורי</TableHead>
+                                        <TableHead className="text-right">שולם</TableHead>
+                                        <TableHead className="text-right">נותר</TableHead>
+                                        <TableHead className="text-right">סטטוס</TableHead>
+                                        <TableHead className="text-right">תיאור</TableHead>
+                                        <TableHead className="text-right">תאריך יצירה</TableHead>
+                                        <TableHead className="text-right">תאריך יעד</TableHead>
+                                        <TableHead className="text-right">פעולות</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {debts.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                                                לא נמצאו חובות
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        debts.map((debt) => (
+                                            <TableRow key={debt.id}>
+                                                <TableCell>{debt.customer?.full_name || "-"}</TableCell>
+                                                <TableCell>₪{debt.original_amount.toFixed(2)}</TableCell>
+                                                <TableCell>₪{(debt.paid_amount || 0).toFixed(2)}</TableCell>
+                                                <TableCell className={debt.remaining_amount && debt.remaining_amount > 0 ? "text-red-600 font-semibold" : ""}>
+                                                    ₪{(debt.remaining_amount || debt.original_amount).toFixed(2)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(debt.status)}`}>
+                                                        {getStatusLabel(debt.status)}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>{debt.description || "-"}</TableCell>
+                                                <TableCell>
+                                                    {new Date(debt.created_at).toLocaleDateString("he-IL")}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {debt.due_date ? new Date(debt.due_date).toLocaleDateString("he-IL") : "-"}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleEdit(debt)}
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleDelete(debt)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Dialogs */}
+            <CreateDebtDialog
+                open={isCreateDialogOpen}
+                onOpenChange={setIsCreateDialogOpen}
+                onSuccess={handleCreateSuccess}
+            />
+
+            <EditDebtDialog
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
+                debtId={editingDebtId}
+                onSuccess={handleEditSuccess}
+            />
+
+            <DeleteDebtDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={setIsDeleteDialogOpen}
+                debt={debtToDelete}
+                onConfirm={handleDeleteSuccess}
+            />
+        </div>
+    )
+}

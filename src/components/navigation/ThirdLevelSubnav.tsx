@@ -48,6 +48,7 @@ export const THIRD_LEVEL_SECTIONS = {
   payments: [
     { id: "list", label: "תשלומים", description: "רשימת תשלומים", icon: CreditCard },
     { id: "carts", label: "עגלות", description: "ניהול עגלות קניות", icon: ShoppingCart },
+    { id: "debts", label: "חובות", description: "ניהול חובות לקוחות", icon: DollarSign },
   ],
   products: [
     { id: "products", label: "מוצרים", description: "ניהול רשימת מוצרים", icon: Package },

@@ -11,6 +11,7 @@ import { CustomerPaymentsModal } from "@/components/dialogs/payments/CustomerPay
 import { CustomerRemindersModal } from "@/components/dialogs/reminders/CustomerRemindersModal"
 import { CustomerImagesModal } from "@/components/dialogs/CustomerImagesModal"
 import { AddContactDialog } from "@/components/dialogs/customers/AddContactDialog"
+import { CustomerDebtsSection } from "@/components/sheets/CustomerDebtsSection"
 import { MessagingActions } from "@/components/sheets/MessagingActions"
 import { supabase } from "@/integrations/supabase/client"
 import type { ManagerAppointment, ManagerDog } from "../types"
@@ -824,6 +825,11 @@ export const ClientDetailsSheet = ({
                                     </p>
                                 )}
                             </div>
+
+                            {/* Customer Debts Section */}
+                            {hasClientId && (
+                                <CustomerDebtsSection customerId={clientId} customerName={selectedClient.name} />
+                            )}
 
                             <Separator />
                             <div className="space-y-3">
