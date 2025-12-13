@@ -38,13 +38,15 @@ interface CustomerDebtsModalProps {
     onOpenChange: (open: boolean) => void
     customerId: string
     customerName: string
+    debtId?: string | null
 }
 
 export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
     open,
     onOpenChange,
     customerId,
-    customerName
+    customerName,
+    debtId
 }) => {
     const [debts, setDebts] = useState<Debt[]>([])
     const [isLoading, setIsLoading] = useState(false)
@@ -63,11 +65,17 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
     const fetchDebts = async () => {
         try {
             setIsLoading(true)
-            const { data, error } = await supabase
+            let query = supabase
                 .from("debts")
                 .select("*")
                 .eq("customer_id", customerId)
-                .order("created_at", { ascending: false })
+
+            // Filter by specific debt if debtId is provided
+            if (debtId) {
+                query = query.eq("id", debtId)
+            }
+
+            const { data, error } = await query.order("created_at", { ascending: false })
 
             if (error) throw error
 
@@ -86,6 +94,12 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
             )
 
             setDebts(debtsWithCalculations)
+
+            // Auto-expand the debt if debtId is provided
+            if (debtId && debtsWithCalculations.some(d => d.id === debtId)) {
+                setExpandedDebts(new Set([debtId]))
+                fetchDebtPayments(debtId)
+            }
         } catch (error) {
             console.error("Error fetching debts:", error)
             toast({
@@ -139,7 +153,11 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
             return
         }
         fetchDebts()
-    }, [open, customerId])
+        // Reset expanded debts when modal opens without debtId
+        if (!debtId) {
+            setExpandedDebts(new Set())
+        }
+    }, [open, customerId, debtId])
 
     const handleExpandDebt = (debtId: string) => {
         const isExpanded = expandedDebts.has(debtId)

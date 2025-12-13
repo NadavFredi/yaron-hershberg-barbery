@@ -1900,7 +1900,12 @@ export const usePaymentModal = ({
       }
 
       // Use cart_appointments total, or fallback to direct appointment prices
-      const finalAppointmentsFromDB = actualAppointmentsTotal > 0 ? actualAppointmentsTotal : directAppointmentPrice
+      // For debt payments, skip appointment calculations
+      const finalAppointmentsFromDB = debtIdForPayment
+        ? 0
+        : actualAppointmentsTotal > 0
+        ? actualAppointmentsTotal
+        : directAppointmentPrice
 
       // Also calculate from state for comparison
       const productsTotal = orderItems.reduce((sum, item) => sum + item.price * item.amount, 0)
@@ -1922,9 +1927,31 @@ export const usePaymentModal = ({
       // Use the maximum of actual database data or state data
       // Include both cart_appointments and direct appointment prices
       // If state has items but DB doesn't (cart not saved yet), use state values
+      // For debt payments, prioritize state values (appointmentPrice or paidSum)
       const dbTotal = actualProductsTotal + finalAppointmentsFromDB
       const stateTotal = productsTotal + appointmentPriceValue
-      const totalAmount = Math.max(dbTotal, stateTotal)
+
+      // Also check if appointments exist in DB even if not loaded in state
+      // This handles cases where cart_appointments exist but weren't included in the query
+      let hasAppointmentsInDB = false
+      let appointmentsTotalFromDB = 0
+      if (currentCartId && !debtIdForPayment) {
+        const { data: cartApptsCheck } = await supabase
+          .from("cart_appointments")
+          .select("appointment_price")
+          .eq("cart_id", currentCartId)
+
+        if (cartApptsCheck && cartApptsCheck.length > 0) {
+          hasAppointmentsInDB = true
+          appointmentsTotalFromDB = cartApptsCheck.reduce((sum, ca) => sum + (ca.appointment_price || 0), 0)
+        }
+      }
+
+      // Calculate total amount - use DB data if available, otherwise state
+      // For appointments-only payments, ensure we use the appointment price even if productsTotal is 0
+      const totalAmount = debtIdForPayment
+        ? Math.max(stateTotal, parseFloat(appointmentPrice) || 0, parseFloat(paidSum) || 0)
+        : Math.max(dbTotal, stateTotal, appointmentsTotalFromDB)
 
       console.log("📊 [PaymentModal] Cart totals:", {
         currentCartId,
@@ -1932,6 +1959,7 @@ export const usePaymentModal = ({
         actualAppointmentsTotal,
         directAppointmentPrice,
         finalAppointmentsFromDB,
+        appointmentsTotalFromDB,
         productsTotal,
         appointmentPriceValue,
         totalAmount,
@@ -1941,6 +1969,8 @@ export const usePaymentModal = ({
         hasDaycareAppts: false,
         orderItemsCount: orderItems.length,
         cartAppointmentsCount: cartAppointments.length,
+        hasAppointmentsInDB,
+        debtIdForPayment,
         cartAppointments: cartAppointments.map((ca) => ({
           id: ca.id,
           price: ca.appointment_price,
@@ -1955,48 +1985,60 @@ export const usePaymentModal = ({
       const hasItemsInDB = actualCartItems.length > 0 || actualCartAppointments.length > 0
       const hasItemsInState = orderItems.length > 0 || cartAppointments.length > 0
 
-      // Also check if appointments exist in DB even if not loaded in state
-      // This handles cases where cart_appointments exist but weren't included in the query
-      let hasAppointmentsInDB = false
-      if (!hasItemsInDB && !hasItemsInState && currentCartId && !debtIdForPayment) {
-        const { data: cartApptsCheck } = await supabase
-          .from("cart_appointments")
-          .select("appointment_price")
-          .eq("cart_id", currentCartId)
-          .limit(1)
+      // For debt payments, allow payment if there's an amount entered (paidSum or appointmentPrice)
+      // For regular payments, check for items/appointments
+      const isDebtPayment = !!debtIdForPayment
+      const hasAmountForDebt = isDebtPayment && (parseFloat(paidSum) > 0 || parseFloat(appointmentPrice) > 0)
 
-        hasAppointmentsInDB = (cartApptsCheck && cartApptsCheck.length > 0) || false
-      }
+      // Allow payment if:
+      // 1. It's a debt payment with an amount
+      // 2. There are items/appointments in DB or state
+      // 3. There are appointments in DB (even if not in state)
+      // 4. Total amount is greater than 0
+      const canProceed =
+        (isDebtPayment && hasAmountForDebt) ||
+        hasItemsInDB ||
+        hasItemsInState ||
+        hasAppointmentsInDB ||
+        totalAmount > 0 ||
+        appointmentsTotalFromDB > 0
 
-      if (totalAmount <= 0 && !hasItemsInDB && !hasItemsInState && !hasAppointmentsInDB) {
+      if (!canProceed) {
         console.error("❌ [PaymentModal] No items found:", {
           totalAmount,
           hasItemsInDB,
           hasItemsInState,
           hasAppointmentsInDB,
+          appointmentsTotalFromDB,
           actualCartItems: actualCartItems.length,
           actualCartAppointments: actualCartAppointments.length,
           orderItems: orderItems.length,
           cartAppointments: cartAppointments.length,
+          isDebtPayment,
+          hasAmountForDebt,
         })
         throw new Error("לא ניתן לבצע תשלום - אין פריטים או תורים בעגלה")
       }
 
       // If totalAmount is 0 but we have items, use a minimum of 1 or recalculate from state
+      // For debt payments, use the entered amount
+      // For appointments-only payments, use the appointment price
       const finalTotalAmount =
-        totalAmount > 0
+        isDebtPayment && hasAmountForDebt
+          ? Math.max(parseFloat(paidSum) || parseFloat(appointmentPrice) || 0, 1)
+          : totalAmount > 0
           ? totalAmount
-          : hasItemsInState || hasAppointmentsInDB
-          ? Math.max(productsTotal + appointmentPriceValue, 1)
+          : hasItemsInState || hasAppointmentsInDB || appointmentsTotalFromDB > 0
+          ? Math.max(productsTotal + appointmentPriceValue, appointmentsTotalFromDB, 1)
           : 0
 
-      if (finalTotalAmount <= 0 && !hasAppointmentsInDB) {
+      if (finalTotalAmount <= 0 && !hasAppointmentsInDB && !hasAmountForDebt && appointmentsTotalFromDB === 0) {
         throw new Error("לא ניתן לבצע תשלום - אין פריטים או תורים בעגלה")
       }
 
-      // For wire/cash payments, use paidSum if provided, otherwise use totalAmount
+      // For wire/cash payments, use paidSum if provided, otherwise use finalTotalAmount
       const isWireOrCash = paymentSubType === "bank_transfer" || paymentSubType === "cash"
-      const paidAmount = isWireOrCash && paidSum ? parseFloat(paidSum) : totalAmount
+      const paidAmount = isWireOrCash && paidSum ? parseFloat(paidSum) : finalTotalAmount
 
       if (isWireOrCash && (!paidSum || isNaN(paidAmount) || paidAmount <= 0)) {
         throw new Error("יש להזין סכום תשלום תקין")
@@ -2004,10 +2046,16 @@ export const usePaymentModal = ({
 
       // Create order from cart
       // Use actual totals from database, fallback to state if needed
+      // For appointments-only payments, ensure we use the appointment price
       const finalProductsTotal = actualProductsTotal > 0 ? actualProductsTotal : productsTotal
-      const finalAppointmentsTotal = finalAppointmentsFromDB > 0 ? finalAppointmentsFromDB : appointmentPriceValue
+      const finalAppointmentsTotal =
+        appointmentsTotalFromDB > 0
+          ? appointmentsTotalFromDB
+          : finalAppointmentsFromDB > 0
+          ? finalAppointmentsFromDB
+          : appointmentPriceValue
       const finalSubtotal = finalProductsTotal + finalAppointmentsTotal
-      const finalTotal = isWireOrCash ? paidAmount : totalAmount
+      const finalTotal = isWireOrCash ? paidAmount : finalTotalAmount
 
       const orderData: any = {
         cart_id: currentCartId,
@@ -2287,7 +2335,7 @@ export const usePaymentModal = ({
 
       // Also check if there are appointments in the database that might not be in state
       let hasAppointmentsInDB = false
-      if (providedCartId && totalAmount <= 0) {
+      if (providedCartId && totalAmount <= 0 && !debtIdForPayment) {
         const { data: cartApptsData } = await supabase
           .from("cart_appointments")
           .select("appointment_price")
@@ -2301,8 +2349,18 @@ export const usePaymentModal = ({
         }
       }
 
-      if (totalAmount <= 0 && !hasAppointmentsInDB) {
+      // For debt payments, allow if there's an amount entered
+      // For regular payments, check for items/appointments
+      const isDebtPayment = !!debtIdForPayment
+      const hasAmountForDebt = isDebtPayment && (parseFloat(paidSum) > 0 || parseFloat(appointmentPrice) > 0)
+
+      if (!isDebtPayment && totalAmount <= 0 && !hasAppointmentsInDB) {
         throw new Error("לא ניתן לבצע תשלום - אין פריטים או תורים בעגלה")
+      }
+
+      // For debt payments, ensure we have an amount
+      if (isDebtPayment && !hasAmountForDebt && totalAmount <= 0) {
+        throw new Error("יש להזין סכום תשלום")
       }
 
       // Get customer info for payment

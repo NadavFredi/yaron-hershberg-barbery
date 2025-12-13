@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Pencil, Trash2, Loader2, Search } from "lucide-react"
+import { Plus, Pencil, Trash2, Loader2, Search, ChevronDown, ChevronUp, CreditCard } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +13,10 @@ import { DatePickerInput } from "@/components/DatePickerInput"
 import { CreateDebtDialog } from "@/components/dialogs/debts/CreateDebtDialog"
 import { EditDebtDialog } from "@/components/dialogs/debts/EditDebtDialog"
 import { DeleteDebtDialog } from "@/components/dialogs/debts/DeleteDebtDialog"
+import { PaymentModal } from "@/components/dialogs/manager-schedule/PaymentModal"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { setSelectedAppointmentForPayment, setShowPaymentModal, setDebtIdForPayment } from "@/store/slices/managerScheduleSlice"
+import { Badge } from "@/components/ui/badge"
 
 interface Customer {
     id: string
@@ -35,8 +39,20 @@ interface Debt {
     remaining_amount?: number
 }
 
+interface Payment {
+    id: string
+    amount: number
+    status: string
+    method: string | null
+    created_at: string
+}
+
 export default function DebtsListPage() {
     const { toast } = useToast()
+    const dispatch = useAppDispatch()
+    const showPaymentModal = useAppSelector((state) => state.managerSchedule.showPaymentModal)
+    const selectedAppointmentForPayment = useAppSelector((state) => state.managerSchedule.selectedAppointmentForPayment)
+
     const [debts, setDebts] = useState<Debt[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -44,6 +60,8 @@ export default function DebtsListPage() {
     const [editingDebtId, setEditingDebtId] = useState<string | null>(null)
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null)
+    const [debtPayments, setDebtPayments] = useState<Record<string, Payment[]>>({})
+    const [expandedDebts, setExpandedDebts] = useState<Set<string>>(new Set())
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState("")
@@ -224,6 +242,54 @@ export default function DebtsListPage() {
         fetchDebts()
     }
 
+    const fetchDebtPayments = async (debtId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from("payments")
+                .select("id, amount, status, method, created_at")
+                .eq("debt_id", debtId)
+                .order("created_at", { ascending: false })
+
+            if (error) throw error
+
+            setDebtPayments(prev => ({
+                ...prev,
+                [debtId]: data || []
+            }))
+        } catch (error) {
+            console.error("Error fetching debt payments:", error)
+        }
+    }
+
+    const handleExpandDebt = (debtId: string) => {
+        const isExpanded = expandedDebts.has(debtId)
+        if (isExpanded) {
+            setExpandedDebts(prev => {
+                const newSet = new Set(prev)
+                newSet.delete(debtId)
+                return newSet
+            })
+        } else {
+            setExpandedDebts(prev => new Set(prev).add(debtId))
+            fetchDebtPayments(debtId)
+        }
+    }
+
+    const handleAddPayment = (debt: Debt) => {
+        // Open payment modal and link to debt
+        const appointmentForPayment = {
+            id: `00000000-0000-0000-0000-000000000000`, // Dummy UUID that won't match any real appointment
+            clientId: debt.customer_id,
+            clientName: debt.customer?.full_name || "",
+            serviceType: "grooming" as const,
+        }
+
+        // Store debt_id separately in Redux - this is what we'll use to link the payment
+        dispatch(setDebtIdForPayment(debt.id))
+        dispatch(setSelectedAppointmentForPayment(appointmentForPayment as any))
+        dispatch(setShowPaymentModal(true))
+    }
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
@@ -341,6 +407,7 @@ export default function DebtsListPage() {
                             <Table containerClassName="[direction:rtl] !overflow-visible">
                                 <TableHeader>
                                     <TableRow className="bg-[hsl(228_36%_95%)] [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-[hsl(228_36%_95%)]">
+                                        <TableHead className="w-12"></TableHead>
                                         <TableHead className="text-right">לקוח</TableHead>
                                         <TableHead className="text-right">סכום מקורי</TableHead>
                                         <TableHead className="text-right">שולם</TableHead>
@@ -355,51 +422,120 @@ export default function DebtsListPage() {
                                 <TableBody>
                                     {debts.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                                            <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                                                 לא נמצאו חובות
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        debts.map((debt) => (
-                                            <TableRow key={debt.id}>
-                                                <TableCell>{debt.customer?.full_name || "-"}</TableCell>
-                                                <TableCell>₪{debt.original_amount.toFixed(2)}</TableCell>
-                                                <TableCell>₪{(debt.paid_amount || 0).toFixed(2)}</TableCell>
-                                                <TableCell className={debt.remaining_amount && debt.remaining_amount > 0 ? "text-red-600 font-semibold" : ""}>
-                                                    ₪{(debt.remaining_amount || debt.original_amount).toFixed(2)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(debt.status)}`}>
-                                                        {getStatusLabel(debt.status)}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>{debt.description || "-"}</TableCell>
-                                                <TableCell>
-                                                    {new Date(debt.created_at).toLocaleDateString("he-IL")}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {debt.due_date ? new Date(debt.due_date).toLocaleDateString("he-IL") : "-"}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => handleEdit(debt)}
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => handleDelete(debt)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4 text-red-500" />
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
+                                        debts.map((debt) => {
+                                            const isExpanded = expandedDebts.has(debt.id)
+                                            const payments = debtPayments[debt.id] || []
+
+                                            return (
+                                                <>
+                                                    <TableRow key={debt.id}>
+                                                        <TableCell>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-6 w-6"
+                                                                onClick={() => handleExpandDebt(debt.id)}
+                                                            >
+                                                                {isExpanded ? (
+                                                                    <ChevronUp className="h-4 w-4" />
+                                                                ) : (
+                                                                    <ChevronDown className="h-4 w-4" />
+                                                                )}
+                                                            </Button>
+                                                        </TableCell>
+                                                        <TableCell>{debt.customer?.full_name || "-"}</TableCell>
+                                                        <TableCell>₪{debt.original_amount.toFixed(2)}</TableCell>
+                                                        <TableCell>
+                                                            ₪{(debt.paid_amount || 0).toFixed(2)}
+                                                        </TableCell>
+                                                        <TableCell className={debt.remaining_amount && debt.remaining_amount > 0 ? "text-red-600 font-semibold" : ""}>
+                                                            ₪{(debt.remaining_amount || debt.original_amount).toFixed(2)}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(debt.status)}`}>
+                                                                {getStatusLabel(debt.status)}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell>{debt.description || "-"}</TableCell>
+                                                        <TableCell>
+                                                            {new Date(debt.created_at).toLocaleDateString("he-IL")}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {debt.due_date ? new Date(debt.due_date).toLocaleDateString("he-IL") : "-"}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-2">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleEdit(debt)}
+                                                                >
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleDelete(debt)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                                                </Button>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                    {isExpanded && (
+                                                        <TableRow>
+                                                            <TableCell colSpan={10} className="bg-gray-50">
+                                                                <div className="p-4">
+                                                                    <div className="border-t pt-4">
+                                                                        <div className="flex items-center justify-between mb-3">
+                                                                            <h4 className="text-sm font-semibold text-gray-900">תשלומים</h4>
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                onClick={() => handleAddPayment(debt)}
+                                                                            >
+                                                                                <CreditCard className="h-3 w-3 ml-1" />
+                                                                                הוסף תשלום
+                                                                            </Button>
+                                                                        </div>
+                                                                        {payments.length === 0 ? (
+                                                                            <p className="text-sm text-gray-500">אין תשלומים עבור חוב זה</p>
+                                                                        ) : (
+                                                                            <div className="space-y-2">
+                                                                                {payments.map((payment) => (
+                                                                                    <div
+                                                                                        key={payment.id}
+                                                                                        className="flex items-center justify-between p-2 bg-white rounded border"
+                                                                                    >
+                                                                                        <div className="flex items-center gap-4 text-sm">
+                                                                                            <span>₪{payment.amount.toFixed(2)}</span>
+                                                                                            <span className="text-gray-500">
+                                                                                                {new Date(payment.created_at).toLocaleDateString("he-IL")}
+                                                                                            </span>
+                                                                                            {payment.method && (
+                                                                                                <span className="text-gray-500">{payment.method}</span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                        <Badge variant={payment.status === "paid" ? "default" : "secondary"}>
+                                                                                            {payment.status === "paid" ? "שולם" : payment.status === "partial" ? "חלקי" : "לא שולם"}
+                                                                                        </Badge>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </>
+                                            )
+                                        })
                                     )}
                                 </TableBody>
                             </Table>
@@ -428,6 +564,29 @@ export default function DebtsListPage() {
                 debt={debtToDelete}
                 onConfirm={handleDeleteSuccess}
             />
+
+            {/* Payment Modal */}
+            {showPaymentModal && selectedAppointmentForPayment && (
+                <PaymentModal
+                    open={showPaymentModal}
+                    onOpenChange={(open) => {
+                        dispatch(setShowPaymentModal(open))
+                        if (!open) {
+                            // Clear debt_id when modal closes
+                            dispatch(setDebtIdForPayment(null))
+                            // Refresh debts when payment modal closes
+                            fetchDebts()
+                        }
+                    }}
+                    appointment={selectedAppointmentForPayment as any}
+                    customerId={selectedAppointmentForPayment.clientId}
+                    onConfirm={() => {
+                        dispatch(setShowPaymentModal(false))
+                        dispatch(setDebtIdForPayment(null))
+                        fetchDebts()
+                    }}
+                />
+            )}
         </div>
     )
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
+import type { MouseEvent as ReactMouseEvent } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Loader2, Calendar, Clock, MapPin, CreditCard, FileText, CheckCircle2, XCircle, AlertCircle, Filter } from "lucide-react"
+import { Loader2, Calendar, Clock, MapPin, CreditCard, FileText, CheckCircle2, XCircle, AlertCircle, Filter, Eye } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import type { Database } from "@/integrations/supabase/types"
 import { format } from "date-fns"
@@ -10,6 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { DatePickerInput } from "@/components/DatePickerInput"
+import { Button } from "@/components/ui/button"
+import { useAppDispatch } from "@/store/hooks"
+import { setSelectedAppointment, setIsDetailsOpen, setSelectedDate } from "@/store/slices/managerScheduleSlice"
+import { useLazyGetManagerAppointmentQuery } from "@/store/services/supabaseApi"
 
 type GroomingAppointment = Database["public"]["Tables"]["grooming_appointments"]["Row"]
 type Station = Database["public"]["Tables"]["stations"]["Row"]
@@ -65,6 +70,8 @@ export function CustomerAppointmentsModal({
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all")
   const [dateFilter, setDateFilter] = useState<Date | null>(null)
+  const dispatch = useAppDispatch()
+  const [fetchManagerAppointment] = useLazyGetManagerAppointmentQuery()
 
   useEffect(() => {
     if (!open || !customerId) {
@@ -180,6 +187,35 @@ export function CustomerAppointmentsModal({
     }
   }
 
+  const handleAppointmentClick = async (appointment: AppointmentWithDetails) => {
+    try {
+      // Fetch fresh appointment data from API
+      const result = await fetchManagerAppointment({
+        appointmentId: appointment.id,
+        serviceType: "grooming",
+      }).unwrap()
+
+      if (result?.appointment) {
+        // Set the appointment and open the details sheet
+        dispatch(setSelectedAppointment(result.appointment))
+        dispatch(setIsDetailsOpen(true))
+        // Close the modal
+        onOpenChange(false)
+      }
+    } catch (error) {
+      console.error("❌ [CustomerAppointmentsModal] Error fetching appointment:", error)
+    }
+  }
+
+  const handleSeeOnCalendar = (appointment: AppointmentWithDetails, event: ReactMouseEvent) => {
+    event.stopPropagation()
+    // Set the selected date to the appointment date
+    const appointmentDate = new Date(appointment.start_at)
+    dispatch(setSelectedDate(appointmentDate.toISOString()))
+    // Close the modal
+    onOpenChange(false)
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" dir="rtl">
@@ -268,6 +304,7 @@ export function CustomerAppointmentsModal({
                   <TableHead className="text-center">סוג</TableHead>
                   <TableHead className="text-right">סכום</TableHead>
                   <TableHead className="text-right">הערות</TableHead>
+                  <TableHead className="text-center">פעולות</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -282,7 +319,11 @@ export function CustomerAppointmentsModal({
                   const hasNotes = appointment.customer_notes || appointment.internal_notes
 
                   return (
-                    <TableRow key={appointment.id} className="hover:bg-gray-50">
+                    <TableRow
+                      key={appointment.id}
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleAppointmentClick(appointment)}
+                    >
                       <TableCell className="text-right">
                         <div className="flex flex-col">
                           <span className="font-medium">{dateFormatted}</span>
@@ -357,6 +398,17 @@ export function CustomerAppointmentsModal({
                         ) : (
                           <span className="text-gray-400 text-sm">-</span>
                         )}
+                      </TableCell>
+                      <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={(e) => handleSeeOnCalendar(appointment, e)}
+                        >
+                          <Eye className="h-3 w-3 ml-1" />
+                          הצג בלוח
+                        </Button>
                       </TableCell>
                     </TableRow>
                   )
