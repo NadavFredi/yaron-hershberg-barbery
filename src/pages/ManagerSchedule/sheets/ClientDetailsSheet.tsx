@@ -5,11 +5,12 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
-import { MoreHorizontal, Pencil, Phone, Calendar, CreditCard, Save, Loader2, X, Bell, Image as ImageIcon } from "lucide-react"
+import { MoreHorizontal, Pencil, Phone, Calendar, CreditCard, Save, Loader2, X, Bell, Image as ImageIcon, Plus } from "lucide-react"
 import { EditCustomerDialog } from "@/components/EditCustomerDialog"
 import { CustomerPaymentsModal } from "@/components/dialogs/payments/CustomerPaymentsModal"
 import { CustomerRemindersModal } from "@/components/dialogs/reminders/CustomerRemindersModal"
 import { CustomerImagesModal } from "@/components/dialogs/CustomerImagesModal"
+import { AddContactDialog } from "@/components/dialogs/customers/AddContactDialog"
 import { MessagingActions } from "@/components/sheets/MessagingActions"
 import { supabase } from "@/integrations/supabase/client"
 import type { ManagerAppointment, ManagerDog } from "../types"
@@ -67,6 +68,7 @@ export const ClientDetailsSheet = ({
     const [hasAnyPayments, setHasAnyPayments] = useState(false)
     const [isRemindersModalOpen, setIsRemindersModalOpen] = useState(false)
     const [isCustomerImagesModalOpen, setIsCustomerImagesModalOpen] = useState(false)
+    const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false)
     const { toast } = useToast()
 
     // Get clientId from either clientId or id field (for compatibility)
@@ -615,7 +617,18 @@ export const ClientDetailsSheet = ({
                                 <>
                                     <Separator />
                                     <div className="space-y-3">
-                                        <h3 className="text-sm font-medium text-gray-900">אנשי קשר נוספים</h3>
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-medium text-gray-900">אנשי קשר נוספים</h3>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setIsAddContactDialogOpen(true)}
+                                                className="text-xs"
+                                            >
+                                                <Plus className="h-3 w-3 ml-1" />
+                                                הוסף איש קשר
+                                            </Button>
+                                        </div>
                                         {contacts.length === 0 ? (
                                             <p className="text-sm text-gray-500">אין אנשי קשר נוספים</p>
                                         ) : (
@@ -880,6 +893,30 @@ export const ClientDetailsSheet = ({
                     onOpenChange={setIsCustomerImagesModalOpen}
                     customerId={clientId}
                     customerName={selectedClient.name}
+                />
+            )}
+
+            {/* Add Contact Dialog */}
+            {hasClientId && (
+                <AddContactDialog
+                    open={isAddContactDialogOpen}
+                    onOpenChange={setIsAddContactDialogOpen}
+                    customerId={clientId}
+                    onSuccess={() => {
+                        // Refresh contacts list
+                        if (hasClientId) {
+                            supabase
+                                .from("customer_contacts")
+                                .select("*")
+                                .eq("customer_id", clientId)
+                                .order("created_at", { ascending: true })
+                                .then(({ data, error }) => {
+                                    if (!error && data) {
+                                        setContacts(data)
+                                    }
+                                })
+                        }
+                    }}
                 />
             )}
         </>
