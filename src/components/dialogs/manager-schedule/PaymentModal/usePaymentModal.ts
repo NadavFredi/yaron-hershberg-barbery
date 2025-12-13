@@ -152,6 +152,9 @@ export const usePaymentModal = ({
     }
   }
 
+  // Get debtIdForPayment from Redux
+  const debtIdForPayment = useAppSelector((state) => state.managerSchedule.debtIdForPayment)
+
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
@@ -165,7 +168,12 @@ export const usePaymentModal = ({
       setPriceSaved(false)
       setCartSaved(false)
 
-      if (providedCartId) {
+      // Check if this is a debt payment
+      if (debtIdForPayment) {
+        // Debt payment - don't fetch cart/appointments, just create a new cart for products
+        setAppointmentPrice("0")
+        createNewCart()
+      } else if (providedCartId) {
         // Fetch cart with appointments
         fetchCartWithAppointments(providedCartId)
         setAppointmentPrice("0") // Initialize to 0 for cart mode
@@ -192,7 +200,7 @@ export const usePaymentModal = ({
       // Check for saved card
       checkSavedCard()
     }
-  }, [open, appointment, providedCartId])
+  }, [open, appointment, providedCartId, debtIdForPayment])
 
   // Check if customer has saved card
   const checkSavedCard = async () => {
@@ -703,6 +711,12 @@ export const usePaymentModal = ({
   // Fetch active cart
   const fetchActiveCart = async () => {
     if (!appointment?.id || !appointment?.serviceType) return
+
+    // Skip cart fetching for debt payments
+    if (debtIdForPayment) {
+      setIsLoadingCart(false)
+      return
+    }
 
     setIsLoadingCart(true)
     try {
@@ -1844,14 +1858,14 @@ export const usePaymentModal = ({
       }
 
       // Fetch actual cart data from database to validate
+      // For debt payments, skip cart_appointments query since we don't have real appointments
+      const selectQuery = debtIdForPayment
+        ? `cart_items(quantity, unit_price)`
+        : `cart_items(quantity, unit_price), cart_appointments(appointment_price, grooming_appointment_id)`
+
       const { data: cartData, error: cartDataError } = await supabase
         .from("carts")
-        .select(
-          `
-                    cart_items(quantity, unit_price),
-                    cart_appointments(appointment_price, grooming_appointment_id)
-                `
-        )
+        .select(selectQuery)
         .eq("id", currentCartId)
         .single()
 
@@ -1861,7 +1875,7 @@ export const usePaymentModal = ({
 
       // Calculate totals from actual database data
       const actualCartItems = (cartData?.cart_items || []) as Array<{ quantity: number; unit_price: number }>
-      const actualCartAppointments = (cartData?.cart_appointments || []) as Array<{
+      const actualCartAppointments = (debtIdForPayment ? [] : cartData?.cart_appointments || []) as Array<{
         appointment_price: number
         grooming_appointment_id: string | null
       }>
@@ -1873,8 +1887,9 @@ export const usePaymentModal = ({
       const actualAppointmentsTotal = actualCartAppointments.reduce((sum, ca) => sum + (ca.appointment_price || 0), 0)
 
       // If cart_appointments have no prices but have appointment references, fetch prices from appointments
+      // Skip for debt payments
       let directAppointmentPrice = 0
-      if (actualAppointmentsTotal === 0 && actualCartAppointments.length > 0) {
+      if (!debtIdForPayment && actualAppointmentsTotal === 0 && actualCartAppointments.length > 0) {
         for (const ca of actualCartAppointments) {
           if (ca.grooming_appointment_id) {
             const { data: groomingAppt } = await supabase
@@ -1894,14 +1909,17 @@ export const usePaymentModal = ({
       const productsTotal = orderItems.reduce((sum, item) => sum + item.price * item.amount, 0)
       let appointmentPriceValue = 0
 
-      if (providedCartId && cartAppointments.length > 0) {
-        // Sum all appointment prices (excluding temporary grooming products)
-        appointmentPriceValue = cartAppointments
-          .filter((ca) => !(ca.appointment as any)?._isTempGroomingProduct)
-          .reduce((sum, ca) => sum + (ca.appointment_price || 0), 0)
-      } else if (appointment) {
-        // Legacy mode: single appointment price
-        appointmentPriceValue = parseFloat(appointmentPrice) || 0
+      // Skip appointment price calculation for debt payments
+      if (!debtIdForPayment) {
+        if (providedCartId && cartAppointments.length > 0) {
+          // Sum all appointment prices (excluding temporary grooming products)
+          appointmentPriceValue = cartAppointments
+            .filter((ca) => !(ca.appointment as any)?._isTempGroomingProduct)
+            .reduce((sum, ca) => sum + (ca.appointment_price || 0), 0)
+        } else if (appointment) {
+          // Legacy mode: single appointment price
+          appointmentPriceValue = parseFloat(appointmentPrice) || 0
+        }
       }
 
       // Use the maximum of actual database data or state data
@@ -1987,8 +2005,8 @@ export const usePaymentModal = ({
       // We'll use a payments record to track the payment method
       const paymentMethod = paymentSubType || paymentType || "bank_transfer"
 
-      // Add appointment fields only if we have appointments (legacy mode)
-      if (appointment?.id && appointment?.serviceType) {
+      // Add appointment fields only if we have appointments (legacy mode) and it's not a debt payment
+      if (appointment?.id && appointment?.serviceType && !debtIdForPayment) {
         const appointmentIdField = "grooming_appointment_id"
         orderData[appointmentIdField] = appointment.id
       }
@@ -2058,6 +2076,9 @@ export const usePaymentModal = ({
             method: paymentMethod,
           })
 
+          // Get debt_id from Redux if this is a debt payment
+          // We already have debtIdForPayment from the useEffect dependency
+
           const { data: paymentRecord, error: paymentError } = await supabase
             .from("payments")
             .insert({
@@ -2065,6 +2086,7 @@ export const usePaymentModal = ({
               amount: paidAmount,
               method: paymentMethod,
               status: isWireOrCash ? "paid" : "unpaid",
+              debt_id: debtIdForPayment || null,
               metadata: {
                 order_id: newOrder.id,
                 cart_id: currentCartId,
@@ -2823,6 +2845,7 @@ export const usePaymentModal = ({
     setShowPaymentIframe(false)
     setPaymentPostData(undefined)
     setSavedCardAmount("")
+    // Note: debtIdForPayment is cleared in the modal component's onOpenChange handler
   }
 
   const handleClose = () => {

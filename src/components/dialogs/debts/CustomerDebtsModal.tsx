@@ -10,7 +10,7 @@ import { EditDebtDialog } from "@/components/dialogs/debts/EditDebtDialog"
 import { DeleteDebtDialog } from "@/components/dialogs/debts/DeleteDebtDialog"
 import { PaymentModal } from "@/components/dialogs/manager-schedule/PaymentModal"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { setSelectedAppointmentForPayment, setShowPaymentModal } from "@/store/slices/managerScheduleSlice"
+import { setSelectedAppointmentForPayment, setShowPaymentModal, setDebtIdForPayment } from "@/store/slices/managerScheduleSlice"
 import { Badge } from "@/components/ui/badge"
 
 interface Debt {
@@ -203,26 +203,18 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
     const handleAddPayment = (debt: Debt) => {
         // Open payment modal and link to debt
         // Create a minimal appointment-like object for the payment modal
+        // Use null for appointment ID since this is a debt payment, not an appointment payment
         const appointmentForPayment = {
-            id: `debt-${debt.id}`,
+            id: `00000000-0000-0000-0000-000000000000`, // Dummy UUID that won't match any real appointment
             clientId: customerId,
             clientName: customerName,
             serviceType: "grooming" as const,
         }
 
-        // Store debt_id in metadata or pass through Redux
-        // We'll need to modify PaymentModal to accept and use debt_id
-        // For now, store it in a way that PaymentModal can access
-        dispatch(setSelectedAppointmentForPayment({
-            ...appointmentForPayment,
-            debtId: debt.id, // Add debt_id to the appointment object
-        } as any))
+        // Store debt_id separately in Redux - this is what we'll use to link the payment
+        dispatch(setDebtIdForPayment(debt.id))
+        dispatch(setSelectedAppointmentForPayment(appointmentForPayment as any))
         dispatch(setShowPaymentModal(true))
-
-        toast({
-            title: "יצירת תשלום",
-            description: "לאחר יצירת התשלום, הוא יקושר לחוב זה",
-        })
     }
 
     return (
@@ -424,6 +416,8 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
                     onOpenChange={(open) => {
                         dispatch(setShowPaymentModal(open))
                         if (!open) {
+                            // Clear debt_id when modal closes
+                            dispatch(setDebtIdForPayment(null))
                             // Refresh debts when payment modal closes
                             fetchDebts()
                         }
@@ -432,6 +426,7 @@ export const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({
                     customerId={customerId}
                     onConfirm={() => {
                         dispatch(setShowPaymentModal(false))
+                        dispatch(setDebtIdForPayment(null))
                         fetchDebts()
                     }}
                 />

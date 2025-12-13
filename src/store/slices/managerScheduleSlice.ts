@@ -265,6 +265,7 @@ interface ManagerScheduleState {
   showPaymentModal: boolean
   selectedAppointmentForPayment: ManagerAppointment | null
   paymentCartId: string | null
+  debtIdForPayment: string | null
   showProposedMeetingModal: boolean
   proposedMeetingMode: "create" | "edit"
   proposedMeetingTimes: {
@@ -476,6 +477,7 @@ const initialState: ManagerScheduleState = {
   showPaymentModal: false,
   selectedAppointmentForPayment: null,
   paymentCartId: null,
+  debtIdForPayment: null,
   showProposedMeetingModal: false,
   proposedMeetingMode: "create" as "create" | "edit",
   proposedMeetingTimes: null,
@@ -1019,6 +1021,9 @@ const managerScheduleSlice = createSlice({
     setPaymentCartId: (state, action: PayloadAction<string | null>) => {
       state.paymentCartId = action.payload
     },
+    setDebtIdForPayment: (state, action: PayloadAction<string | null>) => {
+      state.debtIdForPayment = action.payload
+    },
     setShowProposedMeetingModal: (state, action: PayloadAction<boolean>) => {
       state.showProposedMeetingModal = action.payload
     },
@@ -1241,6 +1246,7 @@ const managerScheduleSlice = createSlice({
       state.appointmentToDuplicate = null
       state.selectedAppointmentForPayment = null
       state.paymentCartId = null
+      state.debtIdForPayment = null
       state.editingProposedMeeting = null
       state.rescheduleTargetAppointment = null
       state.prefillBusinessCustomer = null
@@ -1339,6 +1345,7 @@ export const {
   setShowPaymentModal,
   setSelectedAppointmentForPayment,
   setPaymentCartId,
+  setDebtIdForPayment,
   setShowProposedMeetingModal,
   setProposedMeetingMode,
   setProposedMeetingTimes,
@@ -1389,6 +1396,7 @@ export const {
   // Column visibility
   setShowPinnedAppointmentsColumn,
   setShowWaitingListColumn,
+  setShowDevId,
   // Reset
   closeAllModals,
 } = managerScheduleSlice.actions

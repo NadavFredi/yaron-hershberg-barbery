@@ -5,11 +5,12 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
-import { MoreHorizontal, Pencil, Phone, Calendar, CreditCard, Save, Loader2, X, Bell, Image as ImageIcon, Plus } from "lucide-react"
+import { MoreHorizontal, Pencil, Phone, Calendar, CreditCard, Save, Loader2, X, Bell, Image as ImageIcon, Plus, CalendarDays } from "lucide-react"
 import { EditCustomerDialog } from "@/components/EditCustomerDialog"
 import { CustomerPaymentsModal } from "@/components/dialogs/payments/CustomerPaymentsModal"
 import { CustomerRemindersModal } from "@/components/dialogs/reminders/CustomerRemindersModal"
 import { CustomerImagesModal } from "@/components/dialogs/CustomerImagesModal"
+import { CustomerAppointmentsModal } from "@/components/dialogs/CustomerAppointmentsModal"
 import { AddContactDialog } from "@/components/dialogs/customers/AddContactDialog"
 import { CustomerDebtsSection } from "@/components/sheets/CustomerDebtsSection"
 import { MessagingActions } from "@/components/sheets/MessagingActions"
@@ -52,6 +53,7 @@ export const ClientDetailsSheet = ({
     const open = useAppSelector((state) => state.managerSchedule.isClientDetailsOpen)
     const selectedDateStr = useAppSelector((state) => state.managerSchedule.selectedDate)
     const selectedDate = useMemo(() => new Date(selectedDateStr), [selectedDateStr])
+    const showDevId = useAppSelector((state) => state.managerSchedule.showDevId)
 
     const handleOpenChange = (isOpen: boolean) => {
         dispatch(setIsClientDetailsOpen(isOpen))
@@ -69,6 +71,7 @@ export const ClientDetailsSheet = ({
     const [hasAnyPayments, setHasAnyPayments] = useState(false)
     const [isRemindersModalOpen, setIsRemindersModalOpen] = useState(false)
     const [isCustomerImagesModalOpen, setIsCustomerImagesModalOpen] = useState(false)
+    const [isCustomerAppointmentsModalOpen, setIsCustomerAppointmentsModalOpen] = useState(false)
     const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false)
     const { toast } = useToast()
 
@@ -596,19 +599,29 @@ export const ClientDetailsSheet = ({
                                 </div>
                             </div>
 
-                            {/* Customer Images Button */}
+                            {/* Customer Images and Appointments Buttons */}
                             {hasClientId && (
                                 <>
                                     <Separator />
                                     <div className="space-y-3">
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-center gap-2"
-                                            onClick={() => setIsCustomerImagesModalOpen(true)}
-                                        >
-                                            <ImageIcon className="h-4 w-4" />
-                                            הצג את כל התמונות של הלקוח
-                                        </Button>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Button
+                                                variant="outline"
+                                                className="w-full justify-center gap-2"
+                                                onClick={() => setIsCustomerImagesModalOpen(true)}
+                                            >
+                                                <ImageIcon className="h-4 w-4" />
+                                                תמונות
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                className="w-full justify-center gap-2"
+                                                onClick={() => setIsCustomerAppointmentsModalOpen(true)}
+                                            >
+                                                <CalendarDays className="h-4 w-4" />
+                                                תורים
+                                            </Button>
+                                        </div>
                                     </div>
                                 </>
                             )}
@@ -756,8 +769,8 @@ export const ClientDetailsSheet = ({
                                 </div>
                             </div>
 
-                            {/* Staff Notes Section */}
-                            {hasClientId && (
+                            {/* Staff Notes Section - Only show in dev mode */}
+                            {hasClientId && showDevId && (
                                 <>
                                     <Separator />
                                     <div className="space-y-2">
@@ -897,6 +910,16 @@ export const ClientDetailsSheet = ({
                 <CustomerImagesModal
                     open={isCustomerImagesModalOpen}
                     onOpenChange={setIsCustomerImagesModalOpen}
+                    customerId={clientId}
+                    customerName={selectedClient.name}
+                />
+            )}
+
+            {/* Customer Appointments Modal */}
+            {selectedClient && hasClientId && (
+                <CustomerAppointmentsModal
+                    open={isCustomerAppointmentsModalOpen}
+                    onOpenChange={setIsCustomerAppointmentsModalOpen}
                     customerId={clientId}
                     customerName={selectedClient.name}
                 />

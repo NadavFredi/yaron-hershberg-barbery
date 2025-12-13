@@ -32,6 +32,7 @@ import { useManagerRole } from "./hooks/useManagerRole"
 import FloatingWhatsAppButton from "./components/FloatingWhatsAppButton"
 import ProposedMeetingPage from "./pages/ProposedMeetingPage"
 import PaymentPage from "./pages/PaymentPage"
+import { useDevMode } from "./hooks/useDevMode"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,7 @@ const AppContent = () => {
   const { isManager } = useManagerRole()
   const location = useLocation()
   const { isOnManagerBoard, isNavbarPinned, isNavbarVisible } = useAppSelector((state) => state.navbar)
+  useDevMode() // Global keyboard listener for dev mode
 
   // Manager routes don't need padding (they have their own spacing)
   const isManagerRoute = location.pathname.startsWith("/manager")
