@@ -112,9 +112,9 @@ export function AddContactDialog({ open, onOpenChange, customerId, onSuccess }: 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[425px]" dir="rtl">
-                <DialogHeader>
-                    <DialogTitle>הוסף איש קשר חדש</DialogTitle>
-                    <DialogDescription>
+                <DialogHeader className="text-right">
+                    <DialogTitle className="text-right">הוסף איש קשר חדש</DialogTitle>
+                    <DialogDescription className="text-right">
                         הוסף איש קשר נוסף ללקוח זה
                     </DialogDescription>
                 </DialogHeader>
@@ -144,7 +144,7 @@ export function AddContactDialog({ open, onOpenChange, customerId, onSuccess }: 
                         />
                     </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-start sm:space-x-2 sm:space-x-reverse">
                     <Button
                         variant="outline"
                         onClick={() => onOpenChange(false)}
