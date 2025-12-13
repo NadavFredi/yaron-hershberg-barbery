@@ -226,11 +226,6 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                   <CardContent className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        גזע: {dog.breed}
-                      </label>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         הערות ורגישויות לגבי {dog.name}:
                       </label>
                       <Textarea

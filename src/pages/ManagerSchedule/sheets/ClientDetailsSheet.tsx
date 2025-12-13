@@ -720,17 +720,6 @@ export const ClientDetailsSheet = ({
                                                     >
                                                         {dog.name}
                                                     </button>
-                                                    {dog.breed ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                navigate(`/settings?mode=breeds&search=${encodeURIComponent(dog.breed || "")}`)
-                                                            }}
-                                                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                                                        >
-                                                            {dog.breed}
-                                                        </button>
-                                                    ) : null}
                                                 </div>
                                                 <div className="mt-1 flex items-center justify-between">
                                                     <div className="text-xs text-gray-600">

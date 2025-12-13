@@ -174,7 +174,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 }],
                 // Store metadata for saving as cart_item
                 _isTempGroomingProduct: true,
-                _tempItemName: data.dogName ? `מספרה: ${data.dogName} (${data.breed})` : `מספרה: ${data.breed}`,
+                _tempItemName: `מספרה: ${data.dogName}`,
             } as any,
         }
 

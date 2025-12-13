@@ -1,6 +1,6 @@
 # Redux Toolkit & RTK Query Setup
 
-This document explains how Redux Toolkit and RTK Query have been implemented in the WagTime Appointment Scheduler application to improve performance and avoid redundant API calls.
+This document explains how Redux Toolkit and RTK Query have been implemented in the Yaron Hershberg Appointment Scheduler application to improve performance and avoid redundant API calls.
 
 ## 🚀 What's Been Implemented
 

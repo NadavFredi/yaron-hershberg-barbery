@@ -158,7 +158,7 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
                             // Allow numbers and decimal point
                             // Remove any characters that aren't digits or decimal point
                             let numericValue = value.replace(/[^0-9.]/g, '')
-                            
+
                             // Ensure only one decimal point
                             const parts = numericValue.split('.')
                             if (parts.length > 2) {
@@ -198,55 +198,6 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
                 </div>
             </div>
 
-            {/* Breed Price Range Info - only show for grooming */}
-            {appointment?.serviceType === 'grooming' && breedPriceInfo && !isLoadingBreedPrices && (
-                <div className="mt-2 pt-2 border-t border-blue-200">
-                    <div className="flex items-center flex-wrap gap-1.5 text-xs text-gray-600">
-                        <Info className="h-3 w-3 flex-shrink-0" />
-                        <span>מידע מחירים לגזע:</span>
-                        {breedPriceInfo.breedName && (
-                            <button
-                                onClick={handleBreedClick}
-                                className="font-semibold text-blue-700 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
-                                title="לחץ כדי לראות פרטי הגזע"
-                            >
-                                {breedPriceInfo.breedName}
-                            </button>
-                        )}
-                        {breedPriceInfo.minPrice && (
-                            <>
-                                <span className="text-gray-300 mx-0.5">•</span>
-                                <span className="text-gray-600">
-                                    מינ': <span className="font-semibold text-green-700">₪{breedPriceInfo.minPrice}</span>
-                                </span>
-                            </>
-                        )}
-                        {breedPriceInfo.maxPrice && (
-                            <>
-                                <span className="text-gray-300 mx-0.5">•</span>
-                                <span className="text-gray-600">
-                                    מקס': <span className="font-semibold text-green-700">₪{breedPriceInfo.maxPrice}</span>
-                                </span>
-                            </>
-                        )}
-                        {breedPriceInfo.hourlyPrice && (
-                            <>
-                                <span className="text-gray-300 mx-0.5">•</span>
-                                <span className="text-gray-600">
-                                    שעתי: <span className="font-semibold text-blue-700">₪{breedPriceInfo.hourlyPrice}</span>
-                                </span>
-                            </>
-                        )}
-                    </div>
-                    {breedPriceInfo.notes && (
-                        <div className="mt-1 pt-1 border-t border-blue-200/50">
-                            <div className="text-xs text-gray-600">
-                                <span className="text-gray-500">הערות:</span> <span className="text-gray-700">{breedPriceInfo.notes}</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
         </div>
     )
 }

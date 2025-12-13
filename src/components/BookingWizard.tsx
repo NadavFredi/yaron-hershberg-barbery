@@ -12,19 +12,17 @@ import { he } from 'date-fns/locale';
 import { CalendarIcon, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BookingStep } from '@/types';
-import { breeds, services, timeMatrix, adminAvailability, appointments, stations } from '@/data/mockData';
+import { services, timeMatrix, adminAvailability, appointments, stations } from '@/data/mockData';
 import { toast } from '@/hooks/use-toast';
 
 const BookingWizard = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingStep>({
     serviceId: '',
-    breedId: '',
   });
   const [availableSlots, setAvailableSlots] = useState<{ time: string; stationId: string }[]>([]);
 
   const selectedService = services.find(s => s.id === bookingData.serviceId);
-  const selectedBreed = breeds.find(b => b.id === bookingData.breedId);
 
   const calculateAvailableSlots = (date: Date) => {
     const dayOfWeek = date.getDay() === 0 ? 7 : date.getDay(); // Convert Sunday=0 to Sunday=7
@@ -32,9 +30,9 @@ const BookingWizard = () => {
 
     if (!availability) return [];
 
-    // Get possible durations for this service+breed combination
+    // Get possible durations for this service
     const possibleTimes = timeMatrix.filter(tm =>
-      tm.serviceId === bookingData.serviceId && tm.breedId === bookingData.breedId
+      tm.serviceId === bookingData.serviceId
     );
 
     const slots: { time: string; stationId: string }[] = [];
@@ -68,11 +66,11 @@ const BookingWizard = () => {
     return slots.sort((a, b) => a.time.localeCompare(b.time));
   };
 
-  const handleServiceBreedNext = () => {
-    if (!bookingData.serviceId || !bookingData.breedId) {
+  const handleServiceNext = () => {
+    if (!bookingData.serviceId) {
       toast({
         title: "שגיאה",
-        description: "אנא בחר שירות וגזע לקוח",
+        description: "אנא בחר שירות",
         variant: "destructive"
       });
       return;
@@ -134,7 +132,7 @@ const BookingWizard = () => {
       {currentStep === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-2xl">בחירת שירות וגזע הלקוח</CardTitle>
+            <CardTitle className="text-center text-2xl">בחירת שירות</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
@@ -153,23 +151,7 @@ const BookingWizard = () => {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>איזה גזע לקוח יש לך?</Label>
-              <Select value={bookingData.breedId} onValueChange={(value) => setBookingData({ ...bookingData, breedId: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="בחר גזע" />
-                </SelectTrigger>
-                <SelectContent>
-                  {breeds.map(breed => (
-                    <SelectItem key={breed.id} value={breed.id}>
-                      {breed.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button onClick={handleServiceBreedNext} className="w-full">
+            <Button onClick={handleServiceNext} className="w-full">
               המשך לבחירת תאריך ושעה
             </Button>
           </CardContent>
@@ -181,7 +163,7 @@ const BookingWizard = () => {
           <CardHeader>
             <CardTitle className="text-center text-2xl">בחירת תאריך ושעה</CardTitle>
             <p className="text-center text-muted-foreground">
-              {selectedService?.name} עבור {selectedBreed?.name}
+              {selectedService?.name}
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -259,7 +241,7 @@ const BookingWizard = () => {
           <CardHeader>
             <CardTitle className="text-center text-2xl">פרטים אישיים</CardTitle>
             <p className="text-center text-muted-foreground">
-              {selectedService?.name} • {selectedBreed?.name}<br />
+              {selectedService?.name}<br />
               {bookingData.selectedDate && format(bookingData.selectedDate, "PPP", { locale: he })} בשעה {bookingData.selectedTime}
             </p>
           </CardHeader>
@@ -320,7 +302,7 @@ const BookingWizard = () => {
             <div className="space-y-2">
               <p className="text-lg font-semibold">התור של {bookingData.dogName} נקבע</p>
               <p className="text-muted-foreground">
-                {selectedService?.name} • {selectedBreed?.name}<br />
+                {selectedService?.name}<br />
                 {bookingData.selectedDate && format(bookingData.selectedDate, "PPP", { locale: he })} בשעה {bookingData.selectedTime}
               </p>
             </div>
@@ -330,7 +312,7 @@ const BookingWizard = () => {
             <Button
               onClick={() => {
                 setCurrentStep(1);
-                setBookingData({ serviceId: '', breedId: '' });
+                setBookingData({ serviceId: '' });
                 setAvailableSlots([]);
               }}
               className="w-full"

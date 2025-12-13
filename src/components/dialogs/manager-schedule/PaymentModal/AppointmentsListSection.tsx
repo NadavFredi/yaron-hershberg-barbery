@@ -193,12 +193,7 @@ export const AppointmentsListSection: React.FC<AppointmentsListSectionProps> = (
                                                         </Badge>
                                                         {appointment.dogs && appointment.dogs.length > 0 && (
                                                             <span className="text-sm font-medium text-gray-900">
-                                                                {appointment.dogs.map(d => {
-                                                                    const nameWithBreed = d.breed
-                                                                        ? `${d.name} (${d.breed})`
-                                                                        : d.name
-                                                                    return nameWithBreed
-                                                                }).join(', ')}
+                                                                {appointment.dogs.map(d => d.name).join(', ')}
                                                             </span>
                                                         )}
                                                     </div>

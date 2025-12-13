@@ -71,7 +71,6 @@ export function PinnedAppointmentsColumn({
         const matchesSearch =
           appointment.dogs.some((dog) => dog.name?.toLowerCase().includes(term)) ||
           appointment.clientName?.toLowerCase().includes(term) ||
-          appointment.dogs.some((dog) => dog.breed?.toLowerCase().includes(term)) ||
           appointment.clientPhone?.includes(term)
 
         if (!matchesSearch) return false
@@ -132,7 +131,7 @@ export function PinnedAppointmentsColumn({
               <Input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="חיפוש לפי שם לקוח, גזע או טלפון"
+                placeholder="חיפוש לפי שם לקוח או טלפון"
                 className="pr-9 text-sm"
               />
               <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />

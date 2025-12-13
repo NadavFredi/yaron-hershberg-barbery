@@ -83,7 +83,7 @@ const generateGoogleCalendarLink = (appointment: CombinedAppointment) => {
         text: title,
         dates: `${formattedStart}/${formattedEnd}`,
         details,
-        location: 'WagTime - מרכז טיפוח לקוחות',
+        location: 'ירון הרשברג - מספרה יוצאת דופן',
         trp: 'false',
     })
 

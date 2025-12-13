@@ -1355,11 +1355,6 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                 >
                   {dogName}
                 </button>
-                {breedName && (
-                  <Badge variant="outline" className="text-[10px] font-medium border-slate-200 bg-white/80 text-gray-700">
-                    {breedName}
-                  </Badge>
-                )}
                 {crossServiceIndicator && (
                   <Badge variant="outline" className="text-[10px] font-medium border-slate-200 bg-white/80 text-gray-700">
                     {crossServiceIndicator}
