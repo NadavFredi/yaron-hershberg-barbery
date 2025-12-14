@@ -113,6 +113,7 @@ async function fetchStations(serviceId: string) {
       base_time_minutes,
       remote_booking_allowed,
       requires_staff_approval,
+      is_active,
       stations:station_id (
         id,
         name,
@@ -123,7 +124,6 @@ async function fetchStations(serviceId: string) {
     `
     )
     .eq("service_id", serviceId)
-    .eq("is_active", true)
 
   if (error) {
     console.error(`[get-available-times] Failed to load station matrix for service ${serviceId}:`, error.message)
@@ -142,6 +142,8 @@ async function fetchStations(serviceId: string) {
     station_id: string
     base_time_minutes: number | null
     remote_booking_allowed: boolean | null
+    requires_staff_approval: boolean | null
+    is_active: boolean | null
     stations: StationData[] | null
   }
 
@@ -149,9 +151,10 @@ async function fetchStations(serviceId: string) {
     (data as unknown as StationRow[] | null)?.filter((row) => {
       // Supabase returns the relation as an array, take the first element
       const station = row.stations?.[0]
-      const stationActive = station?.is_active !== false
+      const matrixEntryActive = row.is_active !== false // Matrix entry must be active (default true)
+      const stationActive = station?.is_active !== false // Station must be active
       const remoteBookingAllowed = row.remote_booking_allowed === true // Explicitly require true
-      return stationActive && remoteBookingAllowed
+      return matrixEntryActive && stationActive && remoteBookingAllowed
     }) ?? []
 
   console.log(
@@ -196,7 +199,7 @@ async function fetchWorkingHours(stationIds: string[]) {
 async function fetchAppointments(stationIds: string[], startDate: Date, endDate: Date) {
   if (stationIds.length === 0) return []
   const { data, error } = await supabase
-    .from("appointments")
+    .from("grooming_appointments")
     .select("id, station_id, start_at, end_at, status")
     .in("station_id", stationIds)
     .gte("start_at", startDate.toISOString())

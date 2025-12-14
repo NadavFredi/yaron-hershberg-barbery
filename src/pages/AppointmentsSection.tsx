@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type MouseEvent } from "react"
 import { useSearchParams } from "react-router-dom"
 import { addDays, endOfDay, format, startOfDay, subDays } from "date-fns"
-import { Loader2, RefreshCw, Search, MoreHorizontal, CalendarClock, CheckCircle2, XCircle, Calendar as CalendarIcon } from "lucide-react"
+import { Loader2, RefreshCw, Search, MoreHorizontal, CalendarClock, CheckCircle2, XCircle, X } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import type { ManagerAppointment } from "./ManagerSchedule/types"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import type { DateRange } from "react-day-picker"
-
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,8 +23,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
+import { DatePickerInput } from "@/components/DatePickerInput"
 import { AppointmentDetailsSheet, ClientDetailsSheet } from "@/pages/ManagerSchedule/sheets"
 import { useAppDispatch } from "@/store/hooks"
 import { setSelectedClient, setIsClientDetailsOpen, type ClientDetails } from "@/store/slices/managerScheduleSlice"
@@ -167,14 +164,12 @@ export default function AppointmentsSection() {
     const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("all")
     const [statusFilter, setStatusFilter] = useState<AppointmentStatus | "all">("all")
     const [searchTerm, setSearchTerm] = useState("")
-    const initialStartDate = useMemo(() => subDays(new Date(), 3), [])
-    const initialEndDate = useMemo(() => addDays(new Date(), 14), [])
+    const [activeSearchTerm, setActiveSearchTerm] = useState("") // The search term actually used for filtering
+    // Default to 1 month back from now
+    const initialStartDate = useMemo(() => subDays(new Date(), 30), [])
+    const initialEndDate = useMemo(() => new Date(), [])
     const [startDate, setStartDate] = useState<Date | null>(initialStartDate)
     const [endDate, setEndDate] = useState<Date | null>(initialEndDate)
-    const [dateRange, setDateRange] = useState<DateRange | undefined>({
-        from: initialStartDate,
-        to: initialEndDate,
-    })
     const [showOnlyFuture, setShowOnlyFuture] = useState(true)
     const [rowActionLoading, setRowActionLoading] = useState<string | null>(null)
     const [selectedAppointment, setSelectedAppointment] = useState<EnrichedAppointment | null>(null)
@@ -216,11 +211,12 @@ export default function AppointmentsSection() {
         }
     }, [searchParams])
 
+    // Validate that from date is always less than to date
     useEffect(() => {
-        setDateRange({
-            from: startDate ?? undefined,
-            to: endDate ?? undefined,
-        })
+        if (startDate && endDate && startDate > endDate) {
+            // If from is greater than to, adjust to date to be after from date
+            setEndDate(addDays(startDate, 1))
+        }
     }, [startDate, endDate])
 
     const fetchFilterOptions = useCallback(async () => {
@@ -363,7 +359,7 @@ export default function AppointmentsSection() {
     }, [fetchAppointments])
 
     const filteredAppointments = useMemo(() => {
-        const normalized = searchTerm.trim().toLowerCase()
+        const normalized = activeSearchTerm.trim().toLowerCase()
         const todayStart = startOfDay(new Date())
 
         return appointments.filter((appointment) => {
@@ -457,20 +453,18 @@ export default function AppointmentsSection() {
         fetchAppointments()
     }
 
-    const handleRangeSelect = (range: DateRange | undefined) => {
-        setDateRange(range)
-        setStartDate(range?.from ?? null)
-        setEndDate(range?.to ?? range?.from ?? null)
+    // Function to trigger search manually (called on Enter or Search button click)
+    const triggerSearch = () => {
+        setActiveSearchTerm(searchTerm)
     }
 
-    const dateRangeLabel = useMemo(() => {
-        if (!dateRange?.from && !dateRange?.to) {
-            return "בחר טווח תאריכים"
+    // Handle Enter key in search input
+    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            triggerSearch()
         }
-        const fromLabel = dateRange?.from ? format(dateRange.from, "dd/MM/yyyy") : ""
-        const toLabel = dateRange?.to ? format(dateRange.to, "dd/MM/yyyy") : fromLabel
-        return fromLabel === toLabel ? fromLabel : `${fromLabel} - ${toLabel}`
-    }, [dateRange])
+    }
 
     const handleToggleStatusCard = (targetStatus: AppointmentStatus) => {
         setStatusFilter((prev) => (prev === targetStatus ? "all" : targetStatus))
@@ -489,17 +483,16 @@ export default function AppointmentsSection() {
         setServiceFilter("all")
         setStatusFilter("all")
         setSearchTerm("")
+        setActiveSearchTerm("")
         const resetStart = new Date(initialStartDate)
         const resetEnd = new Date(initialEndDate)
         setStartDate(resetStart)
         setEndDate(resetEnd)
-        setDateRange({
-            from: resetStart,
-            to: resetEnd,
-        })
         setShowOnlyFuture(true)
         setCustomerCategoryFilter("all")
         setSelectedStationIds([])
+        // Trigger search after clearing
+        triggerSearch()
     }
 
     const buildClientDetailsFromAppointment = (appointment: EnrichedAppointment): ClientDetails => ({
@@ -761,46 +754,85 @@ export default function AppointmentsSection() {
                                 </Select>
                             </div>
 
-                            <div className="space-y-2 md:col-span-2">
-                                <Label htmlFor="date-range">טווח תאריכים</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            id="date-range"
-                                            variant="outline"
-                                            className="w-full justify-between border-slate-300 text-right font-normal"
-                                        >
-                                            <span>{dateRangeLabel}</span>
-                                            <CalendarIcon className="h-4 w-4" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            initialFocus
-                                            mode="range"
-                                            numberOfMonths={2}
-                                            dir="rtl"
-                                            selected={dateRange}
-                                            onSelect={handleRangeSelect}
-                                            defaultMonth={dateRange?.from ?? new Date()}
-                                        />
-                                    </PopoverContent>
-                                </Popover>
+                            <div className="space-y-2">
+                                <Label htmlFor="date-from">מתאריך</Label>
+                                <DatePickerInput
+                                    value={startDate}
+                                    onChange={(date) => {
+                                        if (date) {
+                                            setStartDate(date)
+                                            // Ensure to date is after from date
+                                            if (endDate && date > endDate) {
+                                                setEndDate(addDays(date, 1))
+                                            }
+                                        } else {
+                                            setStartDate(null)
+                                        }
+                                    }}
+                                    placeholder="בחר תאריך התחלה"
+                                    wrapperClassName="w-full"
+                                    displayFormat="dd/MM/yyyy"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="date-to">עד תאריך</Label>
+                                <DatePickerInput
+                                    value={endDate}
+                                    onChange={(date) => {
+                                        if (date) {
+                                            // Ensure to date is after from date
+                                            if (startDate && date < startDate) {
+                                                setEndDate(addDays(startDate, 1))
+                                            } else {
+                                                setEndDate(date)
+                                            }
+                                        } else {
+                                            setEndDate(null)
+                                        }
+                                    }}
+                                    placeholder="בחר תאריך סיום"
+                                    wrapperClassName="w-full"
+                                    displayFormat="dd/MM/yyyy"
+                                />
                             </div>
                         </div>
 
                         <div className="grid gap-4 md:grid-cols-[1fr,auto] items-end">
                             <div className="space-y-2">
                                 <Label htmlFor="search">חיפוש</Label>
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                                    <Input
-                                        id="search"
-                                        value={searchTerm}
-                                        onChange={(event) => setSearchTerm(event.target.value)}
-                                        placeholder="חיפוש לפי לקוח, תחנה או הערות"
-                                        className="pl-10"
-                                    />
+                                <div className="flex items-center gap-2">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                        <Input
+                                            id="search"
+                                            value={searchTerm}
+                                            onChange={(event) => setSearchTerm(event.target.value)}
+                                            onKeyDown={handleSearchKeyDown}
+                                            placeholder="חיפוש לפי לקוח, תחנה או הערות"
+                                            className="pl-10"
+                                        />
+                                    </div>
+                                    {searchTerm && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-10 w-10"
+                                            onClick={() => {
+                                                setSearchTerm("")
+                                                setActiveSearchTerm("")
+                                            }}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-10 w-10"
+                                        onClick={triggerSearch}
+                                    >
+                                        <Search className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             </div>
 

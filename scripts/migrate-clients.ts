@@ -41,6 +41,7 @@ function formatError(error: unknown): string {
 /**
  * Convert Excel date serial number to ISO date string (YYYY-MM-DD)
  * Excel epoch is 1900-01-01 = 25569 days since Unix epoch (1970-01-01)
+ * Uses UTC methods to avoid timezone shifts
  */
 function excelDateToISO(excelSerial: number | null | undefined): string | null {
   if (!excelSerial || isNaN(excelSerial)) {
@@ -54,13 +55,13 @@ function excelDateToISO(excelSerial: number | null | undefined): string | null {
 
     // Excel incorrectly treats 1900 as a leap year, so subtract 1 day for dates after Feb 28, 1900
     if (excelSerial > 59) {
-      jsDate.setDate(jsDate.getDate() - 1)
+      jsDate.setUTCDate(jsDate.getUTCDate() - 1) // Use UTC methods
     }
 
-    // Return ISO date string (YYYY-MM-DD)
-    const year = jsDate.getFullYear()
-    const month = String(jsDate.getMonth() + 1).padStart(2, "0")
-    const day = String(jsDate.getDate()).padStart(2, "0")
+    // Return ISO date string (YYYY-MM-DD) using UTC methods to avoid timezone shifts
+    const year = jsDate.getUTCFullYear()
+    const month = String(jsDate.getUTCMonth() + 1).padStart(2, "0")
+    const day = String(jsDate.getUTCDate()).padStart(2, "0")
     return `${year}-${month}-${day}`
   } catch (_e) {
     console.warn(`⚠️  Failed to convert Excel date ${excelSerial}`)
@@ -527,13 +528,18 @@ async function processTreatmentBatch(
         }
       }
 
-      // Parse treatment date (YYYY-MM-DD format) - parse as local date to avoid timezone shifts
-      let treatmentDate: Date
+      // Parse treatment date (YYYY-MM-DD format) - use UTC to avoid timezone shifts
+      let startAt: Date
+      let endAt: Date
       try {
-        // Parse YYYY-MM-DD string and create date in local timezone
+        // Parse YYYY-MM-DD string and create date at UTC midnight to avoid timezone shifts
         const [year, month, day] = treatment.treatment_date.split("-").map(Number)
-        treatmentDate = new Date(year, month - 1, day) // month is 0-indexed
-        if (isNaN(treatmentDate.getTime())) {
+
+        // Create date at UTC midnight, then set to 10:00 AM UTC (this preserves the correct date)
+        startAt = new Date(Date.UTC(year, month - 1, day, 10, 0, 0, 0)) // month is 0-indexed
+        endAt = new Date(Date.UTC(year, month - 1, day, 11, 0, 0, 0)) // 1 hour later
+
+        if (isNaN(startAt.getTime()) || isNaN(endAt.getTime())) {
           throw new Error("Invalid date")
         }
       } catch (_e) {
@@ -542,12 +548,6 @@ async function processTreatmentBatch(
         )
         continue
       }
-
-      // Set appointment times (use date at 10:00 AM local time, duration 1 hour)
-      const startAt = new Date(treatmentDate)
-      startAt.setHours(10, 0, 0, 0)
-      const endAt = new Date(startAt)
-      endAt.setHours(startAt.getHours() + 1)
 
       const STATION_ID = "e9b1d67c-ac32-4d6a-acbd-8efe31e73186"
 
@@ -566,7 +566,7 @@ async function processTreatmentBatch(
         start_at: startAt.toISOString(),
         end_at: endAt.toISOString(),
         amount_due: treatment.price ?? null, // Use null if price is null, otherwise use value (can be 0)
-        created_at: startAt.toISOString(), // Use startAt to ensure consistent date
+        created_at: startAt.toISOString(), // Already in UTC, will preserve date correctly
       }
 
       if (workerId) {

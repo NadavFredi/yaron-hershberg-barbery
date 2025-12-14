@@ -45,13 +45,13 @@ export function useProtectedScreenPassword() {
         .select("is_protected")
         .eq("manager_id", user.id)
         .eq("screen_id", currentScreenId)
-        .single()
+        .maybeSingle()
 
-      if (error && error.code !== "PGRST116") {
-        // PGRST116 is "not found" which is fine
+      if (error) {
         console.error("Error checking protected screen:", error)
         setIsProtected(false)
       } else {
+        // If no row found (data is null), screen is not protected
         setIsProtected(data?.is_protected || false)
       }
     } catch (error) {
