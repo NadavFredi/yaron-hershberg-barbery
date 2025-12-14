@@ -1,6 +1,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { compare, hash } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts"
+
+// Simple password hashing using Web Crypto API (works in Deno edge runtime)
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const passwordData = encoder.encode(password)
+  const salt = encoder.encode("protected-screen-salt-v1")
+
+  const keyMaterial = await crypto.subtle.importKey("raw", passwordData, "PBKDF2", false, ["deriveBits", "deriveKey"])
+
+  // Derive bits instead of key, then we can hash it
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: salt,
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    256 // 256 bits = 32 bytes
+  )
+
+  // Hash the derived bits to get a fixed-length output
+  const hashBuffer = await crypto.subtle.digest("SHA-256", derivedBits)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
+}
+
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  const passwordHash = await hashPassword(password)
+  return passwordHash === hash
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -91,55 +121,83 @@ serve(async (req) => {
         })
       }
 
-      const passwordHash = await hash(password)
+      try {
+        const passwordHash = await hashPassword(password)
 
-      // Upsert password hash
-      const { error: upsertError } = await supabase.from("manager_protected_screen_passwords").upsert(
-        {
-          manager_id: user.id,
-          password_hash: passwordHash,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "manager_id" }
-      )
+        // Upsert password hash
+        const { error: upsertError } = await supabase.from("manager_protected_screen_passwords").upsert(
+          {
+            manager_id: user.id,
+            password_hash: passwordHash,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "manager_id" }
+        )
 
-      if (upsertError) {
-        console.error("Error setting password:", upsertError)
-        return new Response(JSON.stringify({ error: "Failed to set password" }), {
-          status: 500,
+        if (upsertError) {
+          console.error("Error setting password:", upsertError)
+          return new Response(JSON.stringify({ error: "Failed to set password", details: upsertError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          })
+        }
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         })
+      } catch (hashError) {
+        console.error("Error hashing password:", hashError)
+        return new Response(
+          JSON.stringify({
+            error: "Failed to hash password",
+            details: hashError instanceof Error ? hashError.message : String(hashError),
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        )
       }
-
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      })
     }
 
     if (body.action === "verify_password") {
       const { password } = body as VerifyPasswordRequest
 
-      // Get stored password hash
-      const { data: passwordData, error: passwordError } = await supabase
-        .from("manager_protected_screen_passwords")
-        .select("password_hash")
-        .eq("manager_id", user.id)
-        .single()
+      try {
+        // Get stored password hash
+        const { data: passwordData, error: passwordError } = await supabase
+          .from("manager_protected_screen_passwords")
+          .select("password_hash")
+          .eq("manager_id", user.id)
+          .single()
 
-      if (passwordError || !passwordData) {
-        return new Response(JSON.stringify({ error: "No password set" }), {
-          status: 404,
+        if (passwordError || !passwordData) {
+          return new Response(JSON.stringify({ error: "No password set" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          })
+        }
+
+        const isValid = await verifyPassword(password, passwordData.password_hash)
+
+        return new Response(JSON.stringify({ valid: isValid }), {
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         })
+      } catch (compareError) {
+        console.error("Error comparing password:", compareError)
+        return new Response(
+          JSON.stringify({
+            error: "Failed to verify password",
+            details: compareError instanceof Error ? compareError.message : String(compareError),
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        )
       }
-
-      const isValid = await compare(password, passwordData.password_hash)
-
-      return new Response(JSON.stringify({ valid: isValid }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      })
     }
 
     if (body.action === "update_protected_screens") {
@@ -189,12 +247,9 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error in manage-protected-screens:", error)
     const errorMessage = error instanceof Error ? error.message : String(error)
-    return new Response(
-      JSON.stringify({ error: "Internal server error", details: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    )
+    return new Response(JSON.stringify({ error: "Internal server error", details: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    })
   }
 })

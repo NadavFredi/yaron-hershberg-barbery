@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Loader2, Save, Lock, LockOpen, Eye, EyeOff, ChevronDown } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
@@ -388,20 +388,20 @@ export function SettingsProtectedScreensSection() {
                       {screens.map((screen) => (
                         <div
                           key={screen.id}
-                          className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-md hover:bg-white transition-colors group bg-white/50"
+                          className="flex items-center gap-3 py-2.5 px-3 rounded-md hover:bg-white transition-colors group bg-white/50"
                         >
+                          <Checkbox
+                            id={`screen-${screen.id}`}
+                            checked={protectedScreens[screen.id] || false}
+                            onCheckedChange={() => handleToggleScreen(screen.id)}
+                            disabled={!hasPassword}
+                          />
                           <Label
                             htmlFor={`screen-${screen.id}`}
                             className="cursor-pointer text-sm font-medium text-gray-700 flex-1 group-hover:text-gray-900"
                           >
                             {screen.label}
                           </Label>
-                          <Switch
-                            id={`screen-${screen.id}`}
-                            checked={protectedScreens[screen.id] || false}
-                            onCheckedChange={() => handleToggleScreen(screen.id)}
-                            disabled={!hasPassword}
-                          />
                         </div>
                       ))}
                     </div>
