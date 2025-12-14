@@ -94,7 +94,7 @@ function SmallCalendar({
     return (
         <DayPicker
             showOutsideDays={showOutsideDays}
-            className={cn("p-2", className)}
+            className={cn("p-3", className)}
             dir="rtl"
             locale={he}
             month={currentMonth}

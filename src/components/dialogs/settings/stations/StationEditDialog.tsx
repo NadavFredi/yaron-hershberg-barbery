@@ -1,30 +1,29 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Trash2, Loader2, Save, Check, ChevronDown, X } from "lucide-react"
+import { Plus, Trash2, Loader2, Save } from "lucide-react"
 import { TimePickerInput } from "@/components/TimePickerInput"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
-import { useAppDispatch } from "@/store/hooks"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { supabaseApi } from "@/store/services/supabaseApi"
-import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
-import { Badge } from "@/components/ui/badge"
+import { CustomerTypeMultiSelect, type CustomerTypeOption } from "@/components/customer-types/CustomerTypeMultiSelect"
+import { useCreateCustomerType } from "@/hooks/useCreateCustomerType"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Shield, X } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { ShiftRestrictionsPopover } from "./ShiftRestrictionsPopover"
 
 interface Station {
     id: string
     name: string
     is_active: boolean
     slot_interval_minutes?: number
-}
-
-interface CustomerTypeOption {
-    id: string
-    name: string
 }
 
 interface StationWorkingHour {
@@ -34,6 +33,8 @@ interface StationWorkingHour {
     open_time: string
     close_time: string
     shift_order: number
+    allowedCustomerTypeIds?: string[]
+    blockedCustomerTypeIds?: string[]
 }
 
 interface DayShifts {
@@ -56,6 +57,7 @@ interface StationEditDialogProps {
     onOpenChange: (open: boolean) => void
     station: Station | null
     onSaved: () => Promise<void>
+    autoFilterByCurrentDay?: boolean // If true, auto-filter by current day when opened from manager dashboard
 }
 
 const fetchStationWorkingHours = async (stationId: string): Promise<StationWorkingHour[]> => {
@@ -68,11 +70,61 @@ const fetchStationWorkingHours = async (stationId: string): Promise<StationWorki
             .order("shift_order")
 
         if (error) throw error
-        return (data || []).map((h) => ({
+
+        const shifts = (data || []).map((h) => ({
             ...h,
             open_time: h.open_time?.substring(0, 5) || "",
             close_time: h.close_time?.substring(0, 5) || "",
+            allowedCustomerTypeIds: [] as string[],
+            blockedCustomerTypeIds: [] as string[],
         }))
+
+        // Fetch shift restrictions
+        if (shifts.length > 0) {
+            const shiftIds = shifts.map((s) => s.id).filter((id): id is string => Boolean(id))
+
+            if (shiftIds.length > 0) {
+                // Fetch allowed customer type restrictions
+                const { data: customerTypeRestrictions } = await supabase
+                    .from("shift_allowed_customer_types")
+                    .select("shift_id, customer_type_id")
+                    .in("shift_id", shiftIds)
+
+                // Fetch blocked customer type restrictions
+                const { data: blockedCustomerTypeRestrictions } = await supabase
+                    .from("shift_blocked_customer_types")
+                    .select("shift_id, customer_type_id")
+                    .in("shift_id", shiftIds)
+
+                // Group restrictions by shift_id
+                const customerTypeMap = new Map<string, string[]>()
+                const blockedCustomerTypeMap = new Map<string, string[]>()
+
+                customerTypeRestrictions?.forEach((r) => {
+                    if (r.shift_id) {
+                        const existing = customerTypeMap.get(r.shift_id) || []
+                        customerTypeMap.set(r.shift_id, [...existing, r.customer_type_id])
+                    }
+                })
+
+                blockedCustomerTypeRestrictions?.forEach((r) => {
+                    if (r.shift_id) {
+                        const existing = blockedCustomerTypeMap.get(r.shift_id) || []
+                        blockedCustomerTypeMap.set(r.shift_id, [...existing, r.customer_type_id])
+                    }
+                })
+
+                // Apply restrictions to shifts
+                shifts.forEach((shift) => {
+                    if (shift.id) {
+                        shift.allowedCustomerTypeIds = customerTypeMap.get(shift.id) || []
+                        shift.blockedCustomerTypeIds = blockedCustomerTypeMap.get(shift.id) || []
+                    }
+                })
+            }
+        }
+
+        return shifts
     } catch (error) {
         console.error("Error fetching station working hours:", error)
         return []
@@ -104,160 +156,19 @@ const processHoursData = (existingHours: StationWorkingHour[]): DayShifts[] => {
     return sortedDays
 }
 
-interface CustomerTypeMultiSelectProps {
-    options: CustomerTypeOption[]
-    selectedIds: string[]
-    onSelectionChange: (ids: string[]) => void
-    placeholder?: string
-    isLoading?: boolean
+// Helper function to convert date to weekday
+const getWeekdayFromDate = (dateString: string): string => {
+    const date = new Date(dateString)
+    const dayOfWeek = date.getDay() // 0 = Sunday, 1 = Monday, etc.
+    return WEEKDAYS[dayOfWeek]?.value || "sunday"
 }
 
-function CustomerTypeMultiSelect({
-    options,
-    selectedIds,
-    onSelectionChange,
-    placeholder = "בחר סוגי לקוחות...",
-    isLoading = false,
-}: CustomerTypeMultiSelectProps) {
-    const [open, setOpen] = useState(false)
-    const [searchTerm, setSearchTerm] = useState("")
-
-    const selectedOptions = useMemo(
-        () => options.filter((option) => selectedIds.includes(option.id)),
-        [options, selectedIds]
-    )
-
-    const filteredOptions = useMemo(() => {
-        const normalized = searchTerm.trim().toLowerCase()
-        if (!normalized) return options
-        return options.filter((option) => option.name.toLowerCase().includes(normalized))
-    }, [options, searchTerm])
-
-    const handleToggle = (id: string) => {
-        if (selectedIds.includes(id)) {
-            onSelectionChange(selectedIds.filter((optionId) => optionId !== id))
-        } else {
-            onSelectionChange([...selectedIds, id])
-        }
-    }
-
-    const handleClear = () => {
-        onSelectionChange([])
-        setSearchTerm("")
-    }
-
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverAnchor asChild>
-                <div
-                    className={cn(
-                        "relative flex min-h-11 w-full flex-wrap items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
-                        "cursor-text"
-                    )}
-                    onClick={() => setOpen(true)}
-                    dir="rtl"
-                >
-                    {selectedOptions.length > 0 ? (
-                        <div className="flex flex-wrap gap-2 flex-1">
-                            {selectedOptions.map((option) => (
-                                <Badge
-                                    key={option.id}
-                                    variant="secondary"
-                                    className="flex items-center gap-1 text-xs h-7 px-2 cursor-pointer"
-                                    onClick={(event) => {
-                                        event.stopPropagation()
-                                        handleToggle(option.id)
-                                    }}
-                                >
-                                    <span>{option.name}</span>
-                                    <X className="h-3 w-3 hover:text-destructive" />
-                                </Badge>
-                            ))}
-                            <input
-                                className="flex-1 min-w-[120px] border-0 bg-transparent text-right outline-none"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                onFocus={() => setOpen(true)}
-                                placeholder={selectedOptions.length === 0 ? placeholder : ""}
-                                dir="rtl"
-                            />
-                        </div>
-                    ) : (
-                        <input
-                            className="flex-1 border-0 bg-transparent text-right outline-none placeholder:text-muted-foreground"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            onFocus={() => setOpen(true)}
-                            placeholder={placeholder}
-                            dir="rtl"
-                        />
-                    )}
-
-                    <div className="flex items-center gap-2 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2">
-                        {selectedOptions.length > 0 && (
-                            <button
-                                type="button"
-                                onMouseDown={(event) => {
-                                    event.preventDefault()
-                                    event.stopPropagation()
-                                    handleClear()
-                                }}
-                                className="rounded p-1 hover:bg-red-50 hover:text-red-500"
-                                title="נקה בחירה"
-                            >
-                                <X className="h-3 w-3" />
-                            </button>
-                        )}
-                        <ChevronDown className="h-4 w-4" />
-                    </div>
-                </div>
-            </PopoverAnchor>
-            <PopoverContent
-                className="w-[--radix-popover-trigger-width] p-0"
-                dir="rtl"
-                align="start"
-                onOpenAutoFocus={(event) => event.preventDefault()}
-            >
-                <div className="max-h-[280px] overflow-y-auto">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>טוען סוגי לקוחות...</span>
-                        </div>
-                    ) : filteredOptions.length > 0 ? (
-                        filteredOptions.map((option) => {
-                            const isSelected = selectedIds.includes(option.id)
-                            return (
-                                <button
-                                    key={option.id}
-                                    type="button"
-                                    onClick={() => handleToggle(option.id)}
-                                    className={cn(
-                                        "flex w-full items-center justify-between px-3 py-2 text-sm text-right transition-colors",
-                                        "hover:bg-primary/10",
-                                        isSelected && "text-primary"
-                                    )}
-                                >
-                                    <span>{option.name}</span>
-                                    <Check className={cn("h-4 w-4 transition-opacity", isSelected ? "opacity-100" : "opacity-0")} />
-                                </button>
-                            )
-                        })
-                    ) : (
-                        <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                            לא נמצאו סוגי לקוחות תואמים.
-                        </div>
-                    )}
-                </div>
-            </PopoverContent>
-        </Popover>
-    )
-}
-
-export function StationEditDialog({ open, onOpenChange, station, onSaved }: StationEditDialogProps) {
+export function StationEditDialog({ open, onOpenChange, station, onSaved, autoFilterByCurrentDay = false }: StationEditDialogProps) {
     const { toast } = useToast()
     const dispatch = useAppDispatch()
+    const selectedDate = useAppSelector((state) => state.managerSchedule.selectedDate)
     const [isSaving, setIsSaving] = useState(false)
+    const [selectedDayFilters, setSelectedDayFilters] = useState<string[]>([])
     const [formData, setFormData] = useState({
         name: "",
         is_active: true,
@@ -269,6 +180,16 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved }: Stat
     const [isLoadingCustomerTypes, setIsLoadingCustomerTypes] = useState(false)
 
     const hasFetchedCustomerTypesRef = useRef(false)
+    const { createCustomerType } = useCreateCustomerType({
+        onSuccess: (id, name) => {
+            // Add to local state immediately
+            const newCustomerType: CustomerTypeOption = {
+                id,
+                name,
+            }
+            setCustomerTypes((prev) => [...prev, newCustomerType])
+        },
+    })
 
     const fetchCustomerTypes = useCallback(async (options?: { force?: boolean }) => {
         if (!options?.force) {
@@ -367,6 +288,8 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved }: Stat
         [toast]
     )
 
+
+
     useEffect(() => {
         if (!open) {
             hasFetchedCustomerTypesRef.current = false
@@ -375,6 +298,17 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved }: Stat
 
         void fetchCustomerTypes()
     }, [open, fetchCustomerTypes])
+
+    // Auto-select current day when modal opens (only if autoFilterByCurrentDay is true)
+    useEffect(() => {
+        if (open && autoFilterByCurrentDay && selectedDate) {
+            const currentWeekday = getWeekdayFromDate(selectedDate)
+            setSelectedDayFilters([currentWeekday])
+        } else if (!open) {
+            // Clear filter when modal closes
+            setSelectedDayFilters([])
+        }
+    }, [open, selectedDate, autoFilterByCurrentDay])
 
     useEffect(() => {
         if (open && station) {
@@ -433,9 +367,35 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved }: Stat
                         open_time: "09:00",
                         close_time: "17:00",
                         shift_order: maxShiftOrder + 1,
+                        allowedCustomerTypeIds: [],
+                        blockedCustomerTypeIds: [],
                     }
 
                     return { ...dayShift, shifts: [...dayShift.shifts, newShift] }
+                }
+                return dayShift
+            })
+        )
+    }
+
+    const handleShiftRestrictionChange = (
+        weekday: string,
+        shiftIndex: number,
+        type: "customerTypes" | "blockedCustomerTypes",
+        ids: string[]
+    ) => {
+        setDayShifts((prev) =>
+            prev.map((dayShift) => {
+                if (dayShift.weekday === weekday) {
+                    const newShifts = [...dayShift.shifts]
+                    if (newShifts[shiftIndex]) {
+                        const fieldName = type === "customerTypes" ? "allowedCustomerTypeIds" : "blockedCustomerTypeIds"
+                        newShifts[shiftIndex] = {
+                            ...newShifts[shiftIndex],
+                            [fieldName]: ids,
+                        }
+                    }
+                    return { ...dayShift, shifts: newShifts }
                 }
                 return dayShift
             })
@@ -553,6 +513,7 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved }: Stat
                 stationId = data.id
             }
 
+            // Save station-level customer type restrictions
             console.log("🔄 [StationEditDialog] Persisting allowed customer types for station:", stationId)
             const { error: deleteAllowedError } = await supabase
                 .from("station_allowed_customer_types")
@@ -577,14 +538,22 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved }: Stat
                 console.log("ℹ️ [StationEditDialog] No customer type restrictions selected. Station open to all customers.")
             }
 
+            // Save station-level dog category restrictions
+            console.log("🔄 [StationEditDialog] Persisting allowed dog categories for station:", stationId)
             // Save working hours
-            // Delete all existing shifts first
+            // Delete all existing shifts first (this will cascade delete shift restrictions)
             const { error: deleteError } = await supabase.from("station_working_hours").delete().eq("station_id", stationId)
 
             if (deleteError) throw deleteError
 
             // Collect all shifts to insert
-            const shiftsToInsert: Omit<StationWorkingHour, "id">[] = []
+            const shiftsToInsert: Omit<StationWorkingHour, "id" | "allowedCustomerTypeIds" | "blockedCustomerTypeIds">[] = []
+            const shiftRestrictions: Array<{
+                shiftId: string
+                customerTypeIds: string[]
+                blockedCustomerTypeIds: string[]
+            }> = []
+
             dayShifts.forEach((dayShift) => {
                 dayShift.shifts.forEach((shift, index) => {
                     shiftsToInsert.push({
@@ -597,11 +566,67 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved }: Stat
                 })
             })
 
-            // Insert new shifts
+            // Insert new shifts and get their IDs
             if (shiftsToInsert.length > 0) {
-                const { error: insertError } = await supabase.from("station_working_hours").insert(shiftsToInsert)
+                const { data: insertedShifts, error: insertError } = await supabase
+                    .from("station_working_hours")
+                    .insert(shiftsToInsert)
+                    .select("id, weekday, shift_order")
 
                 if (insertError) throw insertError
+
+                // Map shifts back to their restrictions
+                if (insertedShifts) {
+                    dayShifts.forEach((dayShift) => {
+                        dayShift.shifts.forEach((shift, index) => {
+                            const insertedShift = insertedShifts.find(
+                                (s) => s.weekday === shift.weekday && s.shift_order === index
+                            )
+                            if (insertedShift?.id) {
+                                shiftRestrictions.push({
+                                    shiftId: insertedShift.id,
+                                    customerTypeIds: shift.allowedCustomerTypeIds || [],
+                                    blockedCustomerTypeIds: shift.blockedCustomerTypeIds || [],
+                                })
+                            }
+                        })
+                    })
+
+                    // Save shift-level restrictions
+                    const customerTypeRestrictions: Array<{ shift_id: string; customer_type_id: string }> = []
+                    const blockedCustomerTypeRestrictions: Array<{ shift_id: string; customer_type_id: string }> = []
+
+                    shiftRestrictions.forEach((restriction) => {
+                        restriction.customerTypeIds.forEach((customerTypeId) => {
+                            customerTypeRestrictions.push({
+                                shift_id: restriction.shiftId,
+                                customer_type_id: customerTypeId,
+                            })
+                        })
+                        restriction.blockedCustomerTypeIds.forEach((customerTypeId) => {
+                            blockedCustomerTypeRestrictions.push({
+                                shift_id: restriction.shiftId,
+                                customer_type_id: customerTypeId,
+                            })
+                        })
+                    })
+
+                    if (customerTypeRestrictions.length > 0) {
+                        const { error: insertCustomerTypeError } = await supabase
+                            .from("shift_allowed_customer_types")
+                            .insert(customerTypeRestrictions)
+                        if (insertCustomerTypeError) throw insertCustomerTypeError
+                        console.log("✅ [StationEditDialog] Saved shift customer type restrictions:", customerTypeRestrictions.length)
+                    }
+
+                    if (blockedCustomerTypeRestrictions.length > 0) {
+                        const { error: insertBlockedCustomerTypeError } = await supabase
+                            .from("shift_blocked_customer_types")
+                            .insert(blockedCustomerTypeRestrictions)
+                        if (insertBlockedCustomerTypeError) throw insertBlockedCustomerTypeError
+                        console.log("✅ [StationEditDialog] Saved shift blocked customer type restrictions:", blockedCustomerTypeRestrictions.length)
+                    }
+                }
             }
 
             toast({
@@ -678,34 +703,132 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved }: Stat
                         </p>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label className="text-right">
-                            רק לקוחות מסוגים אלו יוכלו להזמין תורים לעמדה זו
-                        </Label>
-                        <CustomerTypeMultiSelect
-                            options={customerTypes}
-                            selectedIds={formData.allowedCustomerTypeIds}
-                            onSelectionChange={(ids) =>
-                                setFormData((prev) => ({
-                                    ...prev,
-                                    allowedCustomerTypeIds: ids,
-                                }))
-                            }
-                            placeholder="בחר סוגי לקוחות..."
-                            isLoading={isLoadingCustomerTypes}
-                        />
-                        <p className="text-xs text-muted-foreground text-right">
-                            אם לא ייבחרו סוגי לקוחות — כל הלקוחות יוכלו להזמין תורים לעמדה.
-                        </p>
-                    </div>
+                    <Accordion type="single" collapsible className="w-full" dir="rtl">
+                        <AccordionItem value="restrictions" className="border border-gray-200 rounded-lg px-4 bg-gray-50/50">
+                            <AccordionTrigger className="hover:no-underline py-4 [&>svg]:mr-auto [&>svg]:ml-0">
+                                <div className="flex items-center gap-2 text-right flex-1">
+                                    <Shield className="h-5 w-5 text-primary flex-shrink-0" />
+                                    <span className="font-semibold text-gray-900">
+                                        הגבל את התורים שניתן לתזמן לעמדה זו
+                                    </span>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="pb-4">
+                                <div className="space-y-6 pt-2">
+                                    <div className="space-y-2">
+                                        <Label className="text-right font-medium">
+                                            רק לקוחות מסוגים אלו יוכלו להזמין תורים לעמדה זו
+                                        </Label>
+                                        <CustomerTypeMultiSelect
+                                            options={customerTypes}
+                                            selectedIds={formData.allowedCustomerTypeIds}
+                                            onSelectionChange={(ids) =>
+                                                setFormData((prev) => ({
+                                                    ...prev,
+                                                    allowedCustomerTypeIds: ids,
+                                                }))
+                                            }
+                                            placeholder="בחר סוגי לקוחות..."
+                                            isLoading={isLoadingCustomerTypes}
+                                            onCreateCustomerType={createCustomerType}
+                                            onRefreshOptions={() => fetchCustomerTypes({ force: true })}
+                                        />
+                                        <p className="text-xs text-muted-foreground text-right">
+                                            אם לא ייבחרו סוגי לקוחות — כל הלקוחות יוכלו להזמין תורים לעמדה.
+                                        </p>
+                                    </div>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
 
                     {/* Working Hours Section */}
                     <div className="space-y-4 border-t pt-4">
-                        <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">שעות עבודה</h3>
-                            <p className="text-sm text-gray-600 mb-4">
-                                הגדר את שעות העבודה לכל יום. ניתן להוסיף מספר משמרות ליום (למשל: 08:00-14:00, 16:00-20:00)
-                            </p>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">שעות עבודה</h3>
+                                <p className="text-sm text-gray-600 mb-4">
+                                    הגדר את שעות העבודה לכל יום. ניתן להוסיף מספר משמרות ליום (למשל: 08:00-14:00, 16:00-20:00)
+                                </p>
+                            </div>
+                            {/* Day Filter */}
+                            <div className="flex items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className={cn(
+                                                "text-right",
+                                                selectedDayFilters.length > 0 && "bg-primary/10 border-primary"
+                                            )}
+                                        >
+                                            {selectedDayFilters.length === 0
+                                                ? "הצג כל הימים"
+                                                : selectedDayFilters.length === 1
+                                                ? WEEKDAYS.find(d => d.value === selectedDayFilters[0])?.label || "יום נבחר"
+                                                : `${selectedDayFilters.length} ימים נבחרו`}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-56 p-2" align="end" dir="rtl">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between px-2 py-1.5 border-b">
+                                                <span className="text-sm font-semibold">סינון לפי ימים</span>
+                                                {selectedDayFilters.length > 0 && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-6 px-2 text-xs"
+                                                        onClick={() => setSelectedDayFilters([])}
+                                                    >
+                                                        נקה הכל
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <div className="max-h-60 overflow-y-auto">
+                                                {WEEKDAYS.map((day) => (
+                                                    <div
+                                                        key={day.value}
+                                                        className="flex items-center space-x-2 space-x-reverse p-2 hover:bg-gray-50 rounded cursor-pointer"
+                                                        onClick={() => {
+                                                            if (selectedDayFilters.includes(day.value)) {
+                                                                setSelectedDayFilters(selectedDayFilters.filter(d => d !== day.value))
+                                                            } else {
+                                                                setSelectedDayFilters([...selectedDayFilters, day.value])
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Checkbox
+                                                            checked={selectedDayFilters.includes(day.value)}
+                                                            onCheckedChange={(checked) => {
+                                                                if (checked) {
+                                                                    setSelectedDayFilters([...selectedDayFilters, day.value])
+                                                                } else {
+                                                                    setSelectedDayFilters(selectedDayFilters.filter(d => d !== day.value))
+                                                                }
+                                                            }}
+                                                        />
+                                                        <label className="text-sm font-medium leading-none cursor-pointer flex-1 text-right">
+                                                            {day.label}
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                                {selectedDayFilters.length > 0 && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => setSelectedDayFilters([])}
+                                        title="נקה סינון"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
                         </div>
 
                         <div className="border rounded-lg overflow-hidden">
@@ -718,7 +841,14 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved }: Stat
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {dayShifts.map((dayShift) => {
+                                    {dayShifts
+                                        .filter((dayShift) => {
+                                            // If no filter selected, show all days
+                                            if (selectedDayFilters.length === 0) return true
+                                            // Otherwise, only show selected days
+                                            return selectedDayFilters.includes(dayShift.weekday)
+                                        })
+                                        .map((dayShift) => {
                                         const dayLabel = WEEKDAYS.find((d) => d.value === dayShift.weekday)?.label || dayShift.weekday
                                         const hasShifts = dayShift.shifts.length > 0
 
@@ -733,53 +863,72 @@ export function StationEditDialog({ open, onOpenChange, station, onSaved }: Stat
                                                             {dayShift.shifts.map((shift, shiftIndex) => (
                                                                 <div
                                                                     key={shiftIndex}
-                                                                    className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50"
+                                                                    className="p-4 border border-gray-200 rounded-lg bg-gray-50 space-y-3"
                                                                 >
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Label className="text-sm text-gray-600 w-20 text-left">
-                                                                            פתיחה:
-                                                                        </Label>
-                                                                        <TimePickerInput
-                                                                            value={shift.open_time}
-                                                                            onChange={(value) =>
-                                                                                handleTimeChange(
-                                                                                    dayShift.weekday,
-                                                                                    shiftIndex,
-                                                                                    "open_time",
-                                                                                    value
-                                                                                )
-                                                                            }
-                                                                            intervalMinutes={15}
-                                                                            className="w-32"
-                                                                        />
+                                                                    <div className="flex items-center gap-2 flex-nowrap">
+                                                                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                                            <Label className="text-xs text-gray-600 w-14 text-left whitespace-nowrap">
+                                                                                פתיחה:
+                                                                            </Label>
+                                                                            <TimePickerInput
+                                                                                value={shift.open_time}
+                                                                                onChange={(value) =>
+                                                                                    handleTimeChange(
+                                                                                        dayShift.weekday,
+                                                                                        shiftIndex,
+                                                                                        "open_time",
+                                                                                        value
+                                                                                    )
+                                                                                }
+                                                                                intervalMinutes={15}
+                                                                                className="w-24"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                                            <Label className="text-xs text-gray-600 w-14 text-left whitespace-nowrap">
+                                                                                סגירה:
+                                                                            </Label>
+                                                                            <TimePickerInput
+                                                                                value={shift.close_time}
+                                                                                onChange={(value) =>
+                                                                                    handleTimeChange(
+                                                                                        dayShift.weekday,
+                                                                                        shiftIndex,
+                                                                                        "close_time",
+                                                                                        value
+                                                                                    )
+                                                                                }
+                                                                                intervalMinutes={15}
+                                                                                className="w-24"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="flex-shrink-0">
+                                                                            <ShiftRestrictionsPopover
+                                                                                shift={shift}
+                                                                                customerTypes={customerTypes}
+                                                                                isLoadingCustomerTypes={isLoadingCustomerTypes}
+                                                                                onCreateCustomerType={createCustomerType}
+                                                                                onRefreshCustomerTypes={() => fetchCustomerTypes({ force: true })}
+                                                                                onRestrictionChange={(type, ids) =>
+                                                                                    handleShiftRestrictionChange(
+                                                                                        dayShift.weekday,
+                                                                                        shiftIndex,
+                                                                                        type,
+                                                                                        ids
+                                                                                    )
+                                                                                }
+                                                                            />
+                                                                        </div>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={() => handleDeleteShift(dayShift.weekday, shiftIndex)}
+                                                                            className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0 h-8 w-8 p-0"
+                                                                            title="מחק משמרת"
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
                                                                     </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Label className="text-sm text-gray-600 w-20 text-left">
-                                                                            סגירה:
-                                                                        </Label>
-                                                                        <TimePickerInput
-                                                                            value={shift.close_time}
-                                                                            onChange={(value) =>
-                                                                                handleTimeChange(
-                                                                                    dayShift.weekday,
-                                                                                    shiftIndex,
-                                                                                    "close_time",
-                                                                                    value
-                                                                                )
-                                                                            }
-                                                                            intervalMinutes={15}
-                                                                            className="w-32"
-                                                                        />
-                                                                    </div>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => handleDeleteShift(dayShift.weekday, shiftIndex)}
-                                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                        title="מחק משמרת"
-                                                                    >
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </Button>
                                                                 </div>
                                                             ))}
                                                         </div>

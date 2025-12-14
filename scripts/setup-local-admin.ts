@@ -125,12 +125,15 @@ async function setupLocalAdmin() {
     console.log(`\n🔍 Checking if user ${ADMIN_EMAIL} already exists...`)
     const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers()
 
+    let userId: string | undefined
+
     if (listError) {
       console.log("⚠️  Could not check existing users:", formatError(listError))
       console.log("   Continuing with user creation...")
     } else {
       const existingUser = existingUsers?.users?.find((u) => u.email === ADMIN_EMAIL)
       if (existingUser) {
+        userId = existingUser.id
         console.log(`✅ User ${ADMIN_EMAIL} already exists (ID: ${existingUser.id})`)
 
         // Check if profile exists and update role if needed
@@ -148,8 +151,6 @@ async function setupLocalAdmin() {
         if (profile) {
           if (profile.role === "manager") {
             console.log("✅ User is already set as manager")
-            console.log("🎉 Admin user is ready to use!")
-            return
           } else {
             console.log("🔄 Updating user role to manager...")
             const { error: updateError } = await supabase
@@ -162,8 +163,6 @@ async function setupLocalAdmin() {
               throw updateError
             }
             console.log("✅ Role updated to manager")
-            console.log("🎉 Admin user is ready to use!")
-            return
           }
         } else {
           // Profile doesn't exist, create it
@@ -180,9 +179,17 @@ async function setupLocalAdmin() {
             throw profileError
           }
           console.log("✅ Profile created with manager role")
-          console.log("🎉 Admin user is ready to use!")
-          return
         }
+
+        // Print credentials for existing user
+        console.log("\n🎉 Admin user is ready to use!")
+        console.log("=====================================")
+        console.log(`📧 Email: ${ADMIN_EMAIL}`)
+        console.log(`🔑 Password: ${ADMIN_PASSWORD}`)
+        console.log(`👤 Role: Manager (מנהל)`)
+        console.log(`🆔 User ID: ${userId}`)
+        console.log("\n💡 You can now log in to the app with these credentials")
+        return
       }
     }
 

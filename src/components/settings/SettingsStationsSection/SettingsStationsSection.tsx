@@ -10,8 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Pencil, Trash2, Loader2, Eye, ChevronLeft, ChevronRight, AlertCircle, Copy, GripVertical } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
-import { useAppDispatch } from "@/store/hooks"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { supabaseApi } from "@/store/services/supabaseApi"
+import { useQueryClient } from "@tanstack/react-query"
+import { setVisibleStationIds } from "@/store/slices/managerScheduleSlice"
 import { Badge } from "@/components/ui/badge"
 import { StationUnavailabilityDialog } from "@/components/dialogs/settings/stations/StationUnavailabilityDialog"
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core"
@@ -19,6 +21,13 @@ import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } 
 import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Filter, X } from "lucide-react"
+import { ShiftRestrictionsPopover } from "@/components/dialogs/settings/stations/ShiftRestrictionsPopover"
+import { useCreateCustomerType } from "@/hooks/useCreateCustomerType"
+import type { CustomerTypeOption } from "@/components/customer-types/CustomerTypeMultiSelect"
 
 interface Station {
     id: string
@@ -204,6 +213,8 @@ const WEEKDAYS = [
 export function SettingsStationsSection() {
     const { toast } = useToast()
     const dispatch = useAppDispatch()
+    const queryClient = useQueryClient()
+    const visibleStationIds = useAppSelector((state) => state.managerSchedule.visibleStationIds)
     const [stations, setStations] = useState<Station[]>([])
     const [stationWorkingHours, setStationWorkingHours] = useState<Record<string, StationWorkingHour[]>>({})
     const [unavailabilities, setUnavailabilities] = useState<Record<string, StationUnavailability[]>>({})
@@ -233,7 +244,14 @@ export function SettingsStationsSection() {
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
     const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false)
     const [groomingServiceId, setGroomingServiceId] = useState<string | null>(null)
-    const [treatmentTypes, setTreatmentTypes] = useState<Array<{ id: string; name: string }>>([])
+
+    // Filter state
+    const [filters, setFilters] = useState({
+        isActive: null as boolean | null,
+        workingDays: [] as string[],
+        intervalMin: null as number | null,
+        intervalMax: null as number | null,
+    })
 
     // Station form data
     const [formData, setFormData] = useState({
@@ -246,6 +264,15 @@ export function SettingsStationsSection() {
     const [dayShifts, setDayShifts] = useState<DayShifts[]>([])
     const [stationAllowedCustomerTypes, setStationAllowedCustomerTypes] = useState<Record<string, CustomerTypeOption[]>>({})
     const [viewingAllowedCustomerTypes, setViewingAllowedCustomerTypes] = useState<CustomerTypeOption[]>([])
+    const [viewingCustomerTypes, setViewingCustomerTypes] = useState<CustomerTypeOption[]>([])
+    const [isLoadingViewingCustomerTypes, setIsLoadingViewingCustomerTypes] = useState(false)
+
+    const { createCustomerType } = useCreateCustomerType({
+        onSuccess: (id, name) => {
+            const newCustomerType: CustomerTypeOption = { id, name }
+            setViewingCustomerTypes((prev) => [...prev, newCustomerType])
+        },
+    })
 
     const [unavailabilityFormData, setUnavailabilityFormData] = useState({
         reason: "",
@@ -257,10 +284,10 @@ export function SettingsStationsSection() {
     useEffect(() => {
         fetchStations()
         fetchUnavailabilities()
-        loadGroomingServiceAndTreatmentTypes()
+        loadGroomingServiceAndBreeds()
     }, [])
 
-    const loadGroomingServiceAndTreatmentTypes = async () => {
+    const loadGroomingServiceAndBreeds = async () => {
         try {
             // Get grooming service ID - try to find it first, if not found, create it
             let { data: serviceData, error: serviceError } = await supabase
@@ -284,17 +311,8 @@ export function SettingsStationsSection() {
             }
 
             setGroomingServiceId(serviceData?.id || null)
-
-            // Load treatmentTypes
-            const { data: treatmentTypesData, error: treatmentTypesError } = await supabase
-                .from("treatment_types")
-                .select("id, name")
-                .order("name")
-
-            if (treatmentTypesError) throw treatmentTypesError
-            setTreatmentTypes(treatmentTypesData || [])
         } catch (error) {
-            console.error("Error loading grooming service and treatmentTypes:", error)
+            console.error("Error loading grooming service:", error)
         }
     }
 
@@ -395,11 +413,66 @@ export function SettingsStationsSection() {
                 .order("shift_order")
 
             if (error) throw error
-            return (data || []).map((h) => ({
+
+            const shifts = (data || []).map((h) => ({
                 ...h,
                 open_time: h.open_time?.substring(0, 5) || "",
                 close_time: h.close_time?.substring(0, 5) || "",
+                allowedCustomerTypeIds: [] as string[],
+                blockedCustomerTypeIds: [] as string[],
             }))
+
+            // Fetch shift restrictions
+            if (shifts.length > 0) {
+                const shiftIds = shifts.map((s) => s.id).filter((id): id is string => Boolean(id))
+
+                if (shiftIds.length > 0) {
+                    // Fetch allowed customer type restrictions
+                    const { data: customerTypeRestrictions } = await supabase
+                        .from("shift_allowed_customer_types")
+                        .select("shift_id, customer_type_id")
+                        .in("shift_id", shiftIds)
+
+                    const dogCategoryRestrictions: never[] = []
+                    const blockedDogCategoryRestrictions: never[] = []
+
+                    // Fetch blocked customer type restrictions
+                    const { data: blockedCustomerTypeRestrictions } = await supabase
+                        .from("shift_blocked_customer_types")
+                        .select("shift_id, customer_type_id")
+                        .in("shift_id", shiftIds)
+
+                    // Group restrictions by shift_id
+                    const customerTypeMap = new Map<string, string[]>()
+                    const blockedCustomerTypeMap = new Map<string, string[]>()
+                    // Removed dog category maps - barbery system doesn't use dogs
+
+                    customerTypeRestrictions?.forEach((r) => {
+                        if (r.shift_id) {
+                            const existing = customerTypeMap.get(r.shift_id) || []
+                            customerTypeMap.set(r.shift_id, [...existing, r.customer_type_id])
+                        }
+                    })
+
+
+                    blockedCustomerTypeRestrictions?.forEach((r) => {
+                        if (r.shift_id) {
+                            const existing = blockedCustomerTypeMap.get(r.shift_id) || []
+                            blockedCustomerTypeMap.set(r.shift_id, [...existing, r.customer_type_id])
+                        }
+                    })
+
+                    // Apply restrictions to shifts
+                    shifts.forEach((shift) => {
+                        if (shift.id) {
+                            shift.allowedCustomerTypeIds = customerTypeMap.get(shift.id) || []
+                            shift.blockedCustomerTypeIds = blockedCustomerTypeMap.get(shift.id) || []
+                        }
+                    })
+                }
+            }
+
+            return shifts
         } catch (error) {
             console.error("Error fetching station working hours:", error)
             return []
@@ -555,6 +628,29 @@ export function SettingsStationsSection() {
         setIsDialogOpen(true)
     }
 
+    const fetchViewingCustomerTypes = async () => {
+        setIsLoadingViewingCustomerTypes(true)
+        try {
+            const { data, error } = await supabase
+                .from("customer_types")
+                .select("id, name")
+                .order("priority", { ascending: true })
+                .order("name", { ascending: true })
+
+            if (error) throw error
+            const transformed = (data || []).map((item) => ({
+                id: item.id,
+                name: item.name,
+            }))
+            setViewingCustomerTypes(transformed)
+        } catch (error) {
+            console.error("❌ [SettingsStationsSection] Failed to load customer types:", error)
+        } finally {
+            setIsLoadingViewingCustomerTypes(false)
+        }
+    }
+
+
     const handleView = async (station: Station) => {
         setViewingStation(station)
         setFormData({
@@ -585,6 +681,9 @@ export function SettingsStationsSection() {
                 ...prev,
                 [station.id]: allowedTypes,
             }))
+
+            // Load customer types for the restrictions popover
+            await fetchViewingCustomerTypes()
         } finally {
             setIsViewDialogOpen(true)
         }
@@ -705,7 +804,7 @@ export function SettingsStationsSection() {
         name?: string
         targetStationIds?: string[]
         copyDetails: boolean
-        copyTreatmentTypeRelations: boolean
+        copyServiceRelations: boolean
     }) => {
         if (!stationToDuplicate) return
 
@@ -771,6 +870,28 @@ export function SettingsStationsSection() {
                         .insert(payload)
 
                     if (insertAllowedError) throw insertAllowedError
+                }
+
+                // Copy service relations if requested
+                if (groomingServiceId && params.copyServiceRelations) {
+                    const { data: originalMatrixData } = await supabase
+                        .from("service_station_matrix")
+                        .select("base_time_minutes, price_adjustment")
+                        .eq("service_id", groomingServiceId)
+                        .eq("station_id", sourceStationId)
+                        .maybeSingle()
+
+                    const originalBaseTime = originalMatrixData?.base_time_minutes || 0
+                    const originalPriceAdjustment = originalMatrixData?.price_adjustment || 0
+
+                    await supabase
+                        .from("service_station_matrix")
+                        .upsert({
+                            service_id: groomingServiceId,
+                            station_id: targetStationId,
+                            base_time_minutes: originalBaseTime,
+                            price_adjustment: originalPriceAdjustment,
+                        }, { onConflict: "service_id,station_id" })
                 }
             } else {
                 // Copy to existing stations
@@ -838,19 +959,20 @@ export function SettingsStationsSection() {
                         }
                     }
 
-                    // Copy treatmentType relations if requested
-                    if (groomingServiceId && params.copyTreatmentTypeRelations) {
+                    // Copy service relations if requested
+                    if (groomingServiceId && params.copyServiceRelations) {
                         // Get the original station's base_time_minutes from service_station_matrix
                         const { data: originalMatrixData } = await supabase
                             .from("service_station_matrix")
-                            .select("base_time_minutes")
+                            .select("base_time_minutes, price_adjustment")
                             .eq("service_id", groomingServiceId)
                             .eq("station_id", sourceStationId)
                             .maybeSingle()
 
                         const originalBaseTime = originalMatrixData?.base_time_minutes || 0
+                        const originalPriceAdjustment = originalMatrixData?.price_adjustment || 0
 
-                        // Copy the base_time_minutes to the target station
+                        // Copy the base_time_minutes and price_adjustment to the target station
                         const { error: baseTimeError } = await supabase
                             .from("service_station_matrix")
                             .upsert(
@@ -858,74 +980,12 @@ export function SettingsStationsSection() {
                                     service_id: groomingServiceId,
                                     station_id: targetId,
                                     base_time_minutes: originalBaseTime,
-                                    price: 0,
+                                    price_adjustment: originalPriceAdjustment,
                                 },
                                 { onConflict: "service_id,station_id" }
                             )
 
                         if (baseTimeError) throw baseTimeError
-
-                        // Get all station_treatmentType_rules for the original station
-                        const { data: originalRules, error: rulesError } = await supabase
-                            .from("station_treatmentType_rules")
-                            .select("*")
-                            .eq("station_id", sourceStationId)
-
-                        if (rulesError) throw rulesError
-
-                        // Copy all station_treatmentType_rules with ALL values
-                        console.log(
-                            "[SettingsStationsSection] Copying",
-                            originalRules?.length ?? 0,
-                            "station_treatmentType_rules records from",
-                            sourceStationId,
-                            "to",
-                            targetId
-                        )
-
-                        if (originalRules && originalRules.length > 0) {
-                            for (const rule of originalRules) {
-                                // Get default time from treatmentType_modifiers if exists
-                                const { data: treatmentTypeModifier } = await supabase
-                                    .from("treatmentType_modifiers")
-                                    .select("time_modifier_minutes")
-                                    .eq("service_id", groomingServiceId)
-                                    .eq("treatment_type_id", rule.treatment_type_id)
-                                    .maybeSingle()
-
-                                const defaultTime = treatmentTypeModifier?.time_modifier_minutes || 60
-                                const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
-
-                                // Copy station_treatmentType_rules with ALL values
-                                await supabase
-                                    .from("station_treatmentType_rules")
-                                    .upsert(
-                                        {
-                                            station_id: targetId,
-                                            treatment_type_id: rule.treatment_type_id,
-                                            is_active: rule.is_active ?? true,
-                                            remote_booking_allowed: rule.remote_booking_allowed ?? false,
-                                            requires_staff_approval: rule.requires_staff_approval ?? false,
-                                            duration_modifier_minutes: durationMinutes,
-                                        },
-                                        { onConflict: "station_id,treatment_type_id" }
-                                    )
-
-                                // Ensure treatmentType_modifier exists with the same default time if it exists for original
-                                if (treatmentTypeModifier) {
-                                    await supabase
-                                        .from("treatmentType_modifiers")
-                                        .upsert(
-                                            {
-                                                service_id: groomingServiceId,
-                                                treatment_type_id: rule.treatment_type_id,
-                                                time_modifier_minutes: treatmentTypeModifier.time_modifier_minutes,
-                                            },
-                                            { onConflict: "service_id,treatment_type_id" }
-                                        )
-                                }
-                            }
-                        }
                     }
                 }
 
@@ -936,13 +996,18 @@ export function SettingsStationsSection() {
                     setStationWorkingHours((prev) => ({ ...prev, [targetId]: hours }))
                 }
 
+                // Invalidate RTK Query cache
+                // This must happen BEFORE the toast and dialog close to ensure immediate refetch
+                dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Station"]))
+                dispatch(supabaseApi.util.invalidateTags(["StationWorkingHours", "ShiftRestrictions"]))
+                // Invalidate React Query cache and refetch immediately
+                await queryClient.invalidateQueries({ queryKey: ['stations'] })
+                await queryClient.invalidateQueries({ queryKey: ['services-with-stats'] })
+
                 toast({
                     title: "הצלחה",
                     description: `הנתונים הועתקו ל-${params.targetStationIds.length} עמדות בהצלחה`,
                 })
-
-                // Invalidate ManagerSchedule cache
-                dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule"]))
 
                 setIsDuplicateDialogOpen(false)
                 setStationToDuplicate(null)
@@ -950,94 +1015,27 @@ export function SettingsStationsSection() {
                 return
             }
 
-            // Copy all matrix values for this station (only if checkbox is checked and mode is "new")
-            if (params.mode === "new" && groomingServiceId && params.copyTreatmentTypeRelations) {
-                // Get the original station's base_time_minutes from service_station_matrix
-                const { data: originalMatrixData } = await supabase
-                    .from("service_station_matrix")
-                    .select("base_time_minutes")
-                    .eq("service_id", groomingServiceId)
-                    .eq("station_id", sourceStationId)
-                    .maybeSingle()
 
-                const originalBaseTime = originalMatrixData?.base_time_minutes || 0
+            // Invalidate RTK Query cache so the calendar board reflects the changes immediately
+            // This must happen BEFORE the toast and dialog close to ensure immediate refetch
+            dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Station"]))
+            dispatch(supabaseApi.util.invalidateTags(["StationWorkingHours", "ShiftRestrictions"]))
+            // Invalidate React Query cache and refetch immediately
+            await queryClient.invalidateQueries({ queryKey: ['stations'] })
+            await queryClient.invalidateQueries({ queryKey: ['services-with-stats'] })
 
-                // Copy the base_time_minutes to the target station first
-                const { error: baseTimeError } = await supabase
-                    .from("service_station_matrix")
-                    .upsert(
-                        {
-                            service_id: groomingServiceId,
-                            station_id: targetStationId,
-                            base_time_minutes: originalBaseTime,
-                            price: 0,
-                        },
-                        { onConflict: "service_id,station_id" }
-                    )
+            // Automatically show the new station on the manager schedule page
+            if (params.mode === "new" && targetStationId) {
+                // Add the new station to visible stations
+                // If no stations are currently visible, make this the only visible station
+                // Otherwise, add it to the existing visible stations
+                const updatedVisibleIds = visibleStationIds.length === 0
+                    ? [targetStationId]
+                    : visibleStationIds.includes(targetStationId)
+                        ? visibleStationIds
+                        : [...visibleStationIds, targetStationId]
 
-                if (baseTimeError) throw baseTimeError
-
-                // Get all station_treatmentType_rules for the original station
-                const { data: originalRules, error: rulesError } = await supabase
-                    .from("station_treatmentType_rules")
-                    .select("*")
-                    .eq("station_id", sourceStationId)
-
-                if (rulesError) throw rulesError
-
-                // Copy all station_treatmentType_rules with ALL values
-                console.log(
-                    "[SettingsStationsSection] Copying",
-                    originalRules?.length ?? 0,
-                    "station_treatmentType_rules records from",
-                    sourceStationId,
-                    "to new station",
-                    targetStationId
-                )
-
-                if (originalRules && originalRules.length > 0) {
-                    for (const rule of originalRules) {
-                        // Get default time from treatmentType_modifiers if exists
-                        const { data: treatmentTypeModifier } = await supabase
-                            .from("treatmentType_modifiers")
-                            .select("time_modifier_minutes")
-                            .eq("service_id", groomingServiceId)
-                            .eq("treatment_type_id", rule.treatment_type_id)
-                            .maybeSingle()
-
-                        const defaultTime = treatmentTypeModifier?.time_modifier_minutes || 60
-                        const durationMinutes = rule.duration_modifier_minutes || (originalBaseTime + defaultTime)
-
-                        // Copy station_treatmentType_rules with ALL values
-                        await supabase
-                            .from("station_treatmentType_rules")
-                            .upsert(
-                                {
-                                    station_id: targetStationId,
-                                    treatment_type_id: rule.treatment_type_id,
-                                    is_active: rule.is_active ?? true,
-                                    remote_booking_allowed: rule.remote_booking_allowed ?? false,
-                                    requires_staff_approval: rule.requires_staff_approval ?? false,
-                                    duration_modifier_minutes: durationMinutes,
-                                },
-                                { onConflict: "station_id,treatment_type_id" }
-                            )
-
-                        // Ensure treatmentType_modifier exists with the same default time if it exists for original
-                        if (treatmentTypeModifier) {
-                            await supabase
-                                .from("treatmentType_modifiers")
-                                .upsert(
-                                    {
-                                        service_id: groomingServiceId,
-                                        treatment_type_id: rule.treatment_type_id,
-                                        time_modifier_minutes: treatmentTypeModifier.time_modifier_minutes,
-                                    },
-                                    { onConflict: "service_id,treatment_type_id" }
-                                )
-                        }
-                    }
-                }
+                dispatch(setVisibleStationIds(updatedVisibleIds))
             }
 
             toast({
@@ -1046,9 +1044,6 @@ export function SettingsStationsSection() {
                     ? "העמדה שוכפלה בהצלחה עם כל הערכים"
                     : "הנתונים הועתקו לעמדה הקיימת בהצלחה",
             })
-
-            // Invalidate ManagerSchedule cache so the calendar board reflects the changes immediately
-            dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule"]))
 
             setIsDuplicateDialogOpen(false)
             setStationToDuplicate(null)
@@ -1153,10 +1148,38 @@ export function SettingsStationsSection() {
         }
     }
 
+    const filteredStations = useMemo(() => {
+        let filtered = [...stations]
+
+        // Filter by is_active
+        if (filters.isActive !== null) {
+            filtered = filtered.filter(s => s.is_active === filters.isActive)
+        }
+
+        // Filter by working days
+        if (filters.workingDays.length > 0) {
+            filtered = filtered.filter(station => {
+                const hours = stationWorkingHours[station.id] || []
+                const stationDays = new Set(hours.map(h => h.weekday))
+                return filters.workingDays.some(day => stationDays.has(day))
+            })
+        }
+
+        // Filter by interval
+        if (filters.intervalMin !== null) {
+            filtered = filtered.filter(s => (s.slot_interval_minutes ?? 60) >= filters.intervalMin!)
+        }
+        if (filters.intervalMax !== null) {
+            filtered = filtered.filter(s => (s.slot_interval_minutes ?? 60) <= filters.intervalMax!)
+        }
+
+        return filtered
+    }, [stations, filters, stationWorkingHours])
+
     const orderedStations = useMemo(() => {
-        if (!stations.length) return []
+        if (!filteredStations.length) return []
         if (!stationOrderIds.length) {
-            return [...stations].sort((a, b) => {
+            return [...filteredStations].sort((a, b) => {
                 const orderCompare = (a.display_order ?? 0) - (b.display_order ?? 0)
                 if (orderCompare !== 0) return orderCompare
                 return a.name.localeCompare(b.name, "he")
@@ -1164,7 +1187,7 @@ export function SettingsStationsSection() {
         }
         const positions = new Map(stationOrderIds.map((id, index) => [id, index]))
         const fallback = stationOrderIds.length
-        return [...stations].sort((a, b) => {
+        return [...filteredStations].sort((a, b) => {
             const posA = positions.get(a.id) ?? fallback
             const posB = positions.get(b.id) ?? fallback
             if (posA !== posB) return posA - posB
@@ -1172,7 +1195,7 @@ export function SettingsStationsSection() {
             if (orderCompare !== 0) return orderCompare
             return a.name.localeCompare(b.name, "he")
         })
-    }, [stations, stationOrderIds])
+    }, [filteredStations, stationOrderIds])
 
     const persistStationOrder = async (orderedIds: string[]) => {
         const payload = orderedIds
@@ -1269,6 +1292,21 @@ export function SettingsStationsSection() {
         )
     }
 
+    const hasActiveFilters = filters.isActive !== null ||
+        filters.workingDays.length > 0 ||
+        filters.intervalMin !== null ||
+        filters.intervalMax !== null
+
+    const clearFilters = () => {
+        setFilters({
+            isActive: null,
+            workingDays: [],
+            intervalMin: null,
+            intervalMax: null,
+        })
+        setCurrentPage(1)
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -1283,49 +1321,185 @@ export function SettingsStationsSection() {
                             <span>שומר סדר...</span>
                         </div>
                     )}
-                <Button onClick={handleAdd} className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    הוסף עמדה חדשה
-                </Button>
+                    <Button onClick={handleAdd} className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        הוסף עמדה חדשה
+                    </Button>
                 </div>
             </div>
+
+            {/* Filters Section */}
+            <Card>
+                <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Filter className="h-4 w-4" />
+                            סינון עמדות
+                        </CardTitle>
+                        {hasActiveFilters && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={clearFilters}
+                                className="text-xs"
+                            >
+                                <X className="h-3 w-3 ml-1" />
+                                נקה סינון
+                            </Button>
+                        )}
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-wrap gap-4 items-end">
+                        {/* Is Active Filter */}
+                        <div className="space-y-2 min-w-[150px]">
+                            <Label className="text-sm">סטטוס פעילות</Label>
+                            <Select
+                                value={filters.isActive === null ? "all" : filters.isActive ? "active" : "inactive"}
+                                onValueChange={(value) => {
+                                    setFilters(prev => ({
+                                        ...prev,
+                                        isActive: value === "all" ? null : value === "active"
+                                    }))
+                                    setCurrentPage(1)
+                                }}
+                            >
+                                <SelectTrigger className="text-right" dir="rtl">
+                                    <SelectValue placeholder="הכל" />
+                                </SelectTrigger>
+                                <SelectContent dir="rtl">
+                                    <SelectItem value="all">הכל</SelectItem>
+                                    <SelectItem value="active">פעילות בלבד</SelectItem>
+                                    <SelectItem value="inactive">מושבתות בלבד</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Working Days Filter */}
+                        <div className="space-y-2 min-w-[180px]">
+                            <Label className="text-sm">ימי פעילות</Label>
+                            <Select
+                                value=""
+                                onValueChange={(value) => {
+                                    if (value && !filters.workingDays.includes(value)) {
+                                        setFilters(prev => ({
+                                            ...prev,
+                                            workingDays: [...prev.workingDays, value]
+                                        }))
+                                        setCurrentPage(1)
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className="text-right" dir="rtl">
+                                    <SelectValue placeholder="בחר ימים..." />
+                                </SelectTrigger>
+                                <SelectContent dir="rtl">
+                                    {WEEKDAYS.map(day => (
+                                        <SelectItem key={day.value} value={day.value}>
+                                            {day.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {filters.workingDays.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                    {filters.workingDays.map(day => {
+                                        const dayLabel = WEEKDAYS.find(d => d.value === day)?.label || day
+                                        return (
+                                            <Badge key={day} variant="secondary" className="text-xs">
+                                                {dayLabel}
+                                                <button
+                                                    onClick={() => {
+                                                        setFilters(prev => ({
+                                                            ...prev,
+                                                            workingDays: prev.workingDays.filter(d => d !== day)
+                                                        }))
+                                                        setCurrentPage(1)
+                                                    }}
+                                                    className="mr-1 hover:text-destructive"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </Badge>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Interval Filter */}
+                        <div className="space-y-2 min-w-[200px]">
+                            <Label className="text-sm">מרווח תורים (דקות)</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    type="number"
+                                    placeholder="מ-"
+                                    value={filters.intervalMin ?? ""}
+                                    onChange={(e) => {
+                                        const value = e.target.value === "" ? null : parseInt(e.target.value)
+                                        setFilters(prev => ({ ...prev, intervalMin: value }))
+                                        setCurrentPage(1)
+                                    }}
+                                    className="text-right"
+                                    dir="rtl"
+                                />
+                                <Input
+                                    type="number"
+                                    placeholder="עד"
+                                    value={filters.intervalMax ?? ""}
+                                    onChange={(e) => {
+                                        const value = e.target.value === "" ? null : parseInt(e.target.value)
+                                        setFilters(prev => ({ ...prev, intervalMax: value }))
+                                        setCurrentPage(1)
+                                    }}
+                                    className="text-right"
+                                    dir="rtl"
+                                />
+                            </div>
+                        </div>
+
+                    </div>
+                    {hasActiveFilters && (
+                        <div className="mt-4 text-sm text-gray-600">
+                            מציג {orderedStations.length} מתוך {stations.length} עמדות
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
             <div className="border rounded-lg">
                 <div className="overflow-x-auto overflow-y-auto max-h-[600px] [direction:ltr] custom-scrollbar">
                     <div className="[direction:rtl]">
-                        <Table>
-                            <TableHeader className="sticky top-0 z-20 bg-background">
-                                <TableRow className="bg-[hsl(228_36%_95%)]">
-                                    <TableHead className="h-12 w-12 bg-[hsl(228_36%_95%)]"></TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">שם העמדה</TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold w-24 bg-[hsl(228_36%_95%)]">פעילה</TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">מרווח תורים (דקות)</TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">תיאור שעות פעילות</TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">הגבלת סוגי לקוחות</TableHead>
-                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold w-32 bg-[hsl(228_36%_95%)]">פעולות</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <DndContext sensors={stationDragSensors} onDragEnd={handleStationOrderEnd}>
-                                <SortableContext items={orderedStations.slice((currentPage - 1) * ITEMS_PER_PAGE, Math.min(stations.length, currentPage * ITEMS_PER_PAGE)).map((station) => station.id)} strategy={verticalListSortingStrategy}>
-                                    <TableBody>
-                                        {(() => {
-                                            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-                                            const endIndex = startIndex + ITEMS_PER_PAGE
-                                            const paginatedStations = orderedStations.slice(startIndex, endIndex)
+                        <DndContext sensors={stationDragSensors} onDragEnd={handleStationOrderEnd}>
+                            {(() => {
+                                const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+                                const endIndex = startIndex + ITEMS_PER_PAGE
+                                const paginatedStations = orderedStations.slice(startIndex, endIndex)
+                                const paginatedIds = paginatedStations.map((station) => station.id)
 
-                                            if (stations.length === 0) {
-                                                return (
+                                return (
+                                    <SortableContext items={paginatedIds} strategy={verticalListSortingStrategy}>
+                                        <Table>
+                                            <TableHeader className="sticky top-0 z-20 bg-background">
+                                                <TableRow className="bg-[hsl(228_36%_95%)]">
+                                                    <TableHead className="h-12 w-12 bg-[hsl(228_36%_95%)]"></TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">שם העמדה</TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold w-24 bg-[hsl(228_36%_95%)]">פעילה</TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">מרווח תורים (דקות)</TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">תיאור שעות פעילות</TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold bg-[hsl(228_36%_95%)]">הגבלת סוגי לקוחות</TableHead>
+                                                    <TableHead className="h-12 px-2 text-right align-middle font-medium text-primary font-semibold w-32 bg-[hsl(228_36%_95%)]">פעולות</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {stations.length === 0 ? (
                                                     <TableRow>
                                                         <TableCell colSpan={7} className="px-4 py-1 align-middle [&:has([role=checkbox])]:pr-0 text-center text-gray-500 py-8">
                                                             אין עמדות במערכת. הוסף עמדה חדשה כדי להתחיל.
                                                         </TableCell>
                                                     </TableRow>
-                                                )
-                                            }
-
-                                            return (
-                                                <>
-                                                    {paginatedStations.map((station) => (
+                                                ) : (
+                                                    paginatedStations.map((station) => (
                                                         <SortableStationRow
                                                             key={station.id}
                                                             station={station}
@@ -1339,14 +1513,14 @@ export function SettingsStationsSection() {
                                                             onDuplicate={handleDuplicate}
                                                             onDelete={handleDeleteStation}
                                                         />
-                                                    ))}
-                                                </>
-                                            )
-                                        })()}
-                                    </TableBody>
-                                </SortableContext>
-                            </DndContext>
-                        </Table>
+                                                    ))
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </SortableContext>
+                                )
+                            })()}
+                        </DndContext>
                     </div>
                 </div>
 
@@ -1481,11 +1655,27 @@ export function SettingsStationsSection() {
                                                                 {dayShift.shifts.map((shift, shiftIndex) => (
                                                                     <div
                                                                         key={shiftIndex}
-                                                                        className="flex items-center gap-3 p-2 border border-gray-200 rounded bg-gray-50 text-sm"
+                                                                        className="flex items-center gap-2 flex-nowrap p-2 border border-gray-200 rounded bg-gray-50 text-sm"
                                                                     >
-                                                                        <span className="text-gray-600">
+                                                                        <span className="text-gray-600 whitespace-nowrap flex-shrink-0">
                                                                             {shift.open_time.substring(0, 5)} - {shift.close_time.substring(0, 5)}
                                                                         </span>
+                                                                        <div className="flex-shrink-0">
+                                                                            <ShiftRestrictionsPopover
+                                                                                shift={shift}
+                                                                                customerTypes={viewingCustomerTypes}
+                                                                                dogCategories={[]}
+                                                                                isLoadingCustomerTypes={isLoadingViewingCustomerTypes}
+                                                                                isLoadingDogCategories={false}
+                                                                                onCreateCustomerType={createCustomerType}
+                                                                                onCreateDogCategory={async () => null}
+                                                                                onRefreshCustomerTypes={fetchViewingCustomerTypes}
+                                                                                onRefreshDogCategories={async () => { }}
+                                                                                onRestrictionChange={() => {
+                                                                                    // Read-only in view mode, so this is a no-op
+                                                                                }}
+                                                                            />
+                                                                        </div>
                                                                     </div>
                                                                 ))}
                                                             </div>

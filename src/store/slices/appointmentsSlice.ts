@@ -2,8 +2,8 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit"
 
 interface Appointment {
   id: string
-  treatmentId: string
-  treatmentName: string
+  dogId: string
+  dogName: string
   date: string
   time: string
   service: string

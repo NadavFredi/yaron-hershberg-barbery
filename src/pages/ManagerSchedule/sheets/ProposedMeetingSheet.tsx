@@ -4,14 +4,19 @@ import { he } from "date-fns/locale"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Copy, Loader2, Send, Trash2, Pencil, Users, Sparkles, ChevronDown } from "lucide-react"
-import type { ManagerAppointment, ProposedMeetingInvite } from "@/types/managerSchedule"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { PhoneInput } from "@/components/ui/phone-input"
+import { Copy, Loader2, Send, Trash2, Pencil, Users, Sparkles, ChevronDown, Dog, UserPlus, MoreHorizontal } from "lucide-react"
+import { ManyChatIcon } from "@/components/icons/ManyChatIcon"
+import type { ManagerAppointment, ProposedMeetingInvite } from "../types"
 import { cn } from "@/lib/utils"
 import { useSendManualProposedMeetingWebhookMutation } from "@/store/services/supabaseApi"
 import { useToast } from "@/components/ui/use-toast"
+import { supabase } from "@/integrations/supabase/client"
+import { MANYCHAT_FLOW_IDS, MANYCHAT_CUSTOM_FIELDS } from "@/lib/manychat"
+import { extractDigits } from "@/utils/phone"
 
 interface ProposedMeetingSheetProps {
   open: boolean
@@ -49,6 +54,7 @@ export const ProposedMeetingSheet = ({
   const [copied, setCopied] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
   const [showCategories, setShowCategories] = useState(false)
+  const [showDogCategories, setShowDogCategories] = useState(false)
   const [showClients, setShowClients] = useState(false)
   const [manualName, setManualName] = useState("")
   const [manualPhone, setManualPhone] = useState("")
@@ -72,15 +78,33 @@ export const ProposedMeetingSheet = ({
   }, [originalStart, originalEnd])
   const invites = meeting.proposedInvites ?? []
   const categories = meeting.proposedCategories ?? []
+  const dogCategories = meeting.proposedDogCategories ?? []
   const categoryInviteCounts = useMemo(() => {
     const counts = new Map<string, number>()
+    const customerTypeIds = new Set(categories.map((cat) => cat.customerTypeId).filter(Boolean))
     invites.forEach((invite) => {
       if (invite.source === "category" && invite.sourceCategoryId) {
-        counts.set(invite.sourceCategoryId, (counts.get(invite.sourceCategoryId) ?? 0) + 1)
+        // Only count if it's a customer type category
+        if (customerTypeIds.has(invite.sourceCategoryId)) {
+          counts.set(invite.sourceCategoryId, (counts.get(invite.sourceCategoryId) ?? 0) + 1)
+        }
       }
     })
     return counts
-  }, [invites])
+  }, [invites, categories])
+  const dogCategoryInviteCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    const dogCategoryIds = new Set(dogCategories.map((cat) => cat.dogCategoryId).filter(Boolean))
+    invites.forEach((invite) => {
+      if (invite.source === "category" && invite.sourceCategoryId) {
+        // Only count if it's a dog category
+        if (dogCategoryIds.has(invite.sourceCategoryId)) {
+          counts.set(invite.sourceCategoryId, (counts.get(invite.sourceCategoryId) ?? 0) + 1)
+        }
+      }
+    })
+    return counts
+  }, [invites, dogCategories])
   const totalCategoryInvites = useMemo(() => {
     let total = 0
     categoryInviteCounts.forEach((value) => {
@@ -88,6 +112,13 @@ export const ProposedMeetingSheet = ({
     })
     return total
   }, [categoryInviteCounts])
+  const totalDogCategoryInvites = useMemo(() => {
+    let total = 0
+    dogCategoryInviteCounts.forEach((value) => {
+      total += value
+    })
+    return total
+  }, [dogCategoryInviteCounts])
 
   useEffect(() => {
     setManualName("")
@@ -103,14 +134,15 @@ export const ProposedMeetingSheet = ({
   const meetingLink = meeting.proposedMeetingId && meetingOrigin ? `${meetingOrigin}/proposed/${meeting.proposedMeetingId}` : null
   const trimmedManualName = manualName.trim()
   const trimmedManualPhone = manualPhone.trim()
+  const manualPhoneDigits = extractDigits(trimmedManualPhone)
   const canSendManualInvite =
     Boolean(meeting.proposedMeetingId) &&
     Boolean(meeting.proposedMeetingCode) &&
     Boolean(meetingLink) &&
-    Boolean(trimmedManualPhone)
+    Boolean(manualPhoneDigits)
 
   const handleManualInviteSubmit = async () => {
-    if (!meeting.proposedMeetingId || !meeting.proposedMeetingCode || !trimmedManualPhone || !meetingLink) {
+    if (!meeting.proposedMeetingId || !meeting.proposedMeetingCode || !manualPhoneDigits || !meetingLink) {
       toast({
         title: "לא ניתן לשלוח",
         description: "שמירת המפגש נדרשת כדי לשלוח הזמנה ידנית.",
@@ -126,9 +158,35 @@ export const ProposedMeetingSheet = ({
         meetingLink,
         contact: {
           name: trimmedManualName || undefined,
-          phone: trimmedManualPhone,
+          phone: manualPhoneDigits,
         },
       }).unwrap()
+
+      // Trigger ManyChat flow for manual invite
+      const flowId = MANYCHAT_FLOW_IDS.PROPOSE_NEW_TIME
+      if (flowId && manualPhoneDigits) {
+        try {
+          console.log(`📤 [ProposedMeetingSheet] Sending PROPOSE_NEW_TIME flow to manual recipient: ${manualPhoneDigits}`)
+          await supabase.functions.invoke("set-manychat-fields-and-send-flow", {
+            body: {
+              users: [
+                {
+                  phone: manualPhoneDigits,
+                  name: trimmedManualName || "לקוח",
+                  fields: {
+                    [MANYCHAT_CUSTOM_FIELDS.MEETING_RECORD_ID.id]: meeting.proposedMeetingId,
+                  },
+                },
+              ],
+              flow_id: flowId,
+            },
+          })
+          console.log(`✅ [ProposedMeetingSheet] ManyChat flow sent successfully`)
+        } catch (error) {
+          console.error("❌ [ProposedMeetingSheet] Error sending ManyChat flow for manual invite:", error)
+          // Don't throw - we don't want to fail the whole operation if ManyChat fails
+        }
+      }
 
       toast({
         title: "ההודעה נשלחה",
@@ -168,13 +226,62 @@ export const ProposedMeetingSheet = ({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full max-w-lg flex flex-col" dir="rtl">
         <SheetHeader>
-          <SheetTitle className="text-right flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-lime-600" />
-            מפגש מוצע
-          </SheetTitle>
-          <SheetDescription className="text-right">
-            ניהול לקוחות, קודי גישה וסטטוס הזמנות למפגש זה.
-          </SheetDescription>
+          <div className="flex items-start justify-between gap-4 mb-2 mt-6">
+            <div className="flex-1">
+              <SheetTitle className="text-right flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-lime-600" />
+                מפגש מוצע
+              </SheetTitle>
+              <SheetDescription className="text-right">
+                ניהול לקוחות, קודי גישה וסטטוס הזמנות למפגש זה.
+              </SheetDescription>
+            </div>
+            {meeting && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 flex-shrink-0"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-1" align="end">
+                  <div className="space-y-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      onClick={() => onEdit(meeting)}
+                    >
+                      <Pencil className="h-4 w-4 ml-2" />
+                      עריכת מפגש
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => onDelete(meeting)}
+                      disabled={deleting}
+                    >
+                      {deleting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                          מוחק...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="h-4 w-4 ml-2" />
+                          מחק מפגש
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
         </SheetHeader>
 
         <ScrollArea className="mt-6 pr-2 h-[calc(100vh-8rem)]">
@@ -283,7 +390,7 @@ export const ProposedMeetingSheet = ({
                     onClick={() => setShowCategories((prev) => !prev)}
                   >
                     <Users className="h-4 w-4 text-lime-600" />
-                    קטגוריות ({categories.length})
+                    קטגוריות לקוחות ({categories.length})
                     <ChevronDown
                       className={cn("h-4 w-4 transition-transform", showCategories ? "rotate-0" : "-rotate-90")}
                     />
@@ -355,6 +462,87 @@ export const ProposedMeetingSheet = ({
               </div>
             )}
 
+            {dogCategories.length > 0 && (
+              <div className="space-y-2" dir="rtl">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 text-sm font-semibold text-gray-800"
+                    onClick={() => setShowDogCategories((prev) => !prev)}
+                  >
+                    <Dog className="h-4 w-4 text-lime-600" />
+                    קטגוריות לקוחות ({dogCategories.length})
+                    <ChevronDown
+                      className={cn("h-4 w-4 transition-transform", showDogCategories ? "rotate-0" : "-rotate-90")}
+                    />
+                  </button>
+                  {onSendAllCategories && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={onSendAllCategories}
+                      disabled={sendingCategoriesBatch || totalDogCategoryInvites === 0}
+                    >
+                      {sendingCategoriesBatch ? (
+                        <>
+                          <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                          נשלח...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 ml-2" />
+                          שלח לכולם                      </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+                {showDogCategories && (
+                  <div className="space-y-2">
+                    {dogCategories.map((dogCategory) => {
+                      const count = dogCategory.dogCategoryId ? dogCategoryInviteCounts.get(dogCategory.dogCategoryId) ?? 0 : 0
+                      const canSend = Boolean(dogCategory.dogCategoryId && count > 0 && onSendCategory)
+                      return (
+                        <div
+                          key={dogCategory.id}
+                          className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2"
+                        >
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {dogCategory.dogCategoryName || "ללא שם"}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {count} לקוחות בקטגוריה
+                            </div>
+                          </div>
+                          {onSendCategory && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="bg-lime-600 hover:bg-lime-700 text-white"
+                              disabled={!canSend || sendingCategoryId === dogCategory.dogCategoryId}
+                              onClick={() => dogCategory.dogCategoryId && onSendCategory(dogCategory.dogCategoryId)}
+                            >
+                              {sendingCategoryId === dogCategory.dogCategoryId ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                                  נשלח...
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="h-4 w-4 ml-2" />
+                                  שלח
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="space-y-3">
               <div className="flex items-center justify-between" dir="rtl">
                 <button
@@ -362,6 +550,7 @@ export const ProposedMeetingSheet = ({
                   className="text-sm font-semibold text-gray-900 flex items-center gap-2"
                   onClick={() => setShowClients((prev) => !prev)}
                 >
+                  <UserPlus className="h-4 w-4 text-lime-600" />
                   לקוחות מוזמנים ({invites.length})
                   <ChevronDown
                     className={cn("h-4 w-4 transition-transform", showClients ? "rotate-0" : "-rotate-90")}
@@ -471,14 +660,13 @@ export const ProposedMeetingSheet = ({
                     <Label htmlFor="manual-send-phone" className="text-xs text-gray-600 block text-right">
                       טלפון לשליחה *
                     </Label>
-                    <Input
+                    <PhoneInput
                       id="manual-send-phone"
                       value={manualPhone}
-                      onChange={(event) => setManualPhone(event.target.value)}
-                      placeholder="0501234567"
-                      className="text-right"
-                      dir="rtl"
+                      onChange={(value) => setManualPhone(value)}
+                      placeholder="050-1234567"
                       disabled={sendingManualInvite || !meeting.proposedMeetingCode}
+                      defaultCountry="il"
                     />
                   </div>
                 </div>
@@ -495,7 +683,10 @@ export const ProposedMeetingSheet = ({
                         שולח...
                       </>
                     ) : (
-                      "שלחו הודעה ידנית"
+                      <>
+                        <ManyChatIcon width={16} height={16} fill="white" className="ml-2" />
+                        שלחו הודעה ידנית
+                      </>
                     )}
                   </Button>
                   <p className="text-xs text-gray-600 text-right">
@@ -505,34 +696,6 @@ export const ProposedMeetingSheet = ({
               </div>
             )}
 
-            <Separator />
-
-            <div className="flex flex-col gap-3">
-              <Button
-                className="bg-lime-600 hover:bg-lime-700 text-white"
-                onClick={() => onEdit(meeting)}
-              >
-                <Pencil className="h-4 w-4 ml-2" />
-                עריכת מפגש
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => onDelete(meeting)}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                    מוחק...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4 ml-2" />
-                    מחק מפגש
-                  </>
-                )}
-              </Button>
-            </div>
           </div>
         </ScrollArea>
       </SheetContent>

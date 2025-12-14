@@ -14,16 +14,9 @@ interface MoveAppointmentRequest {
   oldStationId: string
   oldStartTime: string
   oldEndTime: string
-  appointmentType: "grooming" | "garden"
-  newGardenAppointmentType?: "full-day" | "hourly"
-  newGardenIsTrial?: boolean
-  selectedHours?: { start: string; end: string }
-  gardenTrimNails?: boolean
-  gardenBrush?: boolean
-  gardenBath?: boolean
-  latePickupRequested?: boolean
-  latePickupNotes?: string
+  appointmentType: "grooming"
   internalNotes?: string
+  customerNotes?: string
 }
 
 serve(async (req) => {
@@ -57,15 +50,8 @@ serve(async (req) => {
       oldStartTime,
       oldEndTime,
       appointmentType,
-      newGardenAppointmentType,
-      newGardenIsTrial,
-      selectedHours,
-      gardenTrimNails,
-      gardenBrush,
-      gardenBath,
-      latePickupRequested,
-      latePickupNotes,
       internalNotes,
+      customerNotes,
     }: MoveAppointmentRequest = await req.json()
 
     console.log("Moving appointment:", {
@@ -95,143 +81,58 @@ serve(async (req) => {
       })
     }
 
-    // Calculate new times based on selected hours for hourly garden appointments
-    let finalNewStartTime = newStartTime
-    let finalNewEndTime = newEndTime
-
-    if (appointmentType === "garden" && newGardenAppointmentType === "hourly" && selectedHours) {
-      console.log(`🕐 Calculating new times for hourly garden appointment:`, {
-        originalStart: newStartTime,
-        originalEnd: newEndTime,
-        selectedHours,
-      })
-
-      // Parse the selected hours
-      const [startHour, startMinute] = selectedHours.start.split(":").map(Number)
-      const [endHour, endMinute] = selectedHours.end.split(":").map(Number)
-
-      // Get the date from the original appointment
-      const originalDate = new Date(newStartTime)
-
-      // Create new start and end times with the selected hours but keeping the same date
-      finalNewStartTime = new Date(
-        originalDate.getFullYear(),
-        originalDate.getMonth(),
-        originalDate.getDate(),
-        startHour,
-        startMinute
-      ).toISOString()
-      finalNewEndTime = new Date(
-        originalDate.getFullYear(),
-        originalDate.getMonth(),
-        originalDate.getDate(),
-        endHour,
-        endMinute
-      ).toISOString()
-
-      console.log(`🕐 New calculated times:`, {
-        finalNewStartTime,
-        finalNewEndTime,
-      })
-    }
+    const finalNewStartTime = newStartTime
+    const finalNewEndTime = newEndTime
 
     // Prepare update object for Supabase
-    type UpdateValue = string | boolean | null | undefined | "full_day" | "trial" | "hourly" | "pending" | "approved"
-    const updateData: Record<string, UpdateValue> = {
-      station_id:
-        newStationId === "garden-station" ||
-        newStationId === "garden-full-day" ||
-        newStationId === "garden-hourly" ||
-        newStationId === "garden-trial"
-          ? null
-          : newStationId,
+    const updateData: Record<string, string | null | undefined> = {
+      station_id: newStationId,
       start_at: finalNewStartTime,
       end_at: finalNewEndTime,
     }
 
     // Add internal notes if provided
     if (internalNotes !== undefined) {
-      updateData.internal_notes = internalNotes
+      updateData.internal_notes = internalNotes || null
     }
 
-    // Update based on appointment type
-    if (appointmentType === "grooming") {
-      // Update appointment
-      console.log("Updating appointment:", appointmentId, updateData)
+    // Add customer notes if provided
+    if (customerNotes !== undefined) {
+      updateData.customer_notes = customerNotes || null
+    }
 
-      const { data, error } = await supabaseClient
-        .from("appointments")
-        .update(updateData)
-        .eq("id", appointmentId)
-        .select()
-        .single()
-
-      if (error) {
-        console.error("Error updating appointment:", error)
-        throw new Error(`Failed to update appointment: ${error.message}`)
-      }
-
-      console.log("✅ Successfully updated appointment:", data)
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Appointment moved successfully",
-          appointment: data,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      )
-    } else if (appointmentType === "garden") {
-      // Update appointment with garden-specific fields
-      // Note: service_type and questionnaire_result columns no longer exist
-      
-      // Add garden-specific fields
-      if (typeof latePickupRequested === "boolean") {
-        updateData.late_pickup_requested = latePickupRequested
-      }
-      if (latePickupNotes !== undefined) {
-        updateData.late_pickup_notes = latePickupNotes
-      }
-      if (typeof gardenTrimNails === "boolean") {
-        updateData.garden_trim_nails = gardenTrimNails
-      }
-      if (typeof gardenBrush === "boolean") {
-        updateData.garden_brush = gardenBrush
-      }
-      if (typeof gardenBath === "boolean") {
-        updateData.garden_bath = gardenBath
-      }
-
-      console.log("Updating appointment:", appointmentId, updateData)
-
-      const { data, error } = await supabaseClient
-        .from("appointments")
-        .update(updateData)
-        .eq("id", appointmentId)
-        .select()
-        .single()
-
-      if (error) {
-        console.error("Error updating appointment:", error)
-        throw new Error(`Failed to update appointment: ${error.message}`)
-      }
-
-      console.log("✅ Successfully updated appointment:", data)
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Appointment moved successfully",
-          appointment: data,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      )
-    } else {
-      return new Response(JSON.stringify({ error: "Invalid appointment type. Must be 'grooming' or 'garden'" }), {
+    // Update grooming appointment
+    if (appointmentType !== "grooming") {
+      return new Response(JSON.stringify({ error: "Invalid appointment type. Must be 'grooming'" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
     }
+
+    console.log("Updating appointment:", appointmentId, updateData)
+
+    const { data, error } = await supabaseClient
+      .from("grooming_appointments")
+      .update(updateData)
+      .eq("id", appointmentId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error updating appointment:", error)
+      throw new Error(`Failed to update appointment: ${error.message}`)
+    }
+
+    console.log("✅ Successfully updated appointment:", data)
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Appointment moved successfully",
+        appointment: data,
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    )
   } catch (error) {
     console.error("Unexpected error:", error)
     return new Response(

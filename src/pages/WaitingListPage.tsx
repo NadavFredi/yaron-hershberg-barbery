@@ -9,12 +9,10 @@ import {
     MessageSquare,
     Calendar,
     Search,
-    Sparkles,
     User,
     ShieldCheck,
     Globe,
     Scissors,
-    Bone,
     ChevronDown,
     ChevronUp,
     Clock,
@@ -52,8 +50,7 @@ import {
 interface WaitlistEntry {
     id: string
     customer_id: string
-    treatment_id: string | null
-    service_scope: 'grooming' | 'daycare' | 'both'
+    service_scope: 'grooming'
     status: 'active' | 'fulfilled' | 'cancelled'
     start_date: string
     end_date: string | null
@@ -65,18 +62,6 @@ interface WaitlistEntry {
         full_name: string
         phone: string
         email: string | null
-    }
-    treatment?: {
-        id: string
-        name: string
-        treatment_type_id: string | null
-        treatmentType?: {
-            id: string
-            name: string
-            size_class: string | null
-        }
-        treatment_types?: Array<{ id: string; name: string }>
-        treatment_categories?: Array<{ id: string; name: string }>
     }
 }
 
@@ -94,23 +79,15 @@ export default function WaitingListPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'fulfilled' | 'cancelled'>('active')
-    const [serviceFilter, setServiceFilter] = useState<'all' | 'grooming' | 'daycare' | 'both'>('all')
+    const [serviceFilter, setServiceFilter] = useState<'all' | 'grooming'>('all')
 
     // New filters
     const [phoneFilter, setPhoneFilter] = useState("")
     const [customerNameFilter, setCustomerNameFilter] = useState("")
-    const [treatmentNameFilter, setTreatmentNameFilter] = useState("")
     const [emailFilter, setEmailFilter] = useState("")
-    const [treatmentTypeFilter, setTreatmentTypeFilter] = useState<string>("all")
-    const [category1Filter, setCategory1Filter] = useState<string>("all") // treatment_types
-    const [category2Filter, setCategory2Filter] = useState<string>("all") // treatment_categories
     const [startDateFilter, setStartDateFilter] = useState<Date | null>(null)
     const [endDateFilter, setEndDateFilter] = useState<Date | null>(null)
     const [singleDateFilter, setSingleDateFilter] = useState<Date | null>(null)
-
-    // Filter options
-    const [treatmentTypes, setTreatmentTypes] = useState<Array<{ id: string; name: string }>>([])
-    const [treatmentCategories, setTreatmentCategories] = useState<Array<{ id: string; name: string }>>([])
     const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null)
     const [approveDialogOpen, setApproveDialogOpen] = useState(false)
     const [declineDialogOpen, setDeclineDialogOpen] = useState(false)
@@ -131,25 +108,7 @@ export default function WaitingListPage() {
     }, [])
 
     const loadFilterOptions = async () => {
-        try {
-            // Load treatment types (category 1)
-            const { data: typesData } = await supabase
-                .from("treatment_types")
-                .select("id, name")
-                .order("name")
-
-            if (typesData) setTreatmentTypes(typesData)
-
-            // Load treatment categories (category 2)
-            const { data: categoriesData } = await supabase
-                .from("treatment_categories")
-                .select("id, name")
-                .order("name")
-
-            if (categoriesData) setTreatmentCategories(categoriesData)
-        } catch (error) {
-            console.error("Error loading filter options:", error)
-        }
+        // No filter options needed - no dogs in barbershop
     }
 
     // Search functions for autocomplete filters
@@ -161,8 +120,7 @@ export default function WaitingListPage() {
             .not("phone", "is", null)
 
         if (trimmedTerm.length >= 2) {
-            const pattern = "%" + trimmedTerm + "%"
-            query = query.ilike("phone", pattern).limit(10)
+            query = query.ilike("phone", `%${trimmedTerm}%`).limit(10)
         } else {
             query = query.order("phone", { ascending: true }).limit(5)
         }
@@ -181,8 +139,7 @@ export default function WaitingListPage() {
             .not("full_name", "is", null)
 
         if (trimmedTerm.length >= 2) {
-            const pattern = "%" + trimmedTerm + "%"
-            query = query.ilike("full_name", pattern).limit(10)
+            query = query.ilike("full_name", `%${trimmedTerm}%`).limit(10)
         } else {
             query = query.order("full_name", { ascending: true }).limit(5)
         }
@@ -193,25 +150,6 @@ export default function WaitingListPage() {
         return [...new Set((data || []).map(c => c.full_name).filter(Boolean))] as string[]
     }
 
-    const searchTreatmentNames = async (searchTerm: string): Promise<string[]> => {
-        const trimmedTerm = searchTerm.trim()
-        let query = supabase
-            .from("services")
-            .select("name")
-            .not("name", "is", null)
-
-        if (trimmedTerm.length >= 2) {
-            const pattern = "%" + trimmedTerm + "%"
-            query = query.ilike("name", pattern).limit(10)
-        } else {
-            query = query.order("name", { ascending: true }).limit(5)
-        }
-
-        const { data, error } = await query
-
-        if (error) throw error
-        return [...new Set((data || []).map(d => d.name).filter(Boolean))] as string[]
-    }
 
     const searchEmails = async (searchTerm: string): Promise<string[]> => {
         const trimmedTerm = searchTerm.trim()
@@ -221,8 +159,7 @@ export default function WaitingListPage() {
             .not("email", "is", null)
 
         if (trimmedTerm.length >= 2) {
-            const pattern = "%" + trimmedTerm + "%"
-            query = query.ilike("email", pattern).limit(10)
+            query = query.ilike("email", `%${trimmedTerm}%`).limit(10)
         } else {
             query = query.order("email", { ascending: true }).limit(5)
         }
@@ -236,65 +173,8 @@ export default function WaitingListPage() {
     const loadWaitlistEntries = async () => {
         setIsLoading(true)
         try {
-            // First, get all waitlist entries
-            const { data: waitlistData, error: waitlistError } = await supabase
-                .from("waitlist")
-                .select("*")
-                .order("created_at", { ascending: false })
-
-            if (waitlistError) throw waitlistError
-
-            if (!waitlistData || waitlistData.length === 0) {
-                setWaitlistEntries([])
-                setIsLoading(false)
-                return
-            }
-
-            // Get unique customer and service IDs
-            const customerIds = [...new Set(waitlistData.map(e => e.customer_id))]
-            const serviceIds = [...new Set(waitlistData.map(e => e.service_id).filter((id): id is string => Boolean(id)))]
-
-            // Fetch customers
-            const { data: customersData } = await supabase
-                .from("customers")
-                .select("id, full_name, phone, email")
-                .in("id", customerIds)
-
-            // Fetch services (treatments table no longer exists)
-            let servicesData: any[] = []
-            if (serviceIds.length > 0) {
-                const { data: fetchedServices } = await supabase
-                    .from("services")
-                    .select(
-                        "id, name, description, category"
-                    )
-                    .in("id", serviceIds)
-                servicesData = fetchedServices || []
-            }
-
-            // Build lookup maps
-            const customersMap = new Map((customersData || []).map(c => [c.id, c]))
-            const servicesMap = new Map((servicesData || []).map(d => [d.id, d]))
-
-            // Transform the data
-            const transformedData: WaitlistEntry[] = waitlistData.map((entry: any) => {
-                const service = servicesMap.get(entry.service_id)
-
-                return {
-                    ...entry,
-                    customer: customersMap.get(entry.customer_id) || undefined,
-                    treatment: service ? {
-                        id: service.id,
-                        name: service.name,
-                        treatment_type_id: null, // Services don't have treatment_type_id
-                        treatmentType: service.category ? { id: "", name: service.category } : null,
-                        treatment_types: [],
-                        treatment_categories: []
-                    } : undefined
-                }
-            })
-
-            setWaitlistEntries(transformedData)
+            // Daycare waitlist doesn't exist in this system - return empty array
+            setWaitlistEntries([])
         } catch (error) {
             console.error("Error loading waitlist entries:", error)
             toast({
@@ -327,40 +207,13 @@ export default function WaitingListPage() {
                 if (!customerName.includes(customerNameFilter.toLowerCase())) return false
             }
 
-            // Treatment name filter
-            if (treatmentNameFilter) {
-                const treatmentName = entry.treatment?.name?.toLowerCase() || ""
-                if (!treatmentName.includes(treatmentNameFilter.toLowerCase())) return false
-            }
-
             // Email filter
             if (emailFilter) {
                 const email = entry.customer?.email?.toLowerCase() || ""
                 if (!email.includes(emailFilter.toLowerCase())) return false
             }
 
-            // TreatmentType filter
-            if (treatmentTypeFilter !== "all") {
-                if (entry.treatment?.treatment_type_id !== treatmentTypeFilter) return false
-            }
-
-            // Category 1 filter (treatment_types)
-            if (category1Filter !== "all") {
-                const hasCategory1 = entry.treatment?.treatment_types?.some(
-                    type => type.id === category1Filter
-                )
-                if (!hasCategory1) return false
-            }
-
-            // Category 2 filter (treatment_categories)
-            if (category2Filter !== "all") {
-                const hasCategory2 = entry.treatment?.treatment_categories?.some(
-                    category => category.id === category2Filter
-                )
-                if (!hasCategory2) return false
-            }
-
-            // Single date filter (show all waiting treatments on this date)
+            // Single date filter (show all waiting dogs on this date)
             if (singleDateFilter) {
                 const filterDate = format(singleDateFilter, 'yyyy-MM-dd')
                 const startDate = format(new Date(entry.start_date), 'yyyy-MM-dd')
@@ -391,13 +244,9 @@ export default function WaitingListPage() {
             if (searchTerm) {
                 const term = searchTerm.toLowerCase()
                 const customerName = entry.customer?.full_name?.toLowerCase() || ""
-                const treatmentName = entry.treatment?.name?.toLowerCase() || ""
-                const treatmentTypeName = entry.treatment?.treatmentType?.name?.toLowerCase() || ""
                 const phone = entry.customer?.phone?.toLowerCase() || ""
 
                 if (!customerName.includes(term) &&
-                    !treatmentName.includes(term) &&
-                    !treatmentTypeName.includes(term) &&
                     !phone.includes(term)) {
                     return false
                 }
@@ -412,11 +261,7 @@ export default function WaitingListPage() {
         searchTerm,
         phoneFilter,
         customerNameFilter,
-        treatmentNameFilter,
         emailFilter,
-        treatmentTypeFilter,
-        category1Filter,
-        category2Filter,
         startDateFilter,
         endDateFilter,
         singleDateFilter
@@ -439,28 +284,24 @@ export default function WaitingListPage() {
             const startTime = new Date(approveDate)
             startTime.setHours(hours, minutes, 0, 0)
 
-            // Calculate end time based on service type and treatmentType (default 60 minutes for grooming, 480 for daycare)
+            // Calculate end time (default 60 minutes for grooming)
             const endTime = new Date(startTime)
-            const durationMinutes = selectedEntry.service_scope === 'daycare' ? 480 : 60
+            const durationMinutes = 60
             endTime.setMinutes(endTime.getMinutes() + durationMinutes)
 
             // Create appointment using the mutation
-            const serviceType = selectedEntry.service_scope === 'grooming' ? 'grooming' :
-                selectedEntry.service_scope === 'daycare' ? 'daycare' : 'grooming'
-
             await createAppointment({
                 customerId: selectedEntry.customer_id,
-                treatmentId: selectedEntry.treatment_id,
-                serviceType,
+                serviceType: 'grooming',
                 startTime: startTime.toISOString(),
                 endTime: endTime.toISOString(),
                 notes: approveNotes || undefined,
-                internalNotes: "נוצר מרשימת המתנה (" + selectedEntry.id + ")"
+                internalNotes: `נוצר מרשימת המתנה (${selectedEntry.id})`
             }).unwrap()
 
             // Update waitlist entry status
             await supabase
-                .from("waitlist")
+                .from("daycare_waitlist")
                 .update({ status: 'fulfilled' })
                 .eq("id", selectedEntry.id)
 
@@ -492,18 +333,11 @@ export default function WaitingListPage() {
 
         setIsProcessing(true)
         try {
-            const existingNotes = selectedEntry.notes || ""
-            let updatedNotes = existingNotes
-            if (declineReason) {
-                const prefix = existingNotes ? existingNotes + "\n" : ""
-                updatedNotes = prefix + "סיבה לדחייה: " + declineReason
-            }
-
             await supabase
-                .from("waitlist")
+                .from("daycare_waitlist")
                 .update({
                     status: 'cancelled',
-                    notes: updatedNotes.trim()
+                    notes: declineReason ? `${selectedEntry.notes || ''}\nסיבה לדחייה: ${declineReason}`.trim() : selectedEntry.notes
                 })
                 .eq("id", selectedEntry.id)
 
@@ -540,14 +374,12 @@ export default function WaitingListPage() {
 
         setIsProcessing(true)
         try {
-            const formattedDate = format(suggestion.suggestedDate, "dd/MM/yyyy", { locale: he })
-            const baseSuggestionText = "הצעה: " + formattedDate + " בשעה " + suggestion.suggestedTime
-            const suggestionText = suggestion.notes ? baseSuggestionText + "\n" + suggestion.notes : baseSuggestionText
+            const suggestionText = `הצעה: ${format(suggestion.suggestedDate, 'dd/MM/yyyy', { locale: he })} בשעה ${suggestion.suggestedTime}${suggestion.notes ? `\n${suggestion.notes}` : ''}`
 
             await supabase
-                .from("waitlist")
+                .from("daycare_waitlist")
                 .update({
-                    notes: selectedEntry.notes ? selectedEntry.notes + "\n\n" + suggestionText : suggestionText
+                    notes: selectedEntry.notes ? `${selectedEntry.notes}\n\n${suggestionText}` : suggestionText
                 })
                 .eq("id", selectedEntry.id)
 
@@ -575,19 +407,12 @@ export default function WaitingListPage() {
     const handleViewInCalendar = (entry: WaitlistEntry) => {
         // Navigate to ManagerSchedule with waitlist preview context
         const previewDate = entry.start_date ? new Date(entry.start_date) : new Date()
-        navigate(
-            "/manager?previewWaitlist=" +
-            entry.id +
-            "&date=" +
-            format(previewDate, "yyyy-MM-dd")
-        )
+        navigate(`/manager?previewWaitlist=${entry.id}&date=${format(previewDate, 'yyyy-MM-dd')}`)
     }
 
     const getServiceBadge = (service: string) => {
         const badges = {
-            grooming: { label: "מספרה", icon: Scissors, color: "bg-blue-100 text-blue-800 border-blue-200" },
-            daycare: { label: "גן", icon: Bone, color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-            both: { label: "שניהם", icon: CalendarCheck, color: "bg-purple-100 text-purple-800 border-purple-200" }
+            grooming: { label: "מספרה", icon: Scissors, color: "bg-blue-100 text-blue-800 border-blue-200" }
         }
         const badge = badges[service as keyof typeof badges] || badges.grooming
         const Icon = badge.icon
@@ -597,16 +422,6 @@ export default function WaitingListPage() {
                 {badge.label}
             </Badge>
         )
-    }
-
-    const getSizeLabel = (size: string | null) => {
-        const sizes: Record<string, string> = {
-            small: "קטן",
-            medium: "בינוני",
-            medium_large: "בינוני-גדול",
-            large: "גדול"
-        }
-        return sizes[size || ''] || "-"
     }
 
     if (isLoading) {
@@ -659,14 +474,12 @@ export default function WaitingListPage() {
                             <SelectContent dir="rtl">
                                 <SelectItem value="all">הכל</SelectItem>
                                 <SelectItem value="grooming">מספרה</SelectItem>
-                                <SelectItem value="daycare">גן</SelectItem>
-                                <SelectItem value="both">שניהם</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
-                    {/* Customer/Treatment Details Filters Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {/* Customer Details Filters Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <Label className="text-sm mb-2 block">שם לקוח</Label>
                             <AutocompleteFilter
@@ -674,19 +487,6 @@ export default function WaitingListPage() {
                                 onChange={setCustomerNameFilter}
                                 placeholder="שם לקוח..."
                                 searchFn={searchCustomerNames}
-                                minSearchLength={0}
-                                autoSearchOnFocus
-                                initialLoadOnMount
-                                initialResultsLimit={5}
-                            />
-                        </div>
-                        <div>
-                            <Label className="text-sm mb-2 block">שם לקוח</Label>
-                            <AutocompleteFilter
-                                value={treatmentNameFilter}
-                                onChange={setTreatmentNameFilter}
-                                placeholder="שם לקוח..."
-                                searchFn={searchTreatmentNames}
                                 minSearchLength={0}
                                 autoSearchOnFocus
                                 initialLoadOnMount
@@ -721,52 +521,6 @@ export default function WaitingListPage() {
                         </div>
                     </div>
 
-                    {/* TreatmentType and Categories Filters Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <Label className="text-sm mb-2 block">גזע</Label>
-                            <Select value={treatmentTypeFilter} onValueChange={setTreatmentTypeFilter}>
-                                <SelectTrigger dir="rtl">
-                                    <SelectValue placeholder="בחר גזע" />
-                                </SelectTrigger>
-                                <SelectContent dir="rtl">
-                                    <SelectItem value="all">הכל</SelectItem>
-                                    {treatmentTypes.map(treatmentType => (
-                                        <SelectItem key={treatmentType.id} value={treatmentType.id}>{treatmentType.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label className="text-sm mb-2 block">קטגוריה 1</Label>
-                            <Select value={category1Filter} onValueChange={setCategory1Filter}>
-                                <SelectTrigger dir="rtl">
-                                    <SelectValue placeholder="בחר קטגוריה 1" />
-                                </SelectTrigger>
-                                <SelectContent dir="rtl">
-                                    <SelectItem value="all">הכל</SelectItem>
-                                    {treatmentTypes.map(type => (
-                                        <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label className="text-sm mb-2 block">קטגוריה 2</Label>
-                            <Select value={category2Filter} onValueChange={setCategory2Filter}>
-                                <SelectTrigger dir="rtl">
-                                    <SelectValue placeholder="בחר קטגוריה 2" />
-                                </SelectTrigger>
-                                <SelectContent dir="rtl">
-                                    <SelectItem value="all">הכל</SelectItem>
-                                    {treatmentCategories.map(category => (
-                                        <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
                     {/* Date Filters Row */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
@@ -788,7 +542,7 @@ export default function WaitingListPage() {
                             />
                         </div>
                         <div>
-                            <Label className="text-sm mb-2 block">הצג לקוחות ממתינים בתאריך זה</Label>
+                            <Label className="text-sm mb-2 block">הצג בקשות ממתינות בתאריך זה</Label>
                             <DatePickerInput
                                 value={singleDateFilter}
                                 onChange={setSingleDateFilter}
@@ -810,8 +564,7 @@ export default function WaitingListPage() {
                     </div>
 
                     {/* Clear Filters Button */}
-                    {(phoneFilter || customerNameFilter || treatmentNameFilter || emailFilter ||
-                        treatmentTypeFilter !== "all" || category1Filter !== "all" || category2Filter !== "all" ||
+                    {(phoneFilter || customerNameFilter || emailFilter ||
                         startDateFilter || endDateFilter || singleDateFilter) && (
                             <div className="flex justify-start pt-2">
                                 <Button
@@ -819,11 +572,7 @@ export default function WaitingListPage() {
                                     onClick={() => {
                                         setPhoneFilter("")
                                         setCustomerNameFilter("")
-                                        setTreatmentNameFilter("")
                                         setEmailFilter("")
-                                        setTreatmentTypeFilter("all")
-                                        setCategory1Filter("all")
-                                        setCategory2Filter("all")
                                         setStartDateFilter(null)
                                         setEndDateFilter(null)
                                         setSingleDateFilter(null)
@@ -895,10 +644,7 @@ export default function WaitingListPage() {
                                 <thead>
                                     <tr className="border-b bg-[hsl(228_36%_95%)] text-right text-primary [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-[hsl(228_36%_95%)]">
                                         <th className="h-12 w-12 text-center align-middle font-semibold"></th>
-                                        <th className="h-12 px-3 align-middle font-semibold">שם הלקוח</th>
-                                        <th className="h-12 px-3 align-middle font-semibold">גזע</th>
-                                        <th className="h-12 px-3 align-middle font-semibold">קטגוריות</th>
-                                        <th className="h-12 px-3 align-middle font-semibold">גודל</th>
+                                        <th className="h-12 px-3 align-middle font-semibold">לקוח</th>
                                         <th className="h-12 px-3 align-middle font-semibold text-center">טווח המתנה</th>
                                         <th className="h-12 px-3 align-middle font-semibold text-center w-32">סטטוס</th>
                                         <th className="h-12 px-3 align-middle font-semibold text-center w-16">פעולות</th>
@@ -924,7 +670,6 @@ export default function WaitingListPage() {
                                                 setSuggestDialogOpen(true)
                                             }}
                                             onViewInCalendar={() => handleViewInCalendar(entry)}
-                                            getSizeLabel={getSizeLabel}
                                         />
                                     ))}
                                 </tbody>
@@ -940,7 +685,7 @@ export default function WaitingListPage() {
                     <DialogHeader>
                         <DialogTitle>אשר בקשה מרשימת המתנה</DialogTitle>
                         <DialogDescription>
-                            צור תור חדש עבור {selectedEntry?.treatment?.name} ({selectedEntry?.customer?.full_name})
+                            צור תור חדש עבור {selectedEntry?.customer?.full_name}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -996,7 +741,7 @@ export default function WaitingListPage() {
                     <DialogHeader>
                         <DialogTitle>דחה בקשה מרשימת המתנה</DialogTitle>
                         <DialogDescription>
-                            האם אתה בטוח שברצונך לדחות את הבקשה עבור {selectedEntry?.treatment?.name}?
+                            האם אתה בטוח שברצונך לדחות את הבקשה עבור {selectedEntry?.customer?.full_name}?
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -1034,7 +779,7 @@ export default function WaitingListPage() {
                     <DialogHeader>
                         <DialogTitle>הצע זמן חלופי</DialogTitle>
                         <DialogDescription>
-                            הצע תאריך ושעה חלופיים עבור {selectedEntry?.treatment?.name}
+                            הצע תאריך ושעה חלופיים עבור {selectedEntry?.customer?.full_name}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -1107,7 +852,6 @@ interface WaitlistEntryRowProps {
     onDecline: () => void
     onSuggest: () => void
     onViewInCalendar: () => void
-    getSizeLabel: (size: string | null) => string
 }
 
 function WaitlistEntryRow({
@@ -1117,8 +861,7 @@ function WaitlistEntryRow({
     onApprove,
     onDecline,
     onSuggest,
-    onViewInCalendar,
-    getSizeLabel
+    onViewInCalendar
 }: WaitlistEntryRowProps) {
     const statusBadges = {
         active: { label: "פעיל", color: "bg-blue-100 text-blue-800 border-blue-200" },
@@ -1127,12 +870,7 @@ function WaitlistEntryRow({
     }
     const statusBadge = statusBadges[entry.status]
     const canModify = entry.status === 'active'
-    const serviceLabelMap: Record<WaitlistEntry['service_scope'], string> = {
-        grooming: "תספורת",
-        daycare: "גן",
-        both: "תספורת + גן",
-    }
-    const serviceLabel = serviceLabelMap[entry.service_scope] || entry.service_scope
+    const serviceLabel = "תספורת"
 
     const formatDateValue = (value?: string | null, withTime = false) => {
         if (!value) return "-"
@@ -1144,10 +882,9 @@ function WaitlistEntryRow({
     const startDateLabel = formatDateValue(entry.start_date)
     const endDateLabel = entry.end_date ? formatDateValue(entry.end_date) : null
     const createdLabel = formatDateValue(entry.created_at, true)
-    let dateSummary = startDateLabel
-    if (endDateLabel && endDateLabel !== startDateLabel) {
-        dateSummary = startDateLabel + " - " + endDateLabel
-    }
+    const dateSummary = endDateLabel && endDateLabel !== startDateLabel
+        ? `${startDateLabel} - ${endDateLabel}`
+        : startDateLabel
 
     return (
         <Fragment>
@@ -1175,21 +912,12 @@ function WaitlistEntryRow({
                     </Button>
                 </td>
                 <td className="px-3 py-3 align-middle text-right">
-                    <span className="text-sm text-gray-900">{entry.treatment?.name || "ללא שם"}</span>
-                </td>
-                <td className="px-3 py-3 align-middle text-right text-sm text-gray-700">
-                    {entry.treatment?.treatmentType?.name || "-"}
-                </td>
-                <td className="px-3 py-3 align-middle text-right text-xs text-gray-600">
-                    {[
-                        ...(entry.treatment?.treatment_types?.map((type) => type.name) ?? []),
-                        ...(entry.treatment?.treatment_categories?.map((category) => category.name) ?? []),
-                    ]
-                        .filter(Boolean)
-                        .join(", ") || "-"}
-                </td>
-                <td className="px-3 py-3 align-middle text-center text-sm text-gray-700">
-                    {getSizeLabel(entry.treatment?.treatmentType?.size_class || null)}
+                    <div>
+                        <span className="text-sm font-medium text-gray-900">{entry.customer?.full_name || "ללא שם"}</span>
+                        {entry.customer?.phone && (
+                            <div className="text-xs text-gray-500">{entry.customer.phone}</div>
+                        )}
+                    </div>
                 </td>
                 <td className="px-3 py-3 align-middle text-center text-sm text-gray-700">
                     <div className="inline-flex items-center gap-2">
@@ -1238,30 +966,9 @@ function WaitlistEntryRow({
             {isExpanded && (
                 <tr className="bg-[hsl(228_36%_98%)]">
                     <td className="border-b-0" />
-                    <td colSpan={7} className="border-b px-6 py-6">
+                    <td colSpan={4} className="border-b px-6 py-6">
                         <div className="space-y-6">
-                            <div className="grid gap-8 lg:grid-cols-3">
-                                <InfoSection
-                                    icon={<Sparkles className="h-4 w-4" />}
-                                    title="פרטי הלקוח"
-                                    rows={[
-                                        { label: "שם", value: entry.treatment?.name || "-" },
-                                        { label: "גזע", value: entry.treatment?.treatmentType?.name || "-" },
-                                        { label: "גודל", value: getSizeLabel(entry.treatment?.treatmentType?.size_class || null) },
-                                        entry.treatment?.treatment_types?.length
-                                            ? {
-                                                label: "קטגוריות ראשיות",
-                                                value: entry.treatment.treatment_types.map((type) => type.name).join(", "),
-                                            }
-                                            : null,
-                                        entry.treatment?.treatment_categories?.length
-                                            ? {
-                                                label: "קטגוריות משנה",
-                                                value: entry.treatment.treatment_categories.map((category) => category.name).join(", "),
-                                            }
-                                            : null,
-                                    ].filter(Boolean) as DetailRowProps[]}
-                                />
+                            <div className="grid gap-8 lg:grid-cols-2">
                                 <InfoSection
                                     icon={<User className="h-4 w-4" />}
                                     title="פרטי הלקוח"
@@ -1322,11 +1029,7 @@ const InfoSection = ({ icon, title, rows }: InfoSectionProps) => (
         <div className="rounded-2xl border border-blue-100 bg-white px-4 py-4 shadow-sm">
             <dl className="space-y-3 text-sm text-gray-700">
                 {rows.map((row, index) => (
-                    <DetailRow
-                        key={title + "-" + row.label + "-" + index}
-                        label={row.label}
-                        value={row.value}
-                    />
+                    <DetailRow key={`${title}-${row.label}-${index}`} label={row.label} value={row.value} />
                 ))}
             </dl>
         </div>

@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 import { SiWhatsapp } from "react-icons/si";
 
-const WHATSAPP_NUMBER = "972507448229";
-const WHATSAPP_MESSAGE = "אשמח לשמוע עוד על השירותים שלכם";
+const WHATSAPP_NUMBER = "972537729145";
+const WHATSAPP_MESSAGE = "היי, אשמח לשמוע פרטים נוספים";
 
 export const FloatingWhatsAppButton = () => {
   const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(

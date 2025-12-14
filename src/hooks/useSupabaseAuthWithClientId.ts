@@ -63,14 +63,13 @@ async function ensureCustomerRecord(user: SupabaseUser) {
   const { error: profileError } = await supabase.from("profiles").update({ client_id: newClientId }).eq("id", user.id)
 
   if (profileError) {
-    console.warn("Failed to update profiles.client_id after customer creation:", profileError)
+    // Failed to update profiles.client_id after customer creation
   }
 
   return newClientId
 }
 
 async function resolveClientIdForUser(user: SupabaseUser) {
-
   const metadataClientId =
     typeof user.user_metadata?.client_id === "string" && user.user_metadata.client_id.trim().length > 0
       ? user.user_metadata.client_id
@@ -87,7 +86,6 @@ async function resolveClientIdForUser(user: SupabaseUser) {
     .maybeSingle()
 
   if (customerError) {
-    console.error("❌ [resolveClientIdForUser] Error querying customers:", customerError)
     throw customerError
   }
 
@@ -102,7 +100,7 @@ async function resolveClientIdForUser(user: SupabaseUser) {
     .maybeSingle()
 
   if (profileError) {
-    console.warn("⚠️ [resolveClientIdForUser] Failed to read profiles.client_id:", profileError)
+    // Failed to read profiles.client_id
   } else if (profileRow?.client_id) {
     return profileRow.client_id
   }
@@ -114,6 +112,7 @@ async function resolveClientIdForUser(user: SupabaseUser) {
 export function useSupabaseAuthWithClientId() {
   const dispatch = useAppDispatch()
   const authState = useAppSelector((state) => state.auth)
+  const impersonationState = useAppSelector((state) => state.impersonation)
   const [isFetchingClientId, setIsFetchingClientId] = useState(false)
   const [clientIdError, setClientIdError] = useState<Error | null>(null)
   const [hasAttemptedClientIdResolution, setHasAttemptedClientIdResolution] = useState(false)
@@ -122,6 +121,9 @@ export function useSupabaseAuthWithClientId() {
       typeof authState.user?.user_metadata?.client_id === "string" ? authState.user.user_metadata.client_id.trim() : ""
     return initial.length > 0 ? initial : null
   })
+
+  // If impersonating, use the impersonated client_id
+  const effectiveClientId = impersonationState.impersonatedCustomerId || resolvedClientId
 
   useEffect(() => {
     // Reset resolution state when user changes
@@ -159,7 +161,6 @@ export function useSupabaseAuthWithClientId() {
             return
           }
 
-          console.error("❌ [useSupabaseAuthWithClientId] Error fetching user:", error)
           dispatch(setError(error.message || "Failed to fetch user"))
         } else if (data.user) {
           dispatch(setUser(data.user))
@@ -181,7 +182,6 @@ export function useSupabaseAuthWithClientId() {
 
     if (!authSubscription) {
       const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-
         if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
           // User signed out or token refresh failed
           dispatch(clearUser())
@@ -244,7 +244,6 @@ export function useSupabaseAuthWithClientId() {
         }
 
         if (!customerId) {
-          console.error("❌ [useSupabaseAuthWithClientId] No customerId returned")
           throw new Error("Failed to resolve customer ID")
         }
 
@@ -256,7 +255,7 @@ export function useSupabaseAuthWithClientId() {
           })
 
           if (updateError) {
-            console.warn("⚠️ [useSupabaseAuthWithClientId] Failed to persist client_id to auth metadata:", updateError)
+            // Failed to persist client_id to auth metadata
           } else {
             const {
               data: { user: refreshedUser },
@@ -271,7 +270,6 @@ export function useSupabaseAuthWithClientId() {
         if (!cancelled) {
           const normalizedError = error instanceof Error ? error : new Error(String(error))
           setClientIdError(normalizedError)
-          console.error("❌ [useSupabaseAuthWithClientId] Failed to resolve client_id for user:", normalizedError)
         }
       } finally {
         if (!cancelled) {
@@ -289,9 +287,11 @@ export function useSupabaseAuthWithClientId() {
 
   return {
     ...authState,
-    clientId: resolvedClientId,
+    clientId: effectiveClientId,
     isFetchingClientId:
       isFetchingClientId || (!resolvedClientId && !hasAttemptedClientIdResolution && authState.user != null),
     clientIdError,
+    isImpersonating: Boolean(impersonationState.impersonatedCustomerId),
+    impersonatedCustomerName: impersonationState.impersonatedCustomerName,
   }
 }

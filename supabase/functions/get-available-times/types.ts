@@ -10,18 +10,12 @@ export interface AirtableRecord<T> {
 /** Fields for 'לקוחות' table */
 export interface TreatmentFields {
   שם: string
-  גזע: string[] // Array of record IDs from 'גזעים'
-  "האם מילא שאלון התאמה לגן"?: boolean
-  "האם הלקוח היה במספרה"?: boolean
 }
 
 /** Fields for 'עמדות מול גזעים' table */
 export interface TreatmentTypeDurationRuleFields {
-  גזע: string[] // Array of record IDs from 'גזעים'
   עמדה: string[] // Array of record IDs from 'עמדות עבודה'
   'סה"כ משך תספורת בשניות'?: number
-  'סה"כ משך גן בשניות'?: number
-  'סה"כ משך משולב בשניות'?: number
 }
 
 /** Fields for 'שעות פעילות' table */
@@ -43,21 +37,6 @@ export interface ConstraintFields {
   "מועד תחילת ההיעדרות": string // ISO DateTime string
   "מועד סיום ההיעדרות": string // ISO DateTime string
   "עמדת עבודה": string[] // Array of record IDs from 'עמדות עבודה'
-}
-
-/** Fields for 'תקרת שיבוצים בגן' table */
-export interface GardenCapacityFields {
-  "הגבלת שיבוץ לניסיון"?: number
-  "הגבלה לשיבוץ רגיל"?: number
-}
-
-/** Fields for 'תורים לגן' table */
-export interface GardenAppointmentFields {
-  "מועד התור": string
-  "מועד סיום התור"?: string
-  סטטוס?: string
-  "סוג פעילות"?: string
-  "האם ניסיון"?: boolean
 }
 
 /** Simplified internal representation of data for calculation */
@@ -105,13 +84,6 @@ export interface StationAvailabilityProfile {
    * When false, remote/self-service booking is not allowed for this station and treatmentType combination.
    */
   remoteBookingAllowed?: boolean
-}
-
-export interface GardenCapacityState {
-  trialLimit: number
-  regularLimit: number
-  trialBooked: number
-  regularBooked: number
 }
 
 export interface Workstation {
@@ -165,13 +137,6 @@ export interface AvailableDate {
   availableTimes: AvailableTime[]
 }
 
-export interface GardenQuestionnaireStatus {
-  required: boolean
-  completed: boolean
-  formUrl?: string
-  message?: string
-}
-
 export interface AvailabilityResponse {
   success: boolean
   mode: "date"
@@ -179,6 +144,5 @@ export interface AvailabilityResponse {
     month: number
     year: number
     availableDates: AvailableDate[]
-    gardenQuestionnaire?: GardenQuestionnaireStatus
   }
 }

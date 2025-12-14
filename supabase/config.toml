@@ -156,10 +156,10 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/duplicate-appointment/index.ts"
 
-[functions.get-treatmentType-pricing]
+[functions.get-treatment-type-pricing]
 enabled = true
 verify_jwt = false
-entrypoint = "./functions/get-treatmentType-pricing/index.ts"
+entrypoint = "./functions/get-treatment-type-pricing/index.ts"
 
 [functions.save-appointment-price]
 enabled = true
@@ -220,5 +220,65 @@ entrypoint = "./functions/search-manager-schedule/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/send-payment-request/index.ts"
+
+[functions.charge-saved-card]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/charge-saved-card/index.ts"
+
+[functions.get-manychat-user]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/get-manychat-user/index.ts"
+
+[functions.get-profile-appointments]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/get-profile-appointments/index.ts"
+
+[functions.reset-worker-password]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/reset-worker-password/index.ts"
+
+[functions.send-invoice]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-invoice/index.ts"
+
+[functions.set-manychat-fields]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/set-manychat-fields/index.ts"
+
+[functions.set-manychat-fields-and-send-flow]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/set-manychat-fields-and-send-flow/index.ts"
+
+[functions.tranzila-create-invoice]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/tranzila-create-invoice/index.ts"
+
+[functions.tranzila-get-invoice]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/tranzila-get-invoice/index.ts"
+
+[functions.tranzila-get-retrieval-key]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/tranzila-get-retrieval-key/index.ts"
+
+[functions.tranzila-handshake]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/tranzila-handshake/index.ts"
+
+[functions.update-user-phone]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/update-user-phone/index.ts"
 
 

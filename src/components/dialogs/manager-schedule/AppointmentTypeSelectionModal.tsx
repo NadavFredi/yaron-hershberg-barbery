@@ -58,6 +58,22 @@ export const AppointmentTypeSelectionModal: React.FC<AppointmentTypeSelectionMod
                             </div>
                         </div>
 
+                        <Button
+                            onClick={onSelectBusiness}
+                            className="w-full h-auto p-4 flex items-center justify-start gap-3 text-right"
+                            variant="outline"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100">
+                                    <Users className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <div className="text-right flex-1">
+                                    <div className="font-semibold">תור עסקי</div>
+                                    <div className="text-sm text-gray-500">תור עם לקוח</div>
+                                </div>
+                            </div>
+                        </Button>
+
                         <div className="space-y-3">
                             <Button
                                 onClick={onSelectPrivate}
@@ -75,21 +91,7 @@ export const AppointmentTypeSelectionModal: React.FC<AppointmentTypeSelectionMod
                                 </div>
                             </Button>
 
-                            <Button
-                                onClick={onSelectBusiness}
-                                className="w-full h-auto p-4 flex items-center justify-start gap-3 text-right"
-                                variant="outline"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100">
-                                        <Users className="h-5 w-5 text-blue-600" />
-                                    </div>
-                                    <div className="text-right flex-1">
-                                        <div className="font-semibold">תור עסקי</div>
-                                        <div className="text-sm text-gray-500">תור עם לקוח ופרופיל שירות</div>
-                                    </div>
-                                </div>
-                            </Button>
+
 
                             {onSelectProposed && (
                                 <Button

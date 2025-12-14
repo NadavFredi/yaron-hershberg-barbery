@@ -5,9 +5,6 @@ import {
   checkUserExists as checkCustomerExists,
   getClientProfile as fetchClientProfile,
   updateClientProfile as saveClientProfile,
-  createTreatment as createTreatmentRecord,
-  updateTreatment as updateTreatmentRecord,
-  getMergedAppointments as fetchMergedAppointments,
   getManagerSchedule as fetchManagerSchedule,
   searchManagerSchedule as executeManagerScheduleSearch,
   moveAppointment as moveAppointmentRecord,
@@ -23,13 +20,21 @@ import {
   type ProposedMeetingInput,
   type ProposedMeetingUpdateInput,
 } from "@/integrations/supabase/supabaseService"
-import type { ManagerScheduleData, ManagerAppointment, ManagerScheduleSearchResponse } from "@/types/managerSchedule"
+import type {
+  ManagerScheduleData,
+  ManagerAppointment,
+  ManagerScheduleSearchResponse,
+} from "@/pages/ManagerSchedule/types"
 import type { ProposedMeetingPublicDetails } from "@/types/proposedMeeting"
 import type {
+  GetAllWorkerShiftsParams,
+  GetAllWorkerShiftsResponse,
   GetWorkerAttendanceResponse,
   GetWorkersResponse,
   RegisterWorkerPayload,
   RegisterWorkerResponse,
+  ResetWorkerPasswordPayload,
+  ResetWorkerPasswordResponse,
   UpdateWorkerStatusPayload,
   UpdateWorkerStatusResponse,
   WorkerClockShiftResponse,
@@ -38,15 +43,13 @@ import type {
 
 export type PendingAppointmentRequest = {
   id: string
-  serviceType: "grooming" | "garden"
+  serviceType: "grooming"
   createdAt: string
   startAt: string | null
   endAt: string | null
   customerId: string | null
   customerName: string | null
   customerPhone: string | null
-  treatmentId: string | null
-  treatmentName: string | null
   stationName: string | null
   serviceLabel: string | null
   notes: string | null
@@ -258,17 +261,27 @@ const supabaseFunctionBaseQuery: BaseQueryFn<SupabaseBaseQueryArg, unknown, Supa
 export const supabaseApi = createApi({
   reducerPath: "supabaseApi",
   baseQuery: supabaseFunctionBaseQuery,
+  refetchOnFocus: false,
+  refetchOnReconnect: false,
+  defaultOptions: {
+    queries: {
+      refetchOnMountOrArgChange: false,
+      // Keep cached data available while navigating between tabs to avoid auto refetches
+      keepUnusedDataFor: 300,
+    },
+  },
   tagTypes: [
     "User",
     "Appointment",
-    "Treatment",
     "Availability",
     "WaitingList",
-    "GardenAppointment",
     "ManagerSchedule",
     "Customer",
     "Worker",
     "WorkerAttendance",
+    "Constraints",
+    "StationWorkingHours",
+    "ShiftRestrictions",
   ],
   endpoints: (builder) => ({
     // User authentication
@@ -335,6 +348,21 @@ export const supabaseApi = createApi({
       invalidatesTags: ["User"],
     }),
 
+    getManyChatUser: builder.query({
+      query: (phoneRequests: Array<{ phone: string; fullName: string }>) => ({
+        functionName: "get-manychat-user",
+        body: phoneRequests,
+      }),
+      transformResponse: (response: unknown) => {
+        console.log("🔍 [getManyChatUser] Raw response from Supabase:", response)
+        // Response is a dictionary: { "phone": subscriber_data, ... }
+        const result = unwrapResponse<Record<string, unknown>>(response)
+        console.log("🔍 [getManyChatUser] Transformed response:", result)
+        return result
+      },
+      providesTags: ["User"],
+    }),
+
     getClientSubscriptions: builder.query({
       query: (clientId: string) => ({
         functionName: "get-client-subscriptions",
@@ -363,69 +391,22 @@ export const supabaseApi = createApi({
     }),
 
     // Appointments
-    getTreatmentAppointments: builder.query({
-      query: (treatmentId: string) => ({
-        functionName: "get-treatment-appointments",
-        body: { treatmentId },
-      }),
-      transformResponse: (response) => unwrapResponse(response),
-      providesTags: ["Appointment"],
-    }),
 
-    getTreatmentGardenAppointments: builder.query({
-      async queryFn(treatmentId: string) {
+    getAppointmentOrders: builder.query<
+      { orders: Array<{ id: string; status: string | null; total: number | null }> },
+      { appointmentId: string; serviceType: "grooming" }
+    >({
+      async queryFn({ appointmentId, serviceType }) {
         try {
-          // Query daycare_appointments directly from Supabase
-          const { data, error } = await supabase
-            .from("daycare_appointments")
-            .select(
-              "id, start_at, end_at, status, late_pickup_requested, late_pickup_notes, garden_trim_nails, garden_brush, garden_bath, customer_notes, internal_notes"
-            )
-            .eq("treatment_id", treatmentId)
-            .neq("status", "cancelled")
+          const column = "grooming_appointment_id"
+          const { data, error } = await supabase.from("orders").select("id, status, total").eq(column, appointmentId)
 
           if (error) {
-            return { error: { status: "SUPABASE_ERROR", data: error.message } }
+            throw new Error(error.message)
           }
 
-          // Transform to expected format
-          const appointments = (data || []).map((apt) => ({
-            id: apt.id,
-            treatmentId,
-            treatmentName: "", // Will be filled by getMergedAppointments
-            date: apt.start_at ? apt.start_at.split("T")[0] : "",
-            time: apt.start_at ? apt.start_at.split("T")[1]?.slice(0, 5) : "",
-            service: "garden" as const,
-            status: apt.status || "confirmed",
-            stationId: "",
-            notes: apt.customer_notes || "",
-            gardenNotes: apt.internal_notes || "",
-            startDateTime: apt.start_at,
-            endDateTime: apt.end_at,
-            latePickupRequested: apt.late_pickup_requested || false,
-            latePickupNotes: apt.late_pickup_notes || "",
-            gardenTrimNails: apt.garden_trim_nails || false,
-            gardenBrush: apt.garden_brush || false,
-            gardenBath: apt.garden_bath || false,
-          }))
-
-          return { data: { appointments } }
+          return { data: { orders: data || [] } }
         } catch (error) {
-          console.error("Failed to fetch garden appointments:", error)
-          return { error: { status: "SUPABASE_ERROR", data: error instanceof Error ? error.message : String(error) } }
-        }
-      },
-      providesTags: ["GardenAppointment"],
-    }),
-
-    getMergedAppointments: builder.query<MergedAppointment[], string>({
-      async queryFn(treatmentId: string) {
-        try {
-          const result = await fetchMergedAppointments(treatmentId)
-          // Return the appointments array directly for backward compatibility
-          return { data: result.appointments || [] }
-        } catch (error) {
-          console.error(`❌ [supabaseApi] getMergedAppointments error:`, error)
           const message = error instanceof Error ? error.message : String(error)
           return {
             error: {
@@ -435,7 +416,67 @@ export const supabaseApi = createApi({
           }
         }
       },
-      providesTags: ["Appointment", "GardenAppointment"],
+      providesTags: (_result, _error, arg) => [
+        { type: "Appointment", id: `orders-${arg.serviceType}-${arg.appointmentId}` },
+      ],
+      keepUnusedDataFor: 300,
+    }),
+
+    getClientAppointmentHistory: builder.query<
+      {
+        appointments: Array<{
+          id: string
+          startAt: string
+          endAt?: string
+          status: string | null
+          serviceType: "grooming"
+          notes?: string | null
+          stationId?: string | null
+        }>
+      },
+      { clientId: string }
+    >({
+      async queryFn({ clientId }) {
+        try {
+          // Return empty result if clientId is undefined or invalid
+          if (!clientId || clientId === "undefined") {
+            return { data: { appointments: [] } }
+          }
+
+          // Query from grooming_appointments table to match manager schedule
+          const appointmentsResult = await supabase
+            .from("grooming_appointments")
+            .select("id, start_at, end_at, status, service_id, customer_notes, station_id")
+            .eq("customer_id", clientId)
+            .order("start_at", { ascending: true })
+
+          if (appointmentsResult.error) {
+            throw new Error(appointmentsResult.error.message)
+          }
+
+          const appointments = (appointmentsResult.data || []).map((apt) => ({
+            id: apt.id as string,
+            startAt: apt.start_at as string,
+            endAt: apt.end_at as string,
+            status: (apt as { status?: string }).status ?? null,
+            serviceType: "grooming" as const, // All appointments in barbery system are grooming
+            notes: (apt as { customer_notes?: string | null }).customer_notes ?? null,
+            stationId: (apt as { station_id?: string | null }).station_id ?? null,
+          }))
+
+          return { data: { appointments } }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      providesTags: (_result, _error, arg) => [{ type: "Appointment", id: `client-${arg.clientId}` }],
+      keepUnusedDataFor: 300,
     }),
 
     getAvailableDates: builder.query({
@@ -457,10 +498,10 @@ export const supabaseApi = createApi({
     }),
 
     getWaitingListEntries: builder.query({
-      async queryFn(params: { customerId: string }) {
+      async queryFn(params: { dogIds: string[] }) {
         try {
           const { getWaitingListEntries } = await import("@/pages/Appointments/Appointments.module")
-          const entries = await getWaitingListEntries(params.customerId)
+          const entries = await getWaitingListEntries(params.dogIds)
           return { data: entries }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
@@ -485,108 +526,6 @@ export const supabaseApi = createApi({
       },
       transformResponse: (response) => unwrapResponse<PendingAppointmentResponse>(response),
       providesTags: ["Appointment"],
-    }),
-
-    getTreatmentTypeStationDuration: builder.query({
-      async queryFn({
-        treatmentId,
-        stationId,
-        serviceType = "grooming",
-      }: {
-        treatmentId: string
-        stationId: string
-        serviceType?: "grooming" | "garden" | "both"
-      }) {
-        try {
-          // Note: treatmentId is actually serviceId now (for backward compatibility)
-          const serviceId = treatmentId
-
-          if (serviceType === "grooming") {
-            // Fetch service-station matrix (single source of truth for service durations at stations)
-            const { data: matrixData, error: matrixError } = await supabase
-              .from("service_station_matrix")
-              .select("base_time_minutes")
-              .eq("service_id", serviceId)
-              .eq("station_id", stationId)
-              .maybeSingle()
-
-            if (matrixError) {
-              throw new Error(`Failed to fetch service-station configuration: ${matrixError.message}`)
-            }
-
-            if (!matrixData) {
-              console.warn("⚠️ [supabaseApi] No service_station_matrix entry found", {
-                serviceId,
-                stationId,
-              })
-              return {
-                data: {
-                  supported: false,
-                  treatmentId: serviceId,
-                  treatmentTypeId: null,
-                  stationId,
-                  message: "העמדה שנבחרה אינה תומכת בשירות זה.",
-                },
-              }
-            }
-
-            const durationMinutes = matrixData.base_time_minutes ?? 60
-
-            if (durationMinutes <= 0) {
-              console.warn("⚠️ [supabaseApi] service_station_matrix returned invalid duration", {
-                serviceId,
-                stationId,
-                durationMinutes,
-              })
-              return {
-                data: {
-                  supported: false,
-                  treatmentId: serviceId,
-                  treatmentTypeId: null,
-                  stationId,
-                  message: "לא הוגדר משך שירות עבור העמדה הזו.",
-                },
-              }
-            }
-
-            const durationSeconds = durationMinutes * 60
-
-            return {
-              data: {
-                supported: true,
-                treatmentId: serviceId,
-                treatmentTypeId: null,
-                stationId,
-                durationSeconds,
-                durationMinutes,
-              },
-            }
-          } else {
-            // For garden service, return default duration
-            const defaultGardenMinutes = 60
-            const durationSeconds = defaultGardenMinutes * 60
-
-            return {
-              data: {
-                supported: true,
-                treatmentId: serviceId,
-                treatmentTypeId: null,
-                stationId,
-                durationSeconds,
-                durationMinutes: defaultGardenMinutes,
-              },
-            }
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          return {
-            error: {
-              status: "SUPABASE_ERROR",
-              data: message,
-            },
-          }
-        }
-      },
     }),
 
     deleteWaitingListEntry: builder.mutation({
@@ -620,20 +559,25 @@ export const supabaseApi = createApi({
         oldStationId: string
         oldStartTime: string
         oldEndTime: string
-        appointmentType: "grooming" | "garden"
-        newGardenAppointmentType?: "full-day" | "hourly"
-        newGardenIsTrial?: boolean
-        selectedHours?: { start: string; end: string }
-        gardenTrimNails?: boolean
-        gardenBrush?: boolean
-        gardenBath?: boolean
+        appointmentType: "grooming"
         latePickupRequested?: boolean
         latePickupNotes?: string
         internalNotes?: string
+        customerNotes?: string
+        groomingNotes?: string
       }) {
         try {
+          // Fetch dogId before moving appointment to invalidate cache later
+          let dogId: string | undefined
+          try {
+            const { getSingleManagerAppointment } = await import("@/integrations/supabase/supabaseService")
+          } catch (error) {
+            console.warn("Error during cache invalidation:", error)
+          }
+
           const result = await moveAppointmentRecord(params)
-          return { data: result }
+
+          return { data: { ...result, dogId } }
         } catch (error) {
           console.error(`❌ [supabaseApi] moveAppointment error:`, error)
           const message = error instanceof Error ? error.message : String(error)
@@ -645,7 +589,125 @@ export const supabaseApi = createApi({
           }
         }
       },
-      invalidatesTags: ["ManagerSchedule", "Appointment", "GardenAppointment"],
+      async onQueryStarted(params, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled
+          const dogId = data?.dogId
+
+          // Invalidate general tags
+          dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"]))
+
+          // Invalidate specific dog's appointments cache if dogId is available
+          if (dogId) {
+            // Invalidate the specific query by its cache key
+            dispatch(
+              supabaseApi.util.invalidateTags([
+                { type: "Appointment", id: dogId },
+                { type: "Appointment", id: `getMergedAppointments-${dogId}` },
+              ])
+            )
+            // Also invalidate the query directly using the query cache key
+            dispatch(
+              supabaseApi.util.invalidateTags([{ type: "Appointment", id: `getMergedAppointments("${dogId}")` }])
+            )
+          }
+        } catch (error) {
+          console.warn("Failed to invalidate cache after moveAppointment:", error)
+        }
+      },
+      invalidatesTags: ["ManagerSchedule", "Appointment"],
+    }),
+
+    updateAppointmentStatus: builder.mutation<
+      { success: boolean; message?: string; error?: string; appointment?: { id: string; status: string } },
+      {
+        appointmentId: string
+        status: string
+        appointmentType: "grooming"
+        date?: string
+        serviceType?: "grooming"
+      }
+    >({
+      async queryFn({ appointmentId, status, appointmentType }) {
+        try {
+          const { approveAppointmentByManager } = await import("@/integrations/supabase/supabaseService")
+          const result = await approveAppointmentByManager(
+            appointmentId,
+            appointmentType,
+            status as "scheduled" | "cancelled"
+          )
+          return { data: result }
+        } catch (error) {
+          console.error(`❌ [supabaseApi] updateAppointmentStatus error:`, error)
+          const message = error instanceof Error ? error.message : String(error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      async onQueryStarted({ appointmentId, status, date, serviceType }, { dispatch, queryFulfilled }) {
+        // Import extract functions
+        const { extractGroomingAppointmentId } = await import("@/lib/utils")
+        const { format } = await import("date-fns")
+
+        // Optimistically update the cache
+        const patchResults: Array<{ undo: () => void }> = []
+
+        // Helper to find appointment index (synchronous)
+        const findAppointmentIndex = (appointments: any[]) => {
+          return appointments.findIndex((apt) => {
+            return extractGroomingAppointmentId(apt.id) === appointmentId
+          })
+        }
+
+        // If specific date/serviceType provided, update that query directly
+        if (date && serviceType) {
+          const patchResult = dispatch(
+            supabaseApi.util.updateQueryData("getManagerSchedule", { date, serviceType }, (draft) => {
+              if (draft && draft.appointments) {
+                const appointmentIndex = findAppointmentIndex(draft.appointments)
+                if (appointmentIndex !== -1) {
+                  draft.appointments[appointmentIndex].status = status
+                  draft.appointments[appointmentIndex].updated_at = new Date().toISOString()
+                }
+              }
+            })
+          )
+          patchResults.push(patchResult)
+        } else {
+          // Update the most common query (both service types) for the current date
+          const currentDate = date || format(new Date(), "yyyy-MM-dd")
+          const patchResult = dispatch(
+            supabaseApi.util.updateQueryData(
+              "getManagerSchedule",
+              { date: currentDate, serviceType: serviceType || "grooming" },
+              (draft) => {
+                if (draft && draft.appointments) {
+                  const appointmentIndex = findAppointmentIndex(draft.appointments)
+                  if (appointmentIndex !== -1) {
+                    draft.appointments[appointmentIndex].status = status
+                    draft.appointments[appointmentIndex].updated_at = new Date().toISOString()
+                  }
+                }
+              }
+            )
+          )
+          patchResults.push(patchResult)
+        }
+
+        try {
+          await queryFulfilled
+          // Invalidate tags to ensure data consistency
+          dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"]))
+        } catch (error) {
+          // Revert optimistic updates on error
+          patchResults.forEach((patchResult) => patchResult.undo())
+        }
+      },
+      invalidatesTags: ["ManagerSchedule", "Appointment"],
     }),
 
     createManagerAppointment: builder.mutation({
@@ -655,18 +717,11 @@ export const supabaseApi = createApi({
         selectedStations: string[]
         startTime: string
         endTime: string
-        appointmentType: "private" | "business" | "garden"
+        appointmentType: "private" | "business"
         groupId?: string
         customerId?: string
-        treatmentId?: string
-        serviceId?: string
+        dogId?: string
         isManualOverride?: boolean
-        gardenAppointmentType?: "full-day" | "hourly" | "trial"
-        services?: {
-          gardenTrimNails?: boolean
-          gardenBrush?: boolean
-          gardenBath?: boolean
-        }
         latePickupRequested?: boolean
         latePickupNotes?: string
         notes?: string
@@ -674,7 +729,7 @@ export const supabaseApi = createApi({
       }) {
         try {
           const result = await createManagerAppointmentRecord(params)
-          return { data: result }
+          return { data: { ...result, dogId: params.dogId } }
         } catch (error) {
           console.error(`❌ [supabaseApi] createManagerAppointment error:`, error)
 
@@ -702,7 +757,28 @@ export const supabaseApi = createApi({
           }
         }
       },
-      invalidatesTags: ["ManagerSchedule", "Appointment", "GardenAppointment"],
+      async onQueryStarted(params, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled
+          const dogId = data?.dogId || params.dogId
+
+          // Invalidate general tags for manager schedule and appointments
+          dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment"]))
+
+          // Invalidate specific dog's appointments cache if dogId is available
+          if (dogId) {
+            dispatch(
+              supabaseApi.util.invalidateTags([
+                { type: "Appointment", id: dogId },
+                { type: "Appointment", id: `getMergedAppointments-${dogId}` },
+              ])
+            )
+          }
+        } catch (error) {
+          console.warn("Failed to invalidate cache after createManagerAppointment:", error)
+        }
+      },
+      invalidatesTags: ["ManagerSchedule", "Appointment"],
     }),
 
     createProposedMeeting: builder.mutation({
@@ -763,7 +839,12 @@ export const supabaseApi = createApi({
     }),
 
     sendProposedMeetingWebhook: builder.mutation({
-      async queryFn(params: { inviteId: string; customerId: string; proposedMeetingId: string; notificationCount?: number }) {
+      async queryFn(params: {
+        inviteId: string
+        customerId: string
+        proposedMeetingId: string
+        notificationCount?: number
+      }) {
         try {
           const result = await sendProposedMeetingWebhookRecord(params)
           return { data: result }
@@ -825,7 +906,7 @@ export const supabaseApi = createApi({
 
     bookProposedMeeting: builder.mutation<
       { success: boolean; appointmentId?: string },
-      { meetingId: string; treatmentId: string; code?: string }
+      { meetingId: string; code?: string }
     >({
       async queryFn(params) {
         try {
@@ -845,11 +926,44 @@ export const supabaseApi = createApi({
       invalidatesTags: ["ManagerSchedule"],
     }),
 
-    getManagerSchedule: builder.query<
-      ManagerScheduleData,
-      { date: string; serviceType?: "grooming" | "garden" | "both" }
-    >({
-      async queryFn({ date, serviceType = "both" }) {
+    getManagerAppointment: builder.query<ManagerAppointment, { appointmentId: string; serviceType: "grooming" }>({
+      async queryFn({ appointmentId, serviceType }) {
+        try {
+          const { getSingleManagerAppointment } = await import("@/integrations/supabase/supabaseService")
+          const result = await getSingleManagerAppointment(appointmentId, serviceType)
+
+          if (!result.success || !result.appointment) {
+            const errorMessage = result.error || "Appointment not found"
+            return {
+              error: {
+                status: "SUPABASE_ERROR",
+                data: errorMessage,
+              },
+            }
+          }
+
+          return { data: result.appointment }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      providesTags: (_result, _error, arg) => [
+        {
+          type: "Appointment",
+          id: `${arg.appointmentId}-${arg.serviceType}`,
+        },
+      ],
+      keepUnusedDataFor: 300,
+    }),
+
+    getManagerSchedule: builder.query<ManagerScheduleData, { date: string; serviceType?: "grooming" }>({
+      async queryFn({ date, serviceType = "grooming" }) {
         try {
           const result = await fetchManagerSchedule(date, serviceType)
           return { data: result }
@@ -867,10 +981,7 @@ export const supabaseApi = createApi({
       providesTags: ["ManagerSchedule"],
     }),
 
-    searchManagerSchedule: builder.query<
-      ManagerScheduleSearchResponse,
-      { term: string; limit?: number }
-    >({
+    searchManagerSchedule: builder.query<ManagerScheduleSearchResponse, { term: string; limit?: number }>({
       async queryFn({ term, limit = 12 }) {
         try {
           const result = await executeManagerScheduleSearch({ term, limit })
@@ -900,6 +1011,109 @@ export const supabaseApi = createApi({
       providesTags: ["Appointment"],
     }),
 
+    getSeriesAppointments: builder.query<
+      { appointments: ManagerAppointment[]; seriesId: string; count: number },
+      { seriesId: string }
+    >({
+      async queryFn({ seriesId }) {
+        try {
+          if (!seriesId) {
+            return {
+              error: {
+                status: "CUSTOM_ERROR",
+                data: "seriesId is required",
+              },
+            }
+          }
+
+          const groomingResult = await supabase
+            .from("grooming_appointments")
+            .select(
+              `
+                id,
+                status,
+                station_id,
+                start_at,
+                end_at,
+                customer_notes,
+                internal_notes,
+                payment_status,
+                appointment_kind,
+                amount_due,
+                series_id,
+                customer_id,
+                stations(id, name),
+                customers(id, full_name, phone, email, classification)
+              `
+            )
+            .eq("series_id", seriesId)
+            .order("start_at", { ascending: true })
+
+          if (groomingResult.error) {
+            throw new Error(`Failed to fetch grooming appointments: ${groomingResult.error.message}`)
+          }
+
+          const { getManagerSchedule } = await import("@/integrations/supabase/supabaseService")
+
+          // Transform to ManagerAppointment format (similar to getManagerSchedule)
+          const appointments: ManagerAppointment[] = []
+
+          // Process grooming appointments
+          for (const apt of groomingResult.data || []) {
+            const station = Array.isArray(apt.stations) ? apt.stations[0] : apt.stations
+            const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
+
+            appointments.push({
+              id: apt.id,
+              serviceType: "grooming",
+              stationId: apt.station_id || station?.id || "",
+              stationName: station?.name || "לא ידוע",
+              startDateTime: apt.start_at,
+              endDateTime: apt.end_at,
+              status: apt.status || "pending",
+              paymentStatus: apt.payment_status || undefined,
+              notes: apt.customer_notes || "",
+              internalNotes: apt.internal_notes || undefined,
+              groomingNotes: apt.grooming_notes || undefined,
+              hasCrossServiceAppointment: false,
+              dogs: [],
+              clientId: apt.customer_id,
+              clientName: customer?.full_name || undefined,
+              clientClassification: customer?.classification || undefined,
+              clientEmail: customer?.email || undefined,
+              clientPhone: customer?.phone || undefined,
+              appointmentType: apt.appointment_kind === "personal" ? "private" : "business",
+              isPersonalAppointment: apt.appointment_kind === "personal",
+              personalAppointmentDescription: apt.appointment_name || undefined,
+              price: apt.amount_due ? Number(apt.amount_due) : undefined,
+              seriesId: apt.series_id || undefined,
+              durationMinutes: Math.round((new Date(apt.end_at).getTime() - new Date(apt.start_at).getTime()) / 60000),
+            } as ManagerAppointment)
+          }
+
+          // Sort by start time
+          appointments.sort((a, b) => a.startDateTime.localeCompare(b.startDateTime))
+
+          return {
+            data: {
+              appointments,
+              seriesId,
+              count: appointments.length,
+            },
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      providesTags: ["Appointment"],
+    }),
+
     // Worker management
     getWorkers: builder.query<
       GetWorkersResponse,
@@ -924,11 +1138,26 @@ export const supabaseApi = createApi({
           const rangeStartIso = params?.rangeStart ?? defaultRangeStart.toISOString()
           const rangeEndIso = params?.rangeEnd ?? nowIso
 
-          const { data: workerRows, error: workerError } = await supabase
+          let workerQuery = supabase
             .from("profiles")
             .select("id, full_name, email, phone_number, worker_is_active, created_at, role")
             .eq("role", "worker")
-            .order("full_name", { ascending: true })
+
+          // Filter by active status if includeInactive is false
+          if (!includeInactive) {
+            workerQuery = workerQuery.eq("worker_is_active", true)
+          }
+
+          workerQuery = workerQuery.order("full_name", { ascending: true })
+
+          const { data: workerRows, error: workerError } = await workerQuery
+
+          console.log("🔍 [supabaseApi.getWorkers] Query result", {
+            workerCount: workerRows?.length ?? 0,
+            includeInactive,
+            error: workerError,
+            sampleWorker: workerRows?.[0],
+          })
 
           if (workerError) {
             console.error("❌ [supabaseApi.getWorkers] Failed to load worker profiles", workerError)
@@ -1142,7 +1371,7 @@ export const supabaseApi = createApi({
             .from("worker_attendance_logs")
             .select(
               "id, clock_in, clock_out, clock_in_note, clock_out_note, created_at, updated_at, created_by, closed_by",
-              { count: "exact" },
+              { count: "exact" }
             )
             .eq("worker_id", params.workerId)
             .gte("clock_in", rangeStartIso)
@@ -1164,7 +1393,9 @@ export const supabaseApi = createApi({
             id: row.id,
             clockIn: row.clock_in,
             clockOut: row.clock_out,
-            durationMinutes: row.clock_out ? differenceInMinutes(row.clock_in, row.clock_out) : differenceInMinutes(row.clock_in, nowIso),
+            durationMinutes: row.clock_out
+              ? differenceInMinutes(row.clock_in, row.clock_out)
+              : differenceInMinutes(row.clock_in, nowIso),
             clockInNote: row.clock_in_note ?? null,
             clockOutNote: row.clock_out_note ?? null,
             createdAt: row.created_at ?? null,
@@ -1188,6 +1419,171 @@ export const supabaseApi = createApi({
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
           console.error("❌ [supabaseApi.getWorkerAttendance] Unexpected error", error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      providesTags: ["WorkerAttendance"],
+    }),
+
+    getAllWorkerShifts: builder.query<GetAllWorkerShiftsResponse, GetAllWorkerShiftsParams>({
+      async queryFn(params) {
+        try {
+          const now = new Date()
+          const nowIso = now.toISOString()
+          const rangeStartIso =
+            params.rangeStart ??
+            (() => {
+              const startOfMonth = new Date(now)
+              startOfMonth.setDate(1)
+              startOfMonth.setHours(0, 0, 0, 0)
+              return startOfMonth.toISOString()
+            })()
+          const rangeEndIso = params.rangeEnd ?? nowIso
+          const pageSize = Number.isFinite(params.pageSize) ? Math.min(Math.max(params.pageSize ?? 50, 1), 200) : 50
+          const page = Number.isFinite(params.page) ? Math.max(params.page ?? 0, 0) : 0
+          const from = page * pageSize
+          const to = from + pageSize - 1
+
+          const differenceInMinutes = (startIso: string, endIso: string) => {
+            const start = Date.parse(startIso)
+            const end = Date.parse(endIso)
+            if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+              return 0
+            }
+            return Math.round((end - start) / 60000)
+          }
+
+          // Build query for worker profiles to filter by status
+          let workerQuery = supabase.from("profiles").select("id, full_name, worker_is_active").eq("role", "worker")
+
+          if (params.workerStatus === "active") {
+            workerQuery = workerQuery.eq("worker_is_active", true)
+          } else if (params.workerStatus === "inactive") {
+            workerQuery = workerQuery.eq("worker_is_active", false)
+          }
+
+          const { data: workers, error: workersError } = await workerQuery
+
+          if (workersError) {
+            console.error("❌ [supabaseApi.getAllWorkerShifts] Failed to fetch workers", workersError)
+            return {
+              error: {
+                status: "SUPABASE_ERROR",
+                data: workersError.message,
+              },
+            }
+          }
+
+          const workerIds = workers?.map((w) => w.id) ?? []
+          if (workerIds.length === 0) {
+            return {
+              data: {
+                success: true,
+                rangeStart: rangeStartIso,
+                rangeEnd: rangeEndIso,
+                page,
+                pageSize,
+                totalCount: 0,
+                entries: [],
+              },
+            }
+          }
+
+          // Filter by specific worker IDs if provided
+          let filteredWorkerIds = params.workerIds
+            ? workerIds.filter((id) => params.workerIds!.includes(id))
+            : workerIds
+
+          // Filter by includeInactive - if false, only show shifts from active workers
+          if (params.includeInactive === false) {
+            const activeWorkerIds = workers?.filter((w) => w.worker_is_active === true).map((w) => w.id) ?? []
+            filteredWorkerIds = filteredWorkerIds.filter((id) => activeWorkerIds.includes(id))
+          }
+
+          if (filteredWorkerIds.length === 0) {
+            return {
+              data: {
+                success: true,
+                rangeStart: rangeStartIso,
+                rangeEnd: rangeEndIso,
+                page,
+                pageSize,
+                totalCount: 0,
+                entries: [],
+              },
+            }
+          }
+
+          // Build query for attendance logs
+          const attendanceQuery = supabase
+            .from("worker_attendance_logs")
+            .select(
+              "id, worker_id, clock_in, clock_out, clock_in_note, clock_out_note, created_at, updated_at, created_by, closed_by",
+              { count: "exact" }
+            )
+            .in("worker_id", filteredWorkerIds)
+            .gte("clock_in", rangeStartIso)
+            .lte("clock_in", rangeEndIso)
+            .order("clock_in", { ascending: false })
+            .range(from, to)
+
+          const { data, error, count } = await attendanceQuery
+
+          if (error) {
+            console.error("❌ [supabaseApi.getAllWorkerShifts] Failed to fetch shifts", error)
+            return {
+              error: {
+                status: "SUPABASE_ERROR",
+                data: error.message,
+              },
+            }
+          }
+
+          // Create a map of worker info
+          const workerMap = new Map(
+            workers?.map((w) => [w.id, { name: w.full_name, isActive: w.worker_is_active !== false }]) ?? []
+          )
+
+          const entries: WorkerShiftWithWorker[] = (data ?? []).map((row) => {
+            const workerInfo = workerMap.get(row.worker_id) ?? { name: null, isActive: false }
+            return {
+              id: row.id,
+              workerId: row.worker_id,
+              workerName: workerInfo.name,
+              workerIsActive: workerInfo.isActive,
+              clockIn: row.clock_in,
+              clockOut: row.clock_out,
+              durationMinutes: row.clock_out
+                ? differenceInMinutes(row.clock_in, row.clock_out)
+                : differenceInMinutes(row.clock_in, nowIso),
+              clockInNote: row.clock_in_note ?? null,
+              clockOutNote: row.clock_out_note ?? null,
+              createdAt: row.created_at ?? null,
+              updatedAt: row.updated_at ?? null,
+              createdBy: row.created_by ?? null,
+              closedBy: row.closed_by ?? null,
+            }
+          })
+
+          const response: GetAllWorkerShiftsResponse = {
+            success: true,
+            rangeStart: rangeStartIso,
+            rangeEnd: rangeEndIso,
+            page,
+            pageSize,
+            totalCount: count ?? entries.length,
+            entries,
+          }
+
+          return { data: response }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          console.error("❌ [supabaseApi.getAllWorkerShifts] Unexpected error", error)
           return {
             error: {
               status: "SUPABASE_ERROR",
@@ -1284,21 +1680,22 @@ export const supabaseApi = createApi({
             return { data: response }
           }
 
-          const [{ data: openShiftRows, error: openShiftError }, { data: recentRows, error: recentError }] = await Promise.all([
-            supabase
-              .from("worker_attendance_logs")
-              .select("id, clock_in")
-              .eq("worker_id", userProfile.id)
-              .is("clock_out", null)
-              .order("clock_in", { ascending: false })
-              .limit(1),
-            supabase
-              .from("worker_attendance_logs")
-              .select("clock_in, clock_out")
-              .eq("worker_id", userProfile.id)
-              .gte("clock_in", startOfWeek.toISOString())
-              .order("clock_in", { ascending: false }),
-          ])
+          const [{ data: openShiftRows, error: openShiftError }, { data: recentRows, error: recentError }] =
+            await Promise.all([
+              supabase
+                .from("worker_attendance_logs")
+                .select("id, clock_in")
+                .eq("worker_id", userProfile.id)
+                .is("clock_out", null)
+                .order("clock_in", { ascending: false })
+                .limit(1),
+              supabase
+                .from("worker_attendance_logs")
+                .select("clock_in, clock_out")
+                .eq("worker_id", userProfile.id)
+                .gte("clock_in", startOfWeek.toISOString())
+                .order("clock_in", { ascending: false }),
+            ])
 
           if (openShiftError) {
             console.error("❌ [supabaseApi.getWorkerStatus] Failed to fetch open shift", openShiftError)
@@ -1449,7 +1846,7 @@ export const supabaseApi = createApi({
                 })
                 .in(
                   "id",
-                  openShifts.map((row) => row.id),
+                  openShifts.map((row) => row.id)
                 )
                 .is("clock_out", null)
 
@@ -1529,6 +1926,14 @@ export const supabaseApi = createApi({
         }
       },
       invalidatesTags: ["Worker", "WorkerAttendance"],
+    }),
+
+    resetWorkerPassword: builder.mutation<ResetWorkerPasswordResponse, ResetWorkerPasswordPayload>({
+      query: ({ workerId }) => ({
+        functionName: "reset-worker-password",
+        body: { workerId },
+      }),
+      transformResponse: (response) => unwrapResponse<ResetWorkerPasswordResponse>(response),
     }),
 
     workerClockIn: builder.mutation<WorkerClockShiftResponse, { note?: string } | void>({
@@ -1724,132 +2129,333 @@ export const supabaseApi = createApi({
       invalidatesTags: ["Worker", "WorkerAttendance"],
     }),
 
-    // Treatments
-    listOwnerTreatments: builder.query({
-      async queryFn(ownerId: string) {
+    managerClockInWorker: builder.mutation<WorkerClockShiftResponse, { workerId: string; note?: string }>({
+      async queryFn({ workerId, note }) {
         try {
-          if (!ownerId) {
-            console.warn("⚠️ [listOwnerTreatments RTK Query] No ownerId provided, returning empty array")
-            return { data: { treatments: [] } }
-          }
+          console.log("🕐 [supabaseApi.managerClockInWorker] Manager clocking in worker", { workerId, note })
+          const { data: manager } = await supabase.auth.getUser()
+          const managerId = manager.user?.id
 
-          // First get the customer_id from profiles or customers table
-          const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("id, email")
-            .eq("id", ownerId)
-            .maybeSingle()
-
-          if (profileError) {
-            console.error("❌ [listOwnerTreatments] Profile error:", profileError)
-          }
-
-          let customerId = ownerId
-
-          // If this is a customer, try to get their customer_id from the customers table
-          if (profile?.email) {
-            const { data: customer } = await supabase
-              .from("customers")
-              .select("id")
-              .eq("auth_user_id", ownerId)
-              .maybeSingle()
-
-            if (customer?.id) {
-              customerId = customer.id
-            }
-          }
-
-          // Query services (treatments table no longer exists, services are global)
-          const { data: servicesData, error: servicesError } = await supabase
-            .from("services")
-            .select(
-              `
-              id,
-              name,
-              description,
-              category
-            `
-            )
-            .order("display_order", { ascending: true })
-
-          if (servicesError) {
-            console.error("❌ [listOwnerTreatments] Services error:", servicesError)
-            return { error: { status: "SUPABASE_ERROR", data: servicesError.message } }
-          }
-
-          // Transform services to match expected treatment structure (for compatibility)
-          const appointmentHistoryByTreatment: Record<string, boolean> = {}
-
-          const treatments = (servicesData || []).map((service: any) => {
+          if (!managerId) {
             return {
-              id: service.id,
-              name: service.name || "",
-              gender: null as "male" | "female" | null,
-              treatmentType: service.category || "",
-              size: "",
-              isSmall: false,
-              ownerId: customerId, // Use customerId for compatibility
-              hasAppointmentHistory: Boolean(appointmentHistoryByTreatment[service.id]),
-              requiresSpecialApproval: false,
-              groomingMinPrice: null,
-              groomingMaxPrice: null,
-              hasBeenToGarden: undefined,
-              questionnaireSuitableForGarden: undefined,
-              staffApprovedForGarden: undefined,
-              hasRegisteredToGardenBefore: undefined,
+              error: {
+                status: "UNAUTHORIZED",
+                data: "המנהל אינו מחובר.",
+              },
             }
+          }
+
+          const clockInNote = typeof note === "string" && note.trim().length > 0 ? note.trim().slice(0, 500) : null
+
+          // Check if worker already has an open shift
+          const { data: openShiftRows, error: openShiftError } = await supabase
+            .from("worker_attendance_logs")
+            .select("id, clock_in")
+            .eq("worker_id", workerId)
+            .is("clock_out", null)
+            .order("clock_in", { ascending: false })
+            .limit(1)
+
+          if (openShiftError) {
+            console.error("❌ [supabaseApi.managerClockInWorker] Failed to query existing shift", openShiftError)
+            return {
+              error: {
+                status: "SUPABASE_ERROR",
+                data: openShiftError.message,
+              },
+            }
+          }
+
+          if (openShiftRows && openShiftRows.length > 0) {
+            return {
+              error: {
+                status: "CONFLICT",
+                data: "כבר קיימת משמרת פתוחה עבור עובד זה. סיים אותה לפני פתיחת משמרת חדשה.",
+              },
+            }
+          }
+
+          // Insert new shift
+          const { data: insertRows, error: insertError } = await supabase
+            .from("worker_attendance_logs")
+            .insert({
+              worker_id: workerId,
+              clock_in_note: clockInNote,
+              created_by: managerId,
+            })
+            .select("id, clock_in")
+            .order("clock_in", { ascending: false })
+            .limit(1)
+
+          if (insertError || !insertRows || insertRows.length === 0) {
+            console.error("❌ [supabaseApi.managerClockInWorker] Failed to insert attendance log", insertError)
+            return {
+              error: {
+                status: "SUPABASE_ERROR",
+                data: insertError?.message ?? "המשמרת לא נפתחה. נסה שוב.",
+              },
+            }
+          }
+
+          const shift = insertRows[0]
+          const response: WorkerClockShiftResponse = {
+            success: true,
+            shift: {
+              id: shift.id,
+              clockIn: shift.clock_in,
+              hasOpenShift: true,
+            },
+          }
+
+          console.log("✅ [supabaseApi.managerClockInWorker] Successfully clocked in worker", response)
+          return { data: response }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          console.error("❌ [supabaseApi.managerClockInWorker] Unexpected error", error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      invalidatesTags: ["Worker", "WorkerAttendance"],
+    }),
+
+    managerClockOutWorker: builder.mutation<WorkerClockShiftResponse, { workerId: string; note?: string }>({
+      async queryFn({ workerId, note }) {
+        try {
+          console.log("🕐 [supabaseApi.managerClockOutWorker] Manager clocking out worker", { workerId, note })
+          const { data: manager } = await supabase.auth.getUser()
+          const managerId = manager.user?.id
+
+          if (!managerId) {
+            return {
+              error: {
+                status: "UNAUTHORIZED",
+                data: "המנהל אינו מחובר.",
+              },
+            }
+          }
+
+          const clockOutNote = typeof note === "string" && note.trim().length > 0 ? note.trim().slice(0, 500) : null
+
+          const nowIso = new Date().toISOString()
+
+          // Find open shift
+          const { data: openShiftRows, error: openShiftError } = await supabase
+            .from("worker_attendance_logs")
+            .select("id, clock_in, clock_out")
+            .eq("worker_id", workerId)
+            .is("clock_out", null)
+            .order("clock_in", { ascending: false })
+            .limit(1)
+
+          if (openShiftError) {
+            console.error("❌ [supabaseApi.managerClockOutWorker] Failed to query open shift", openShiftError)
+            return {
+              error: {
+                status: "SUPABASE_ERROR",
+                data: openShiftError.message,
+              },
+            }
+          }
+
+          if (!openShiftRows || openShiftRows.length === 0) {
+            return {
+              error: {
+                status: "CONFLICT",
+                data: "לא נמצאה משמרת פתוחה עבור עובד זה.",
+              },
+            }
+          }
+
+          const openShift = openShiftRows[0]
+
+          // Update shift to close it
+          const { data: updatedRows, error: updateError } = await supabase
+            .from("worker_attendance_logs")
+            .update({
+              clock_out: nowIso,
+              clock_out_note: clockOutNote,
+              closed_by: managerId,
+            })
+            .eq("id", openShift.id)
+            .eq("worker_id", workerId)
+            .is("clock_out", null)
+            .select("id, clock_in, clock_out")
+
+          if (updateError || !updatedRows || updatedRows.length === 0) {
+            console.error("❌ [supabaseApi.managerClockOutWorker] Failed to update attendance log", updateError)
+            return {
+              error: {
+                status: "SUPABASE_ERROR",
+                data: updateError?.message ?? "המשמרת לא נסגרה. נסה שוב.",
+              },
+            }
+          }
+
+          const updated = updatedRows[0]
+          const response: WorkerClockShiftResponse = {
+            success: true,
+            shift: {
+              id: updated.id,
+              clockIn: updated.clock_in,
+              clockOut: updated.clock_out ?? nowIso,
+              durationMinutes: (() => {
+                const start = Date.parse(updated.clock_in)
+                const end = Date.parse(updated.clock_out ?? nowIso)
+                if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+                  return 0
+                }
+                return Math.round((end - start) / 60000)
+              })(),
+            },
+          }
+
+          console.log("✅ [supabaseApi.managerClockOutWorker] Successfully clocked out worker", response)
+          return { data: response }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          console.error("❌ [supabaseApi.managerClockOutWorker] Unexpected error", error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      invalidatesTags: ["Worker", "WorkerAttendance"],
+    }),
+
+    managerCreateShift: builder.mutation<
+      WorkerClockShiftResponse,
+      {
+        workerId: string
+        clockIn: string
+        clockOut?: string | null
+        clockInNote?: string | null
+        clockOutNote?: string | null
+      }
+    >({
+      async queryFn({ workerId, clockIn, clockOut, clockInNote, clockOutNote }) {
+        try {
+          console.log("🕐 [supabaseApi.managerCreateShift] Manager creating shift", {
+            workerId,
+            clockIn,
+            clockOut,
+            clockInNote,
+            clockOutNote,
           })
+          const { data: manager } = await supabase.auth.getUser()
+          const managerId = manager.user?.id
 
-          return { data: { treatments } }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          console.error("❌ [listOwnerTreatments RTK Query] Error fetching treatments:", error)
-          return { error: { status: "SUPABASE_ERROR", data: message } }
-        }
-      },
-      providesTags: ["Treatment"],
-    }),
-
-    checkTreatmentRegistration: builder.query({
-      query: (treatmentId: string) => ({
-        functionName: "check-treatment-registration",
-        body: { treatmentId },
-      }),
-      transformResponse: (response) => unwrapResponse(response),
-      providesTags: ["Treatment"],
-    }),
-
-    createTreatment: builder.mutation({
-      async queryFn({
-        customerId,
-        ...treatmentData
-      }: {
-        customerId: string
-        name: string
-        treatment_type_id?: string | null
-        gender?: "male" | "female"
-        birth_date?: string | null
-        is_small?: boolean | null
-        health_notes?: string | null
-        vet_name?: string | null
-        vet_phone?: string | null
-        aggression_risk?: boolean | null
-        people_anxious?: boolean | null
-      }) {
-        try {
-          const result = await createTreatmentRecord(customerId, treatmentData)
-          if (!result.success) {
+          if (!managerId) {
             return {
               error: {
-                status: "SUPABASE_ERROR",
-                data: result.error || "Failed to create treatment",
+                status: "UNAUTHORIZED",
+                data: "המנהל אינו מחובר.",
               },
             }
           }
-          return { data: result }
+
+          // Validate clock_in
+          const clockInDate = new Date(clockIn)
+          if (Number.isNaN(clockInDate.getTime())) {
+            return {
+              error: {
+                status: "VALIDATION_ERROR",
+                data: "תאריך/שעת התחלה לא תקין.",
+              },
+            }
+          }
+
+          // Validate clock_out if provided
+          if (clockOut) {
+            const clockOutDate = new Date(clockOut)
+            if (Number.isNaN(clockOutDate.getTime())) {
+              return {
+                error: {
+                  status: "VALIDATION_ERROR",
+                  data: "תאריך/שעת סיום לא תקין.",
+                },
+              }
+            }
+            if (clockOutDate <= clockInDate) {
+              return {
+                error: {
+                  status: "VALIDATION_ERROR",
+                  data: "שעת סיום חייבת להיות מאוחרת משעת התחלה.",
+                },
+              }
+            }
+          }
+
+          const trimmedClockInNote =
+            typeof clockInNote === "string" && clockInNote.trim().length > 0 ? clockInNote.trim().slice(0, 500) : null
+          const trimmedClockOutNote =
+            typeof clockOutNote === "string" && clockOutNote.trim().length > 0
+              ? clockOutNote.trim().slice(0, 500)
+              : null
+
+          // Insert new shift
+          const { data: insertRows, error: insertError } = await supabase
+            .from("worker_attendance_logs")
+            .insert({
+              worker_id: workerId,
+              clock_in: clockIn,
+              clock_out: clockOut || null,
+              clock_in_note: trimmedClockInNote,
+              clock_out_note: trimmedClockOutNote,
+              created_by: managerId,
+              closed_by: clockOut ? managerId : null,
+            })
+            .select("id, clock_in, clock_out")
+            .order("clock_in", { ascending: false })
+            .limit(1)
+
+          if (insertError || !insertRows || insertRows.length === 0) {
+            console.error("❌ [supabaseApi.managerCreateShift] Failed to insert attendance log", insertError)
+            return {
+              error: {
+                status: "SUPABASE_ERROR",
+                data: insertError?.message ?? "המשמרת לא נוצרה. נסה שוב.",
+              },
+            }
+          }
+
+          const shift = insertRows[0]
+          const nowIso = new Date().toISOString()
+          const response: WorkerClockShiftResponse = {
+            success: true,
+            shift: shift.clock_out
+              ? {
+                  id: shift.id,
+                  clockIn: shift.clock_in,
+                  clockOut: shift.clock_out,
+                  durationMinutes: (() => {
+                    const start = Date.parse(shift.clock_in)
+                    const end = Date.parse(shift.clock_out)
+                    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+                      return 0
+                    }
+                    return Math.round((end - start) / 60000)
+                  })(),
+                }
+              : {
+                  id: shift.id,
+                  clockIn: shift.clock_in,
+                  hasOpenShift: true,
+                },
+          }
+
+          console.log("✅ [supabaseApi.managerCreateShift] Successfully created shift", response)
+          return { data: response }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          console.error("❌ [createTreatment RTK Query] Error:", error)
+          console.error("❌ [supabaseApi.managerCreateShift] Unexpected error", error)
           return {
             error: {
               status: "SUPABASE_ERROR",
@@ -1858,40 +2464,184 @@ export const supabaseApi = createApi({
           }
         }
       },
-      invalidatesTags: ["Treatment"],
+      invalidatesTags: ["Worker", "WorkerAttendance"],
     }),
 
-    updateTreatment: builder.mutation({
-      async queryFn({
-        treatmentId,
-        ...treatmentData
-      }: {
-        treatmentId: string
-        name?: string
-        treatment_type_id?: string | null
-        gender?: "male" | "female"
-        birth_date?: string | null
-        is_small?: boolean | null
-        health_notes?: string | null
-        vet_name?: string | null
-        vet_phone?: string | null
-        aggression_risk?: boolean | null
-        people_anxious?: boolean | null
-      }) {
+    managerUpdateShift: builder.mutation<
+      WorkerClockShiftResponse,
+      {
+        shiftId: string
+        clockIn?: string
+        clockOut?: string | null
+        clockInNote?: string | null
+        clockOutNote?: string | null
+      }
+    >({
+      async queryFn({ shiftId, clockIn, clockOut, clockInNote, clockOutNote }) {
         try {
-          const result = await updateTreatmentRecord(treatmentId, treatmentData)
-          if (!result.success) {
+          console.log("🕐 [supabaseApi.managerUpdateShift] Manager updating shift", {
+            shiftId,
+            clockIn,
+            clockOut,
+            clockInNote,
+            clockOutNote,
+          })
+          const { data: manager } = await supabase.auth.getUser()
+          const managerId = manager.user?.id
+
+          if (!managerId) {
             return {
               error: {
-                status: "SUPABASE_ERROR",
-                data: result.error || "Failed to update treatment",
+                status: "UNAUTHORIZED",
+                data: "המנהל אינו מחובר.",
               },
             }
           }
-          return { data: result }
+
+          // Get existing shift to validate
+          const { data: existingShift, error: fetchError } = await supabase
+            .from("worker_attendance_logs")
+            .select("id, clock_in, clock_out, worker_id")
+            .eq("id", shiftId)
+            .single()
+
+          if (fetchError || !existingShift) {
+            console.error("❌ [supabaseApi.managerUpdateShift] Failed to fetch shift", fetchError)
+            return {
+              error: {
+                status: "NOT_FOUND",
+                data: "המשמרת לא נמצאה.",
+              },
+            }
+          }
+
+          // Validate clock_in if provided
+          let finalClockIn = existingShift.clock_in
+          if (clockIn) {
+            const clockInDate = new Date(clockIn)
+            if (Number.isNaN(clockInDate.getTime())) {
+              return {
+                error: {
+                  status: "VALIDATION_ERROR",
+                  data: "תאריך/שעת התחלה לא תקין.",
+                },
+              }
+            }
+            finalClockIn = clockIn
+          }
+
+          // Validate clock_out if provided
+          let finalClockOut = existingShift.clock_out
+          if (clockOut !== undefined) {
+            if (clockOut === null) {
+              finalClockOut = null
+            } else {
+              const clockOutDate = new Date(clockOut)
+              if (Number.isNaN(clockOutDate.getTime())) {
+                return {
+                  error: {
+                    status: "VALIDATION_ERROR",
+                    data: "תאריך/שעת סיום לא תקין.",
+                  },
+                }
+              }
+              const clockInDate = new Date(finalClockIn)
+              if (clockOutDate <= clockInDate) {
+                return {
+                  error: {
+                    status: "VALIDATION_ERROR",
+                    data: "שעת סיום חייבת להיות מאוחרת משעת התחלה.",
+                  },
+                }
+              }
+              finalClockOut = clockOut
+            }
+          }
+
+          const trimmedClockInNote =
+            clockInNote !== undefined
+              ? typeof clockInNote === "string" && clockInNote.trim().length > 0
+                ? clockInNote.trim().slice(0, 500)
+                : null
+              : undefined
+          const trimmedClockOutNote =
+            clockOutNote !== undefined
+              ? typeof clockOutNote === "string" && clockOutNote.trim().length > 0
+                ? clockOutNote.trim().slice(0, 500)
+                : null
+              : undefined
+
+          // Build update object
+          const updateData: {
+            clock_in?: string
+            clock_out?: string | null
+            clock_in_note?: string | null
+            clock_out_note?: string | null
+            closed_by?: string | null
+          } = {}
+
+          if (clockIn !== undefined) {
+            updateData.clock_in = finalClockIn
+          }
+          if (clockOut !== undefined) {
+            updateData.clock_out = finalClockOut
+            updateData.closed_by = finalClockOut ? managerId : null
+          }
+          if (clockInNote !== undefined) {
+            updateData.clock_in_note = trimmedClockInNote
+          }
+          if (clockOutNote !== undefined) {
+            updateData.clock_out_note = trimmedClockOutNote
+          }
+
+          // Update shift
+          const { data: updatedRows, error: updateError } = await supabase
+            .from("worker_attendance_logs")
+            .update(updateData)
+            .eq("id", shiftId)
+            .select("id, clock_in, clock_out")
+            .single()
+
+          if (updateError || !updatedRows) {
+            console.error("❌ [supabaseApi.managerUpdateShift] Failed to update attendance log", updateError)
+            return {
+              error: {
+                status: "SUPABASE_ERROR",
+                data: updateError?.message ?? "המשמרת לא עודכנה. נסה שוב.",
+              },
+            }
+          }
+
+          const updated = updatedRows
+          const nowIso = new Date().toISOString()
+          const response: WorkerClockShiftResponse = {
+            success: true,
+            shift: updated.clock_out
+              ? {
+                  id: updated.id,
+                  clockIn: updated.clock_in,
+                  clockOut: updated.clock_out,
+                  durationMinutes: (() => {
+                    const start = Date.parse(updated.clock_in)
+                    const end = Date.parse(updated.clock_out)
+                    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+                      return 0
+                    }
+                    return Math.round((end - start) / 60000)
+                  })(),
+                }
+              : {
+                  id: updated.id,
+                  clockIn: updated.clock_in,
+                  hasOpenShift: true,
+                },
+          }
+
+          console.log("✅ [supabaseApi.managerUpdateShift] Successfully updated shift", response)
+          return { data: response }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          console.error("❌ [updateTreatment RTK Query] Error:", error)
+          console.error("❌ [supabaseApi.managerUpdateShift] Unexpected error", error)
           return {
             error: {
               status: "SUPABASE_ERROR",
@@ -1900,7 +2650,52 @@ export const supabaseApi = createApi({
           }
         }
       },
-      invalidatesTags: ["Treatment"],
+      invalidatesTags: ["Worker", "WorkerAttendance"],
+    }),
+
+    managerDeleteShift: builder.mutation<{ success: true; shiftId: string }, { shiftId: string }>({
+      async queryFn({ shiftId }) {
+        try {
+          console.log("🗑️ [supabaseApi.managerDeleteShift] Manager deleting shift", { shiftId })
+          const { data: manager } = await supabase.auth.getUser()
+          const managerId = manager.user?.id
+
+          if (!managerId) {
+            return {
+              error: {
+                status: "UNAUTHORIZED",
+                data: "המנהל אינו מחובר.",
+              },
+            }
+          }
+
+          // Delete shift
+          const { error: deleteError } = await supabase.from("worker_attendance_logs").delete().eq("id", shiftId)
+
+          if (deleteError) {
+            console.error("❌ [supabaseApi.managerDeleteShift] Failed to delete attendance log", deleteError)
+            return {
+              error: {
+                status: "SUPABASE_ERROR",
+                data: deleteError.message ?? "המשמרת לא נמחקה. נסה שוב.",
+              },
+            }
+          }
+
+          console.log("✅ [supabaseApi.managerDeleteShift] Successfully deleted shift", { shiftId })
+          return { data: { success: true, shiftId } }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          console.error("❌ [supabaseApi.managerDeleteShift] Unexpected error", error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      invalidatesTags: ["Worker", "WorkerAttendance"],
     }),
 
     // Customer Search - using edge function with service_role to bypass RLS
@@ -1912,7 +2707,7 @@ export const supabaseApi = createApi({
           fullName?: string
           phone?: string
           email?: string
-          treatmentNames?: string
+          dogNames?: string
           recordId?: string
         }>
         count: number
@@ -1965,7 +2760,10 @@ export const supabaseApi = createApi({
         body: { full_name, phone_number, email, customer_type_id },
       }),
       transformResponse: (response) => unwrapResponse(response),
-      invalidatesTags: ["Customer"],
+      // Note: We don't use invalidatesTags here to avoid RTK Query error #38
+      // (Cannot refetch a query that has not been started yet)
+      // Components that need to refetch customer data should do so manually
+      // after a successful customer creation
     }),
 
     updateCustomer: builder.mutation<
@@ -2036,7 +2834,242 @@ export const supabaseApi = createApi({
           }
         }
       },
-      invalidatesTags: ["Customer", "User"],
+      // Note: We don't use invalidatesTags here to avoid RTK Query error #38
+      // (Cannot refetch a query that has not been started yet)
+      // Components that need to refetch customer/user data should do so manually
+      // after a successful customer update
+    }),
+
+    // Manager Schedule - Constraints (Station Unavailability)
+    getStationConstraints: builder.query<
+      Array<{
+        id: string
+        station_id: string
+        reason: string
+        notes: { text?: string }
+        start_time: string
+        end_time: string
+        is_active: boolean
+      }>,
+      { date: string }
+    >({
+      async queryFn({ date }) {
+        try {
+          const dayStart = new Date(date)
+          dayStart.setHours(0, 0, 0, 0)
+          const dayEnd = new Date(dayStart)
+          dayEnd.setHours(24, 0, 0, 0)
+
+          const { data: constraintsData, error: constraintsError } = await supabase
+            .from("station_unavailability")
+            .select(
+              `
+              id,
+              station_id,
+              reason,
+              notes,
+              start_time,
+              end_time,
+              is_active
+            `
+            )
+            .lt("start_time", dayEnd.toISOString())
+            .gt("end_time", dayStart.toISOString())
+
+          if (constraintsError) {
+            throw constraintsError
+          }
+
+          // Transform to match expected format
+          const transformed = (constraintsData || []).map((constraint) => ({
+            id: constraint.id,
+            station_id: constraint.station_id,
+            reason: constraint.reason || "",
+            notes: typeof constraint.notes === "object" ? constraint.notes : { text: constraint.notes as string },
+            start_time: constraint.start_time,
+            end_time: constraint.end_time,
+            is_active: constraint.is_active ?? true,
+          }))
+
+          return { data: transformed }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      providesTags: ["Constraints"],
+    }),
+
+    // Manager Schedule - Station Working Hours
+    getStationWorkingHours: builder.query<
+      Record<
+        string,
+        Array<{
+          id: string
+          weekday: string
+          open_time: string
+          close_time: string
+          shift_order: number
+        }>
+      >,
+      { stationIds: string[] }
+    >({
+      async queryFn({ stationIds }) {
+        try {
+          if (stationIds.length === 0) {
+            return { data: {} }
+          }
+
+          const { data: workingHoursData, error } = await supabase
+            .from("station_working_hours")
+            .select("id, station_id, weekday, open_time, close_time, shift_order")
+            .in("station_id", stationIds)
+
+          if (error) {
+            throw error
+          }
+
+          // Group by station_id
+          const hoursMap: Record<
+            string,
+            Array<{
+              id: string
+              weekday: string
+              open_time: string
+              close_time: string
+              shift_order: number
+            }>
+          > = {}
+
+          stationIds.forEach((stationId) => {
+            hoursMap[stationId] = []
+          })
+
+          if (workingHoursData) {
+            workingHoursData.forEach((hour) => {
+              if (!hoursMap[hour.station_id]) {
+                hoursMap[hour.station_id] = []
+              }
+              hoursMap[hour.station_id].push({
+                id: hour.id,
+                weekday: hour.weekday,
+                open_time: hour.open_time,
+                close_time: hour.close_time,
+                shift_order: hour.shift_order,
+              })
+            })
+          }
+
+          return { data: hoursMap }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      providesTags: ["StationWorkingHours"],
+    }),
+
+    // Manager Schedule - Shift Restrictions
+    getShiftRestrictions: builder.query<
+      Record<
+        string,
+        {
+          allowedCustomerTypes?: string[]
+          blockedCustomerTypes?: string[]
+        }
+      >,
+      { shiftIds: string[] }
+    >({
+      async queryFn({ shiftIds }) {
+        try {
+          if (shiftIds.length === 0) {
+            return { data: {} }
+          }
+
+          const dogCategoriesData: never[] = []
+
+          // Fetch allowed customer types for shifts
+          const { data: customerTypesData, error: customerTypesError } = await supabase
+            .from("shift_allowed_customer_types")
+            .select("shift_id, customer_type_id")
+            .in("shift_id", shiftIds)
+
+          if (customerTypesError) {
+            console.error("Error fetching shift allowed customer types:", customerTypesError)
+          }
+
+          // Fetch blocked customer types for shifts
+          const { data: blockedCustomerTypesData, error: blockedCustomerTypesError } = await supabase
+            .from("shift_blocked_customer_types")
+            .select("shift_id, customer_type_id")
+            .in("shift_id", shiftIds)
+
+          if (blockedCustomerTypesError) {
+            console.error("Error fetching shift blocked customer types:", blockedCustomerTypesError)
+          }
+
+          // Group restrictions by shift_id
+          const restrictionsMap: Record<
+            string,
+            {
+              allowedCustomerTypes: string[]
+              blockedCustomerTypes: string[]
+            }
+          > = {}
+
+          shiftIds.forEach((shiftId) => {
+            restrictionsMap[shiftId] = {
+              allowedCustomerTypes: [],
+              blockedCustomerTypes: [],
+            }
+          })
+
+          if (customerTypesData) {
+            customerTypesData.forEach((item) => {
+              if (!restrictionsMap[item.shift_id]) {
+                restrictionsMap[item.shift_id] = {
+                  allowedCustomerTypes: [],
+                  blockedCustomerTypes: [],
+                }
+              }
+              restrictionsMap[item.shift_id].allowedCustomerTypes.push(item.customer_type_id)
+            })
+          }
+
+          if (blockedCustomerTypesData) {
+            blockedCustomerTypesData.forEach((item) => {
+              if (!restrictionsMap[item.shift_id]) {
+                restrictionsMap[item.shift_id] = {
+                  allowedCustomerTypes: [],
+                  blockedCustomerTypes: [],
+                }
+              }
+              restrictionsMap[item.shift_id].blockedCustomerTypes.push(item.customer_type_id)
+            })
+          }
+
+          return { data: restrictionsMap }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          return {
+            error: {
+              status: "SUPABASE_ERROR",
+              data: message,
+            },
+          }
+        }
+      },
+      providesTags: ["ShiftRestrictions"],
     }),
   }),
 })
@@ -2046,27 +3079,32 @@ export const {
   useCheckUserExistsQuery,
   useGetClientProfileQuery,
   useUpdateClientProfileMutation,
+  useGetManyChatUserQuery,
   useGetClientSubscriptionsQuery,
   useGetCardUsageQuery,
   useGetSubscriptionTypesQuery,
 
   // Appointments
-  useGetTreatmentAppointmentsQuery,
-  useGetTreatmentGardenAppointmentsQuery,
   useGetMergedAppointmentsQuery,
   useGetAvailableDatesQuery,
   useGetAvailableTimesQuery,
   useGetWaitingListEntriesQuery,
   useGetPendingAppointmentRequestsQuery,
+  useGetAppointmentOrdersQuery,
+  useLazyGetAppointmentOrdersQuery,
+  useGetClientAppointmentHistoryQuery,
+  useLazyGetClientAppointmentHistoryQuery,
+  useGetManagerAppointmentQuery,
+  useLazyGetManagerAppointmentQuery,
   useGetManagerScheduleQuery,
   useSearchManagerScheduleQuery,
   useLazySearchManagerScheduleQuery,
   useGetGroupAppointmentsQuery,
-  useGetTreatmentTypeStationDurationQuery,
-  useLazyGetTreatmentTypeStationDurationQuery,
+  useGetSeriesAppointmentsQuery,
   useDeleteWaitingListEntryMutation,
   useMoveAppointmentMutation,
   useCreateManagerAppointmentMutation,
+  useUpdateAppointmentStatusMutation,
   useCreateProposedMeetingMutation,
   useUpdateProposedMeetingMutation,
   useDeleteProposedMeetingMutation,
@@ -2078,20 +3116,26 @@ export const {
   // Workers
   useGetWorkersQuery,
   useGetWorkerAttendanceQuery,
+  useGetAllWorkerShiftsQuery,
   useGetWorkerStatusQuery,
   useRegisterWorkerMutation,
+  useResetWorkerPasswordMutation,
   useUpdateWorkerStatusMutation,
   useWorkerClockInMutation,
   useWorkerClockOutMutation,
-
-  // Treatments
-  useListOwnerTreatmentsQuery,
-  useCheckTreatmentRegistrationQuery,
-  useCreateTreatmentMutation,
-  useUpdateTreatmentMutation,
+  useManagerClockInWorkerMutation,
+  useManagerClockOutWorkerMutation,
+  useManagerCreateShiftMutation,
+  useManagerUpdateShiftMutation,
+  useManagerDeleteShiftMutation,
 
   // Customer Search
   useSearchCustomersQuery,
   useCreateCustomerMutation,
   useUpdateCustomerMutation,
+
+  // Manager Schedule - Constraints & Working Hours
+  useGetStationConstraintsQuery,
+  useGetStationWorkingHoursQuery,
+  useGetShiftRestrictionsQuery,
 } = supabaseApi

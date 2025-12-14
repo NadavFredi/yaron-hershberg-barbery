@@ -144,5 +144,42 @@ export interface GetWorkerAttendanceResponse {
   entries: WorkerAttendanceEntry[]
 }
 
+export interface ResetWorkerPasswordPayload {
+  workerId: string
+  action: "set_password" | "generate_link"
+  newPassword?: string
+}
 
+export interface ResetWorkerPasswordResponse {
+  success: true
+  message: string
+  resetLink?: string
+  newPassword?: string
+}
+
+export interface WorkerShiftWithWorker extends WorkerAttendanceEntry {
+  workerId: string
+  workerName: string | null
+  workerIsActive: boolean
+}
+
+export interface GetAllWorkerShiftsResponse {
+  success: true
+  rangeStart: string
+  rangeEnd: string
+  page: number
+  pageSize: number
+  totalCount: number
+  entries: WorkerShiftWithWorker[]
+}
+
+export interface GetAllWorkerShiftsParams {
+  rangeStart?: string
+  rangeEnd?: string
+  workerIds?: string[]
+  includeInactive?: boolean
+  workerStatus?: "active" | "inactive" | "all"
+  page?: number
+  pageSize?: number
+}
 

@@ -10,6 +10,7 @@ interface AutocompleteFilterProps {
     value: string
     onChange: (value: string) => void
     onSelect?: (value: string) => void
+    onEnter?: () => void // Called when Enter is pressed (for triggering search)
     placeholder?: string
     className?: string
     searchFn: (searchTerm: string) => Promise<string[]>
@@ -24,6 +25,7 @@ export function AutocompleteFilter({
     value,
     onChange,
     onSelect,
+    onEnter,
     placeholder = "חפש...",
     className,
     searchFn,
@@ -99,6 +101,52 @@ export function AutocompleteFilter({
             isActive = false
         }
     }, [initialLoadOnMount, initialResultsLimit])
+
+    // Reload default suggestions when searchFn changes (e.g., when category filter changes)
+    useEffect(() => {
+        if (!initialLoadOnMount) {
+            return
+        }
+
+        // Only reload if input is empty (showing default suggestions)
+        if (trimmedValue) {
+            return
+        }
+
+        let isActive = true
+        const reloadDefaultSuggestions = async () => {
+            setIsSearching(true)
+            try {
+                console.log("🔄 [AutocompleteFilter] Reloading default suggestions due to searchFn change")
+                const results = await latestSearchFnRef.current("")
+                if (!isActive) {
+                    return
+                }
+                const limitedResults = initialResultsLimit > 0 ? results.slice(0, initialResultsLimit) : results
+                setDefaultSuggestions(limitedResults)
+                setSuggestions(limitedResults)
+                setNoResultsFound(limitedResults.length === 0)
+                lastResultRef.current = { term: "", resultCount: limitedResults.length }
+            } catch (error) {
+                if (isActive) {
+                    console.error("❌ [AutocompleteFilter] Error reloading default suggestions:", error)
+                    setDefaultSuggestions([])
+                    setNoResultsFound(false)
+                    lastResultRef.current = null
+                }
+            } finally {
+                if (isActive) {
+                    setIsSearching(false)
+                }
+            }
+        }
+
+        reloadDefaultSuggestions()
+
+        return () => {
+            isActive = false
+        }
+    }, [searchFn, initialLoadOnMount, initialResultsLimit, trimmedValue])
 
     useEffect(() => {
         const shouldSkipSearch =
@@ -313,10 +361,16 @@ export function AutocompleteFilter({
                 })
                 break
             case 'Enter':
-                if (hasSuggestions) {
-                    const indexToSelect = highlightedIndex >= 0 ? highlightedIndex : 0
-                    if (indexToSelect < suggestions.length) {
-                        handleSelect(suggestions[indexToSelect])
+                e.preventDefault() // Prevent form submission if inside a form
+                if (hasSuggestions && highlightedIndex >= 0) {
+                    // Select the highlighted suggestion
+                    if (highlightedIndex < suggestions.length) {
+                        handleSelect(suggestions[highlightedIndex])
+                    }
+                } else {
+                    // If no suggestions highlighted or no suggestions, trigger search with current value
+                    if (onEnter) {
+                        onEnter()
                     }
                 }
                 break

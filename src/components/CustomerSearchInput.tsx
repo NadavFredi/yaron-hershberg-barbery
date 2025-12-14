@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { X, Loader2, User, Phone, Mail, Sparkles, Pencil } from "lucide-react"
+import { X, Loader2, User, Phone, Mail, Dog, Pencil } from "lucide-react"
 import { useDebounce } from "@/hooks/useDebounce"
 import { useSearchCustomersQuery } from "@/store/services/supabaseApi"
 import { cn } from "@/lib/utils"
@@ -15,7 +15,7 @@ export interface Customer {
     fullName?: string
     phone?: string
     email?: string
-    treatmentNames?: string
+    dogNames?: string
     recordId?: string
 }
 
@@ -28,6 +28,8 @@ interface CustomerSearchInputProps {
     placeholder?: string
     onCustomerCreated?: (customer: Customer) => void
     className?: string
+    clearSearchOnSelect?: boolean
+    keepFocusAfterSelect?: boolean
 }
 
 export function CustomerSearchInput({
@@ -39,6 +41,8 @@ export function CustomerSearchInput({
     placeholder = "חיפוש לפי שם, טלפון או אימייל...",
     onCustomerCreated,
     className,
+    clearSearchOnSelect = false,
+    keepFocusAfterSelect = false,
 }: CustomerSearchInputProps) {
     const [searchTerm, setSearchTerm] = useState('')
     const [cachedCustomers, setCachedCustomers] = useState<Customer[]>([])
@@ -49,16 +53,16 @@ export function CustomerSearchInput({
     const inputRef = useRef<HTMLInputElement>(null)
     const suggestionRefs = useRef<(HTMLDivElement | null)[]>([])
     const createButtonRef = useRef<HTMLButtonElement>(null)
+    const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     // Debounce search term
     const debouncedSearchTerm = useDebounce(searchTerm.trim(), 300)
     const hasValidSearchTerm = debouncedSearchTerm.length >= 0 // Allow search from first character
-    const [shouldSearch, setShouldSearch] = useState(false) // Track if we should trigger search
 
-    // Search customers with debounced term
+    // Search customers with debounced term - search when focused and has term
     const { data: searchData, isLoading: isSearching, refetch: refetchCustomers } = useSearchCustomersQuery(
         { searchTerm: debouncedSearchTerm },
-        { skip: !hasValidSearchTerm || !shouldSearch }
+        { skip: !hasValidSearchTerm || !isFocused || !!selectedCustomer }
     )
 
     useEffect(() => {
@@ -99,10 +103,19 @@ export function CustomerSearchInput({
 
     const handleCustomerSelect = (customer: Customer) => {
         onCustomerSelect(customer)
-        setSearchTerm(customer.fullName || '')
         setHighlightedIndex(-1)
-        setShouldSearch(false) // Disable search when customer is selected
-        setIsFocused(false) // Close suggestions when customer is selected
+
+        const nextSearchValue = clearSearchOnSelect ? '' : (customer.fullName || '')
+        setSearchTerm(nextSearchValue)
+
+        if (keepFocusAfterSelect) {
+            requestAnimationFrame(() => {
+                inputRef.current?.focus()
+                setIsFocused(true)
+            })
+        } else {
+            setIsFocused(false) // Close suggestions when customer is selected
+        }
     }
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -231,20 +244,30 @@ export function CustomerSearchInput({
     const handleClearCustomer = () => {
         onCustomerClear()
         setSearchTerm('')
-        setShouldSearch(false) // Reset search trigger when clearing
-        setIsFocused(false) // Close suggestions when clearing
+        if (keepFocusAfterSelect) {
+            requestAnimationFrame(() => inputRef.current?.focus())
+            setIsFocused(true)
+        } else {
+            setIsFocused(false) // Close suggestions when clearing
+        }
     }
 
     // Update search term when selected customer changes externally
     useEffect(() => {
         if (selectedCustomer) {
             setSearchTerm(selectedCustomer.fullName || '')
-            setShouldSearch(false) // Disable search when customer is selected
         } else if (!selectedCustomer) {
             setSearchTerm('')
-            setShouldSearch(false) // Reset search trigger
         }
     }, [selectedCustomer?.id]) // Only update when customer ID changes
+
+    useEffect(() => {
+        return () => {
+            if (blurTimeoutRef.current) {
+                clearTimeout(blurTimeoutRef.current)
+            }
+        }
+    }, [])
 
     return (
         <div className={className}>
@@ -257,18 +280,17 @@ export function CustomerSearchInput({
                     value={searchTerm}
                     onChange={(e) => {
                         handleSearchChange(e.target.value)
-                        setShouldSearch(true) // Enable search once user starts typing
                     }}
                     onFocus={() => {
-                        setIsFocused(true)
-                        // Trigger search on focus if value is empty
-                        if (!searchTerm.trim()) {
-                            setShouldSearch(true)
+                        if (blurTimeoutRef.current) {
+                            clearTimeout(blurTimeoutRef.current)
+                            blurTimeoutRef.current = null
                         }
+                        setIsFocused(true)
                     }}
                     onBlur={() => {
                         // Delay setting isFocused to false to allow click events on suggestions
-                        setTimeout(() => {
+                        blurTimeoutRef.current = setTimeout(() => {
                             setIsFocused(false)
                         }, 200)
                     }}
@@ -357,10 +379,10 @@ export function CustomerSearchInput({
                                                         <span>{customer.email}</span>
                                                     </div>
                                                 )}
-                                                {customer.treatmentNames && (
+                                                {customer.dogNames && (
                                                     <div className="flex items-center gap-2 text-xs text-gray-600">
-                                                        <Sparkles className="h-3 w-3" />
-                                                        <span>{customer.treatmentNames}</span>
+                                                        <Dog className="h-3 w-3" />
+                                                        <span>{customer.dogNames}</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -402,14 +424,14 @@ export function CustomerSearchInput({
             <AddCustomerDialog
                 open={isAddCustomerDialogOpen}
                 onOpenChange={setIsAddCustomerDialogOpen}
+                initialName={searchTerm.trim() || undefined}
                 onSuccess={(newCustomer) => {
                     console.log("✅ [CustomerSearchInput] Customer created:", newCustomer)
                     // Select the newly created customer immediately
                     onCustomerSelect(newCustomer)
-                    // Trigger a refetch to update the search results
-                    if (hasValidSearchTerm) {
-                        refetchCustomers()
-                    }
+                    // Note: We don't refetch here because selecting the customer causes the query to be skipped
+                    // (skip condition: !hasValidSearchTerm || !isFocused || !!selectedCustomer)
+                    // Attempting to refetch a skipped query causes RTK Query error #38
                     // Notify parent if callback provided
                     onCustomerCreated?.(newCustomer)
                 }}
@@ -434,13 +456,11 @@ export function CustomerSearchInput({
                         // Update search term to reflect new name
                         setSearchTerm(updatedCustomer.fullName || selectedCustomer.fullName || "")
                     }
-                    // Trigger a refetch to update the search results
-                    if (hasValidSearchTerm) {
-                        await refetchCustomers()
-                    }
+                    // Note: We don't refetch here because selecting/updating the customer causes the query to be skipped
+                    // (skip condition: !hasValidSearchTerm || !isFocused || !!selectedCustomer)
+                    // Attempting to refetch a skipped query causes RTK Query error #38
                 }}
             />
         </div>
     )
 }
-

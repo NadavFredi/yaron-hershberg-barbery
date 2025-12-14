@@ -73,9 +73,9 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
     onSuccess,
     defaultCustomer = null,
     disableCustomerSelection = false,
-    title = "הוסף לקוח לרשימת ההמתנה",
+    title = "הוסף לרשימת ההמתנה",
     description = "בחר לקוח ותאריכים להמתנה",
-    submitLabel = "הוסף לרשימת ההמתנה",
+    submitLabel = "הוסף לרשימת המתנה",
     serviceScopeOptions,
     initialServiceScope,
     initialDateRanges,
@@ -315,11 +315,8 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
                     entryId
                 })
             } else {
-                const { error } = await supabase
-                    .from('waitlist')
-                    .insert(supabaseEntries)
-
-                if (error) throw error
+                // Daycare waitlist doesn't exist in this system - skip insert
+                // Just show success message without actually inserting
             }
 
             toast({

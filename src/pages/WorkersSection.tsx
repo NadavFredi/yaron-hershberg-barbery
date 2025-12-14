@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
+import { useLocation, useSearchParams } from "react-router-dom"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,6 +25,9 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PhoneInput } from "@/components/ui/phone-input"
+import { ResetPasswordDialog } from "@/components/dialogs/workers/ResetPasswordDialog"
+import PresenceReportingTab from "./PresenceReportingTab"
 import {
     Select,
     SelectContent,
@@ -39,16 +43,17 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
+import { WorkerShiftsTab } from "./WorkerShiftsTab"
 import {
     useGetWorkerAttendanceQuery,
     useGetWorkersQuery,
     useRegisterWorkerMutation,
+    useResetWorkerPasswordMutation,
     useUpdateWorkerStatusMutation,
 } from "@/store/services/supabaseApi"
 import type {
@@ -76,6 +81,10 @@ import {
     Info,
     UserPlus,
     UserRoundCog,
+    Eye,
+    EyeOff,
+    RefreshCw,
+    Key,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -87,8 +96,11 @@ interface WorkerAttendanceDialogProps {
     onOpenChange: (value: boolean) => void
 }
 
-interface WorkerCreationFormState extends RegisterWorkerPayload {
-    useExistingProfile: boolean
+interface WorkerCreationFormState {
+    fullName: string
+    phoneNumber: string
+    email: string
+    password: string
 }
 
 const rangePresetOptions: Array<{ id: RangePreset; label: string }> = [
@@ -317,19 +329,45 @@ const WorkerCreationDialog = ({
         phoneNumber: "",
         email: "",
         password: "",
-        profileId: "",
-        sendResetPasswordEmail: true,
-        useExistingProfile: false,
     }
     const [formState, setFormState] = useState<WorkerCreationFormState>(initialState)
     const [errors, setErrors] = useState<Record<string, string>>({})
+    const [showPassword, setShowPassword] = useState(false)
 
     useEffect(() => {
         if (!open) {
             setFormState(initialState)
             setErrors({})
+            setShowPassword(false)
         }
     }, [open])
+
+    const generatePassword = () => {
+        // Generate a secure password with 12 characters: uppercase, lowercase, numbers, and symbols
+        const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+        const lowercase = "abcdefghijkmnopqrstuvwxyz"
+        const numbers = "23456789"
+        const symbols = "!@#$%&*"
+
+        // Ensure at least one of each type
+        let password = ""
+        password += uppercase[Math.floor(Math.random() * uppercase.length)]
+        password += lowercase[Math.floor(Math.random() * lowercase.length)]
+        password += numbers[Math.floor(Math.random() * numbers.length)]
+        password += symbols[Math.floor(Math.random() * symbols.length)]
+
+        // Fill the rest randomly
+        const allChars = uppercase + lowercase + numbers + symbols
+        for (let i = password.length; i < 12; i++) {
+            password += allChars[Math.floor(Math.random() * allChars.length)]
+        }
+
+        // Shuffle the password
+        password = password.split("").sort(() => Math.random() - 0.5).join("")
+
+        setFormState((prev) => ({ ...prev, password }))
+        setShowPassword(true) // Show the generated password
+    }
 
     const validate = (): boolean => {
         const nextErrors: Record<string, string> = {}
@@ -342,11 +380,7 @@ const WorkerCreationDialog = ({
             nextErrors.phoneNumber = "יש להזין מספר טלפון"
         }
 
-        if (formState.useExistingProfile) {
-            if (!formState.profileId || formState.profileId.trim().length < 8) {
-                nextErrors.profileId = "יש להזין מזהה משתמש קיים (UUID)"
-            }
-        } else if (!formState.password || formState.password.trim().length < 8) {
+        if (!formState.password || formState.password.trim().length < 8) {
             nextErrors.password = "יש להזין סיסמה באורך של לפחות 8 תווים"
         }
 
@@ -359,13 +393,16 @@ const WorkerCreationDialog = ({
             return
         }
 
+        // Extract digits from phone number (PhoneInput returns E.164 format like +972501234567)
+        const phoneDigits = formState.phoneNumber.replace(/\D/g, "")
+
         const payload: RegisterWorkerPayload = {
             fullName: formState.fullName.trim(),
-            phoneNumber: formState.phoneNumber.trim(),
+            phoneNumber: phoneDigits,
             email: formState.email?.trim() || null,
-            password: formState.useExistingProfile ? null : formState.password?.trim() || null,
-            profileId: formState.useExistingProfile ? formState.profileId.trim() : null,
-            sendResetPasswordEmail: !formState.useExistingProfile && formState.sendResetPasswordEmail,
+            password: formState.password?.trim() || null,
+            profileId: null, // Will be looked up by phone automatically
+            sendResetPasswordEmail: false,
         }
 
         await onCreate(payload)
@@ -395,12 +432,12 @@ const WorkerCreationDialog = ({
                         <Label htmlFor="phoneNumber" className="text-right">
                             מספר טלפון
                         </Label>
-                        <Input
+                        <PhoneInput
                             id="phoneNumber"
                             value={formState.phoneNumber}
-                            onChange={(event) => setFormState((prev) => ({ ...prev, phoneNumber: event.target.value }))}
-                            className="text-right"
-                            placeholder="לדוגמה: 0501234567"
+                            onChange={(value) => setFormState((prev) => ({ ...prev, phoneNumber: value }))}
+                            placeholder="050-1234567"
+                            defaultCountry="il"
                         />
                         {errors.phoneNumber ? <p className="text-xs text-rose-600">{errors.phoneNumber}</p> : null}
                     </div>
@@ -418,69 +455,51 @@ const WorkerCreationDialog = ({
                         />
                     </div>
                     <Separator />
-                    <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <Label className="flex items-center justify-between text-sm font-semibold text-slate-700">
-                            העובד כבר קיים במערכת?
-                            <Checkbox
-                                checked={formState.useExistingProfile}
-                                onCheckedChange={(checked) =>
-                                    setFormState((prev) => ({
-                                        ...prev,
-                                        useExistingProfile: Boolean(checked),
-                                        password: checked ? "" : prev.password,
-                                    }))
-                                }
+                    <div className="grid gap-2">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="password" className="text-right">
+                                סיסמה ראשונית
+                            </Label>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={generatePassword}
+                                className="h-8 text-xs"
+                            >
+                                <RefreshCw className="h-3 w-3 ml-1" />
+                                צור סיסמה
+                            </Button>
+                        </div>
+                        <div className="relative">
+                            <Input
+                                id="password"
+                                type={showPassword ? "text" : "password"}
+                                value={formState.password ?? ""}
+                                onChange={(event) => setFormState((prev) => ({ ...prev, password: event.target.value }))}
+                                className="text-right pr-10"
+                                placeholder="לפחות 8 תווים"
                             />
-                        </Label>
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                                tabIndex={-1}
+                            >
+                                {showPassword ? (
+                                    <EyeOff className="h-4 w-4" />
+                                ) : (
+                                    <Eye className="h-4 w-4" />
+                                )}
+                            </button>
+                        </div>
+                        {errors.password ? <p className="text-xs text-rose-600">{errors.password}</p> : null}
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-right">
                         <p className="text-xs text-slate-500">
-                            אם העובד כבר נרשם למערכת, ניתן להמיר את החשבון שלו לעובד פעיל באמצעות הזנת מזהה המשתמש (UUID) כפי שמופיע במסד הנתונים.
+                            אם העובד כבר קיים במערכת עם מספר הטלפון הזה, הוא יומר אוטומטית לעובד פעיל.
                         </p>
                     </div>
-                    {formState.useExistingProfile ? (
-                        <div className="grid gap-2">
-                            <Label htmlFor="profileId" className="text-right">
-                                מזהה משתמש קיים (UUID)
-                            </Label>
-                            <Textarea
-                                id="profileId"
-                                value={formState.profileId ?? ""}
-                                onChange={(event) => setFormState((prev) => ({ ...prev, profileId: event.target.value }))}
-                                className="text-right"
-                                rows={2}
-                                placeholder="לדוגמה: 123e4567-e89b-12d3-a456-426614174000"
-                            />
-                            {errors.profileId ? <p className="text-xs text-rose-600">{errors.profileId}</p> : null}
-                        </div>
-                    ) : (
-                        <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="password" className="text-right">
-                                    סיסמה ראשונית
-                                </Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    value={formState.password ?? ""}
-                                    onChange={(event) => setFormState((prev) => ({ ...prev, password: event.target.value }))}
-                                    className="text-right"
-                                    placeholder="לפחות 8 תווים"
-                                />
-                                {errors.password ? <p className="text-xs text-rose-600">{errors.password}</p> : null}
-                            </div>
-                            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-                                <div className="space-y-0.5 text-right">
-                                    <Label className="text-sm font-semibold text-slate-700">שלח קישור לאיפוס סיסמה</Label>
-                                    <p className="text-xs text-slate-500">נשלח למייל אם הוזן. מאפשר לעובד להגדיר סיסמה חדשה בעצמו.</p>
-                                </div>
-                                <Checkbox
-                                    checked={formState.sendResetPasswordEmail}
-                                    onCheckedChange={(checked) =>
-                                        setFormState((prev) => ({ ...prev, sendResetPasswordEmail: Boolean(checked) }))
-                                    }
-                                />
-                            </div>
-                        </>
-                    )}
                 </div>
                 <DialogFooter className="mt-4 flex  sm:flex-row sm:items-center   gap-3" dir="rtl">
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -502,6 +521,7 @@ interface WorkerRowProps {
     onToggleExpand: () => void
     onShowAttendance: () => void
     onStatusChange: (action: WorkerStatusAction) => void
+    onResetPassword: (worker: WorkerSummary) => void
     isBusy: boolean
 }
 
@@ -511,6 +531,7 @@ const WorkerRow = ({
     onToggleExpand,
     onShowAttendance,
     onStatusChange,
+    onResetPassword,
     isBusy,
 }: WorkerRowProps) => {
     const recentShifts = worker.recentShifts.slice(0, 4)
@@ -530,8 +551,8 @@ const WorkerRow = ({
                 className={cn(
                     "border-b text-right transition-colors",
                     worker.isActive
-                        ? "bg-[hsl(228_36%_99%)] hover:bg-[hsl(228_36%_97%)]"
-                        : "bg-white hover:bg-muted/40",
+                        ? "bg-white hover:bg-slate-50"
+                        : "bg-white hover:bg-slate-50",
                 )}
             >
                 <TableCell className="w-12 text-center align-middle">
@@ -602,6 +623,18 @@ const WorkerRow = ({
                                 className="flex items-center justify-between gap-2"
                                 onSelect={(event) => {
                                     event.preventDefault()
+                                    onResetPassword(worker)
+                                }}
+                            >
+                                <span>איפוס סיסמה</span>
+                                <Key className="h-4 w-4 text-blue-600" />
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                disabled={isBusy}
+                                className="flex items-center justify-between gap-2"
+                                onSelect={(event) => {
+                                    event.preventDefault()
                                     handleStatusSelect(statusAction)
                                 }}
                             >
@@ -628,12 +661,12 @@ const WorkerRow = ({
                 </TableCell>
             </TableRow>
             {isExpanded ? (
-                <TableRow className="bg-[hsl(228_36%_98%)]">
+                <TableRow className="bg-white">
                     <TableCell className="border-b-0" />
                     <TableCell colSpan={6} className="border-b px-6 py-6" dir="rtl">
                         <div className="space-y-6">
                             <div className="grid gap-6 lg:grid-cols-3">
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                                     <div className="flex items-center justify-between gap-2 text-right">
                                         <div className="flex items-center gap-2 text-slate-700">
                                             <Info className="h-4 w-4 text-blue-600" />
@@ -688,7 +721,7 @@ const WorkerRow = ({
                                         </div>
                                     ) : null}
                                 </div>
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-right">
+                                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-right shadow-sm">
                                     <div className="flex items-center justify-end gap-2 text-slate-700">
                                         <Clock className="h-4 w-4 text-indigo-600" />
                                         <span className="text-sm font-semibold">סיכומי שעות</span>
@@ -719,7 +752,7 @@ const WorkerRow = ({
                                         </span>
                                     </div>
                                 </div>
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-right">
+                                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-right shadow-sm">
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center justify-end gap-2 text-slate-700">
                                             <ListChecks className="h-4 w-4 text-amber-600" />
@@ -772,11 +805,31 @@ const WorkerRow = ({
 
 export default function WorkersSection() {
     const { toast } = useToast()
+    const location = useLocation()
+    const [searchParams, setSearchParams] = useSearchParams()
+    const currentMode = searchParams.get("mode") || "workers"
+    const currentSection = searchParams.get("section")
     const [includeInactive, setIncludeInactive] = useState(false)
     const [rangePreset, setRangePreset] = useState<RangePreset>("week")
     const [createDialogOpen, setCreateDialogOpen] = useState(false)
     const [selectedWorker, setSelectedWorker] = useState<WorkerSummary | null>(null)
     const [expandedWorkerId, setExpandedWorkerId] = useState<string | null>(null)
+
+    // Set default mode if not present in URL
+    // Only update if we're on the manager-screens page and the section is workers
+    useEffect(() => {
+        if (location.pathname !== "/manager-screens") {
+            return
+        }
+
+        if (currentSection && currentSection !== "workers") {
+            return
+        }
+
+        if (!searchParams.get("mode")) {
+            setSearchParams({ section: "workers", mode: "workers" }, { replace: true })
+        }
+    }, [location.pathname, currentSection, searchParams, setSearchParams])
 
     const rangeStart = useMemo(() => buildRangeStartFromPreset(rangePreset), [rangePreset])
     const {
@@ -792,6 +845,7 @@ export default function WorkersSection() {
 
     const [registerWorker, { isLoading: isRegistering }] = useRegisterWorkerMutation()
     const [updateWorkerStatus, { isLoading: isUpdatingStatus }] = useUpdateWorkerStatusMutation()
+    const [resetWorkerPassword, { isLoading: isResettingPassword }] = useResetWorkerPasswordMutation()
 
     useEffect(() => {
         if (expandedWorkerId && workersData?.workers.every((worker) => worker.id !== expandedWorkerId)) {
@@ -810,9 +864,7 @@ export default function WorkersSection() {
             await registerWorker(payload).unwrap()
             toast({
                 title: "העובד נשמר בהצלחה",
-                description: payload.profileId
-                    ? "המשתמש הקיים הומר לעובד פעיל ויכול לדווח משמרות."
-                    : "נוצר משתמש חדש. העבר לעובד את פרטי ההתחברות.",
+                description: "העובד נוצר או עודכן בהצלחה.",
             })
             setCreateDialogOpen(false)
             await refetchWorkers()
@@ -840,6 +892,79 @@ export default function WorkersSection() {
             toast({
                 title: "לא ניתן לעדכן את הסטטוס",
                 description: "נסה שוב או פנה לתמיכה.",
+                variant: "destructive",
+            })
+        }
+    }
+
+    const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false)
+    const [selectedWorkerForReset, setSelectedWorkerForReset] = useState<WorkerSummary | null>(null)
+
+    const handleResetPasswordClick = (worker: WorkerSummary) => {
+        setSelectedWorkerForReset(worker)
+        setResetPasswordDialogOpen(true)
+    }
+
+    const handleSetPassword = async (worker: WorkerSummary, password: string) => {
+        console.log("🔐 [WorkersSection] Setting password for worker", { workerId: worker.id })
+        try {
+            const result = await resetWorkerPassword({
+                workerId: worker.id,
+                action: "set_password",
+                newPassword: password,
+            }).unwrap()
+            toast({
+                title: "סיסמה עודכנה",
+                description: result.message,
+            })
+            setResetPasswordDialogOpen(false)
+            setSelectedWorkerForReset(null)
+        } catch (error) {
+            console.error("❌ [WorkersSection] Failed to set password", error)
+            const errorMessage = error && typeof error === "object" && "data" in error && typeof error.data === "string"
+                ? error.data
+                : "נסה שוב או פנה לתמיכה."
+            toast({
+                title: "לא ניתן לעדכן את הסיסמה",
+                description: errorMessage,
+                variant: "destructive",
+            })
+        }
+    }
+
+    const handleGenerateResetLink = async (worker: WorkerSummary) => {
+        console.log("🔐 [WorkersSection] Generating reset link for worker", { workerId: worker.id })
+        try {
+            const result = await resetWorkerPassword({
+                workerId: worker.id,
+                action: "generate_link",
+            }).unwrap()
+            toast({
+                title: "קישור איפוס סיסמה נוצר",
+                description: result.message,
+            })
+            // If reset link is provided, copy it to clipboard
+            if (result.resetLink) {
+                try {
+                    await navigator.clipboard.writeText(result.resetLink)
+                    toast({
+                        title: "קישור הועתק",
+                        description: "קישור איפוס הסיסמה הועתק ללוח. העבר אותו לעובד.",
+                    })
+                } catch (clipboardError) {
+                    console.warn("⚠️ [WorkersSection] Failed to copy to clipboard", clipboardError)
+                }
+            }
+            setResetPasswordDialogOpen(false)
+            setSelectedWorkerForReset(null)
+        } catch (error) {
+            console.error("❌ [WorkersSection] Failed to generate reset link", error)
+            const errorMessage = error && typeof error === "object" && "data" in error && typeof error.data === "string"
+                ? error.data
+                : "נסה שוב או פנה לתמיכה."
+            toast({
+                title: "לא ניתן ליצור קישור איפוס סיסמה",
+                description: errorMessage,
                 variant: "destructive",
             })
         }
@@ -875,10 +1000,11 @@ export default function WorkersSection() {
     }, [workersData])
 
     return (
-        <div className="flex flex-col gap-6 px-1 sm:px-3 lg:px-6" dir="rtl">
+        <div className="flex flex-col gap-6 pt-12 px-1 sm:px-3 lg:px-6 bg-background" dir="rtl">
+            {currentMode !== "presence" && (
                 <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 text-right sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h1 className="flex items-center justify-end gap-2 text-2xl font-bold text-slate-900">
+                        <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
                             <UserRoundCog className="h-6 w-6 text-blue-600" />
                             ניהול עובדים ומשמרות
                         </h1>
@@ -891,159 +1017,182 @@ export default function WorkersSection() {
                             {isFetchingWorkers ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="ml-2 h-4 w-4" />}
                             רענון
                         </Button>
-                        <Button onClick={() => setCreateDialogOpen(true)} size="sm">
-                            <Plus className="ml-2 h-4 w-4" />
-                            הוספת עובד
-                        </Button>
+                        {currentMode === "workers" && (
+                            <Button onClick={() => setCreateDialogOpen(true)} size="sm">
+                                <Plus className="ml-2 h-4 w-4" />
+                                הוספת עובד
+                            </Button>
+                        )}
                     </div>
                 </header>
+            )}
 
-                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <Card>
-                        <CardHeader className="pb-2 text-right">
-                            <CardDescription className="text-slate-500">סה״כ עובדים בתצוגה</CardDescription>
-                            <CardTitle className="text-3xl font-bold text-slate-900">{totals.totalWorkers}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-xs text-slate-500">
-                            הטבלה משקפת עובדים פעילים בלבד אלא אם סימנת הצגת עובדים לא פעילים.
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2 text-right">
-                            <CardDescription className="text-slate-500">עובדים פעילים כעת</CardDescription>
-                            <CardTitle className="text-3xl font-bold text-emerald-600">{totals.totalActive}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-xs text-slate-500">
-                            עובדים שיכולים לבצע כניסה ויציאה משעון הנוכחות.
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2 text-right">
-                            <CardDescription className="text-slate-500">משמרות פתוחות כרגע</CardDescription>
-                            <CardTitle className="text-3xl font-bold text-amber-600">{totals.totalWorkingNow}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-xs text-slate-500">
-                            עובדים שביצעו כניסה למשמרת ועדיין לא יצאו ממנה.
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2 text-right">
-                            <CardDescription className="text-slate-500">סה״כ שעות בטווח שנבחר</CardDescription>
-                            <CardTitle className="text-2xl font-bold text-blue-600">{formatMinutesAsHours(totals.totalRangeMinutes)}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-xs text-slate-500">
-                            חיבור של כל המשמרות שנפתחו בתוך הטווח שנבחר.
-                        </CardContent>
-                    </Card>
-                </section>
+            {currentMode === "workers" && (
+                <div className="flex flex-col gap-6">
+                    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <Card>
+                            <CardHeader className="pb-2 text-right">
+                                <CardDescription className="text-slate-500">סה״כ עובדים בתצוגה</CardDescription>
+                                <CardTitle className="text-3xl font-bold text-slate-900">{totals.totalWorkers}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-xs text-slate-500">
+                                הטבלה משקפת עובדים פעילים בלבד אלא אם סימנת הצגת עובדים לא פעילים.
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2 text-right">
+                                <CardDescription className="text-slate-500">עובדים פעילים כעת</CardDescription>
+                                <CardTitle className="text-3xl font-bold text-emerald-600">{totals.totalActive}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-xs text-slate-500">
+                                עובדים שיכולים לבצע כניסה ויציאה משעון הנוכחות.
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2 text-right">
+                                <CardDescription className="text-slate-500">משמרות פתוחות כרגע</CardDescription>
+                                <CardTitle className="text-3xl font-bold text-amber-600">{totals.totalWorkingNow}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-xs text-slate-500">
+                                עובדים שביצעו כניסה למשמרת ועדיין לא יצאו ממנה.
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2 text-right">
+                                <CardDescription className="text-slate-500">סה״כ שעות בטווח שנבחר</CardDescription>
+                                <CardTitle className="text-2xl font-bold text-blue-600">{formatMinutesAsHours(totals.totalRangeMinutes)}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-xs text-slate-500">
+                                חיבור של כל המשמרות שנפתחו בתוך הטווח שנבחר.
+                            </CardContent>
+                        </Card>
+                    </section>
 
-                <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
-                            <Checkbox
-                                id="includeInactive"
-                                checked={includeInactive}
-                                onCheckedChange={(checked) => setIncludeInactive(Boolean(checked))}
-                            />
-                            <Label htmlFor="includeInactive" className="cursor-pointer text-sm text-slate-700">
-                                הצג גם עובדים לא פעילים
-                            </Label>
+                    <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-3">
+                                <Checkbox
+                                    id="includeInactive"
+                                    checked={includeInactive}
+                                    onCheckedChange={(checked) => setIncludeInactive(Boolean(checked))}
+                                />
+                                <Label htmlFor="includeInactive" className="cursor-pointer text-sm text-slate-700">
+                                    הצג גם עובדים לא פעילים
+                                </Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="rangePresetSelector" className="text-sm text-slate-600">
+                                    טווח סיכום שעות
+                                </Label>
+                                <Select
+                                    value={rangePreset}
+                                    onValueChange={(value: RangePreset) => {
+                                        console.log("🗓️ [WorkersSection] Range preset changed", value)
+                                        setRangePreset(value)
+                                    }}
+                                >
+                                    <SelectTrigger id="rangePresetSelector" className="w-44 text-right">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent align="end">
+                                        {rangePresetOptions.map((option) => (
+                                            <SelectItem key={option.id} value={option.id}>
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor="rangePresetSelector" className="text-sm text-slate-600">
-                                טווח סיכום שעות
-                            </Label>
-                            <Select
-                                value={rangePreset}
-                                onValueChange={(value: RangePreset) => {
-                                    console.log("🗓️ [WorkersSection] Range preset changed", value)
-                                    setRangePreset(value)
-                                }}
+                        <div className="overflow-hidden rounded-xl border border-slate-200">
+                            <Table
+                                className="w-full table-fixed"
+                                containerClassName="relative w-full overflow-auto"
                             >
-                                <SelectTrigger id="rangePresetSelector" className="w-44 text-right">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent align="end">
-                                    {rangePresetOptions.map((option) => (
-                                        <SelectItem key={option.id} value={option.id}>
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <div className="overflow-hidden rounded-xl border border-slate-200">
-                        <Table
-                            className="w-full table-fixed"
-                            containerClassName="relative w-full overflow-auto"
-                        >
-                            <TableHeader>
-                                <TableRow className="bg-[hsl(228_36%_95%)] [&>th]:font-semibold [&>th]:text-primary [&>th]:text-right">
-                                    <TableHead className="w-12" />
-                                    <TableHead>שם העובד</TableHead>
-                                    <TableHead>סטטוס עובד</TableHead>
-                                    <TableHead>משמרת נוכחית</TableHead>
-                                    <TableHead>שעות בטווח</TableHead>
-                                    <TableHead>שבוע נוכחי</TableHead>
-                                    <TableHead>פעולות</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoadingWorkers ? (
-                                    [...Array(5)].map((_, idx) => (
-                                        <TableRow key={`worker-skeleton-${idx}`} className="border-b">
+                                <TableHeader>
+                                    <TableRow className="bg-[hsl(228_36%_95%)] [&>th]:font-semibold [&>th]:text-primary [&>th]:text-right">
+                                        <TableHead className="w-12" />
+                                        <TableHead>שם העובד</TableHead>
+                                        <TableHead>סטטוס עובד</TableHead>
+                                        <TableHead>משמרת נוכחית</TableHead>
+                                        <TableHead>שעות בטווח</TableHead>
+                                        <TableHead>שבוע נוכחי</TableHead>
+                                        <TableHead>פעולות</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoadingWorkers ? (
+                                        [...Array(5)].map((_, idx) => (
+                                            <TableRow key={`worker-skeleton-${idx}`} className="border-b">
+                                                <TableCell colSpan={7} className="text-center">
+                                                    <Skeleton className="h-12 w-full" />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : workersData && workersData.workers.length > 0 ? (
+                                        workersData.workers.map((worker) => (
+                                            <WorkerRow
+                                                key={worker.id}
+                                                worker={worker}
+                                                isExpanded={expandedWorkerId === worker.id}
+                                                onToggleExpand={() => toggleWorkerDetails(worker.id)}
+                                                onShowAttendance={() => handleShowAttendance(worker)}
+                                                onStatusChange={(action) => handleStatusChange(worker, action)}
+                                                onResetPassword={handleResetPasswordClick}
+                                                isBusy={isUpdatingStatus || isResettingPassword}
+                                            />
+                                        ))
+                                    ) : (
+                                        <TableRow>
                                             <TableCell colSpan={7} className="text-center">
-                                                <Skeleton className="h-12 w-full" />
+                                                <div className="flex flex-col items-center justify-center gap-2 py-10 text-slate-500">
+                                                    <AlertTriangle className="h-6 w-6" />
+                                                    <p className="font-medium">לא נמצאו עובדים להצגה</p>
+                                                    <p className="text-sm">הוסף עובדים חדשים או הסר את הסינון של עובדים לא פעילים.</p>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                ) : workersData && workersData.workers.length > 0 ? (
-                                    workersData.workers.map((worker) => (
-                                        <WorkerRow
-                                            key={worker.id}
-                                            worker={worker}
-                                            isExpanded={expandedWorkerId === worker.id}
-                                            onToggleExpand={() => toggleWorkerDetails(worker.id)}
-                                            onShowAttendance={() => handleShowAttendance(worker)}
-                                            onStatusChange={(action) => handleStatusChange(worker, action)}
-                                            isBusy={isUpdatingStatus}
-                                        />
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={7} className="text-center">
-                                            <div className="flex flex-col items-center justify-center gap-2 py-10 text-slate-500">
-                                                <AlertTriangle className="h-6 w-6" />
-                                                <p className="font-medium">לא נמצאו עובדים להצגה</p>
-                                                <p className="text-sm">הוסף עובדים חדשים או הסר את הסינון של עובדים לא פעילים.</p>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </section>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </section>
+                </div>
+            )}
 
-                <WorkerCreationDialog
-                    open={createDialogOpen}
-                    onOpenChange={setCreateDialogOpen}
-                    onCreate={handleRegisterWorker}
-                    isSubmitting={isRegistering}
+            {currentMode === "shifts" && <WorkerShiftsTab />}
+
+            {currentMode === "presence" && <PresenceReportingTab />}
+
+            <WorkerCreationDialog
+                open={createDialogOpen}
+                onOpenChange={setCreateDialogOpen}
+                onCreate={handleRegisterWorker}
+                isSubmitting={isRegistering}
+            />
+
+            {selectedWorker ? (
+                <WorkerAttendanceDialog
+                    worker={selectedWorker}
+                    open={Boolean(selectedWorker)}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setSelectedWorker(null)
+                        }
+                    }}
                 />
+            ) : null}
 
-                {selectedWorker ? (
-                    <WorkerAttendanceDialog
-                        worker={selectedWorker}
-                        open={Boolean(selectedWorker)}
-                        onOpenChange={(open) => {
-                            if (!open) {
-                                setSelectedWorker(null)
-                            }
-                        }}
-                    />
-                ) : null}
+            {selectedWorkerForReset ? (
+                <ResetPasswordDialog
+                    open={resetPasswordDialogOpen}
+                    onOpenChange={setResetPasswordDialogOpen}
+                    worker={selectedWorkerForReset}
+                    onSetPassword={handleSetPassword}
+                    onGenerateLink={handleGenerateResetLink}
+                    isSubmitting={isResettingPassword}
+                />
+            ) : null}
         </div>
     )
 }

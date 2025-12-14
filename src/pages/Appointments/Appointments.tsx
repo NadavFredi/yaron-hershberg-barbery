@@ -8,7 +8,6 @@ import {
     Calendar as CalendarIcon,
     CalendarClock,
     Clock,
-    Sparkles,
     CheckCircle,
     XCircle,
     Scissors,
@@ -31,10 +30,7 @@ import {
     approveGroomingAppointment,
     approveCombinedAppointments,
     cancelCombinedAppointments,
-    registerWaitingList,
-    updateWaitingListEntry,
     updateAppointmentNotes as updateAppointmentNotesRequest,
-    updateLatePickup,
 } from "@/integrations/supabase/supabaseService"
 import { skipToken } from "@reduxjs/toolkit/query"
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query"
@@ -43,19 +39,17 @@ import {
     supabaseApi,
     useDeleteWaitingListEntryMutation,
     useGetWaitingListEntriesQuery,
-    useListOwnerTreatmentsQuery,
 } from "@/store/services/supabaseApi"
 import { extractErrorMessage } from "@/utils/api"
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
 import { useToast } from "@/components/ui/use-toast"
-import { useWaitingListEntries } from "./Appointments.module"
+import { useWaitingListEntries, confirmClientArrival } from "./Appointments.module"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { BothAppointmentCard } from "@/components/BothAppointmentCard"
 import { AddWaitlistEntryModal } from "@/components/dialogs/AddWaitlistEntryModal"
 import type { Customer as WaitlistCustomer } from "@/components/CustomerSearchInput"
-import type { WaitingListEntry } from "@/types"
 
 // Utility function to get service name in Hebrew
 const getServiceName = (service: string) => {
@@ -63,9 +57,9 @@ const getServiceName = (service: string) => {
         case "grooming":
             return "תספורת"
         case "garden":
-            return "גן"
+            return ""
         case "both":
-            return "תספורת וגן"
+            return "תספורת"
         default:
             return service
     }
@@ -112,7 +106,7 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
         parseDateTime(appointment.endDateTime) ??
         new Date(appointmentStart.getTime() + 60 * 60 * 1000)
 
-    const title = `${getServiceName(appointment.service)} - ${appointment.treatmentName || "לקוח"}`
+    const title = `${getServiceName(appointment.service)}`
     const details = appointment.notes ? `הערות: ${appointment.notes}` : ""
 
     const formattedStart = formatForGoogleCalendar(appointmentStart)
@@ -123,32 +117,20 @@ const generateGoogleCalendarLink = (appointment: Appointment) => {
         text: title,
         dates: `${formattedStart}/${formattedEnd}`,
         details,
-        location: 'WagTime - מספרת בוטיק',
+        location: 'ירון הרשברג - מספרה יוצאת דופן',
         trp: 'false',
     })
 
     return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
 
-interface Treatment {
-    id: string
-    name: string
-    treatmentType: string
-    size: string
-    isSmall: boolean
-    ownerId: string
-    groomingMinPrice?: number | null
-    groomingMaxPrice?: number | null
-}
 
 interface Appointment {
     id: string
-    treatmentId: string
     date: string
     time: string
     service: "grooming" | "garden" | "both"
     status: string
-    treatmentName?: string
     startDateTime?: string
     endDateTime?: string
     stationId?: string
@@ -164,21 +146,22 @@ interface Appointment {
     gardenTrimNails?: boolean
     gardenBrush?: boolean
     gardenBath?: boolean
+    clientConfirmedArrival?: boolean // Client confirmation of arrival (separate from manager approval status)
+}
+
+interface WaitingListEntry {
+    id: string
+    serviceType: string | null
+    status: string | null
+    notes?: string | null
+    startDate: string | null
+    endDate: string | null
+    dateRanges: Array<{ startDate: string; endDate: string }>
+    createdAt: string
 }
 
 type WaitlistServiceScopeValue = 'grooming' | 'garden' | 'both' | 'daycare'
 
-interface WaitlistModalSubmission {
-    customer: WaitlistCustomer
-    entries: Array<{ startDate: string; endDate: string | null }>
-    serviceScope: WaitlistServiceScopeValue
-    notes: string
-    mode: 'create' | 'edit'
-    entryId?: string
-}
-
-type ListOwnerTreatmentsResponse = { treatments: Treatment[] }
-type TreatmentAppointmentsResponse = { appointments: Appointment[] }
 
 const CANCELLED_STATUS_KEYWORDS = ["cancelled", "canceled", "מבוטל", "בוטל"]
 
@@ -375,7 +358,7 @@ export default function Appointments() {
         if (!appointmentId) {
             toast({
                 title: "לא ניתן לעדכן",
-                description: "לא נמצאה רשומת גן לעדכון.",
+                description: "לא נמצאה רשומה לעדכון.",
                 variant: "destructive",
             })
             return
@@ -404,52 +387,8 @@ export default function Appointments() {
         const trimmedNotes = latePickupDialogNotes.trim()
 
         try {
-            const result = await updateLatePickup(
-                latePickupDialogState.appointmentId,
-                latePickupDialogRequested,
-                trimmedNotes || undefined
-            )
-
-            if (!result.success) {
-                throw new Error(result.error || "שגיאה בעדכון האיסוף המאוחר")
-            }
-
-            dispatch(
-                supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
-                    'getMergedAppointments',
-                    latePickupDialogState.appointment.treatmentId,
-                    (draft) => {
-                        const target = draft.appointments?.find((apt) =>
-                            apt.id === latePickupDialogState.appointment.id ||
-                            apt.gardenAppointmentId === latePickupDialogState.appointmentId
-                        )
-
-                        if (target) {
-                            target.latePickupRequested = latePickupDialogRequested
-                            target.latePickupNotes = trimmedNotes
-                        }
-                    }
-                )
-            )
-
-            try {
-                dispatch(
-                    supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
-                        'getTreatmentGardenAppointments',
-                        latePickupDialogState.appointment.treatmentId,
-                        (draft) => {
-                            const target = draft.appointments?.find((apt) => apt.id === latePickupDialogState.appointmentId)
-
-                            if (target) {
-                                target.latePickupRequested = latePickupDialogRequested
-                                target.latePickupNotes = trimmedNotes
-                            }
-                        }
-                    )
-                )
-            } catch (error) {
-                console.warn("Skipping garden appointments cache update", error)
-            }
+            // TODO: Implement late pickup for people if needed
+            throw new Error("Late pickup functionality not available for barbershop")
 
             dispatch(supabaseApi.util.invalidateTags(["Appointment", "GardenAppointment"]))
 
@@ -510,20 +449,11 @@ export default function Appointments() {
     const latePickupDialogDateLabel = latePickupDialogDateTime ? formatDateLabel(latePickupDialogDateTime) : ""
     const latePickupDialogTimeLabel = latePickupDialogDateTime ? format(latePickupDialogDateTime, "HH:mm") : (latePickupDialogAppointment?.time ?? "")
 
-    const {
-        data: treatmentsQueryData,
-        isFetching: isFetchingTreatments,
-        isLoading: isLoadingTreatments,
-        error: treatmentsQueryError,
-        refetch: refetchTreatments,
-    } = useListOwnerTreatmentsQuery(ownerId ?? skipToken, {
-        skip: !ownerId,
-    })
-
-    const treatments = useMemo<Treatment[]>(() => {
-        const response = treatmentsQueryData as ListOwnerTreatmentsResponse | undefined
-        return response?.treatments ?? []
-    }, [treatmentsQueryData])
+    const dogs: never[] = []
+    const isFetchingDogs = false
+    const isLoadingDogs = false
+    const dogsQueryError = null
+    const refetchDogs = async () => { }
 
     const waitlistModalCustomer = useMemo<WaitlistCustomer | null>(() => {
         if (!ownerId) {
@@ -549,158 +479,43 @@ export default function Appointments() {
         }
     }, [ownerId, user])
 
-    const { data: waitingListData, isFetching: isFetchingWaitingList } = useGetWaitingListEntriesQuery(
-        ownerId ? { customerId: ownerId } : skipToken,
-        {
-            skip: !ownerId,
-        }
+    // Removed waitlistModalDog - barbery system doesn't use dogs
+
+    // Fetch appointments by customer_id - barbery system doesn't use dogs
+    const { data: clientAppointmentHistory, isFetching: isFetchingAppointments, isLoading: isLoadingAppointments } = supabaseApi.useGetClientAppointmentHistoryQuery(
+        ownerId ? { clientId: ownerId } : skipToken,
+        { skip: !ownerId }
     )
 
-    const [deleteWaitingListEntry] = useDeleteWaitingListEntryMutation()
-
-    const treatmentIdsKey = useMemo(() => (treatments.length ? treatments.map((treatment) => treatment.id).sort().join("|") : ""), [treatments])
-
-    useEffect(() => {
-        if (!treatmentIdsKey) {
-            return
+    // Transform client appointment history to Appointment format
+    const allAppointments = useMemo<Appointment[]>(() => {
+        if (!clientAppointmentHistory?.appointments) {
+            return []
         }
-
-        // Fetch merged appointments for all treatments
-        const subscriptions = treatments.map((treatment) =>
-            dispatch(
-                supabaseApi.endpoints.getMergedAppointments.initiate(treatment.id, {
-                    forceRefetch: false,
-                })
-            )
-        )
-
-        return () => {
-            subscriptions.forEach((subscription) => subscription.unsubscribe())
-        }
-    }, [dispatch, treatmentIdsKey, treatments])
-
-    const mergedAppointmentsByTreatment = useAppSelector((state) => {
-        if (!treatments.length) {
-            return [] as Array<{
-                treatment: Treatment
-                appointments: Appointment[]
-                isFetching: boolean
-                isLoading: boolean
-                error: FetchBaseQueryError | undefined
-            }>
-        }
-
-        return treatments.map((treatment) => {
-            const queryState = supabaseApi.endpoints.getMergedAppointments.select(treatment.id)(state)
-            // The API returns the appointments array directly, not an object with 'appointments' property
-            const responseData = queryState?.data
-
-            // Handle both array format (current) and object format (legacy)
-            const appointments: Appointment[] = Array.isArray(responseData)
-                ? responseData
-                : (responseData as TreatmentAppointmentsResponse | undefined)?.appointments ?? []
+        return clientAppointmentHistory.appointments.map((apt) => {
+            // Convert UTC time to local time for display
+            const startDate = new Date(apt.startAt)
+            const localDateStr = format(startDate, 'yyyy-MM-dd')
+            const localTimeStr = format(startDate, 'HH:mm')
 
             return {
-                treatment,
-                appointments,
-                isFetching: queryState?.isFetching ?? false,
-                isLoading: queryState?.isLoading ?? false,
-                error: queryState?.error as FetchBaseQueryError | undefined,
+                id: apt.id,
+                date: localDateStr,
+                time: localTimeStr,
+                service: apt.serviceType,
+                status: apt.status || 'pending',
+                startDateTime: apt.startAt,
+                endDateTime: apt.endAt,
+                notes: apt.notes ?? undefined,
+                stationId: apt.stationId ?? undefined,
             }
         })
-    })
+    }, [clientAppointmentHistory])
 
-    const allAppointments = useMemo<Appointment[]>(() => {
-        return mergedAppointmentsByTreatment.flatMap(({ treatment, appointments }) =>
-            appointments.map((appointment) => ({
-                ...appointment,
-                treatmentId: appointment.treatmentId || treatment.id,
-                treatmentName: appointment.treatmentName || treatment.name,
-                // Service type is already set correctly by the merged endpoint
-            }))
-        )
-    }, [mergedAppointmentsByTreatment])
-
-    const waitingListEntries = useWaitingListEntries(waitingListData)
-
-    const waitingListEntryGroups = useMemo(() => {
-        const grouped = new Map<
-            string,
-            { id: string; label: string; treatment?: Treatment; entries: WaitingListEntry[] }
-        >()
-
-        treatments.forEach((treatment) => {
-            grouped.set(treatment.id, {
-                id: treatment.id,
-                label: treatment.name,
-                treatment,
-                entries: [],
-            })
-        })
-
-        const GENERAL_GROUP_KEY = "general"
-
-        waitingListEntries.forEach((entry) => {
-            if (entry.treatmentId) {
-                const treatment = treatments.find((d) => d.id === entry.treatmentId)
-                const key = entry.treatmentId
-
-                if (!grouped.has(key)) {
-                    grouped.set(key, {
-                        id: key,
-                        label: entry.treatmentName ?? "בקשות ללקוח",
-                        entries: [],
-                    })
-                }
-
-                const group = grouped.get(key)!
-                if (!group.treatment && treatment) {
-                    group.treatment = treatment
-                    group.label = treatment.name
-                } else if (!group.label) {
-                    group.label = entry.treatmentName ?? "בקשות ללקוח"
-                }
-
-                group.entries.push(entry)
-            } else {
-                if (!grouped.has(GENERAL_GROUP_KEY)) {
-                    grouped.set(GENERAL_GROUP_KEY, {
-                        id: GENERAL_GROUP_KEY,
-                        label: "בקשות ללא שיוך ללקוח",
-                        entries: [],
-                    })
-                }
-
-                grouped.get(GENERAL_GROUP_KEY)!.entries.push(entry)
-            }
-        })
-
-        return Array.from(grouped.values())
-            .filter((group) => group.entries.length > 0)
-            .map((group) => ({
-                ...group,
-                entries: group.entries.sort((a, b) => {
-                    const aDate = safeParseDate(a.startDate) ?? new Date(a.createdAt)
-                    const bDate = safeParseDate(b.startDate) ?? new Date(b.createdAt)
-                    return aDate.getTime() - bDate.getTime()
-                }),
-            }))
-    }, [waitingListEntries, treatments])
-
-    const isFetchingAppointments = useMemo(() => {
-        return mergedAppointmentsByTreatment.some(
-            ({ isFetching, isLoading, appointments }) => (isFetching || isLoading) && (!appointments || appointments.length === 0)
-        )
-    }, [mergedAppointmentsByTreatment])
-
-    const appointmentErrorMessages = useMemo(() => {
-        return mergedAppointmentsByTreatment
-            .filter(({ error }) => error)
-            .map(({ treatment, error }) => {
-                const message = extractErrorMessage(error, "שגיאה בלתי ידועה")
-                return `שגיאה בטעינת תורים עבור ${treatment.name}: ${message}`
-            })
-    }, [mergedAppointmentsByTreatment])
+    const waitingListEntries: WaitingListEntry[] = []
+    const waitingListEntriesByDog: Array<{ entries: WaitingListEntry[] }> = []
+    const isFetchingWaitingList = false
+    const appointmentErrorMessages: string[] = []
 
     useEffect(() => {
         const tabParam = searchParams.get('tab')
@@ -711,55 +526,33 @@ export default function Appointments() {
         }
     }, [searchParams])
 
-    const treatmentsErrorMessage = useMemo(
-        () => extractErrorMessage(treatmentsQueryError, "שגיאה בטעינת רשימת הלקוחות"),
-        [treatmentsQueryError]
-    )
+    // Removed dog-based waiting list URL params handling - barbery system doesn't use dogs
 
-    const combinedError = treatmentsErrorMessage || appointmentErrorMessages[0] || null
+    const combinedError = appointmentErrorMessages[0] || null
 
     const isInitialLoading =
         isAuthLoading ||
         (!ownerId && isAuthLoading) ||
-        (ownerId && (isLoadingTreatments || (isFetchingTreatments && !treatments.length))) ||
-        (treatments.length > 0 && isFetchingAppointments)
+        (ownerId && (isLoadingAppointments || isFetchingAppointments))
 
     const handleRetry = async () => {
         if (!ownerId) {
             return
         }
-
-        await refetchTreatments()
-
-        await Promise.all(
-            treatments.map(async (treatment) => {
-                const result = dispatch(
-                    supabaseApi.endpoints.getMergedAppointments.initiate(treatment.id, {
-                        forceRefetch: true,
-                    })
-                )
-
-                try {
-                    await result.unwrap()
-                } catch (err) {
-                    console.error("Failed to refetch appointments for", treatment.name, err)
-                } finally {
-                    result.unsubscribe()
-                }
-            })
-        )
+        // Refetch client appointments
+        // The query will automatically refetch due to RTK Query
     }
 
     // Filter appointments by ID if provided, otherwise show all
-    const treatmentFilteredAppointments = filterId
-        ? allAppointments.filter(apt => apt.treatmentId === filterId || apt.id === filterId)
+    const dogFilteredAppointments = filterId
+        ? allAppointments.filter(apt => apt.id === filterId)
         : allAppointments
 
     const serviceFilteredAppointments = useMemo(() => {
         if (serviceFilter === 'all') {
-            return treatmentFilteredAppointments
+            return dogFilteredAppointments
         }
-        return treatmentFilteredAppointments.filter((apt) => {
+        return dogFilteredAppointments.filter((apt) => {
             if (serviceFilter === 'grooming') {
                 return apt.service === 'grooming' || apt.service === 'both'
             }
@@ -768,13 +561,15 @@ export default function Appointments() {
             }
             return apt.service === serviceFilter
         })
-    }, [treatmentFilteredAppointments, serviceFilter])
+    }, [dogFilteredAppointments, serviceFilter])
 
     // Separate appointments by status and date
     const now = new Date()
     const upcomingAppointments = serviceFilteredAppointments.filter(apt => {
         const appointmentDate = new Date(`${apt.date}T${apt.time}`)
-        return appointmentDate > now && apt.status !== "cancelled"
+        const normalizedStatus = apt.status?.toLowerCase().trim() || ""
+        const isCancelled = normalizedStatus === "cancelled" || normalizedStatus === "canceled" || normalizedStatus === "בוטל"
+        return appointmentDate > now && !isCancelled
     }).sort((a, b) => {
         const dateA = new Date(`${a.date}T${a.time}`)
         const dateB = new Date(`${b.date}T${b.time}`)
@@ -799,26 +594,32 @@ export default function Appointments() {
             return null
         }
 
-        if (status === "cancelled" || status === "בוטל") {
+        const normalizedStatus = status.toLowerCase().trim()
+
+        if (normalizedStatus === "cancelled" || normalizedStatus === "בוטל" || normalizedStatus === "canceled") {
             return <Badge className="bg-red-100 text-red-800 border-red-200">בוטל</Badge>
         }
 
-        if (status === "approved" || status === "מאושר") {
+        if (normalizedStatus === "approved" || normalizedStatus === "מאושר") {
             if (isPast) {
                 return <Badge className="bg-green-100 text-green-800 border-green-200">הושלם</Badge>
             }
             return <Badge className="bg-green-200 text-green-900 border-green-300">מאושר</Badge>
         }
 
-        if (status === "confirmed" || status === "תואם") {
+        if (normalizedStatus === "confirmed" || normalizedStatus === "תואם") {
             return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">תואם</Badge>
         }
 
-        if (status === "pending" || status === "ממתין") {
+        if (normalizedStatus === "scheduled" || normalizedStatus === "תואם") {
+            return <Badge className="bg-blue-100 text-blue-800 border-blue-200">תואם</Badge>
+        }
+
+        if (normalizedStatus === "pending" || normalizedStatus === "ממתין") {
             return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">ממתין</Badge>
         }
 
-        if (status === "completed" || status === "הושלם" || (isPast && status !== "")) {
+        if (normalizedStatus === "completed" || normalizedStatus === "הושלם" || (isPast && status !== "")) {
             return <Badge className="bg-green-100 text-green-800 border-green-200">הושלם</Badge>
         }
 
@@ -878,7 +679,7 @@ export default function Appointments() {
             return (
                 <Badge className="bg-amber-100 text-amber-700 border-amber-200 flex items-center gap-1">
                     <Bone className="h-3 w-3" />
-                    <span>גן</span>
+                    <span></span>
                 </Badge>
             )
         }
@@ -888,7 +689,7 @@ export default function Appointments() {
                 <Badge className="bg-purple-100 text-purple-700 border-purple-200 flex items-center gap-1">
                     <Scissors className="h-3 w-3" />
                     <Bone className="h-3 w-3" />
-                    <span>תספורת+גן</span>
+                    <span>תספורת</span>
                 </Badge>
             )
         }
@@ -1007,15 +808,33 @@ export default function Appointments() {
     const isApprovedStatus = (status?: string | null) => status === 'approved' || status === 'מאושר'
     const isCancelledStatus = (status?: string | null) => status === 'cancelled' || status === 'בוטל'
 
-    const needsApproval = (appointment: Appointment) => {
+    // Check if client can approve arrival (client approval - separate from manager approval)
+    // Clients can only approve arrival if:
+    // 1. Appointment is already approved by manager (status = "approved")
+    // 2. Appointment is not cancelled
+    // 3. Appointment is in the future
+    // 4. Client hasn't already confirmed arrival
+    // Note: If status is "pending", client CANNOT approve arrival (waiting for manager approval)
+    const canClientApproveArrival = (appointment: Appointment) => {
+        // If client already confirmed arrival, they can't approve again
+        if (appointment.clientConfirmedArrival) {
+            return false
+        }
+
         const appointmentDate = new Date(`${appointment.date}T${appointment.time}`)
         const now = new Date()
         const isFuture = appointmentDate > now
-        const status = appointment.status
+        const status = appointment.status?.toLowerCase() || ""
         const isApproved = isApprovedStatus(status)
         const isCancelled = isCancelledStatus(status)
+        const isPending = status === "pending" || status.includes("pending") || status.includes("ממתין")
 
-        return isFuture && !isApproved && !isCancelled
+        // Client cannot approve arrival if:
+        // - Status is pending (waiting for manager approval)
+        // - Status is cancelled
+        // - Appointment is in the past
+        // - Status is not approved by manager
+        return isFuture && isApproved && !isCancelled && !isPending
     }
 
     const getApprovalBadge = (appointment: Appointment) => {
@@ -1047,36 +866,26 @@ export default function Appointments() {
         setIsCancellingAppointment(true)
 
         try {
+            console.log("Cancelling appointment:", appointment.id)
+
             // Handle "both" appointments by cancelling both grooming and garden appointments
             if (appointment.service === 'both' && appointment.groomingAppointmentId && appointment.gardenAppointmentId) {
+                console.log(`Cancelling both grooming (${appointment.groomingAppointmentId}) and garden (${appointment.gardenAppointmentId}) appointments`)
+
                 const result = await cancelCombinedAppointments({
                     groomingAppointmentId: appointment.groomingAppointmentId,
                     gardenAppointmentId: appointment.gardenAppointmentId,
                 })
 
                 if (result.success) {
-                    // Update the merged appointments cache
-                    dispatch(
-                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
-                            'getMergedAppointments',
-                            appointment.treatmentId,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) => apt.id === appointment.id)
-                                if (target) {
-                                    target.status = "cancelled"
-                                    target.groomingStatus = "cancelled"
-                                    target.gardenStatus = "cancelled"
-                                }
-                            }
-                        )
-                    )
+                    console.log(`Both appointments cancelled successfully`)
 
                     setAppointmentPendingCancellation(null)
 
                     toast({
                         title: "התורים בוטלו",
                         description:
-                            result.message || `התורים (תספורת וגן) ל${appointment.treatmentName} בוטלו בהצלחה`,
+                            result.message || `התורים (תספורת) בוטלו בהצלחה`,
                     })
                     invalidateAppointmentsCache()
                 } else {
@@ -1096,23 +905,10 @@ export default function Appointments() {
                 const result = await cancelAppointmentWebhook(appointment.id, {
                     serviceType: appointment.service,
                     appointmentTime,
-                    treatmentId: appointment.treatmentId,
                     stationId: appointment.stationId,
                 })
 
                 if (result.success) {
-                    dispatch(
-                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
-                            'getMergedAppointments',
-                            appointment.treatmentId,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) => apt.id === appointment.id)
-                                if (target) {
-                                    target.status = "cancelled"
-                                }
-                            }
-                        )
-                    )
 
                     setAppointmentPendingCancellation(null)
 
@@ -1121,6 +917,8 @@ export default function Appointments() {
                         title: "התור בוטל",
                         description: successMessage,
                     })
+
+                    console.log("Appointment cancelled successfully:", result)
                     invalidateAppointmentsCache()
                 } else {
                     const errorMessage = result.error || "שגיאה בביטול התור"
@@ -1150,43 +948,15 @@ export default function Appointments() {
         setApprovingAppointmentId(appointmentId)
 
         try {
+            console.log(`Approving individual ${service} appointment ${appointmentId}`)
+
             const result = service === 'grooming'
                 ? await approveGroomingAppointment(appointmentId, 'approved')
                 : await approveAppointment(appointmentId, 'approved')
 
             if (result.success) {
-                // Update the merged appointments cache for all treatments
-                treatments.forEach(treatment => {
-                    dispatch(
-                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
-                            'getMergedAppointments',
-                            treatment.id,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) =>
-                                    apt.groomingAppointmentId === appointmentId ||
-                                    apt.gardenAppointmentId === appointmentId
-                                )
-                                if (target) {
-                                    if (service === 'grooming') {
-                                        target.groomingStatus = 'approved'
-                                    } else {
-                                        target.gardenStatus = 'approved'
-                                    }
-                                    if (target.service === 'both') {
-                                        const otherStatus = service === 'grooming'
-                                            ? target.gardenStatus
-                                            : target.groomingStatus
-                                        if (otherStatus === 'approved') {
-                                            target.status = 'approved'
-                                        }
-                                    } else {
-                                        target.status = 'approved'
-                                    }
-                                }
-                            }
-                        )
-                    )
-                })
+                console.log(`Individual appointment approved successfully`)
+                // Removed dog-based cache updates - barbery system doesn't use dogs
 
                 toast({
                     title: "התור אושר",
@@ -1218,6 +988,7 @@ export default function Appointments() {
         setCancellingAppointmentId(appointmentId)
 
         try {
+            console.log(`Cancelling individual appointment ${appointmentId}`)
 
             const appointmentDetails = allAppointments.find((apt) =>
                 apt.id === appointmentId ||
@@ -1233,34 +1004,12 @@ export default function Appointments() {
             const result = await cancelAppointmentWebhook(appointmentId, {
                 serviceType: service,
                 appointmentTime,
-                treatmentId: appointmentDetails?.treatmentId,
                 stationId: appointmentDetails?.stationId,
             })
 
             if (result.success) {
-                // Update the merged appointments cache for all treatments
-                treatments.forEach(treatment => {
-                    dispatch(
-                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
-                            'getMergedAppointments',
-                            treatment.id,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) =>
-                                    apt.groomingAppointmentId === appointmentId ||
-                                    apt.gardenAppointmentId === appointmentId
-                                )
-                                if (target) {
-                                    if (service === 'grooming') {
-                                        target.groomingStatus = 'cancelled'
-                                    } else {
-                                        target.gardenStatus = 'cancelled'
-                                    }
-                                    target.status = "cancelled"
-                                }
-                            }
-                        )
-                    )
-                })
+                console.log(`Individual appointment cancelled successfully`)
+                // Removed dog-based cache updates - barbery system doesn't use dogs
 
                 toast({
                     title: "התור בוטל",
@@ -1290,47 +1039,18 @@ export default function Appointments() {
 
     const handleIndividualNotesUpdate = async (appointmentId: string, service: 'grooming' | 'garden', notes: string) => {
         try {
+            console.log(`Updating notes for individual appointment ${appointmentId}`)
+
             const result = await updateAppointmentNotesRequest(appointmentId, service, notes)
 
             if (result.success) {
+                console.log(`Notes updated successfully for appointment ${appointmentId}`)
                 toast({
                     title: "הערות עודכנו",
                     description: "הערות התור עודכנו בהצלחה",
                 })
 
-                treatments.forEach(treatment => {
-                    dispatch(
-                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
-                            'getMergedAppointments',
-                            treatment.id,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) =>
-                                    apt.groomingAppointmentId === appointmentId ||
-                                    apt.gardenAppointmentId === appointmentId
-                                )
-                                if (target) {
-                                    if (service === 'grooming') {
-                                        target.groomingNotes = notes
-                                    } else {
-                                        target.gardenNotes = notes
-                                    }
-
-                                    if (target.service === service) {
-                                        target.notes = notes
-                                    } else if (target.service === 'both') {
-                                        const combinedNotes = [
-                                            target.groomingNotes?.trim(),
-                                            target.gardenNotes?.trim(),
-                                        ]
-                                            .filter(Boolean)
-                                            .join(' | ')
-                                        target.notes = combinedNotes
-                                    }
-                                }
-                            }
-                        )
-                    )
-                })
+                // Removed dog-based cache updates - barbery system doesn't use dogs
             } else {
                 console.error(`Failed to update notes for appointment ${appointmentId}:`, result.error)
                 toast({
@@ -1350,89 +1070,73 @@ export default function Appointments() {
         }
     }
 
+    // Client confirmation of arrival (separate from manager approval)
+    // This updates client_confirmed_arrival field, NOT the status field
     const handleApproval = async (appointment: Appointment) => {
         setApprovingAppointmentId(appointment.id)
 
         try {
-            // Handle "both" appointments by approving both grooming and garden appointments
-            if (appointment.service === 'both' && appointment.groomingAppointmentId && appointment.gardenAppointmentId) {
-                const result = await approveCombinedAppointments({
-                    groomingAppointmentId: appointment.groomingAppointmentId,
-                    gardenAppointmentId: appointment.gardenAppointmentId,
-                })
+            console.log(`[handleApproval] Client confirming arrival for appointment ${appointment.id}`)
 
-                if (result.success) {
-                    // Update the merged appointments cache
-                    dispatch(
-                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
-                            'getMergedAppointments',
-                            appointment.treatmentId,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) => apt.id === appointment.id)
-                                if (target) {
-                                    target.status = 'approved'
-                                    target.groomingStatus = 'approved'
-                                    target.gardenStatus = 'approved'
-                                }
-                            }
-                        )
-                    )
+            // Handle "both" appointments by confirming both grooming and garden appointments
+            if (appointment.service === 'both' && appointment.groomingAppointmentId && appointment.gardenAppointmentId) {
+                console.log(`[handleApproval] Confirming arrival for both grooming (${appointment.groomingAppointmentId}) and garden (${appointment.gardenAppointmentId}) appointments`)
+
+                // Confirm arrival for both appointments
+                const [groomingResult, gardenResult] = await Promise.all([
+                    confirmClientArrival(appointment.groomingAppointmentId, 'grooming'),
+                    confirmClientArrival(appointment.gardenAppointmentId, 'garden'),
+                ])
+
+                if (groomingResult.success && gardenResult.success) {
+                    console.log(`[handleApproval] Both appointments confirmed successfully`)
 
                     toast({
-                        title: "התורים אושרו",
-                        description:
-                            result.message || `התורים (תספורת וגן) ל${appointment.treatmentName} אושרו בהצלחה`,
+                        title: "ההגעה אושרה",
+                        description: `ההגעה לתורים (תספורת) אושרה בהצלחה`,
                     })
                     invalidateAppointmentsCache()
                 } else {
-                    console.error(`Failed to approve both appointments:`, result.error)
+                    const errorMessage = groomingResult.error || gardenResult.error || "שגיאה באישור ההגעה"
+                    console.error(`[handleApproval] Failed to confirm arrival for both appointments:`, errorMessage)
                     toast({
-                        title: "שגיאה באישור התורים",
-                        description: result.error || "שגיאה באישור התורים",
+                        title: "שגיאה באישור ההגעה",
+                        description: errorMessage,
                         variant: "destructive",
                     })
                 }
             } else {
                 // Handle single appointments (grooming or garden only)
-                const result = appointment.service === 'grooming'
-                    ? await approveGroomingAppointment(appointment.id, 'approved')
-                    : await approveAppointment(appointment.id, 'approved')
+                const serviceHint = appointment.service === 'grooming' ? 'grooming' : 'garden'
+                const result = await confirmClientArrival(appointment.id, serviceHint)
 
                 if (result.success) {
-                    dispatch(
-                        supabaseApi.util.updateQueryData<TreatmentAppointmentsResponse>(
-                            'getMergedAppointments',
-                            appointment.treatmentId,
-                            (draft) => {
-                                const target = draft.appointments?.find((apt) => apt.id === appointment.id)
-                                if (target) {
-                                    target.status = 'approved'
-                                }
-                            }
-                        )
-                    )
+                    console.log(`[handleApproval] Appointment arrival confirmed successfully`, {
+                        appointmentId: appointment.id,
+                    })
 
-                    const successMessage = result.message || "התור אושר בהצלחה"
+
+                    const successMessage = result.message || "ההגעה אושרה בהצלחה"
                     toast({
-                        title: "התור אושר",
+                        title: "ההגעה אושרה",
                         description: successMessage,
                     })
                     invalidateAppointmentsCache()
                 } else {
-                    console.error(`Failed to approve appointment:`, result.error)
-                    const errorMessage = result.error || "שגיאה באישור התור"
+                    console.error(`[handleApproval] Failed to confirm arrival:`, result.error)
+                    const errorMessage = result.error || "שגיאה באישור ההגעה"
                     toast({
-                        title: "שגיאה באישור התור",
+                        title: "שגיאה באישור ההגעה",
                         description: errorMessage,
                         variant: "destructive",
                     })
                 }
             }
         } catch (err) {
-            console.error(`Error approving appointment:`, err)
-            const errorMessage = err instanceof Error ? err.message : "שגיאה באישור התור"
+            console.error(`[handleApproval] Error confirming arrival:`, err)
+            const errorMessage = err instanceof Error ? err.message : "שגיאה באישור ההגעה"
             toast({
-                title: "שגיאה באישור התור",
+                title: "שגיאה באישור ההגעה",
                 description: errorMessage,
                 variant: "destructive",
             })
@@ -1451,7 +1155,6 @@ export default function Appointments() {
         const params = new URLSearchParams(searchParams)
         params.set('tab', value)
         params.delete('action')
-        params.delete('treatmentId')
         params.delete('serviceType')
         setSearchParams(params, { replace: true })
     }
@@ -1474,25 +1177,6 @@ export default function Appointments() {
         setIsWaitingListDialogOpen(true)
     }
 
-    useEffect(() => {
-        const tabParam = searchParams.get('tab')
-        const actionParam = searchParams.get('action')
-        if (tabParam === 'waitingList' && actionParam === 'new') {
-            const serviceTypeParam = searchParams.get('serviceType')
-            const validServiceTypes = new Set(['grooming', 'garden', 'both'])
-            const chosenService = serviceTypeParam && validServiceTypes.has(serviceTypeParam) ? serviceTypeParam : 'grooming'
-
-            openWaitingListDialog(undefined, { serviceType: chosenService })
-
-            const params = new URLSearchParams(searchParams)
-            params.set('tab', 'waitingList')
-            params.delete('action')
-            params.delete('serviceType')
-            params.delete('treatmentId')
-            setSearchParams(params, { replace: true })
-        }
-    }, [openWaitingListDialog, searchParams])
-
     const closeWaitingListDialog = () => {
         setIsWaitingListDialogOpen(false)
         setEditingWaitingListEntry(null)
@@ -1506,46 +1190,17 @@ export default function Appointments() {
 
 
 
-    const handleDeleteWaitingListEntry = async (entry: WaitingListEntry) => {
-        try {
-            setDeletingWaitingListEntryId(entry.id)
-            const result = await deleteWaitingListEntry(entry.id).unwrap()
-            toast({ title: "הפריט הוסר", description: result?.message || "בקשת ההמתנה הוסרה בהצלחה" })
-            dispatch(supabaseApi.util.invalidateTags(["WaitingList"]))
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : (error as any)?.data ?? "שגיאה בהסרת בקשת ההמתנה"
-            toast({ title: "שגיאה", description: String(errorMessage), variant: "destructive" })
-        } finally {
-            setDeletingWaitingListEntryId(null)
-        }
+    const handleDeleteWaitingListEntry = async (_entry: WaitingListEntry) => {
+        throw new Error("Waiting list functionality not available")
     }
 
     const handleWaitlistSubmit = useCallback(
-        async (submission: WaitlistModalSubmission) => {
-            const customerId = submission.customer.id
-            if (!customerId) {
-                throw new Error("יש לבחור לקוח עבור בקשת ההמתנה")
-            }
-
-            const dateRanges = submission.entries.map(({ startDate, endDate }) => ({
-                startDate,
-                endDate: endDate ?? startDate,
-            }))
-
-            const serviceScope = mapServiceScopeToApi(submission.serviceScope)
-
-            const apiResult =
-                submission.mode === 'edit' && submission.entryId
-                    ? await updateWaitingListEntry(submission.entryId, serviceScope, dateRanges)
-                    : await registerWaitingList(customerId, serviceScope, dateRanges, user?.id)
-
-            if (!apiResult?.success) {
-                throw new Error(apiResult?.error || "שגיאה בשמירת בקשת ההמתנה")
-            }
-
-            dispatch(supabaseApi.util.invalidateTags(["WaitingList"]))
+        async (_submission: unknown) => {
+            // Waiting list functionality removed - no dogs in barbershop
+            // TODO: Reimplement waiting list for people if needed
+            throw new Error("Waiting list functionality not available - no dogs in barbershop")
         },
-        [dispatch, user?.id]
+        []
     )
 
     if (isInitialLoading) {
@@ -1644,7 +1299,7 @@ export default function Appointments() {
 
                             <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-right space-y-3">
                                 <div className="text-base font-semibold text-red-800">
-                                    {appointmentPendingCancellation.treatmentName || "לקוח לא ידוע"}
+                                    תור
                                 </div>
                                 <div className="flex items-center  gap-2 text-sm text-red-700">
                                     <CalendarIcon className="h-4 w-4" />
@@ -1762,14 +1417,14 @@ export default function Appointments() {
                             <DialogTitle className="text-xl font-semibold text-gray-900">עדכון איסוף מאוחר</DialogTitle>
                         </div>
                         <DialogDescription className="text-xs text-gray-600 leading-relaxed text-right">
-                            ספרו לנו אם תרצו להאריך את השהות במספרה ביום הזה. זמינות מאוחרת פתוחה עד 17:30.
+                            ספרו לנו אם תרצו לאסוף את הלקוח מאוחר יותר ביום הזה. איסוף מאוחר זמין עד 17:30.
                         </DialogDescription>
                     </DialogHeader>
 
                     {latePickupDialogAppointment && (
                         <div className="space-y-4">
                             <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 space-y-1">
-                                <div className="font-semibold">{latePickupDialogAppointment.treatmentName || "לקוח"}</div>
+                                <div className="font-semibold">תור</div>
                                 <div className="flex flex-wrap items-center gap-3  text-xs text-gray-500">
                                     {latePickupDialogDateLabel && (
                                         <div className="flex items-center gap-1">
@@ -1864,12 +1519,11 @@ export default function Appointments() {
                 defaultCustomer={waitlistModalCustomer}
                 disableCustomerSelection={Boolean(waitlistModalCustomer)}
                 title={editingWaitingListEntry ? "עריכת בקשת המתנה" : "בקשת המתנה חדשה"}
-                description="בחר את פרטי הלקוח וסוג השירות כדי לקבל התראה כאשר יפתח תור פנוי."
+                description="בחר את הלקוח וסוג השירות כדי לקבל התראה כאשר יפתח תור פנוי."
                 submitLabel={editingWaitingListEntry ? "עדכן בקשה" : "הוסף לרשימת המתנה"}
                 serviceScopeOptions={[
                     { value: 'grooming', label: 'תספורת' },
-                    { value: 'garden', label: 'גן' },
-                    { value: 'both', label: 'תספורת וגן' },
+                    { value: 'both', label: 'תספורת' },
                 ]}
                 initialServiceScope={waitlistModalServiceScope}
                 initialDateRanges={waitlistModalDateRanges}
@@ -1879,7 +1533,15 @@ export default function Appointments() {
 
             <div className="min-h-screen container mx-auto px-4 py-8">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">התורים שלי</h1>
+                    <div className="flex items-center justify-between mb-2">
+                        <h1 className="text-3xl font-bold text-gray-900">התורים שלי</h1>
+                        <Button
+                            onClick={() => navigate('/setup-appointment')}
+                            className="bg-[#4f60a8] hover:bg-[#4f60a8]/90 text-white"
+                        >
+                            הזמן תור
+                        </Button>
+                    </div>
                     <p className="text-gray-600">
                         {filterId
                             ? `תורים מסוננים לפי מזהה: ${filterId}`
@@ -1945,7 +1607,6 @@ export default function Appointments() {
                                     <SelectContent dir="rtl">
                                         <SelectItem value="all" className="text-right">כל השירותים</SelectItem>
                                         <SelectItem value="grooming" className="text-right">תספורת</SelectItem>
-                                        <SelectItem value="garden" className="text-right">גן</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -2003,17 +1664,13 @@ export default function Appointments() {
                                             <Card key={appointment.id} className="hover:shadow-md transition-shadow">
                                                 <CardContent className="p-6">
                                                     <div className="flex items-start justify-between flex-row-reverse">
-                                                        {/* Right side - Treatment icon */}
-                                                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                                            <Sparkles className="h-6 w-6 text-blue-600" />
-                                                        </div>
                                                         {/* Center - Content */}
                                                         <div className="flex-1 space-y-2 text-right mr-2 ml-6">
                                                             {/* Name and status badge row */}
                                                             <div className="flex items-center gap-2 justify-end">
                                                                 {getStatusBadge(appointment)}
 
-                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "לקוח לא ידוע"}</h3>
+                                                                <h3 className="text-lg font-semibold">{getServiceName(appointment.service)}</h3>
                                                                 {getApprovalBadge(appointment)}
                                                             </div>
                                                             {/* Details row */}
@@ -2095,8 +1752,9 @@ export default function Appointments() {
                                                                     ערוך הערות
                                                                 </Button>
                                                             )}
-                                                            {/* Approval button */}
-                                                            {needsApproval(appointment) ? (
+                                                            {/* Client approval button - only show if manager has already approved */}
+                                                            {/* Don't show if status is "pending" (waiting for manager approval) */}
+                                                            {canClientApproveArrival(appointment) ? (
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
@@ -2106,8 +1764,9 @@ export default function Appointments() {
                                                                 >
                                                                     {approvingAppointmentId === appointment.id ? "מאשר הגעה..." : "אשר הגעה"}
                                                                 </Button>
-                                                            ) : isApprovedStatus(appointment.status) ? (
-                                                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                                            ) : appointment.clientConfirmedArrival ? (
+                                                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 flex items-center gap-1">
+                                                                    <CheckCircle className="h-3 w-3" />
                                                                     ההגעה אושרה
                                                                 </Badge>
                                                             ) : null}
@@ -2144,16 +1803,18 @@ export default function Appointments() {
                                     <h3 className="text-lg font-semibold text-gray-800">בקשות רשימת המתנה</h3>
                                     <p className="text-sm text-gray-500">נהל כאן את הבקשות להודעה על תורים פנויים עבור הלקוחות שלך.</p>
                                 </div>
-                                <Button
-                                    onClick={() => {
-                                        handleTabChange('waitingList')
-                                        openWaitingListDialog(undefined, { serviceType: 'grooming' })
-                                    }}
-                                    className="bg-emerald-600 hover:bg-emerald-700 flex items-center gap-2 self-start sm:self-auto"
-                                >
-                                    <PlusCircle className="h-4 w-4" />
-                                    בקשה חדשה
-                                </Button>
+                                {false && (
+                                    <Button
+                                        onClick={() => {
+                                            handleTabChange('waitingList')
+                                            openWaitingListDialog(undefined, { serviceType: 'grooming' })
+                                        }}
+                                        className="bg-emerald-600 hover:bg-emerald-700 flex items-center gap-2 self-start sm:self-auto"
+                                    >
+                                        <PlusCircle className="h-4 w-4" />
+                                        בקשה חדשה
+                                    </Button>
+                                )}
                             </div>
 
                             {isFetchingWaitingList ? (
@@ -2163,7 +1824,7 @@ export default function Appointments() {
                                         <span>טוען את רשימת ההמתנה...</span>
                                     </CardContent>
                                 </Card>
-                            ) : waitingListEntryGroups.length === 0 ? (
+                            ) : waitingListEntriesByDog.length === 0 ? (
                                 <Card className="bg-gray-50 border-gray-200">
                                     <CardContent className="p-12 text-center space-y-3">
                                         <CalendarIcon className="h-16 w-16 text-gray-300 mx-auto" />
@@ -2172,15 +1833,12 @@ export default function Appointments() {
                                     </CardContent>
                                 </Card>
                             ) : (
-                                waitingListEntryGroups.map(({ id, label, treatment, entries }) => (
-                                    <Card key={id} className="border border-emerald-200 shadow-sm" dir="rtl">
+                                waitingListEntriesByDog.map(({ entries }) => (
+                                    <Card key="waiting-list" className="border border-emerald-200 shadow-sm" dir="rtl">
                                         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-right">
                                             <div className="flex items-center gap-2 justify-end">
-                                                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center ml-2">
-                                                    <Sparkles className="h-6 w-6 text-emerald-700" />
-                                                </div>
                                                 <div className="text-right">
-                                                    <CardTitle className="text-right">{label}</CardTitle>
+                                                    <CardTitle className="text-right">רשימת המתנה</CardTitle>
                                                     <CardDescription className="text-right text-gray-500">סה"כ בקשות: {entries.length}</CardDescription>
                                                 </div>
                                             </div>
@@ -2258,7 +1916,6 @@ export default function Appointments() {
                                     <SelectContent dir="rtl">
                                         <SelectItem value="all" className="text-right">כל השירותים</SelectItem>
                                         <SelectItem value="grooming" className="text-right">תספורת</SelectItem>
-                                        <SelectItem value="garden" className="text-right">גן</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -2316,17 +1973,13 @@ export default function Appointments() {
                                             <Card key={appointment.id} className="hover:shadow-md transition-shadow">
                                                 <CardContent className="p-6">
                                                     <div className="flex items-start justify-between flex-row-reverse">
-                                                        {/* Right side - Treatment icon */}
-                                                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                                            <Sparkles className="h-6 w-6 text-gray-600" />
-                                                        </div>
                                                         {/* Center - Content */}
                                                         <div className="flex-1 space-y-2 text-right mr-2 ml-6">
                                                             {/* Name and status badge row */}
                                                             <div className="flex items-center gap-2 justify-end">
                                                                 {getStatusBadge(appointment)}
                                                                 {appointmentIncludesGarden(appointment) ? renderLatePickupBadge(appointment.latePickupRequested) : null}
-                                                                <h3 className="text-lg font-semibold">{appointment.treatmentName || "לקוח לא ידוע"}</h3>
+                                                                <h3 className="text-lg font-semibold">{getServiceName(appointment.service)}</h3>
                                                                 {getApprovalBadge(appointment)}
                                                             </div>
                                                             {/* Details row */}
@@ -2408,7 +2061,6 @@ export default function Appointments() {
                                                                 size="sm"
                                                                 onClick={() => {
                                                                     const params = new URLSearchParams()
-                                                                    params.set('treatmentId', appointment.treatmentId)
                                                                     if (appointment.service) {
                                                                         params.set('serviceType', appointment.service.toLowerCase())
                                                                     }

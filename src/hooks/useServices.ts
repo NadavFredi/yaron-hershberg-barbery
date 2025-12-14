@@ -1,130 +1,139 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { supabase } from "@/integrations/supabase/client"
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+export interface ServiceSubAction {
+  id: string
+  service_id: string
+  name: string
+  description?: string
+  duration: number
+  order_index: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
 
 export interface Service {
-  id: string;
-  name: string;
-  description?: string;
-  base_price: number;
-  created_at: string;
-  updated_at: string;
+  id: string
+  name: string
+  description?: string
+  base_price: number
+  duration?: number
+  is_active: boolean
+  mode: "simple" | "complicated"
+  service_category_id?: string | null
+  service_category?: {
+    id: string
+    name: string
+    variant: string
+  } | null
+  created_at: string
+  updated_at: string
+  service_sub_actions?: ServiceSubAction[]
 }
 
 export interface ServiceWithStats extends Service {
-  averageTime: number;
-  baseTime: number;
-  configuredStationsCount: number;
-  totalStationsCount: number;
+  averageTime: number
+  configuredStationsCount: number
+  totalStationsCount: number
   priceRange: {
-    min: number;
-    max: number;
-  };
-  stationConfigs: Array<{
-    station_id: string;
-    base_time_minutes: number;
-    price_adjustment: number;
-    is_active: boolean;
-    remote_booking_allowed: boolean;
-    requires_staff_approval: boolean;
-    station_is_active: boolean;
-  }>;
+    min: number
+    max: number
+  }
 }
 
 export const useServices = () => {
   return useQuery({
-    queryKey: ['services'],
+    queryKey: ["services"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      return data as Service[];
-    }
-  });
-};
+        .from("services")
+        .select(
+          `
+          *,
+          service_category:service_categories (
+            id,
+            name,
+            variant
+          ),
+          service_sub_actions (
+            id,
+            service_id,
+            name,
+            description,
+            duration,
+            order_index,
+            is_active,
+            created_at,
+            updated_at
+          )
+        `
+        )
+        .order("name")
+
+      if (error) throw error
+
+      // Sort sub actions by order_index
+      return (data as Service[]).map((service) => ({
+        ...service,
+        service_category: Array.isArray(service.service_category)
+          ? service.service_category[0] || null
+          : service.service_category || null,
+        service_sub_actions: service.service_sub_actions?.sort((a, b) => a.order_index - b.order_index),
+      }))
+    },
+  })
+}
 
 export const useServicesWithStats = () => {
   return useQuery({
-    queryKey: ['services-with-stats'],
+    queryKey: ["services-with-stats"],
     queryFn: async () => {
       // Get services with their station configurations
       const { data: servicesData, error: servicesError } = await supabase
-        .from('services')
-        .select(`
+        .from("services")
+        .select(
+          `
           *,
           service_station_matrix(
             base_time_minutes,
             price_adjustment,
             station_id,
-            is_active,
-            remote_booking_allowed,
-            requires_staff_approval,
             stations(is_active)
           )
-        `)
-        .order('name');
-      
-      if (servicesError) throw servicesError;
+        `
+        )
+        .order("name")
+
+      if (servicesError) throw servicesError
 
       // Get total active stations count
       const { count: totalStationsCount } = await supabase
-        .from('stations')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
+        .from("stations")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true)
 
-      const servicesWithStats: ServiceWithStats[] = servicesData.map(service => {
-        type SupabaseStationConfig = {
-          base_time_minutes: number;
-          price_adjustment: number;
-          station_id: string;
-          is_active?: boolean;
-          remote_booking_allowed?: boolean;
-          requires_staff_approval?: boolean;
-          stations?: {
-            is_active: boolean | null;
-          };
-        };
+      const servicesWithStats: ServiceWithStats[] = servicesData.map((service) => {
+        const configs = service.service_station_matrix || []
+        const activeConfigs = configs.filter((config) => config.stations?.is_active)
 
-        const configs = (service.service_station_matrix || []) as SupabaseStationConfig[];
-        const stationConfigs = configs.map((config) => ({
-          station_id: config.station_id,
-          base_time_minutes: config.base_time_minutes,
-          price_adjustment: config.price_adjustment,
-          is_active: config.is_active ?? true,
-          remote_booking_allowed: config.remote_booking_allowed ?? false,
-          requires_staff_approval: config.requires_staff_approval ?? false,
-          station_is_active: config.stations?.is_active ?? false,
-        }));
-        const activeConfigs = stationConfigs.filter(config => config.is_active && config.station_is_active);
-        
-        const averageTime = activeConfigs.length > 0 
-          ? Math.round(activeConfigs.reduce((sum, config) => sum + config.base_time_minutes, 0) / activeConfigs.length)
-          : 0;
-
-        const baseTime = (() => {
-          if (activeConfigs.length > 0) {
-            return Math.min(...activeConfigs.map((config) => config.base_time_minutes))
-          }
-          if (stationConfigs.length > 0) {
-            return stationConfigs[0].base_time_minutes
-          }
-          return 0
-        })();
+        const averageTime =
+          activeConfigs.length > 0
+            ? Math.round(
+                activeConfigs.reduce((sum, config) => sum + config.base_time_minutes, 0) / activeConfigs.length
+              )
+            : 0
 
         // Calculate price range based on base_price + price_adjustment
-        const finalPrices = activeConfigs.map(config => 
-          service.base_price + (config.price_adjustment || 0)
-        );
-        
-        const priceRange = finalPrices.length > 0 
-          ? {
-              min: Math.min(...finalPrices),
-              max: Math.max(...finalPrices)
-            }
-          : { min: service.base_price, max: service.base_price };
+        const finalPrices = activeConfigs.map((config) => service.base_price + (config.price_adjustment || 0))
+
+        const priceRange =
+          finalPrices.length > 0
+            ? {
+                min: Math.min(...finalPrices),
+                max: Math.max(...finalPrices),
+              }
+            : { min: service.base_price, max: service.base_price }
 
         return {
           id: service.id,
@@ -134,73 +143,178 @@ export const useServicesWithStats = () => {
           created_at: service.created_at,
           updated_at: service.updated_at,
           averageTime,
-          baseTime,
           configuredStationsCount: activeConfigs.length,
           totalStationsCount: totalStationsCount || 0,
           priceRange,
-          stationConfigs,
-        };
-      });
+        }
+      })
 
-      return servicesWithStats;
-    }
-  });
-};
+      return servicesWithStats
+    },
+  })
+}
 
 export const useCreateService = () => {
-  const queryClient = useQueryClient();
-  
+  const queryClient = useQueryClient()
+
   return useMutation({
-    mutationFn: async (serviceData: { name: string; description?: string; base_price: number }) => {
+    mutationFn: async (serviceData: {
+      name: string
+      description?: string
+      base_price: number
+      duration?: number
+      is_active?: boolean
+      mode?: "simple" | "complicated"
+      service_category_id?: string
+    }) => {
       const { data, error } = await supabase
-        .from('services')
-        .insert(serviceData)
+        .from("services")
+        .insert({
+          ...serviceData,
+          mode: serviceData.mode || "simple",
+          is_active: serviceData.is_active ?? true,
+        })
         .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+        .single()
+
+      if (error) throw error
+      return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['services'] });
-      queryClient.invalidateQueries({ queryKey: ['services-with-stats'] });
-    }
-  });
-};
+      queryClient.invalidateQueries({ queryKey: ["services"] })
+      queryClient.invalidateQueries({ queryKey: ["services-with-stats"] })
+    },
+  })
+}
 
 export const useUpdateService = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ 
-      serviceId, 
-      name, 
-      description, 
-      base_price 
-    }: { 
-      serviceId: string; 
-      name?: string; 
-      description?: string; 
-      base_price?: number;
-    }) => {
-      const updateData: any = {};
-      if (name !== undefined) updateData.name = name;
-      if (description !== undefined) updateData.description = description;
-      if (base_price !== undefined) updateData.base_price = base_price;
+  const queryClient = useQueryClient()
 
-      const { data, error } = await supabase
-        .from('services')
-        .update(updateData)
-        .eq('id', serviceId)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+  return useMutation({
+    mutationFn: async ({
+      serviceId,
+      name,
+      description,
+      base_price,
+      duration,
+      is_active,
+      mode,
+      service_category_id,
+    }: {
+      serviceId: string
+      name?: string
+      description?: string
+      base_price?: number
+      duration?: number
+      is_active?: boolean
+      mode?: "simple" | "complicated"
+      service_category_id?: string | null
+    }) => {
+      const updateData: any = {}
+      if (name !== undefined) updateData.name = name
+      if (description !== undefined) updateData.description = description
+      if (base_price !== undefined) updateData.base_price = base_price
+      if (duration !== undefined) updateData.duration = duration
+      if (is_active !== undefined) updateData.is_active = is_active
+      if (mode !== undefined) updateData.mode = mode
+      if (service_category_id !== undefined) updateData.service_category_id = service_category_id
+
+      const { data, error } = await supabase.from("services").update(updateData).eq("id", serviceId).select().single()
+
+      if (error) throw error
+      return data
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['services'] });
-      queryClient.invalidateQueries({ queryKey: ['services-with-stats'] });
-    }
-  });
-};
+      queryClient.invalidateQueries({ queryKey: ["services"] })
+      queryClient.invalidateQueries({ queryKey: ["services-with-stats"] })
+    },
+  })
+}
+
+// Sub actions hooks
+export const useCreateServiceSubAction = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (subActionData: {
+      service_id: string
+      name: string
+      description?: string
+      duration: number
+      order_index: number
+      is_active?: boolean
+    }) => {
+      const { data, error } = await supabase
+        .from("service_sub_actions")
+        .insert({
+          ...subActionData,
+          is_active: subActionData.is_active ?? true,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services"] })
+    },
+  })
+}
+
+export const useUpdateServiceSubAction = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      subActionId,
+      name,
+      description,
+      duration,
+      order_index,
+      is_active,
+    }: {
+      subActionId: string
+      name?: string
+      description?: string
+      duration?: number
+      order_index?: number
+      is_active?: boolean
+    }) => {
+      const updateData: any = {}
+      if (name !== undefined) updateData.name = name
+      if (description !== undefined) updateData.description = description
+      if (duration !== undefined) updateData.duration = duration
+      if (order_index !== undefined) updateData.order_index = order_index
+      if (is_active !== undefined) updateData.is_active = is_active
+
+      const { data, error } = await supabase
+        .from("service_sub_actions")
+        .update(updateData)
+        .eq("id", subActionId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services"] })
+    },
+  })
+}
+
+export const useDeleteServiceSubAction = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (subActionId: string) => {
+      const { error } = await supabase.from("service_sub_actions").delete().eq("id", subActionId)
+
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services"] })
+    },
+  })
+}

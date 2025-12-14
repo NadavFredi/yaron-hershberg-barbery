@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from "react"
 import { skipToken } from "@reduxjs/toolkit/query"
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { setIsNavbarPinned, setIsNavbarVisible, setIsOnManagerBoard, setIsSubnavHovered, setIsNavbarHovered } from "@/store/slices/navbarSlice"
+import { setImpersonatedCustomer, clearImpersonation } from "@/store/slices/impersonationSlice"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -20,23 +23,40 @@ import {
     Bell,
     Loader2,
     PlayCircle,
-    PauseCircle
+    PauseCircle,
+    Sparkles,
+    Calendar,
+    ClipboardList,
+    Ticket,
+    Pin,
+    PinOff,
+    UserCog,
+    XCircle,
+    Lock
 } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth"
 import logoImage from "@/assets/logo.jpeg"
 import { MANAGER_NAV_SECTIONS } from "./ManagerSubnav"
-import { SETTINGS_SECTIONS } from "./SettingsSubnav"
-import { CUSTOMERS_SECTIONS } from "./CustomersSubnav"
+import { THIRD_LEVEL_SECTIONS } from "./ThirdLevelSubnav"
 import {
     useGetPendingAppointmentRequestsQuery,
     type PendingAppointmentRequest,
     useGetWorkerStatusQuery,
     useWorkerClockInMutation,
-    useWorkerClockOutMutation
+    useWorkerClockOutMutation,
+    useSearchCustomersQuery
 } from "@/store/services/supabaseApi"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { useDebounce } from "@/hooks/useDebounce"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
     Tooltip,
     TooltipContent,
@@ -45,13 +65,11 @@ import {
 } from "@/components/ui/tooltip"
 
 const SERVICE_BADGE_STYLES: Record<PendingAppointmentRequest["serviceType"], string> = {
-    grooming: "bg-blue-100 text-blue-700 border border-blue-200",
-    garden: "bg-emerald-100 text-emerald-700 border border-emerald-200"
+    grooming: "bg-blue-100 text-blue-700 border border-blue-200"
 }
 
 const SERVICE_TYPE_LABELS: Record<PendingAppointmentRequest["serviceType"], string> = {
-    grooming: "מספרה",
-    garden: "ספא"
+    grooming: "מספרה"
 }
 
 const formatDateTime = (value: string | null, options: Intl.DateTimeFormatOptions = {}) => {
@@ -176,7 +194,7 @@ const ManagerNotificationBell = ({
                                         </Badge>
                                     </div>
                                     <div className="text-xs text-slate-600">
-                                        {request.treatmentName ? `טיפול מבוקש: ${request.treatmentName}` : "ללא טיפול משויך"}
+                                        {request.customerName || "לקוח ללא שם"}
                                     </div>
                                     <div className="text-xs text-slate-500">
                                         {`תור מתוכנן: ${formatDateTime(request.startAt)}`}
@@ -227,24 +245,314 @@ const ManagerNotificationBell = ({
     )
 }
 
+interface ImpersonationSelectorProps {
+    isManager: boolean
+}
+
+function ImpersonationSelector({ isManager }: ImpersonationSelectorProps) {
+    const dispatch = useAppDispatch()
+    const impersonationState = useAppSelector((state) => state.impersonation)
+    const [searchTerm, setSearchTerm] = useState("")
+    const [isOpen, setIsOpen] = useState(false)
+    const debouncedSearchTerm = useDebounce(searchTerm.trim(), 300)
+
+    const { data: searchData, isLoading: isSearching } = useSearchCustomersQuery(
+        { searchTerm: debouncedSearchTerm },
+        { skip: !isOpen || debouncedSearchTerm.length < 1 }
+    )
+
+    const customers = searchData?.customers || []
+
+    const handleSelectCustomer = (customer: { id: string; fullName?: string }) => {
+        dispatch(setImpersonatedCustomer({
+            customerId: customer.id,
+            customerName: customer.fullName || "לקוח ללא שם"
+        }))
+        setIsOpen(false)
+        setSearchTerm("")
+    }
+
+    const handleClearImpersonation = () => {
+        dispatch(clearImpersonation())
+        setIsOpen(false)
+        setSearchTerm("")
+    }
+
+    if (!isManager) {
+        return null
+    }
+
+    return (
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                        "flex items-center gap-2",
+                        impersonationState.impersonatedCustomerId && "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                    )}
+                >
+                    {impersonationState.impersonatedCustomerId ? (
+                        <>
+                            <UserCog className="h-4 w-4" />
+                            <span className="text-xs">
+                                {impersonationState.impersonatedCustomerName || "מתחזה"}
+                            </span>
+                        </>
+                    ) : (
+                        <>
+                            <UserCog className="h-4 w-4" />
+                            <span className="text-xs">התחזה ללקוח</span>
+                        </>
+                    )}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80" dir="rtl">
+                <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold">התחזה ללקוח</h3>
+                        {impersonationState.impersonatedCustomerId && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleClearImpersonation}
+                                className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
+                            >
+                                <XCircle className="h-3 w-3 ml-1" />
+                                בטל התחזות
+                            </Button>
+                        )}
+                    </div>
+                    {impersonationState.impersonatedCustomerId && (
+                        <div className="px-3 py-2 bg-amber-50 rounded-lg border border-amber-200">
+                            <p className="text-xs text-amber-800">
+                                <strong>מתחזה כרגע:</strong> {impersonationState.impersonatedCustomerName}
+                            </p>
+                        </div>
+                    )}
+                    <Input
+                        placeholder="חפש לקוח לפי שם, טלפון או אימייל..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="text-right"
+                        dir="rtl"
+                    />
+                    <ScrollArea className="h-64">
+                        {isSearching ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                            </div>
+                        ) : customers.length > 0 ? (
+                            <div className="space-y-1">
+                                {customers.map((customer) => (
+                                    <button
+                                        key={customer.id}
+                                        onClick={() => handleSelectCustomer(customer)}
+                                        className={cn(
+                                            "w-full text-right px-3 py-2 rounded-lg text-sm transition-colors",
+                                            "hover:bg-slate-100",
+                                            impersonationState.impersonatedCustomerId === customer.id && "bg-amber-100"
+                                        )}
+                                    >
+                                        <div className="font-medium">{customer.fullName || "לקוח ללא שם"}</div>
+                                        {customer.phone && (
+                                            <div className="text-xs text-slate-500">{customer.phone}</div>
+                                        )}
+                                        {customer.email && (
+                                            <div className="text-xs text-slate-500">{customer.email}</div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : debouncedSearchTerm.length >= 1 ? (
+                            <div className="text-center py-8 text-sm text-slate-500">
+                                לא נמצאו לקוחות
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-sm text-slate-500">
+                                התחל להקליד כדי לחפש לקוח
+                            </div>
+                        )}
+                    </ScrollArea>
+                </div>
+            </PopoverContent>
+        </Popover>
+    )
+}
+
 interface NavbarProps {
     isManager: boolean
 }
 
 export function Navbar({ isManager }: NavbarProps) {
     const { user, isLoading: isAuthLoading } = useSupabaseAuth()
+    const dispatch = useAppDispatch()
+    const impersonationState = useAppSelector((state) => state.impersonation)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const navigate = useNavigate()
     const location = useLocation()
-    const [searchParams] = useSearchParams()
+    const [searchParams, setSearchParams] = useSearchParams()
     const navRef = useRef<HTMLElement | null>(null)
     const { toast } = useToast()
     const currentManagerSection = searchParams.get("section")
     const modeParam = searchParams.get("mode")
-    const currentCustomersMode = currentManagerSection === "customers" ? (modeParam || "list") : null
+    const pinnedParam = searchParams.get("pinned")
     const currentSettingsMode = currentManagerSection === "settings" ? (modeParam || "working-hours") : null
+    const currentSubscriptionsMode = currentManagerSection === "subscriptions" ? (modeParam || "list") : null
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ manager: false })
     const [expandedNestedSections, setExpandedNestedSections] = useState<Record<string, boolean>>({})
+    const [isSecureModeActive, setIsSecureModeActive] = useState(false)
+    const isNavbarPinned = useAppSelector((state) => state.navbar.isNavbarPinned)
+    const isSubnavHovered = useAppSelector((state) => state.navbar.isSubnavHovered)
+    const isNavbarHovered = useAppSelector((state) => state.navbar.isNavbarHovered)
+    const hoverZoneRef = useRef<HTMLDivElement | null>(null)
+    const hideTimeoutRef = useRef<number | null>(null)
+    const hasInitializedFromUrlRef = useRef(false)
+    const lastSyncedReduxStateRef = useRef<boolean | null>(null)
+
+    // Check secure mode status
+    useEffect(() => {
+        const checkSecureMode = () => {
+            const isVerified = sessionStorage.getItem("protected_screen_password_verified") === "true"
+            setIsSecureModeActive(isVerified)
+        }
+
+        checkSecureMode()
+
+        // Listen for storage changes (in case it's cleared from another tab)
+        const handleStorageChange = () => checkSecureMode()
+        window.addEventListener("storage", handleStorageChange)
+
+        // Listen for custom event when secure mode changes (same tab)
+        const handleSecureModeChanged = () => checkSecureMode()
+        window.addEventListener("secureModeChanged", handleSecureModeChanged)
+
+        return () => {
+            window.removeEventListener("storage", handleStorageChange)
+            window.removeEventListener("secureModeChanged", handleSecureModeChanged)
+        }
+    }, [])
+
+    const handleEndSecureMode = () => {
+        sessionStorage.removeItem("protected_screen_password_verified")
+        setIsSecureModeActive(false)
+        // Dispatch event to notify other components
+        window.dispatchEvent(new Event("secureModeChanged"))
+        toast({
+            title: "מצב מאובטח הופסק",
+            description: "תידרש סיסמה כדי לגשת למסכים מוגנים",
+        })
+
+        // If currently on any manager page, redirect to manager dashboard
+        // The password check will handle showing the dialog if needed
+        if (isOnManagerBoard) {
+            navigate("/manager")
+        }
+    }
+
+    // Check if we're on any manager page (all manager routes)
+    const isOnManagerBoard = location.pathname.startsWith("/manager") || location.pathname.startsWith("/manager-screens")
+
+    // Initialize Redux from URL only once (if not already initialized)
+    // After initialization, Redux is the source of truth
+    useEffect(() => {
+        if (isOnManagerBoard && !hasInitializedFromUrlRef.current) {
+            hasInitializedFromUrlRef.current = true
+
+            if (pinnedParam !== null) {
+                // URL has pinned param - initialize Redux from URL
+                const urlPinned = pinnedParam === "true"
+                dispatch(setIsNavbarPinned(urlPinned))
+                lastSyncedReduxStateRef.current = urlPinned
+            } else {
+                // No pinned param in URL - ensure navbar is pinned by default
+                dispatch(setIsNavbarPinned(true))
+                lastSyncedReduxStateRef.current = true
+            }
+        }
+    }, [isOnManagerBoard, pinnedParam, dispatch])
+
+    // Reset initialization flag when leaving manager pages
+    useEffect(() => {
+        if (!isOnManagerBoard) {
+            hasInitializedFromUrlRef.current = false
+            lastSyncedReduxStateRef.current = null
+        }
+    }, [isOnManagerBoard])
+
+    // Navbar is visible if hovered OR pinned OR subnav is hovered (on any manager page)
+    const isNavbarVisible = isOnManagerBoard ? (isNavbarHovered || isNavbarPinned || isSubnavHovered) : true
+
+    // Sync state to Redux
+    useEffect(() => {
+        dispatch(setIsNavbarVisible(isNavbarVisible))
+        dispatch(setIsOnManagerBoard(isOnManagerBoard))
+    }, [isNavbarVisible, isOnManagerBoard, dispatch, isNavbarHovered, isNavbarPinned, isSubnavHovered])
+
+    // Sync Redux state to URL (Redux is source of truth)
+    // Only update URL when Redux state actually changes
+    useEffect(() => {
+        if (isOnManagerBoard && hasInitializedFromUrlRef.current && isNavbarPinned !== lastSyncedReduxStateRef.current) {
+            const currentPinnedParam = searchParams.get("pinned")
+            const urlPinnedIsFalse = currentPinnedParam === "false"
+
+            // Update URL to match Redux state
+            if (isNavbarPinned && urlPinnedIsFalse) {
+                // Pinned is true (default) - remove param if it exists
+                const newSearchParams = new URLSearchParams(searchParams)
+                newSearchParams.delete("pinned")
+                setSearchParams(newSearchParams, { replace: true })
+                lastSyncedReduxStateRef.current = isNavbarPinned
+            } else if (!isNavbarPinned && !urlPinnedIsFalse) {
+                // Pinned is false - add param
+                const newSearchParams = new URLSearchParams(searchParams)
+                newSearchParams.set("pinned", "false")
+                setSearchParams(newSearchParams, { replace: true })
+                lastSyncedReduxStateRef.current = isNavbarPinned
+            } else {
+                // URL already matches Redux state, just update the ref
+                lastSyncedReduxStateRef.current = isNavbarPinned
+            }
+        }
+    }, [isNavbarPinned, isOnManagerBoard, searchParams, setSearchParams])
+
+    // Reset pin state when leaving manager pages (but don't clear URL param)
+    useEffect(() => {
+        if (!isOnManagerBoard && isNavbarPinned) {
+            dispatch(setIsNavbarPinned(false))
+        }
+    }, [isOnManagerBoard, isNavbarPinned, dispatch])
+
+    // Ensure hover state doesn't persist when leaving manager pages
+    useEffect(() => {
+        if (!isOnManagerBoard) {
+            if (isNavbarHovered) {
+                dispatch(setIsNavbarHovered(false))
+            }
+            if (isSubnavHovered) {
+                dispatch(setIsSubnavHovered(false))
+            }
+        }
+    }, [isOnManagerBoard, isNavbarHovered, isSubnavHovered, dispatch])
+
+
+    // Cleanup timeout on unmount or pin change
+    useEffect(() => {
+        return () => {
+            if (hideTimeoutRef.current) {
+                clearTimeout(hideTimeoutRef.current)
+            }
+        }
+    }, [])
+
+    // Clear timeout when pinned/unpinned
+    useEffect(() => {
+        if (isNavbarPinned && hideTimeoutRef.current) {
+            clearTimeout(hideTimeoutRef.current)
+            hideTimeoutRef.current = null
+        }
+    }, [isNavbarPinned])
 
     const {
         data: pendingData,
@@ -303,14 +611,12 @@ export function Navbar({ isManager }: NavbarProps) {
 
         try {
             if (hasOpenShift) {
-                console.log("⏹️ [Navbar] Worker clock-out initiated")
                 await workerClockOut({}).unwrap()
                 toast({
                     title: "המשמרת נסגרה",
                     description: "תודה! המשמרת נסגרה בהצלחה."
                 })
             } else {
-                console.log("▶️ [Navbar] Worker clock-in initiated")
                 await workerClockIn({}).unwrap()
                 toast({
                     title: "משמרת חדשה נפתחה",
@@ -465,6 +771,8 @@ export function Navbar({ isManager }: NavbarProps) {
     }, [isMobileMenuOpen, location.pathname, currentManagerSection])
 
     const handleSignOut = async () => {
+        // Clear impersonation when signing out
+        dispatch(clearImpersonation())
         await supabase.auth.signOut()
         navigate("/")
         setIsMobileMenuOpen(false)
@@ -503,15 +811,17 @@ export function Navbar({ isManager }: NavbarProps) {
     }
 
     const navItems = [
-        { path: "/about", label: "אודות", icon: "✨", requiresAuth: false, requiresManager: false },
-        { path: "/setup-appointment", label: "קבע תור", icon: "📅", requiresAuth: true, requiresManager: false },
-        { path: "/appointments", label: "התורים שלי", icon: "📋", requiresAuth: true, requiresManager: false },
-        { path: "/subscriptions", label: "הכרטיסיות שלי", icon: "🎫", requiresAuth: true, requiresManager: false },
-        { path: "/manager", label: "מסכי מנהל", icon: "👤", requiresAuth: false, requiresManager: true },
+        { path: "/about", label: "אודות", icon: Sparkles, requiresAuth: false, requiresManager: false },
+        { path: "/setup-appointment", label: "קבע תור", icon: Calendar, requiresAuth: true, requiresManager: false },
+        { path: "/appointments", label: "התורים שלי", icon: ClipboardList, requiresAuth: true, requiresManager: false },
+        { path: "/subscriptions", label: "הכרטיסיות שלי", icon: Ticket, requiresAuth: true, requiresManager: false },
+        { path: "/manager", label: "מסכי מנהל", icon: User, requiresAuth: false, requiresManager: true },
     ]
 
     const appointmentSection = MANAGER_NAV_SECTIONS.find((section) => section.id === "appointments")
     const appointmentChildren = appointmentSection?.children ?? []
+    const customersSection = MANAGER_NAV_SECTIONS.find((section) => section.id === "customers")
+    const customersChildren = customersSection?.children ?? []
 
     const nestedSectionLinks: Record<string, Array<{ to: string; label: string; icon: React.ReactNode; isActive: boolean }>> = {
         appointments: appointmentChildren.map((child) => ({
@@ -520,17 +830,23 @@ export function Navbar({ isManager }: NavbarProps) {
             icon: child.icon,
             isActive: child.match(location.pathname, currentManagerSection, modeParam)
         })),
-        customers: CUSTOMERS_SECTIONS.map((section) => ({
-            to: `/manager-screens?section=customers&mode=${section.id}`,
-            label: section.label,
-            icon: section.icon,
-            isActive: currentManagerSection === "customers" && currentCustomersMode === section.id
+        customers: customersChildren.map((child) => ({
+            to: child.to,
+            label: child.label,
+            icon: child.icon,
+            isActive: child.match(location.pathname, currentManagerSection, modeParam)
         })),
-        settings: SETTINGS_SECTIONS.map((section) => ({
+        settings: THIRD_LEVEL_SECTIONS.settings.map((section) => ({
             to: `/manager-screens?section=settings&mode=${section.id}`,
             label: section.label,
             icon: section.icon,
             isActive: currentManagerSection === "settings" && currentSettingsMode === section.id
+        })),
+        subscriptions: THIRD_LEVEL_SECTIONS.subscriptions.map((section) => ({
+            to: `/manager-screens?section=subscriptions&mode=${section.id}`,
+            label: section.label,
+            icon: section.icon,
+            isActive: currentManagerSection === "subscriptions" && currentSubscriptionsMode === section.id
         }))
     }
 
@@ -553,18 +869,97 @@ export function Navbar({ isManager }: NavbarProps) {
 
     return (
         <TooltipProvider>
-            <nav ref={navRef} className="sticky top-0 left-0 right-0 z-50" dir="rtl">
-                <div className="bg-white shadow-sm border-b border-slate-200">
+            {/* Hover zone for collapsed navbar on manager board (desktop only) - very thin at top edge */}
+            {isOnManagerBoard && !isNavbarPinned && (
+                <div
+                    ref={hoverZoneRef}
+                    data-nav-hover-zone="true"
+                    className={cn(
+                        "hidden xl:block fixed top-0 left-0 right-0 h-2 cursor-default transition-opacity duration-300",
+                        isNavbarVisible ? "z-[45] pointer-events-none" : "z-[60] pointer-events-auto"
+                    )}
+                    style={{ backgroundColor: 'transparent' }}
+                    aria-hidden="true"
+                    onMouseEnter={() => {
+                        dispatch(setIsNavbarHovered(true))
+                    }}
+                    onMouseLeave={(e) => {
+                        // Only hide if mouse is moving to content below, not to navbar, and not pinned
+                        if (!isNavbarPinned) {
+                            const relatedTarget = e.relatedTarget as HTMLElement | null
+                            if (!relatedTarget || !navRef.current?.contains(relatedTarget)) {
+                                dispatch(setIsNavbarHovered(false))
+                                // Also clear subnav hover state when hiding from hover zone
+                                dispatch(setIsSubnavHovered(false))
+                            }
+                        }
+                    }}
+                />
+            )}
+            <nav
+                ref={navRef}
+                data-nav-level="1"
+                className={cn(
+                    "sticky top-0 left-0 right-0 z-50 transition-all duration-300",
+                    isOnManagerBoard && !isNavbarVisible && "xl:min-h-[8px]"
+                )}
+                dir="rtl"
+                onMouseEnter={() => {
+                    if (isOnManagerBoard) {
+                        // Cancel any pending hide
+                        if (hideTimeoutRef.current) {
+                            clearTimeout(hideTimeoutRef.current)
+                            hideTimeoutRef.current = null
+                        }
+                        dispatch(setIsNavbarHovered(true))
+                        // Also show subnavs when navbar is hovered
+                        dispatch(setIsSubnavHovered(true))
+                    }
+                }}
+                onMouseLeave={(e) => {
+                    if (isOnManagerBoard && !isNavbarPinned) {
+                        const relatedTarget = e.relatedTarget as HTMLElement | null
+                        const navLevelTarget = relatedTarget?.closest("[data-nav-level]")
+                        const isMovingWithinNavLevels = Boolean(navLevelTarget)
+                        const isMovingToDropdown = relatedTarget?.closest('[role="menu"], [role="menuitem"]')
+                        const isMovingToHoverZone = relatedTarget
+                            ? Boolean(hoverZoneRef.current?.contains(relatedTarget) || relatedTarget.closest('[data-nav-hover-zone="true"]'))
+                            : false
+
+                        if (!relatedTarget || (!isMovingToHoverZone && !isMovingToDropdown && !isMovingWithinNavLevels)) {
+                            // Add a small delay before hiding to allow moving to dropdowns/subnavs
+                            hideTimeoutRef.current = setTimeout(() => {
+                                // Double-check we're still not hovering before hiding
+                                if (!isNavbarPinned) {
+                                    dispatch(setIsNavbarHovered(false))
+                                    dispatch(setIsSubnavHovered(false))
+                                }
+                            }, 150)
+                        } else {
+                            // Cancel hide if moving to dropdown or nav levels
+                            if (hideTimeoutRef.current) {
+                                clearTimeout(hideTimeoutRef.current)
+                                hideTimeoutRef.current = null
+                            }
+                        }
+                    }
+                }}
+            >
+                <div className={cn(
+                    "bg-white shadow-sm border-b border-slate-200 transition-all duration-300",
+                    isOnManagerBoard && !isNavbarVisible && "xl:opacity-0 xl:max-h-0 xl:overflow-hidden xl:pointer-events-none",
+                    isOnManagerBoard && isNavbarVisible && "xl:opacity-100 xl:max-h-[200px] xl:pointer-events-auto"
+                )}>
                     <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
                         {/* Mobile Header */}
                         <div className="flex items-center justify-between gap-4 py-3 xl:hidden">
                             <Link to="/" className="flex items-center gap-3">
                                 <div className="w-10 h-10 shrink-0">
-                                    <img src={logoImage} alt="Yaron Hershberg Special Barbery Logo" className="w-full h-full object-contain" />
+                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <div>
                                     <h1 className="text-lg font-bold text-gray-900 leading-tight">Yaron Hershberg</h1>
-                                    <p className="text-xs text-gray-600 leading-tight">מספרה יוצאת דופן</p>
+                                    <p className="text-xs text-gray-600 leading-tight">מספרה מקצועית</p>
                                 </div>
                             </Link>
                             <div className="flex items-center gap-2">
@@ -581,6 +976,18 @@ export function Navbar({ isManager }: NavbarProps) {
                                         triggerSize="icon"
                                     />
                                 )}
+                                {/* Secure Mode Indicator - Mobile - only show when active */}
+                                {isManager && isSecureModeActive && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={handleEndSecureMode}
+                                        className="rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                                        aria-label="סיים מצב מאובטח"
+                                    >
+                                        <Lock className="h-5 w-5" />
+                                    </Button>
+                                )}
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -594,13 +1001,13 @@ export function Navbar({ isManager }: NavbarProps) {
 
                         {/* Desktop Header */}
                         <div className="hidden xl:grid xl:grid-cols-[auto,1fr,auto] xl:items-center xl:gap-6 py-4">
-                            <Link to="/" className="flex items-center gap-3">
+                            <Link to={user ? "/setup-appointment" : "/"} className="flex items-center gap-3">
                                 <div className="w-12 h-12 shrink-0">
-                                    <img src={logoImage} alt="Yaron Hershberg Special Barbery Logo" className="w-full h-full object-contain" />
+                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <div>
                                     <h1 className="text-2xl font-bold text-gray-900 leading-tight">Yaron Hershberg</h1>
-                                    <p className="text-sm text-gray-600 leading-tight">מספרה יוצאת דופן</p>
+                                    <p className="text-sm text-gray-600 leading-tight">מספרה מקצועית</p>
                                 </div>
                             </Link>
 
@@ -613,12 +1020,12 @@ export function Navbar({ isManager }: NavbarProps) {
                                         <Link
                                             key={item.path}
                                             to={item.path}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${isActive(item.path)
-                                                ? "bg-blue-100 text-blue-700"
-                                                : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive(item.path)
+                                                ? "bg-blue-600 text-white shadow-sm"
+                                                : "text-gray-700 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm"
                                                 }`}
                                         >
-                                            <span className="text-lg">{item.icon}</span>
+                                            <item.icon className={`h-4 w-4 ${isActive(item.path) ? "text-white" : "text-slate-500"}`} />
                                             <span>{item.label}</span>
                                         </Link>
                                     )
@@ -638,6 +1045,56 @@ export function Navbar({ isManager }: NavbarProps) {
                                         meta={pendingMeta}
                                     />
                                 )}
+                                {isManager && <ImpersonationSelector isManager={isManager} />}
+                                {/* Secure Mode Indicator - only show when active */}
+                                {isManager && isSecureModeActive && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={handleEndSecureMode}
+                                                className="rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                                                aria-label="סיים מצב מאובטח"
+                                            >
+                                                <Lock className="h-5 w-5" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent align="end">
+                                            מצב מאובטח פעיל - לחץ לסיום
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
+                                {/* Pin button for all manager pages */}
+                                {isOnManagerBoard && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => {
+                                                    dispatch(setIsNavbarPinned(!isNavbarPinned))
+                                                }}
+                                                className={cn(
+                                                    "rounded-full transition-colors",
+                                                    isNavbarPinned
+                                                        ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                                                )}
+                                                aria-label={isNavbarPinned ? "בטל נעיצה" : "נעץ"}
+                                            >
+                                                {isNavbarPinned ? (
+                                                    <Pin className="h-5 w-5" />
+                                                ) : (
+                                                    <PinOff className="h-5 w-5" />
+                                                )}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent align="end">
+                                            {isNavbarPinned ? "בטל נעיצה - הסתר את התפריט" : "נעץ - שמור את התפריט גלוי"}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
                                 {user ? (
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -655,6 +1112,16 @@ export function Navbar({ isManager }: NavbarProps) {
                                                 <p className="text-xs text-gray-500">
                                                     {user.user_metadata?.full_name || "לא הוגדר שם"}
                                                 </p>
+                                                {impersonationState.impersonatedCustomerId && (
+                                                    <div className="mt-2 px-2 py-1.5 bg-amber-50 rounded border border-amber-200">
+                                                        <p className="text-xs font-semibold text-amber-800">
+                                                            מתחזה כ:
+                                                        </p>
+                                                        <p className="text-xs text-amber-700">
+                                                            {impersonationState.impersonatedCustomerName || "לקוח ללא שם"}
+                                                        </p>
+                                                    </div>
+                                                )}
                                             </div>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem asChild>
@@ -707,7 +1174,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                                         className="flex w-full items-center justify-between px-4 py-2 text-base font-semibold text-gray-700"
                                                     >
                                                         <span className="flex items-center gap-2">
-                                                            <span className="text-xl">{item.icon}</span>
+                                                            <item.icon className={`h-5 w-5 ${isActive(item.path) ? "text-blue-600" : "text-slate-500"}`} />
                                                             <span>{item.label}</span>
                                                         </span>
                                                         <ChevronDown
@@ -742,7 +1209,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                                                                 className={`${baseClasses} ${activeClasses}`}
                                                                             >
                                                                                 <span className="flex items-center gap-2">
-                                                                                    <span className="text-base">{section.icon}</span>
+                                                                                    <section.icon className={`h-4 w-4 ${isSectionActive ? "text-blue-600" : "text-slate-500"}`} />
                                                                                     <span>{section.label}</span>
                                                                                 </span>
                                                                                 <ChevronDown
@@ -756,7 +1223,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                                                                 className={`${baseClasses} ${activeClasses}`}
                                                                             >
                                                                                 <span className="flex items-center gap-2">
-                                                                                    <span className="text-base">{section.icon}</span>
+                                                                                    <section.icon className={`h-4 w-4 ${isSectionActive ? "text-blue-600" : "text-slate-500"}`} />
                                                                                     <span>{section.label}</span>
                                                                                 </span>
                                                                             </Link>
@@ -774,7 +1241,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                                                                             : "text-gray-600 hover:text-indigo-700 hover:bg-indigo-50"
                                                                                             }`}
                                                                                     >
-                                                                                        <span>{nestedLink.icon}</span>
+                                                                                        <nestedLink.icon className={`h-4 w-4 ${nestedLink.isActive ? "text-indigo-700" : "text-slate-500"}`} />
                                                                                         <span>{nestedLink.label}</span>
                                                                                     </Link>
                                                                                 ))}
@@ -794,12 +1261,12 @@ export function Navbar({ isManager }: NavbarProps) {
                                                 key={item.path}
                                                 to={item.path}
                                                 onClick={() => setIsMobileMenuOpen(false)}
-                                                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors ${isActive(item.path)
-                                                    ? "bg-blue-100 text-blue-700"
-                                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-all duration-200 ${isActive(item.path)
+                                                    ? "bg-blue-600 text-white shadow-sm"
+                                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm"
                                                     }`}
                                             >
-                                                <span className="text-xl">{item.icon}</span>
+                                                <item.icon className={`h-4 w-4 ${isActive(item.path) ? "text-white" : "text-slate-500"}`} />
                                                 <span>{item.label}</span>
                                             </Link>
                                         )
@@ -812,7 +1279,22 @@ export function Navbar({ isManager }: NavbarProps) {
                                                 <p className="text-xs text-gray-500">
                                                     {user.user_metadata?.full_name || "לא הוגדר שם"}
                                                 </p>
+                                                {impersonationState.impersonatedCustomerId && (
+                                                    <div className="mt-2 px-2 py-1.5 bg-amber-50 rounded border border-amber-200">
+                                                        <p className="text-xs font-semibold text-amber-800">
+                                                            מתחזה כ:
+                                                        </p>
+                                                        <p className="text-xs text-amber-700">
+                                                            {impersonationState.impersonatedCustomerName || "לקוח ללא שם"}
+                                                        </p>
+                                                    </div>
+                                                )}
                                             </div>
+                                            {isManager && (
+                                                <div className="px-3 py-2">
+                                                    <ImpersonationSelector isManager={isManager} />
+                                                </div>
+                                            )}
                                             <Link
                                                 to="/profile"
                                                 onClick={() => setIsMobileMenuOpen(false)}

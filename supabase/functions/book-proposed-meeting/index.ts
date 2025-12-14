@@ -25,91 +25,47 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization")
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Authentication required" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      )
+      return new Response(JSON.stringify({ success: false, error: "Authentication required" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
     }
 
-    const authClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
-
-    const {
-      data: { user },
-      error: userError,
-    } = await authClient.auth.getUser()
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Invalid or expired session" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      )
+    const authClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } })
+    const { data: userData, error: userError } = await authClient.auth.getUser()
+    if (userError || !userData.user) {
+      return new Response(JSON.stringify({ success: false, error: "Invalid or expired session" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
     }
 
     const body = await req.json().catch(() => ({}))
     const meetingId = typeof body?.meetingId === "string" ? body.meetingId.trim() : ""
-    const treatmentId = typeof body?.treatmentId === "string" ? body.treatmentId.trim() : ""
     const code = typeof body?.code === "string" ? body.code.trim() : ""
 
-    if (!meetingId || !treatmentId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "meetingId and treatmentId are required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      )
+    if (!meetingId) {
+      return new Response(JSON.stringify({ success: false, error: "meetingId is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
     }
 
     const { data: customerRow, error: customerError } = await serviceClient
       .from("customers")
       .select("id, customer_type_id")
-      .eq("auth_user_id", user.id)
+      .eq("auth_user_id", userData.user.id)
       .maybeSingle()
 
     if (customerError) {
-      console.error("❌ [book-proposed-meeting] Failed to load customer:", customerError)
       throw customerError
     }
 
     if (!customerRow) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Customer profile not found" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      )
-    }
-
-    const customerId = customerRow.id
-
-    const { data: treatmentRow, error: treatmentError } = await serviceClient
-      .from("treatments")
-      .select("id, customer_id")
-      .eq("id", treatmentId)
-      .maybeSingle()
-
-    if (treatmentError) {
-      console.error("❌ [book-proposed-meeting] Failed to load treatment:", treatmentError)
-      throw treatmentError
-    }
-
-    if (!treatmentRow || treatmentRow.customer_id !== customerId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Only invited customers can select this treatment" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      )
+      return new Response(JSON.stringify({ success: false, error: "Customer profile not found" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
     }
 
     const { data: meeting, error: meetingError } = await serviceClient
@@ -128,7 +84,6 @@ serve(async (req) => {
         notes,
         reschedule_appointment_id,
         reschedule_customer_id,
-        reschedule_treatment_id,
         reschedule_original_start_at,
         reschedule_original_end_at,
         proposed_meeting_invites(id, customer_id),
@@ -139,32 +94,25 @@ serve(async (req) => {
       .maybeSingle()
 
     if (meetingError) {
-      console.error("❌ [book-proposed-meeting] Failed to load meeting:", meetingError)
       throw meetingError
     }
 
     if (!meeting) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Meeting not found" }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      )
+      return new Response(JSON.stringify({ success: false, error: "Meeting not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
     }
 
     if (meeting.status && meeting.status !== "proposed") {
-      return new Response(
-        JSON.stringify({ success: false, error: "Meeting is no longer available" }),
-        {
-          status: 409,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      )
+      return new Response(JSON.stringify({ success: false, error: "Meeting is no longer available" }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
     }
 
     const invited = (meeting.proposed_meeting_invites ?? []).some(
-      (invite: any) => invite.customer_id === customerId
+      (invite: any) => invite.customer_id === customerRow.id
     )
     const categoryAllowed =
       !!customerRow.customer_type_id &&
@@ -174,239 +122,90 @@ serve(async (req) => {
     const codeAllowed = Boolean(code && code === meeting.code)
 
     if (!invited && !categoryAllowed && !codeAllowed) {
-      return new Response(
-        JSON.stringify({ success: false, error: "אין לך גישה להצעה זו" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      )
+      return new Response(JSON.stringify({ success: false, error: "אין לך גישה להצעה זו" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
     }
 
-    if (meeting.reschedule_customer_id && meeting.reschedule_customer_id !== customerId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "ההצעה הזו שמורה ללקוח אחר" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      )
+    if (meeting.reschedule_customer_id && meeting.reschedule_customer_id !== customerRow.id) {
+      return new Response(JSON.stringify({ success: false, error: "ההצעה הזו שמורה ללקוח אחר" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
     }
 
-    if (meeting.reschedule_treatment_id && meeting.reschedule_treatment_id !== treatmentId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "אפשר לאשר רק עם הלקוח ששויך להצעה" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      )
+    // Create or move appointment
+    let appointmentId: string | null = null
+    const start = meeting.start_at
+    const end = meeting.end_at
+    const stationId = meeting.station_id ?? null
+
+    if (!start || !end) {
+      return new Response(JSON.stringify({ success: false, error: "Missing meeting times" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
     }
 
-    const { data: locked, error: lockError } = await serviceClient
-      .from("proposed_meetings")
-      .update({ status: "locking" })
-      .eq("id", meetingId)
-      .eq("status", meeting.status ?? "proposed")
+    // Get service_id from the meeting if available, or find a default service
+    let serviceId: string | null = null
+    if (meeting.service_type === "grooming") {
+      // Try to get a default service for grooming
+      const { data: defaultService } = await serviceClient.from("services").select("id").limit(1).maybeSingle()
+      serviceId = defaultService?.id ?? null
+    }
+
+    const { data: appointment, error: appointmentError } = await serviceClient
+      .from("grooming_appointments")
+      .upsert(
+        {
+          id: meeting.reschedule_appointment_id ?? undefined,
+          customer_id: customerRow.id,
+          service_id: serviceId,
+          station_id: stationId,
+          start_at: start,
+          end_at: end,
+          status: "approved",
+          payment_status: "unpaid",
+          appointment_kind: "business",
+          customer_notes: meeting.summary ?? null,
+        },
+        { onConflict: "id" }
+      )
       .select("id")
       .maybeSingle()
 
-    if (lockError) {
-      console.error("❌ [book-proposed-meeting] Failed to lock meeting:", lockError)
-      throw lockError
+    if (appointmentError) {
+      throw appointmentError
     }
 
-    if (!locked) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Meeting already taken" }),
-        {
-          status: 409,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      )
+    appointmentId = appointment?.id ?? null
+
+    const { error: updateMeetingError } = await serviceClient
+      .from("proposed_meetings")
+      .update({
+        status: "booked",
+        updated_at: new Date().toISOString(),
+        reschedule_appointment_id: appointmentId ?? meeting.reschedule_appointment_id,
+        reschedule_customer_id: customerRow.id,
+      })
+      .eq("id", meetingId)
+
+    if (updateMeetingError) {
+      throw updateMeetingError
     }
-
-    let appointmentId: string | null = null
-
-    const isReschedule = Boolean(meeting.reschedule_appointment_id)
-
-    try {
-      if (isReschedule) {
-        const tableName = meeting.service_type === "garden" ? "daycare_appointments" : "grooming_appointments"
-        console.log("🔁 [book-proposed-meeting] Rescheduling appointment from proposed meeting", {
-          meetingId,
-          appointmentId: meeting.reschedule_appointment_id,
-          customerId,
-          treatmentId,
-          serviceType: meeting.service_type,
-        })
-
-        const { data: originalAppointment, error: originalError } = await serviceClient
-          .from(tableName)
-          .select("id, customer_id, treatment_id, appointment_kind, status")
-          .eq("id", meeting.reschedule_appointment_id)
-          .maybeSingle()
-
-        if (originalError) {
-          throw originalError
-        }
-
-        if (!originalAppointment) {
-          return new Response(
-            JSON.stringify({ success: false, error: "התור המקורי לא נמצא" }),
-            {
-              status: 404,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          )
-        }
-
-        if (originalAppointment.customer_id !== customerId) {
-          return new Response(
-            JSON.stringify({ success: false, error: "התור המקורי שייך ללקוח אחר" }),
-            {
-              status: 403,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          )
-        }
-
-        if (meeting.reschedule_treatment_id && originalAppointment.treatment_id !== meeting.reschedule_treatment_id) {
-          return new Response(
-            JSON.stringify({ success: false, error: "התור המקורי שייך ללקוח אחר" }),
-            {
-              status: 409,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          )
-        }
-
-        const updatePayload: Record<string, unknown> = {
-          station_id: meeting.station_id,
-          start_at: meeting.start_at,
-          end_at: meeting.end_at,
-          status: "approved",
-        }
-
-        if (meeting.summary) {
-          updatePayload.customer_notes = meeting.summary
-        }
-        if (meeting.notes) {
-          updatePayload.internal_notes = meeting.notes
-        }
-
-        if (meeting.service_type !== "garden") {
-          console.log("✂️ [book-proposed-meeting] Updating grooming appointment", {
-            appointmentId: meeting.reschedule_appointment_id,
-            stationId: meeting.station_id,
-            startAt: meeting.start_at,
-            endAt: meeting.end_at,
-          })
-        } else {
-          console.log("🌿 [book-proposed-meeting] Updating daycare appointment", {
-            appointmentId: meeting.reschedule_appointment_id,
-            stationId: meeting.station_id,
-            startAt: meeting.start_at,
-            endAt: meeting.end_at,
-          })
-        }
-
-        const { error: updateError } = await serviceClient
-          .from(tableName)
-          .update(updatePayload)
-          .eq("id", meeting.reschedule_appointment_id)
-
-        if (updateError) {
-          throw updateError
-        }
-
-        appointmentId = meeting.reschedule_appointment_id
-        console.log("✅ [book-proposed-meeting] Appointment rescheduled successfully", {
-          meetingId,
-          appointmentId,
-        })
-      } else if (meeting.service_type === "garden") {
-        console.log("🌿 [book-proposed-meeting] Creating daycare appointment from proposed meeting", {
-          meetingId,
-          customerId,
-          treatmentId,
-          startAt: meeting.start_at,
-          endAt: meeting.end_at,
-        })
-        const { data: appointment, error: insertError } = await serviceClient
-          .from("daycare_appointments")
-          .insert({
-            station_id: meeting.station_id,
-            customer_id: customerId,
-            treatment_id: treatmentId,
-            start_at: meeting.start_at,
-            end_at: meeting.end_at,
-            status: "approved",
-            service_type: "hourly",
-            customer_notes: meeting.summary,
-            internal_notes: meeting.notes,
-          })
-          .select("id")
-          .single()
-
-        if (insertError) {
-          throw insertError
-        }
-        appointmentId = appointment?.id ?? null
-        console.log("✅ [book-proposed-meeting] Daycare appointment created", {
-          meetingId,
-          appointmentId,
-        })
-      } else {
-        console.log("✂️ [book-proposed-meeting] Creating grooming appointment from proposed meeting", {
-          meetingId,
-          customerId,
-          treatmentId,
-          startAt: meeting.start_at,
-          endAt: meeting.end_at,
-        })
-        const { data: appointment, error: insertError } = await serviceClient
-          .from("grooming_appointments")
-          .insert({
-            station_id: meeting.station_id,
-            customer_id: customerId,
-            treatment_id: treatmentId,
-            start_at: meeting.start_at,
-            end_at: meeting.end_at,
-            status: "approved",
-            appointment_kind: "business",
-            customer_notes: meeting.summary,
-            internal_notes: meeting.notes,
-          })
-          .select("id")
-          .single()
-
-        if (insertError) {
-          throw insertError
-        }
-        appointmentId = appointment?.id ?? null
-        console.log("✅ [book-proposed-meeting] Grooming appointment created", {
-          meetingId,
-          appointmentId,
-        })
-      }
-    } catch (error) {
-      console.error("❌ [book-proposed-meeting] Failed to create appointment:", error)
-      await serviceClient.from("proposed_meetings").update({ status: meeting.status ?? "proposed" }).eq("id", meetingId)
-      throw error
-    }
-
-    await serviceClient.from("proposed_meetings").delete().eq("id", meetingId)
 
     return new Response(
-      JSON.stringify({ success: true, appointmentId }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({
+        success: true,
+        appointmentId,
+        meetingId,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   } catch (error) {
-    console.error("❌ [book-proposed-meeting] Unexpected failure:", error)
+    console.error("❌ [book-proposed-meeting] Error:", error)
     return new Response(
       JSON.stringify({
         success: false,

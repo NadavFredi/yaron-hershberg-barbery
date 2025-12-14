@@ -27,19 +27,16 @@ export function useSupabaseAuth() {
           // Check if this is an auth/token error
           // Supabase auth errors (like 403) should trigger logout
           if (isAuthError(error)) {
-            console.log("🔒 [useSupabaseAuth] Auth error on getUser, logging out...", error)
             handleInvalidToken()
             return
           }
 
           // For other errors, still log but don't redirect
-          console.error("❌ [useSupabaseAuth] Error fetching user:", error)
           dispatch(setError(error.message || "Failed to fetch user"))
 
           // If error is from auth API (403/401), still logout even if isAuthError didn't catch it
           const errorStatus = (error as Record<string, unknown>)?.status as number | undefined
           if (errorStatus === 401 || errorStatus === 403) {
-            console.log("🔒 [useSupabaseAuth] 401/403 error detected, logging out...")
             handleInvalidToken()
             return
           }
@@ -47,7 +44,6 @@ export function useSupabaseAuth() {
           dispatch(setUser(data.user))
         } else {
           // No user found - session expired or invalid
-          console.log("⚠️ [useSupabaseAuth] No user found in getUser response")
           dispatch(clearUser())
 
           // If we were expecting a user but didn't get one, it might be expired
@@ -60,7 +56,6 @@ export function useSupabaseAuth() {
               !currentPath.includes("/reset-password") &&
               currentPath !== "/"
             ) {
-              console.log("🔒 [useSupabaseAuth] Redirecting to login due to missing user")
               handleInvalidToken()
             }
           }
@@ -80,8 +75,6 @@ export function useSupabaseAuth() {
 
     if (!authSubscription) {
       const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-        console.log("🔄 [useSupabaseAuth] Auth state changed:", event, session ? "has session" : "no session")
-
         if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
           // User signed out or token refresh failed
           dispatch(clearUser())

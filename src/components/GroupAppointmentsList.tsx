@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
-import type { ManagerAppointment } from '@/types/managerSchedule'
+import type { ManagerAppointment } from '@/pages/ManagerSchedule/types'
 import type { CheckedState } from '@radix-ui/react-checkbox'
 
 interface GroupAppointmentsListProps {
@@ -18,6 +18,7 @@ interface GroupAppointmentsListProps {
     selectAllChecked: CheckedState
     isLoading?: boolean
     onAppointmentClick?: (appointment: ManagerAppointment) => void
+    currentAppointmentId?: string
 }
 
 const getStatusColor = (status: string): string => {
@@ -39,7 +40,8 @@ export const GroupAppointmentsList: React.FC<GroupAppointmentsListProps> = ({
     onSelectAll,
     selectAllChecked,
     isLoading = false,
-    onAppointmentClick
+    onAppointmentClick,
+    currentAppointmentId
 }) => {
     console.log(appointments)
 
@@ -61,98 +63,81 @@ export const GroupAppointmentsList: React.FC<GroupAppointmentsListProps> = ({
 
     return (
         <div className={cn("space-y-3", className)}>
-            <div className="text-sm font-medium text-gray-700 text-right">
-                קבוצת תורים: {groupId}
-            </div>
-
             <ScrollArea className="h-64 w-full">
-                <div className="space-y-2 pr-4">
-                    {appointments.map((appointment) => {
-                        const startDate = new Date(appointment.startDateTime)
-                        const endDate = new Date(appointment.endDateTime)
-                        const primaryTreatment = appointment.treatments[0]
-                        const treatmentName = primaryTreatment?.name ?? "ללא שיוך ללקוח"
-                        const isSelected = selectedAppointments.includes(appointment.id)
+                <div className="pr-4">
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="border-b border-gray-200">
+                                <th className="text-center py-2 px-4 text-xs font-medium text-gray-700">תאריך ושעה</th>
+                                <th className="text-center py-2 px-4 text-xs font-medium text-gray-700">לקוח / תור</th>
+                                <th className="text-center py-2 px-4 text-xs font-medium text-gray-700 w-12"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {appointments.map((appointment) => {
+                                const startDate = new Date(appointment.startDateTime)
+                                const endDate = new Date(appointment.endDateTime)
+                                const primaryDog = appointment.dogs[0]
+                                const dogName = primaryDog?.name ?? "ללא שיוך ללקוח"
+                                const isSelected = selectedAppointments.includes(appointment.id)
+                                const isCurrentAppointment = currentAppointmentId === appointment.id
 
-                        return (
-                            <div
-                                key={appointment.id}
-                                className={cn(
-                                    "flex items-center justify-between p-3 border rounded-lg bg-white shadow-sm",
-                                    onAppointmentClick && "cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-colors"
-                                )}
-                                onClick={(e) => {
-                                    // Don't trigger click if clicking on checkbox or its label
-                                    if (onAppointmentClick && !(e.target as HTMLElement).closest('.checkbox-target')) {
-                                        onAppointmentClick(appointment)
-                                    }
-                                }}
-                            >
-                                <div className="flex items-center gap-3 flex-1">
-                                    <div className="text-center min-w-[120px]">
-                                        <div className="text-sm font-semibold text-gray-900">
-                                            {format(startDate, 'HH:mm', { locale: he })} - {format(endDate, 'HH:mm', { locale: he })}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                            {format(startDate, 'dd.MM.yyyy', { locale: he })}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex-1 text-right">
-                                        <div className="text-sm font-medium text-gray-900">
-                                            {appointment.isPersonalAppointment
-                                                ? (appointment.personalAppointmentDescription || "תור אישי")
-                                                : treatmentName
-                                            }
-                                        </div>
-
-                                        {!appointment.isPersonalAppointment && primaryTreatment?.treatmentType && (
-                                            <div className="text-xs text-gray-500">
-                                                {primaryTreatment.treatmentType}
-                                            </div>
+                                return (
+                                    <tr
+                                        key={appointment.id}
+                                        className={cn(
+                                            "border-b border-gray-100",
+                                            isCurrentAppointment && "bg-red-50",
+                                            onAppointmentClick && "cursor-pointer hover:bg-gray-50 transition-colors"
                                         )}
-
-                                        <div className="text-xs text-gray-500 ">
-                                            {appointment.stationName}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <Badge
-                                        variant="outline"
-                                        className={cn("text-xs font-medium ml-4", getStatusColor(appointment.status))}
+                                        onClick={(e) => {
+                                            // Don't trigger click if clicking on checkbox
+                                            if (onAppointmentClick && !(e.target as HTMLElement).closest('.checkbox-target')) {
+                                                onAppointmentClick(appointment)
+                                            }
+                                        }}
                                     >
-                                        {appointment.status}
-                                    </Badge>
-
-                                    {appointment.isPersonalAppointment && (
-                                        <Badge
-                                            variant="outline"
-                                            className="text-xs font-medium bg-purple-100 text-purple-800"
-                                        >
-                                            תור אישי
-                                        </Badge>
-                                    )}
-                                </div>
-
-                                <div
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="checkbox-target"
-                                >
-                                    <Checkbox
-                                        checked={isSelected}
-                                        onCheckedChange={(checked) => onSelectionChange(appointment.id, checked === true)}
-                                        className="flex-shrink-0 ml-2"
-                                    />
-                                </div>
-                            </div>
-                        )
-                    })}
+                                        <td className="py-2 px-4 text-sm text-center">
+                                            <div className="font-medium text-gray-900 whitespace-nowrap">
+                                                {format(startDate, 'dd.MM.yyyy', { locale: he })} {format(startDate, 'HH:mm', { locale: he })} - {format(endDate, 'HH:mm', { locale: he })}
+                                            </div>
+                                        </td>
+                                        <td className="py-2 px-4 text-sm text-center">
+                                            <div className="flex items-center gap-2 justify-center">
+                                                <div className="text-gray-900 whitespace-nowrap">
+                                                    {appointment.isPersonalAppointment
+                                                        ? (appointment.personalAppointmentDescription || "תור אישי")
+                                                        : dogName
+                                                    }
+                                                </div>
+                                                {isCurrentAppointment && (
+                                                    <Badge variant="outline" className="text-xs bg-red-100 text-red-800 border-red-300 whitespace-nowrap">
+                                                        התור הנוכחי
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="py-2 px-4 text-center">
+                                            <div
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="checkbox-target flex justify-center"
+                                            >
+                                                <Checkbox
+                                                    checked={isSelected}
+                                                    onCheckedChange={(checked) => onSelectionChange(appointment.id, checked === true)}
+                                                    className="flex-shrink-0"
+                                                />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
                 </div>
             </ScrollArea>
 
-            <div className="flex items-center space-x-2 rtl:space-x-reverse mb-4">
+            <div className="flex items-center space-x-2 rtl:space-x-reverse mb-2">
                 <Checkbox
                     checked={selectAllChecked}
                     onCheckedChange={(checked) => onSelectAll(checked === true)}
@@ -161,10 +146,6 @@ export const GroupAppointmentsList: React.FC<GroupAppointmentsListProps> = ({
                 <label className="text-sm text-gray-700">
                     בחר הכל ({appointments.length} תורים)
                 </label>
-            </div>
-
-            <div className="text-xs text-gray-500 text-right mb-4">
-                סה"כ {appointments.length} תורים בקבוצה
             </div>
         </div>
     )

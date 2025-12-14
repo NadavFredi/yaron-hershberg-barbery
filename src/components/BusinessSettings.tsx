@@ -13,11 +13,11 @@ interface BusinessSettingsProps {
 
 const BusinessSettings = ({ onBack }: BusinessSettingsProps) => {
   const [businessData, setBusinessData] = useState({
-    name: 'ירון הרשברג- מספרה יוצאת דופן',
-    description: 'מספרת בוטיק ללקוחות פרטיים',
-    address: 'ירושלים, ירושלים',
+    name: 'מספרה יוצאת דופן',
+    description: 'מספרה יוצאת דופן',
+    address: 'שדרות ירושלים',
     phone: '03-1234567',
-    email: 'info@yaronhershberg.co.il'
+    email: 'info@yaron-hershberg.co.il'
   });
 
   const handleSave = () => {

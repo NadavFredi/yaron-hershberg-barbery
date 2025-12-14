@@ -5,6 +5,15 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, Clock, ChevronLeft } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { useToast } from "@/hooks/use-toast"
+import { supabaseApi, useLazyGetManagerAppointmentQuery } from "@/store/services/supabaseApi"
+import {
+    setDuplicateSuccessOpen,
+    setSelectedAppointment,
+    setIsDetailsOpen,
+    setIsLoadingAppointment
+} from "@/store/slices/managerScheduleSlice"
 
 interface CreatedAppointment {
     startTime: string
@@ -15,21 +24,57 @@ interface CreatedAppointment {
     appointmentType: string
 }
 
-interface DuplicateSuccessModalProps {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    appointments: CreatedAppointment[]
-    onAppointmentClick: (appointment: CreatedAppointment) => void
-}
+export function DuplicateSuccessModal() {
+    const dispatch = useAppDispatch()
+    const { toast } = useToast()
+    const [fetchManagerAppointment] = useLazyGetManagerAppointmentQuery()
 
-export const DuplicateSuccessModal: React.FC<DuplicateSuccessModalProps> = ({
-    open,
-    onOpenChange,
-    appointments,
-    onAppointmentClick
-}) => {
+    const open = useAppSelector((state) => state.managerSchedule.duplicateSuccessOpen)
+    const createdAppointments = useAppSelector((state) => state.managerSchedule.createdAppointments)
+
+    const handleClose = () => {
+        dispatch(setDuplicateSuccessOpen(false))
+    }
+
+    const handleAppointmentClick = async (createdAppointment: CreatedAppointment) => {
+        // Open the drawer immediately with loading state
+        dispatch(setIsLoadingAppointment(true))
+        dispatch(setSelectedAppointment(null)) // Clear previous appointment
+        dispatch(setIsDetailsOpen(true))
+
+        try {
+            // Invalidate cache to refresh the schedule after creating appointment
+            dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment", "GardenAppointment"]))
+
+            // If we have appointmentId, fetch directly from Supabase. Otherwise use recordID as fallback
+            const appointmentId = createdAppointment.appointmentId || createdAppointment.recordID
+            const serviceType = (createdAppointment.serviceType || "grooming") as "grooming" | "garden"
+
+            if (!appointmentId) {
+                throw new Error("Appointment ID not found")
+            }
+
+            const appointment = await fetchManagerAppointment(
+                { appointmentId, serviceType },
+                true
+            ).unwrap()
+
+            dispatch(setSelectedAppointment(appointment))
+        } catch (error) {
+            console.error('Error fetching appointment:', error)
+            dispatch(setIsDetailsOpen(false))
+            toast({
+                title: "שגיאה",
+                description: "לא ניתן לטעון את פרטי התור כרגע.",
+                variant: "destructive"
+            })
+        } finally {
+            dispatch(setIsLoadingAppointment(false))
+        }
+    }
+
     const getServiceLabel = (serviceType: string) => {
-        return serviceType === 'garden' ? 'גן' : 'מספרה'
+        return serviceType === 'garden' ? '' : 'מספרה'
     }
 
     const getServiceStyle = (serviceType: string) => {
@@ -51,20 +96,20 @@ export const DuplicateSuccessModal: React.FC<DuplicateSuccessModalProps> = ({
                         <DialogTitle className="text-right">סדרת תורים נוצרה בהצלחה!</DialogTitle>
                     </div>
                     <DialogDescription className="text-right">
-                        נוצרו {appointments.length} תורים חוזרים. לחץ על תור כדי לפתוח את פרטיו.
+                        נוצרו {createdAppointments.length} תורים חוזרים. לחץ על תור כדי לפתוח את פרטיו.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto px-1">
                     <div className="space-y-3">
-                        {appointments.map((appointment, index) => {
+                        {createdAppointments.map((appointment, index) => {
                             const startDate = new Date(appointment.startTime)
                             const endDate = new Date(appointment.endTime)
 
                             return (
                                 <div
                                     key={appointment.recordID || index}
-                                    onClick={() => onAppointmentClick(appointment)}
+                                    onClick={() => handleAppointmentClick(appointment)}
                                     className="p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
                                 >
                                     <div className="flex items-start justify-between">
@@ -103,7 +148,7 @@ export const DuplicateSuccessModal: React.FC<DuplicateSuccessModalProps> = ({
                 </div>
 
                 <DialogFooter dir="ltr" className="justify-end">
-                    <Button onClick={() => onOpenChange(false)}>
+                    <Button onClick={handleClose}>
                         סגור
                     </Button>
                 </DialogFooter>

@@ -19,22 +19,19 @@ function getEnvVar(key: string): string {
 }
 
 export const env = {
-  AIRTABLE_PAT: getEnvVar("VITE_AIRTABLE_PAT"),
-  AIRTABLE_BASE_ID: getEnvVar("VITE_AIRTABLE_BASE_ID"),
   SUPABASE_URL: getEnvVar("VITE_SUPABASE_URL"),
   SUPABASE_ANON_KEY: getEnvVar("VITE_SUPABASE_ANON_KEY"),
 }
 
 // Validate required environment variables
 export function validateEnv() {
-  // Only require Airtable variables for now
-  const requiredVars = ["AIRTABLE_PAT", "AIRTABLE_BASE_ID"]
+  const requiredVars = ["SUPABASE_URL", "SUPABASE_ANON_KEY"]
 
   const missing = requiredVars.filter((varName) => !env[varName as keyof typeof env])
 
   if (missing.length > 0) {
     console.warn("⚠️ Missing environment variables:", missing)
-    console.warn("Please check your .env file and ensure VITE_AIRTABLE_PAT and VITE_AIRTABLE_BASE_ID are set")
+    console.warn("Please check your .env file and ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set")
   }
 
   return missing.length === 0

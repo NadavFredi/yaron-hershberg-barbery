@@ -4,35 +4,42 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { format } from "date-fns"
-import { useGetGroupAppointmentsQuery } from "@/store/services/supabaseApi"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { useGetGroupAppointmentsQuery, supabaseApi, useGetManagerScheduleQuery } from "@/store/services/supabaseApi"
 import { GroupAppointmentsList } from "@/components/GroupAppointmentsList"
 import { cn } from "@/lib/utils"
-import type { ManagerAppointment } from "@/types/managerSchedule"
+import { useToast } from "@/hooks/use-toast"
+import { managerCancelAppointment } from "@/integrations/supabase/supabaseService"
+import { supabase } from "@/integrations/supabase/client"
+import { MANYCHAT_FLOW_IDS, getManyChatCustomFieldId } from "@/lib/manychat"
+import {
+    setCancelConfirmationOpen,
+    setAppointmentToCancel,
+    setUpdateCustomerCancel,
+    setIsCancelling,
+    setSelectedAppointment,
+    setIsDetailsOpen,
+    setDeleteConfirmationOpen
+} from "@/store/slices/managerScheduleSlice"
+import type { ManagerAppointment } from "@/pages/ManagerSchedule/types"
 import type { CheckedState } from "@radix-ui/react-checkbox"
 
-interface CancelConfirmationDialogProps {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    appointmentToCancel: ManagerAppointment | null
-    updateCustomerCancel: boolean
-    setUpdateCustomerCancel: (update: boolean) => void
-    onConfirm: (cancelGroup?: boolean, selectedAppointmentIds?: string[]) => void
-    onCancel: () => void
-    isLoading?: boolean
-    onAppointmentClick?: (appointment: ManagerAppointment) => void
-}
+export function CancelConfirmationDialog() {
+    const dispatch = useAppDispatch()
+    const { toast } = useToast()
 
-export const CancelConfirmationDialog: React.FC<CancelConfirmationDialogProps> = ({
-    open,
-    onOpenChange,
-    appointmentToCancel,
-    updateCustomerCancel,
-    setUpdateCustomerCancel,
-    onConfirm,
-    onCancel,
-    isLoading = false,
-    onAppointmentClick
-}) => {
+    const open = useAppSelector((state) => state.managerSchedule.cancelConfirmationOpen)
+    const appointmentToCancel = useAppSelector((state) => state.managerSchedule.appointmentToCancel)
+    const updateCustomerCancel = useAppSelector((state) => state.managerSchedule.updateCustomerCancel)
+    const isCancelling = useAppSelector((state) => state.managerSchedule.isCancelling)
+    const selectedDate = useAppSelector((state) => state.managerSchedule.selectedDate)
+    const serviceFilter = useAppSelector((state) => state.managerSchedule.serviceFilter)
+
+    const { refetch } = useGetManagerScheduleQuery({
+        date: format(new Date(selectedDate), 'yyyy-MM-dd'),
+        serviceType: serviceFilter
+    })
+
     const [cancelGroup, setCancelGroup] = useState(false)
     const [selectedGroupAppointments, setSelectedGroupAppointments] = useState<string[]>([])
 
@@ -101,8 +108,241 @@ export const CancelConfirmationDialog: React.FC<CancelConfirmationDialogProps> =
     const allSelected = totalSelectableAppointments > 0 && selectedGroupAppointments.length === totalSelectableAppointments
     const hasPartialSelection = selectedGroupAppointments.length > 0 && !allSelected
     const selectAllState: CheckedState = allSelected ? true : hasPartialSelection ? 'indeterminate' : false
+
+    const handleClose = () => {
+        dispatch(setCancelConfirmationOpen(false))
+    }
+
+    const handleGroupAppointmentClick = (appointment: ManagerAppointment) => {
+        // Close any open dialogs
+        dispatch(setDeleteConfirmationOpen(false))
+        dispatch(setCancelConfirmationOpen(false))
+
+        // Open the appointment drawer
+        dispatch(setSelectedAppointment(appointment))
+        dispatch(setIsDetailsOpen(true))
+    }
+
+    // Helper function to trigger ManyChat flow for cancelled appointments
+    const triggerManyChatAppointmentDeletedFlow = async (appointments: ManagerAppointment[]) => {
+        if (!updateCustomerCancel) {
+            console.log("ℹ️ [CancelConfirmationDialog] updateCustomerCancel is not checked, skipping ManyChat flow")
+            return
+        }
+
+        const flowId = MANYCHAT_FLOW_IDS.APPOINTMENT_DELETED
+        if (!flowId) {
+            console.warn("⚠️ [CancelConfirmationDialog] APPOINTMENT_DELETED flow ID not found")
+            return
+        }
+
+        // Filter appointments that have phone numbers and collect unique clients
+        const appointmentsWithPhones = appointments.filter(
+            (apt) => apt.clientPhone && apt.clientPhone.trim().length > 0
+        )
+
+        if (!appointmentsWithPhones.length) {
+            console.log("ℹ️ [CancelConfirmationDialog] No appointments with phone numbers to send ManyChat flow")
+            return
+        }
+
+        // Create a map to avoid sending duplicate flows to the same phone number
+        // Use appointment data to set fields for each unique client
+        const uniqueClients = new Map<string, { phone: string; name: string; fields: Record<string, string> }>()
+        for (const apt of appointmentsWithPhones) {
+            const normalizedPhone = apt.clientPhone!.replace(/\D/g, "") // Normalize to digits only
+
+            // Use barber fields for all appointments
+            const dateFieldId = getManyChatCustomFieldId("BARBER_DATE_APPOINTMENT")
+            const hourFieldId = getManyChatCustomFieldId("BARBER_HOUR_APPOINTMENT")
+
+            // Format appointment date (dd/MM/yyyy)
+            const appointmentDate = format(new Date(apt.startDateTime), 'dd/MM/yyyy')
+            // Format appointment time (HH:mm)
+            const appointmentTime = format(new Date(apt.startDateTime), 'HH:mm')
+
+            // Build fields object
+            const fields: Record<string, string> = {}
+            if (dateFieldId) {
+                fields[dateFieldId] = appointmentDate
+            }
+            if (hourFieldId) {
+                fields[hourFieldId] = appointmentTime
+            }
+
+            if (!uniqueClients.has(normalizedPhone)) {
+                uniqueClients.set(normalizedPhone, {
+                    phone: normalizedPhone,
+                    name: apt.clientName || "לקוח",
+                    fields: fields,
+                })
+            } else {
+                // If multiple appointments for same client, merge fields (use most recent appointment data)
+                const existing = uniqueClients.get(normalizedPhone)!
+                if (dateFieldId) {
+                    existing.fields[dateFieldId] = appointmentDate
+                }
+                if (!isGarden) {
+                    if (hourFieldId) {
+                        existing.fields[hourFieldId] = appointmentTime
+                    }
+                    if (dogNameField) {
+                        existing.fields[dogNameField] = dogName
+                    }
+                }
+            }
+        }
+
+        const users = Array.from(uniqueClients.values())
+
+        try {
+            console.log(`📤 [CancelConfirmationDialog] Sending APPOINTMENT_DELETED flow to ${users.length} recipient(s)`)
+            const { data, error } = await supabase.functions.invoke("set-manychat-fields-and-send-flow", {
+                body: {
+                    users,
+                    flow_id: flowId,
+                },
+            })
+
+            if (error) {
+                console.error("❌ [CancelConfirmationDialog] Error calling ManyChat function:", error)
+                // Don't throw - we don't want to fail the whole operation if ManyChat fails
+                return
+            }
+
+            const results = data as Record<string, { success: boolean; error?: string }>
+            const successCount = Object.values(results).filter((r) => r.success).length
+            const failureCount = Object.values(results).filter((r) => !r.success).length
+
+            console.log(
+                `✅ [CancelConfirmationDialog] ManyChat flow sent: ${successCount} success, ${failureCount} failures`
+            )
+
+            if (failureCount > 0) {
+                console.warn("⚠️ [CancelConfirmationDialog] Some ManyChat flows failed:", results)
+            }
+        } catch (error) {
+            console.error("❌ [CancelConfirmationDialog] Error triggering ManyChat flow:", error)
+            // Don't throw - we don't want to fail the whole operation if ManyChat fails
+        }
+    }
+
+    const handleConfirm = async (cancelGroup?: boolean, selectedAppointmentIds?: string[]) => {
+        if (!appointmentToCancel) return
+
+        dispatch(setIsCancelling(true))
+        try {
+            // If canceling group and we have selected appointments, loop through them
+            if (cancelGroup && selectedAppointmentIds && selectedAppointmentIds.length > 0) {
+                // Cancel all selected appointments in Supabase
+                for (const aptId of selectedAppointmentIds) {
+                    const result = await managerCancelAppointment({
+                        appointmentId: aptId,
+                        appointmentTime: appointmentToCancel.startDateTime,
+                        serviceType: appointmentToCancel.serviceType,
+                        dogId: appointmentToCancel.dogs[0]?.id,
+                        stationId: appointmentToCancel.stationId,
+                        updateCustomer: updateCustomerCancel,
+                        clientName: appointmentToCancel.clientName,
+                        appointmentDate: new Date(appointmentToCancel.startDateTime).toLocaleDateString('he-IL'),
+                        groupId: cancelGroup ? appointmentToCancel.groupAppointmentId : undefined,
+                    })
+
+                    if (!result.success) {
+                        console.warn(`Failed to cancel appointment ${aptId}:`, result.error)
+                    }
+                }
+            } else {
+                // Single appointment cancellation
+                const result = await managerCancelAppointment({
+                    appointmentId: appointmentToCancel.id,
+                    appointmentTime: appointmentToCancel.startDateTime,
+                    serviceType: appointmentToCancel.serviceType,
+                    dogId: appointmentToCancel.dogs[0]?.id,
+                    stationId: appointmentToCancel.stationId,
+                    updateCustomer: updateCustomerCancel,
+                    clientName: appointmentToCancel.clientName,
+                    dogName: appointmentToCancel.dogs[0]?.name,
+                    appointmentDate: new Date(appointmentToCancel.startDateTime).toLocaleDateString('he-IL'),
+                    groupId: cancelGroup ? appointmentToCancel.groupAppointmentId : undefined,
+                })
+
+                if (!result.success) {
+                    throw new Error(result.error || "Failed to cancel appointment")
+                }
+            }
+
+            // Collect all cancelled appointments for ManyChat flow
+            const cancelledAppointments: ManagerAppointment[] = []
+
+            // If canceling group, collect all selected appointments
+            if (cancelGroup && selectedAppointmentIds && selectedAppointmentIds.length > 0) {
+                for (const aptId of selectedAppointmentIds) {
+                    const apt = groupData?.appointments.find(a => a.id === aptId) || appointmentToCancel
+                    if (apt) {
+                        cancelledAppointments.push(apt)
+                    }
+                }
+            }
+
+            // Always include the current appointment being cancelled
+            if (!cancelledAppointments.find(apt => apt.id === appointmentToCancel.id)) {
+                cancelledAppointments.push(appointmentToCancel)
+            }
+
+            // Trigger ManyChat flow if updateCustomerCancel is checked
+            await triggerManyChatAppointmentDeletedFlow(cancelledAppointments)
+
+            // Close the confirmation dialog
+            dispatch(setCancelConfirmationOpen(false))
+            dispatch(setAppointmentToCancel(null))
+
+            // Show success toast
+            const isGroupOperation = cancelGroup && selectedAppointmentIds && selectedAppointmentIds.length > 0
+            toast({
+                title: "התור בוטל בהצלחה",
+                description: isGroupOperation
+                    ? `${selectedAppointmentIds.length} תורים בוטלו בהצלחה`
+                    : `התור של ${appointmentToCancel.dogs[0]?.name || 'הלקוח'} בוטל בהצלחה`,
+                variant: "default",
+            })
+
+            // Invalidate cache to refresh the schedule
+            dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment", "GardenAppointment"]))
+
+            // Refresh the data by invalidating the cache and refetching
+            await dispatch(supabaseApi.util.invalidateTags(['ManagerSchedule']))
+            await refetch()
+
+        } catch (error) {
+            console.error('Error cancelling appointment:', error)
+
+            // Show error toast
+            toast({
+                title: "שגיאה בביטול התור",
+                description: error instanceof Error ? error.message : "אירעה שגיאה בעת ביטול התור",
+                variant: "destructive",
+            })
+
+            // Refresh the data even on error to ensure UI is up-to-date
+            await dispatch(supabaseApi.util.invalidateTags(['ManagerSchedule']))
+            await refetch()
+        } finally {
+            dispatch(setIsCancelling(false))
+        }
+    }
+
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog
+            open={open}
+            onOpenChange={(value) => {
+                if (!value) {
+                    handleClose()
+                } else {
+                    dispatch(setCancelConfirmationOpen(true))
+                }
+            }}
+        >
             <DialogContent className={cn("max-w-md", hasGroupId && "max-w-2xl")} dir="rtl">
                 <DialogHeader>
                     <DialogTitle className="text-right">
@@ -124,8 +364,8 @@ export const CancelConfirmationDialog: React.FC<CancelConfirmationDialogProps> =
                                 <div><strong>שעה:</strong> {format(new Date(appointmentToCancel.startDateTime), 'HH:mm')} - {format(new Date(appointmentToCancel.endDateTime), 'HH:mm')}</div>
                                 <div><strong>עמדה:</strong> {appointmentToCancel.stationName || 'לא זמין'}</div>
                                 <div><strong>לקוח:</strong> {appointmentToCancel.clientName || 'לא זמין'}</div>
-                                <div><strong>לקוח:</strong> {appointmentToCancel.treatments[0]?.name || 'לא זמין'}</div>
-                                <div><strong>שירות:</strong> {appointmentToCancel.serviceType === 'grooming' ? 'מספרה' : 'גן'}</div>
+                                <div><strong>לקוח:</strong> {appointmentToCancel.dogs[0]?.name || 'לא זמין'}</div>
+                                <div><strong>שירות:</strong> {appointmentToCancel.serviceType === 'grooming' ? 'מספרה' : ''}</div>
                                 {hasGroupId && (
                                     <div><strong>מזהה קבוצה:</strong> {appointmentToCancel.groupAppointmentId}</div>
                                 )}
@@ -182,7 +422,7 @@ export const CancelConfirmationDialog: React.FC<CancelConfirmationDialogProps> =
                                             onSelectAll={handleSelectAll}
                                             selectAllChecked={selectAllState}
                                             isLoading={isLoadingGroup}
-                                            onAppointmentClick={onAppointmentClick}
+                                            onAppointmentClick={handleGroupAppointmentClick}
                                         />
                                     </AccordionContent>
                                 </AccordionItem>
@@ -191,29 +431,37 @@ export const CancelConfirmationDialog: React.FC<CancelConfirmationDialogProps> =
                     )}
 
                     <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                        <input
-                            type="checkbox"
+                        <Checkbox
                             id="updateCustomerCancel"
                             checked={updateCustomerCancel}
-                            onChange={(e) => setUpdateCustomerCancel(e.target.checked)}
-                            className="rounded border-gray-300"
+                            onCheckedChange={(checked) => {
+                                dispatch(setUpdateCustomerCancel(checked as boolean))
+                            }}
+                            className="cursor-pointer"
                         />
-                        <label htmlFor="updateCustomerCancel" className="text-sm text-gray-700">
+                        <label
+                            htmlFor="updateCustomerCancel"
+                            className="text-sm text-gray-700 cursor-pointer"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                dispatch(setUpdateCustomerCancel(!updateCustomerCancel))
+                            }}
+                        >
                             עדכן את הלקוח על ביטול התור
                         </label>
                     </div>
                 </div>
 
                 <DialogFooter className="flex-row-reverse mt-6" dir="ltr">
-                    <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+                    <Button variant="outline" onClick={handleClose} disabled={isCancelling}>
                         ביטול
                     </Button>
                     <Button
-                        onClick={() => onConfirm(cancelGroup, selectedGroupAppointments)}
+                        onClick={() => handleConfirm(cancelGroup, selectedGroupAppointments)}
                         className="bg-orange-600 hover:bg-orange-700"
-                        disabled={isLoading}
+                        disabled={isCancelling}
                     >
-                        {isLoading ? (
+                        {isCancelling ? (
                             <div className="flex items-center space-x-2 rtl:space-x-reverse">
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                                 <span>מבטל...</span>

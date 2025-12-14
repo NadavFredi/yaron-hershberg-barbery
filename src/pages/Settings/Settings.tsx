@@ -4,15 +4,13 @@ import { Loader2 } from "lucide-react"
 import { useManagerRole } from "@/hooks/useManagerRole"
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth"
 import AdminLayout from "@/components/layout/AdminLayout"
-import { SettingsTreatmentTypesSection } from "@/components/settings/SettingsTreatmentTypesSection/SettingsTreatmentTypesSection"
 import { SettingsWorkingHoursSection } from "@/components/settings/SettingsWorkingHoursSection/SettingsWorkingHoursSection"
 import { SettingsStationsSection } from "@/components/settings/SettingsStationsSection/SettingsStationsSection"
+import { SettingsStationsPerDaySection } from "@/components/settings/SettingsStationsPerDaySection/SettingsStationsPerDaySection"
+import { SettingsServiceStationMatrixSection } from "@/components/settings/SettingsServiceStationMatrixSection/SettingsServiceStationMatrixSection"
 import { SettingsConstraintsSection } from "@/components/settings/SettingsConstraintsSection/SettingsConstraintsSection"
-import { SettingsTreatmentTypeStationMatrixSection } from "@/components/settings/SettingsTreatmentTypeStationMatrixSection/SettingsTreatmentTypeStationMatrixSection"
-import { SettingsSubnav } from "@/components/navigation/SettingsSubnav"
-import { SettingsServicesSection } from "@/components/settings/SettingsServicesSection/SettingsServicesSection"
-
-const VALID_SECTIONS = ["treatmentTypes", "working-hours", "stations", "services", "constraints", "matrix"] as const
+import { SettingsProtectedScreensSection } from "@/components/settings/SettingsProtectedScreensSection/SettingsProtectedScreensSection"
+const VALID_SECTIONS = ["working-hours", "stations", "stations-per-day", "service-station-matrix", "constraints", "protected-screens"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function Settings() {
@@ -25,8 +23,6 @@ export default function Settings() {
     // Also check if constraintId is present, which means we should open constraints section
     const constraintId = searchParams.get("constraintId")
     const sectionFromUrl = searchParams.get("mode")
-    const defaultTreatmentTypeId = searchParams.get("category1Id")
-    const defaultTreatmentCategoryId = searchParams.get("category2Id")
     const initialSection = (constraintId ? "constraints" : (sectionFromUrl && VALID_SECTIONS.includes(sectionFromUrl as SectionId)
         ? sectionFromUrl
         : "working-hours"))
@@ -50,7 +46,7 @@ export default function Settings() {
         }
     }, [searchParams, activeSection])
 
-    // Handle section change from URL (when SettingsSubnav changes it)
+    // Handle section change from URL (when ThirdLevelSubnav changes it)
     useEffect(() => {
         const urlSection = searchParams.get("mode")
         if (urlSection && VALID_SECTIONS.includes(urlSection as SectionId)) {
@@ -86,21 +82,15 @@ export default function Settings() {
 
     return (
         <AdminLayout>
-            <SettingsSubnav />
-            <div className="min-h-screen bg-background py-6 bg-gray-50" dir="rtl">
-                <div className="mx-auto w-full px-1 sm:px-2 lg:px-3">
+            <div className="min-h-screen bg-background py-6" dir="rtl">
+                <div className="mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-12">
                     {/* Active Section Content - Only render the active section to avoid unnecessary API calls */}
-                    {activeSection === "treatmentTypes" && (
-                        <SettingsTreatmentTypesSection
-                            defaultTreatmentTypeId={defaultTreatmentTypeId ?? undefined}
-                            defaultTreatmentCategoryId={defaultTreatmentCategoryId ?? undefined}
-                        />
-                    )}
                     {activeSection === "working-hours" && <SettingsWorkingHoursSection />}
                     {activeSection === "stations" && <SettingsStationsSection />}
-                    {activeSection === "services" && <SettingsServicesSection />}
+                    {activeSection === "stations-per-day" && <SettingsStationsPerDaySection />}
+                    {activeSection === "service-station-matrix" && <SettingsServiceStationMatrixSection />}
                     {activeSection === "constraints" && <SettingsConstraintsSection />}
-                    {activeSection === "matrix" && <SettingsTreatmentTypeStationMatrixSection />}
+                    {activeSection === "protected-screens" && <SettingsProtectedScreensSection />}
                 </div>
             </div>
         </AdminLayout>

@@ -242,7 +242,7 @@ interface DuplicateStationDialogProps {
         name?: string // Only for "new" mode
         targetStationIds?: string[] // Only for "existing" mode - multiple stations
         copyDetails: boolean
-        copyTreatmentTypeRelations: boolean
+        copyServiceRelations: boolean
     }) => Promise<void>
     isDuplicating?: boolean
 }
@@ -259,7 +259,7 @@ export function DuplicateStationDialog({
     const [duplicateStationName, setDuplicateStationName] = useState("")
     const [targetStationIds, setTargetStationIds] = useState<string[]>([])
     const [copyDetails, setCopyDetails] = useState(true)
-    const [copyTreatmentTypeRelations, setCopyTreatmentTypeRelations] = useState(true)
+    const [copyServiceRelations, setCopyServiceRelations] = useState(true)
 
     // Filter out the station being duplicated from the list
     const availableStations = stations.filter(s => s.id !== station?.id).map(s => ({ id: s.id, name: s.name }))
@@ -270,7 +270,7 @@ export function DuplicateStationDialog({
             setMode("new")
             setTargetStationIds([])
             setCopyDetails(true)
-            setCopyTreatmentTypeRelations(true)
+            setCopyServiceRelations(true)
         }
     }, [open, station])
 
@@ -279,7 +279,7 @@ export function DuplicateStationDialog({
             setDuplicateStationName("")
             setTargetStationIds([])
             setCopyDetails(true)
-            setCopyTreatmentTypeRelations(true)
+            setCopyServiceRelations(true)
             setMode("new")
             onOpenChange(false)
         }
@@ -298,13 +298,13 @@ export function DuplicateStationDialog({
             name: mode === "new" ? duplicateStationName.trim() : undefined,
             targetStationIds: mode === "existing" ? targetStationIds : undefined,
             copyDetails,
-            copyTreatmentTypeRelations,
+            copyServiceRelations,
         })
-        
+
         setDuplicateStationName("")
         setTargetStationIds([])
         setCopyDetails(true)
-        setCopyTreatmentTypeRelations(true)
+        setCopyServiceRelations(true)
         setMode("new")
     }
 
@@ -386,27 +386,27 @@ export function DuplicateStationDialog({
                             </div>
                             <div className="flex items-center space-x-2 space-x-reverse">
                                 <Checkbox
-                                    id="copy-treatmentType-relations"
-                                    checked={copyTreatmentTypeRelations}
-                                    onCheckedChange={(checked) => setCopyTreatmentTypeRelations(checked === true)}
+                                    id="copy-service-relations"
+                                    checked={copyServiceRelations}
+                                    onCheckedChange={(checked) => setCopyServiceRelations(checked === true)}
                                 />
-                                <Label htmlFor="copy-treatmentType-relations" className="cursor-pointer text-sm">
-                                    העתק גם קשרים עם גזעים
+                                <Label htmlFor="copy-service-relations" className="cursor-pointer text-sm">
+                                    העתק גם קשרים עם שירותים
                                 </Label>
                             </div>
                         </div>
                     )}
 
-                    {/* TreatmentType Relations Checkbox (only for "new" mode) */}
+                    {/* Service Relations Checkbox (only for "new" mode) */}
                     {mode === "new" && (
                         <div className="flex items-center space-x-2 space-x-reverse">
                             <Checkbox
-                                id="duplicate-treatmentType-relations"
-                                checked={copyTreatmentTypeRelations}
-                                onCheckedChange={(checked) => setCopyTreatmentTypeRelations(checked === true)}
+                                id="duplicate-service-relations"
+                                checked={copyServiceRelations}
+                                onCheckedChange={(checked) => setCopyServiceRelations(checked === true)}
                             />
-                            <Label htmlFor="duplicate-treatmentType-relations" className="cursor-pointer text-sm">
-                                אני רוצה לשכפל גם את הקשרים עם הגזעים
+                            <Label htmlFor="duplicate-service-relations" className="cursor-pointer text-sm">
+                                אני רוצה לשכפל גם את הקשרים עם השירותים
                             </Label>
                         </div>
                     )}
@@ -415,10 +415,10 @@ export function DuplicateStationDialog({
                     <Button variant="outline" onClick={handleClose} disabled={isDuplicating}>
                         ביטול
                     </Button>
-                    <Button 
-                        onClick={handleConfirm} 
+                    <Button
+                        onClick={handleConfirm}
                         disabled={
-                            isDuplicating || 
+                            isDuplicating ||
                             (mode === "new" && !duplicateStationName.trim()) ||
                             (mode === "existing" && targetStationIds.length === 0)
                         }

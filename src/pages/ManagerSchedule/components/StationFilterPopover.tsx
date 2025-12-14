@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import type { ManagerStation } from "@/types/managerSchedule"
+import type { ManagerStation } from "../types"
 import { DndContext, type DragEndEvent } from "@dnd-kit/core"
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -31,20 +31,17 @@ function StationFilterItem({ station, isSelected, onToggle }: StationFilterItemP
     transition,
   }
 
-  const isGardenStation = station.serviceType === "garden"
-
-  const draggableProps = { ...attributes, ...listeners }
-
   return (
     <div ref={setNodeRef} style={style}>
       <div className={cn("flex w-full items-center gap-2", isDragging && "opacity-80")}>
         <button
           type="button"
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-gray-400 transition-colors hover:border-blue-200 hover:text-blue-700"
+            "flex h-8 w-8 items-center justify-center rounded-md  text-gray-400 transition-colors border border-transparent hover:border-blue-200 hover:text-blue-700"
           )}
           aria-label="שנה סדר עמדה"
-          {...draggableProps}
+          {...attributes}
+          {...listeners}
         >
           <GripVertical className="h-4 w-4" />
         </button>
@@ -53,24 +50,17 @@ function StationFilterItem({ station, isSelected, onToggle }: StationFilterItemP
           onClick={() => onToggle(station.id, !isSelected)}
           className={cn(
             "flex flex-1 items-center justify-between rounded-md border px-3 py-2 text-right text-sm transition-colors",
-            isGardenStation
-              ? isSelected
-                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                : "border-emerald-100 bg-white text-emerald-800 hover:border-emerald-200 hover:bg-emerald-50"
-              : isSelected
-                ? "border-blue-200 bg-blue-50 text-blue-900"
-                : "border-slate-200 text-gray-800 hover:border-blue-200 hover:bg-blue-50"
+            isSelected
+              ? "border-blue-200 bg-blue-50 text-blue-900"
+              : "border-slate-200 text-gray-800 hover:border-blue-200 hover:bg-blue-50"
           )}
         >
           <div className="flex items-center gap-2">
-            <span className="font-medium text-gray-900">{station.name}</span>
-            <span
-              className={cn(
-                "rounded border px-2 py-0.5 text-[11px]",
-                "border-slate-200 text-gray-600"
-              )}
-            >
-              {station.serviceType === "garden" ? "גן" : "מספרה"}
+            <span className="font-medium text-gray-900">
+              {station.name}
+            </span>
+            <span className="rounded border px-2 py-0.5 text-[11px] border-slate-200 text-gray-600">
+              מספרה
             </span>
             {!station.isActive ? (
               <span className="text-xs text-amber-600">מושהית</span>
@@ -79,11 +69,7 @@ function StationFilterItem({ station, isSelected, onToggle }: StationFilterItemP
           {isSelected ? (
             <CheckCircle2 className="h-4 w-4 text-blue-600" />
           ) : (
-            <span
-              className={cn(
-                "h-4 w-4 rounded-full border border-slate-300 bg-white"
-              )}
-            />
+            <span className="h-4 w-4 rounded-full border border-slate-300 bg-white" />
           )}
         </button>
       </div>
@@ -96,6 +82,7 @@ export interface StationFilterPopoverProps {
   visibleStationIds: string[]
   onSelectAll: () => void
   onClear: () => void
+  onRestoreDaily?: () => void
   onToggle: (stationId: string, next: boolean) => void
   sensors: any
   onReorderEnd: (event: DragEndEvent) => void
@@ -103,6 +90,9 @@ export interface StationFilterPopoverProps {
   showWaitingListColumn: boolean
   waitingListCount: number
   onToggleWaitingList: (next: boolean) => void
+  showPinnedAppointmentsColumn?: boolean
+  pinnedAppointmentsCount?: number
+  onTogglePinnedAppointments?: (next: boolean) => void
   trigger?: ReactNode
   align?: "start" | "center" | "end"
   side?: "top" | "bottom" | "left" | "right"
@@ -144,6 +134,42 @@ function WaitingListFilterItem({ isVisible, count, onToggle }: WaitingListItemPr
   )
 }
 
+function PinnedAppointmentsFilterItem({ isVisible, count, onToggle }: PinnedAppointmentsFilterItemProps) {
+  return (
+    <div className="flex w-full items-center gap-2">
+      <div className="flex h-8 w-8 items-center justify-center rounded-md ">
+        <GripVertical className="h-4 w-4 opacity-40" />
+      </div>
+      <button
+        type="button"
+        onClick={() => onToggle(!isVisible)}
+        className={cn(
+          "flex flex-1 items-center justify-between rounded-md border px-3 py-2 text-right text-sm transition-colors",
+          isVisible
+            ? "border-amber-200 bg-amber-50 text-amber-900"
+            : "border-amber-100 bg-white text-amber-800 hover:border-amber-200 hover:bg-amber-50"
+        )}
+      >
+        <div className="flex flex-col items-end">
+          <span className="font-semibold">תורים מסומנים</span>
+          <span className="text-xs text-amber-700">{count} מסומנים</span>
+        </div>
+        {isVisible ? (
+          <CheckCircle2 className="h-4 w-4 text-amber-600" />
+        ) : (
+          <span className="h-4 w-4 rounded-full border border-amber-200 bg-white" />
+        )}
+      </button>
+    </div>
+  )
+}
+
+interface PinnedAppointmentsFilterItemProps {
+  isVisible: boolean
+  count: number
+  onToggle: (next: boolean) => void
+}
+
 export function StationFilterPopover({
   stations,
   visibleStationIds,
@@ -156,31 +182,29 @@ export function StationFilterPopover({
   showWaitingListColumn,
   waitingListCount,
   onToggleWaitingList,
+  showPinnedAppointmentsColumn,
+  pinnedAppointmentsCount,
+  onTogglePinnedAppointments,
   trigger,
   align = "end",
   side = "bottom",
+  onRestoreDaily,
 }: StationFilterPopoverProps) {
-  const displayStations = stations.filter((station) => station.serviceType !== "garden")
-  if (!displayStations.length) return null
+  if (!stations.length) return null
 
-  const displayStationIds = displayStations.map((station) => station.id)
-  const selectedDisplayCount =
-    visibleStationIds.length === 0
-      ? displayStations.length
-      : visibleStationIds.filter((id) => displayStationIds.includes(id)).length
+  const selectedCount = visibleStationIds.length === 0 ? stations.length : visibleStationIds.length
+  // Only show grooming stations (no garden stations)
+  const groomingStations = stations.filter((station) => station.serviceType !== "garden")
 
   const defaultTrigger = (
     <Button type="button" variant="outline" size="sm" className="flex items-center gap-2 text-sm font-medium">
       <SlidersHorizontal className="h-4 w-4" />
       <span>עמדות</span>
       <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-        {selectedDisplayCount}/{displayStations.length}
+        {selectedCount}/{stations.length}
       </span>
     </Button>
   )
-
-  const areAllDisplaySelected =
-    visibleStationIds.length === 0 || displayStationIds.every((id) => visibleStationIds.includes(id))
 
   return (
     <Popover>
@@ -195,7 +219,7 @@ export function StationFilterPopover({
                 variant="ghost"
                 size="sm"
                 onClick={onSelectAll}
-                disabled={areAllDisplaySelected}
+                disabled={visibleStationIds.length === stations.length}
                 className="h-7 px-2 text-xs"
               >
                 בחר הכל
@@ -209,6 +233,16 @@ export function StationFilterPopover({
               >
                 נקה
               </Button>
+              {onRestoreDaily && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onRestoreDaily}
+                  className="h-7 px-2 text-xs"
+                >
+                  שחזר להגדרות יומיות
+                </Button>
+              )}
             </div>
             {isStationOrderSaving && (
               <span className="flex items-center gap-1 text-xs text-gray-500">
@@ -219,14 +253,21 @@ export function StationFilterPopover({
           </div>
           <DndContext sensors={sensors} onDragEnd={onReorderEnd}>
             <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+              {showPinnedAppointmentsColumn !== undefined && pinnedAppointmentsCount !== undefined && onTogglePinnedAppointments && (
+                <PinnedAppointmentsFilterItem
+                  isVisible={showPinnedAppointmentsColumn}
+                  count={pinnedAppointmentsCount}
+                  onToggle={onTogglePinnedAppointments}
+                />
+              )}
               <WaitingListFilterItem
                 isVisible={showWaitingListColumn}
                 count={waitingListCount}
                 onToggle={onToggleWaitingList}
               />
-              <SortableContext items={displayStationIds} strategy={verticalListSortingStrategy}>
+              <SortableContext items={groomingStations.map((station) => station.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
-                  {displayStations.map((station) => (
+                  {groomingStations.map((station) => (
                     <StationFilterItem
                       key={`station-filter-item-${station.id}`}
                       station={station}

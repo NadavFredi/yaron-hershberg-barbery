@@ -6,6 +6,7 @@ export function useManagerRole() {
   const { user, hasInitialized } = useSupabaseAuth()
   const [isManager, setIsManager] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const userId = user?.id ?? null
 
   useEffect(() => {
     const checkManagerRole = async () => {
@@ -16,7 +17,7 @@ export function useManagerRole() {
       }
 
       // If auth initialized but no user, user is not a manager
-      if (!user) {
+      if (!userId) {
         setIsManager(false)
         setIsLoading(false)
         return
@@ -24,22 +25,15 @@ export function useManagerRole() {
 
       setIsLoading(true)
       try {
-        const { data, error } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+        const { data, error } = await supabase.from("profiles").select("role").eq("id", userId).single()
 
         if (error) {
-          console.error("[useManagerRole] Error checking manager role:", error)
           setIsManager(false)
         } else {
           const isUserManager = data?.role === "manager"
-          console.log("[useManagerRole] Role check result:", {
-            userId: user.id,
-            role: data?.role,
-            isManager: isUserManager,
-          })
           setIsManager(isUserManager)
         }
       } catch (error) {
-        console.error("Error checking manager role:", error)
         setIsManager(false)
       } finally {
         setIsLoading(false)
@@ -47,7 +41,7 @@ export function useManagerRole() {
     }
 
     checkManagerRole()
-  }, [user, hasInitialized])
+  }, [userId, hasInitialized])
 
   return { isManager, isLoading }
 }

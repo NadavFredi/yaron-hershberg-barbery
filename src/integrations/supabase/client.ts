@@ -28,8 +28,6 @@ try {
 
               // Only handle auth API errors (not data API which might be RLS)
               if (urlString.includes("/auth/v1/")) {
-                console.log("🔒 [supabase client] Auth API returned", response.status, "- triggering logout")
-
                 // Import and call handleInvalidToken (dynamic import to avoid circular deps)
                 const { handleInvalidToken } = await import("@/utils/auth")
                 handleInvalidToken()
@@ -43,14 +41,10 @@ try {
           },
         },
       })
-      console.log("✅ Supabase client created successfully")
-    } else {
-      console.warn("⚠️ Supabase not configured - Edge Functions will not work")
-      console.warn("Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file")
     }
   }
 } catch (error) {
-  console.error("❌ Supabase client creation failed:", error)
+  // Supabase client creation failed
 }
 
 export { supabase }
