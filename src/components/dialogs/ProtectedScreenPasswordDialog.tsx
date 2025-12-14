@@ -55,6 +55,8 @@ export function ProtectedScreenPasswordDialog({
       if (data?.valid) {
         // Store in sessionStorage that password was verified
         sessionStorage.setItem("protected_screen_password_verified", "true")
+        // Dispatch custom event to notify navbar
+        window.dispatchEvent(new Event("secureModeChanged"))
         setPassword("")
         onSuccess()
         onClose()

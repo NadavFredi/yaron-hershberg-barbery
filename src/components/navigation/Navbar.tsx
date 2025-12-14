@@ -31,7 +31,8 @@ import {
     Pin,
     PinOff,
     UserCog,
-    XCircle
+    XCircle,
+    Lock
 } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth"
@@ -401,6 +402,7 @@ export function Navbar({ isManager }: NavbarProps) {
     const currentSubscriptionsMode = currentManagerSection === "subscriptions" ? (modeParam || "list") : null
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ manager: false })
     const [expandedNestedSections, setExpandedNestedSections] = useState<Record<string, boolean>>({})
+    const [isSecureModeActive, setIsSecureModeActive] = useState(false)
     const isNavbarPinned = useAppSelector((state) => state.navbar.isNavbarPinned)
     const isSubnavHovered = useAppSelector((state) => state.navbar.isSubnavHovered)
     const isNavbarHovered = useAppSelector((state) => state.navbar.isNavbarHovered)
@@ -408,6 +410,46 @@ export function Navbar({ isManager }: NavbarProps) {
     const hideTimeoutRef = useRef<number | null>(null)
     const hasInitializedFromUrlRef = useRef(false)
     const lastSyncedReduxStateRef = useRef<boolean | null>(null)
+
+    // Check secure mode status
+    useEffect(() => {
+        const checkSecureMode = () => {
+            const isVerified = sessionStorage.getItem("protected_screen_password_verified") === "true"
+            setIsSecureModeActive(isVerified)
+        }
+
+        checkSecureMode()
+
+        // Listen for storage changes (in case it's cleared from another tab)
+        const handleStorageChange = () => checkSecureMode()
+        window.addEventListener("storage", handleStorageChange)
+
+        // Listen for custom event when secure mode changes (same tab)
+        const handleSecureModeChanged = () => checkSecureMode()
+        window.addEventListener("secureModeChanged", handleSecureModeChanged)
+
+        return () => {
+            window.removeEventListener("storage", handleStorageChange)
+            window.removeEventListener("secureModeChanged", handleSecureModeChanged)
+        }
+    }, [])
+
+    const handleEndSecureMode = () => {
+        sessionStorage.removeItem("protected_screen_password_verified")
+        setIsSecureModeActive(false)
+        // Dispatch event to notify other components
+        window.dispatchEvent(new Event("secureModeChanged"))
+        toast({
+            title: "מצב מאובטח הופסק",
+            description: "תידרש סיסמה כדי לגשת למסכים מוגנים",
+        })
+
+        // If currently on any manager page, redirect to manager dashboard
+        // The password check will handle showing the dialog if needed
+        if (isOnManagerBoard) {
+            navigate("/manager")
+        }
+    }
 
     // Check if we're on any manager page (all manager routes)
     const isOnManagerBoard = location.pathname.startsWith("/manager") || location.pathname.startsWith("/manager-screens")
@@ -934,6 +976,18 @@ export function Navbar({ isManager }: NavbarProps) {
                                         triggerSize="icon"
                                     />
                                 )}
+                                {/* Secure Mode Indicator - Mobile - only show when active */}
+                                {isManager && isSecureModeActive && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={handleEndSecureMode}
+                                        className="rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                                        aria-label="סיים מצב מאובטח"
+                                    >
+                                        <Lock className="h-5 w-5" />
+                                    </Button>
+                                )}
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -992,6 +1046,25 @@ export function Navbar({ isManager }: NavbarProps) {
                                     />
                                 )}
                                 {isManager && <ImpersonationSelector isManager={isManager} />}
+                                {/* Secure Mode Indicator - only show when active */}
+                                {isManager && isSecureModeActive && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={handleEndSecureMode}
+                                                className="rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                                                aria-label="סיים מצב מאובטח"
+                                            >
+                                                <Lock className="h-5 w-5" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent align="end">
+                                            מצב מאובטח פעיל - לחץ לסיום
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
                                 {/* Pin button for all manager pages */}
                                 {isOnManagerBoard && (
                                     <Tooltip>

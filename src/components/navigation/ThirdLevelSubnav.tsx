@@ -25,6 +25,7 @@ import {
   Settings,
   History,
   Grid3x3,
+  Lock,
 } from "lucide-react"
 
 // Define all third level navigation sections
@@ -35,7 +36,7 @@ export const THIRD_LEVEL_SECTIONS = {
     { id: "stations-per-day", label: "עמדות לפי יום", icon: CalendarDays },
     { id: "service-station-matrix", label: "מטריצת שירותים-עמדות", icon: Grid3x3 },
     { id: "constraints", label: "אילוצים", icon: AlertCircle },
-    { id: "protected-screens", label: "מסכים מוגנים", icon: Settings },
+    { id: "protected-screens", label: "מסכים מוגנים", icon: Lock },
   ],
   subscriptions: [
     { id: "list", label: "מנויים", description: "ניהול רשימת מנויים", icon: Ticket },
