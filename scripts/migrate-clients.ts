@@ -6,6 +6,7 @@ import { resolve } from "path"
 import XLSX from "xlsx"
 import { existsSync } from "fs"
 import { randomUUID } from "crypto"
+import * as readline from "readline"
 
 // Load environment variables
 config({ path: resolve(process.cwd(), ".env.local") })
@@ -15,6 +16,46 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "http://localhost:54321"
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU"
+
+/**
+ * Wait for user approval to continue
+ */
+function waitForApproval(): Promise<void> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    })
+
+    console.log("")
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    console.log("⏸️  Worker creation complete!")
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    console.log("")
+    console.log("Please review the workers created above.")
+    console.log("Press ENTER or type 'yes' to continue with the migration,")
+    console.log("or type 'no' to exit without continuing.")
+    console.log("")
+
+    rl.question("Continue? (yes/no, default: yes): ", (answer) => {
+      rl.close()
+      const normalizedAnswer = answer.trim().toLowerCase()
+      if (normalizedAnswer === "no" || normalizedAnswer === "n") {
+        console.log("")
+        console.log(
+          "❌ Migration cancelled by user. Workers have been created, but the rest of the migration was not executed."
+        )
+        console.log("")
+        process.exit(0)
+      } else {
+        console.log("")
+        console.log("✅ Continuing with migration...")
+        console.log("")
+        resolve()
+      }
+    })
+  })
+}
 
 /**
  * Format error for logging - handles various error types
@@ -486,19 +527,20 @@ async function createWorkers(
         continue
       }
 
-      // Create auth user for worker (phone is optional for workers)
-      // Generate a placeholder phone if needed (using a format that won't conflict)
-      const placeholderPhone = `+972500000000${Math.floor(Math.random() * 10000)
-        .toString()
-        .padStart(4, "0")}`
+      // Create auth user for worker using email (no phone required)
+      // Generate a unique email address - use UUID for uniqueness since names may contain Hebrew characters
+      const workerNameTrimmed = workerName.trim()
+      const uniqueId = randomUUID().substring(0, 8) // Use first 8 chars of UUID for uniqueness
+      const workerEmail = `worker.${uniqueId}@migrated.local`
+
       const password = randomUUID() // Random password, user will need to reset
 
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        phone: placeholderPhone,
-        phone_confirm: true,
+        email: workerEmail,
+        email_confirm: true,
         password,
         user_metadata: {
-          full_name: workerName.trim(),
+          full_name: workerNameTrimmed,
           role: "worker",
         },
       })
@@ -521,6 +563,7 @@ async function createWorkers(
       const profilePayload: Record<string, unknown> = {
         id: authUserId,
         full_name: workerName.trim(),
+        email: workerEmail,
         role: "worker",
         worker_is_active: true,
       }
@@ -922,6 +965,9 @@ async function runMigration(
     }
   }
   console.log("")
+
+  // Wait for user approval before continuing
+  await waitForApproval()
 
   // Step 1: Extract unique customer external IDs from treatments
   const customerIdsWithTreatments = new Set(
