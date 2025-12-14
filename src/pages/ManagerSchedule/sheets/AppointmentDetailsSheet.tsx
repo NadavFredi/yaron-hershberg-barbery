@@ -36,6 +36,7 @@ import {
     setShowRescheduleProposalModal,
     setCustomerCommunicationAppointment,
     setShowCustomerCommunicationModal,
+    setSelectedAppointment,
 } from "@/store/slices/managerScheduleSlice"
 import type { ManagerAppointment, ManagerDog } from "../types"
 import type { Database } from "@/integrations/supabase/types"
@@ -1383,6 +1384,18 @@ export const AppointmentDetailsSheet = ({
                 throw error
             }
 
+            // Find the worker name for the updated worker
+            const updatedWorker = workerId ? workers.find((w) => w.id === workerId) : null
+
+            // Update the selectedAppointment in Redux state immediately to reflect the change in UI
+            dispatch(
+                setSelectedAppointment({
+                    ...selectedAppointment,
+                    workerId: workerId || undefined,
+                    workerName: updatedWorker?.full_name || undefined,
+                })
+            )
+
             // Invalidate and refetch schedule data to update the UI
             dispatch(
                 supabaseApi.util.invalidateTags([
@@ -1394,7 +1407,7 @@ export const AppointmentDetailsSheet = ({
             toast({
                 title: "העובד עודכן בהצלחה",
                 description: workerId
-                    ? `העובד ${workers.find((w) => w.id === workerId)?.full_name || ""} שויך לתור`
+                    ? `העובד ${updatedWorker?.full_name || ""} שויך לתור`
                     : "העובד הוסר מהתור",
             })
         } catch (error) {
