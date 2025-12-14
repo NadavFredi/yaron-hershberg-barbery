@@ -25,7 +25,7 @@ interface PaymentData {
     count: number
     byClientCategory: Record<string, { total: number; count: number; categoryName: string }>
     byStation: Record<string, { total: number; count: number; stationName: string }>
-    byService: { grooming: { total: number; count: number }; garden: { total: number; count: number } }
+    byService: Record<string, { total: number; count: number; serviceName: string }>
     byDate: Record<string, { total: number; count: number }>
     allAppointments: Array<{
         id: string
@@ -34,6 +34,7 @@ interface PaymentData {
         clientCategoryName?: string
         stationName: string
         serviceType: string
+        serviceName?: string
         customerName?: string
     }>
 }
@@ -114,6 +115,7 @@ export default function PaymentsReport() {
                           id,
                           amount_due,
                           station_id,
+                          service_id,
                           start_at,
                           customers (
                               id,
@@ -125,6 +127,10 @@ export default function PaymentsReport() {
                               )
                           ),
                           stations (
+                              id,
+                              name
+                          ),
+                          services (
                               id,
                               name
                           )
@@ -140,7 +146,22 @@ export default function PaymentsReport() {
                 throw groomingResult.error
             }
 
-            const allAppointments = (groomingResult.data || []).map((apt: any) => ({ ...apt, serviceType: "grooming" }))
+            const allAppointments = (groomingResult.data || []).map((apt: any) => {
+                const service = Array.isArray(apt.services) ? apt.services[0] : apt.services
+                const station = Array.isArray(apt.stations) ? apt.stations[0] : apt.stations
+                const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers
+                const customerType = Array.isArray(customer?.customer_type) ? customer?.customer_type[0] : customer?.customer_type
+
+                const serviceName = service?.name || "ללא שירות"
+                const serviceId = apt.service_id || "no-service"
+                return {
+                    ...apt,
+                    serviceType: serviceId,
+                    serviceName: serviceName,
+                    stations: station,
+                    customers: { ...customer, customer_type: customerType }
+                }
+            })
 
             // Filter by stations
             let filteredAppointments = allAppointments
@@ -165,7 +186,7 @@ export default function PaymentsReport() {
                 count: 0,
                 byClientCategory: {},
                 byStation: {},
-                byService: { grooming: { total: 0, count: 0 }, garden: { total: 0, count: 0 } },
+                byService: {},
                 byDate: {},
                 allAppointments: [],
             }
@@ -180,10 +201,15 @@ export default function PaymentsReport() {
                 const stationId = apt.station_id
                 const stationName = apt.stations?.name || "ללא עמדה"
                 const clientCategoryName = apt.customers?.customer_type?.name || "ללא סוג"
+                const serviceName = apt.serviceName || "ללא שירות"
+                const serviceId = apt.serviceType || "no-service"
 
-                // By service (only grooming in barbershop)
-                data.byService.grooming.total += amount
-                data.byService.grooming.count += 1
+                // By service
+                if (!data.byService[serviceId]) {
+                    data.byService[serviceId] = { total: 0, count: 0, serviceName }
+                }
+                data.byService[serviceId].total += amount
+                data.byService[serviceId].count += 1
 
                 // By client category
                 if (!data.byClientCategory[clientCategoryName]) {
@@ -217,6 +243,7 @@ export default function PaymentsReport() {
                     clientCategoryName,
                     stationName,
                     serviceType: apt.serviceType,
+                    serviceName: apt.serviceName,
                     customerName: apt.customers?.full_name,
                 })
             })
@@ -261,9 +288,13 @@ export default function PaymentsReport() {
 
     const pieDataByService = useMemo(() => {
         if (!paymentData) return []
-        return [
-            { name: "מספרה", value: paymentData.byService.grooming.total },
-        ].filter((item) => item.value > 0)
+        return Object.entries(paymentData.byService)
+            .map(([, data]) => ({
+                name: data.serviceName,
+                value: data.total,
+            }))
+            .filter((item) => item.value > 0)
+            .sort((a, b) => b.value - a.value)
     }, [paymentData])
 
 
@@ -306,8 +337,8 @@ export default function PaymentsReport() {
                 description = `סה"כ ${filtered.length} תורים`
                 break
             case "service":
-                filtered = paymentData.allAppointments.filter((apt) => apt.serviceType === "grooming")
-                title = `פרטי תשלומים - מספרה`
+                filtered = paymentData.allAppointments.filter((apt) => apt.serviceName === category)
+                title = `פרטי תשלומים - ${category}`
                 description = `סה"כ ${filtered.length} תורים`
                 break
         }
@@ -412,7 +443,7 @@ export default function PaymentsReport() {
 
             {paymentData && (
                 <>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardDescription>סה"כ תשלומים</CardDescription>
@@ -425,17 +456,22 @@ export default function PaymentsReport() {
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardDescription>מספרה</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-3xl font-bold text-blue-600">
-                                    ₪{paymentData.byService.grooming.total.toLocaleString("he-IL")}
-                                </div>
-                                <p className="text-sm text-slate-500 mt-1">{paymentData.byService.grooming.count} תורים</p>
-                            </CardContent>
-                        </Card>
+                        {Object.entries(paymentData.byService)
+                            .sort(([, a], [, b]) => b.total - a.total)
+                            .slice(0, 3)
+                            .map(([serviceId, serviceData]) => (
+                                <Card key={serviceId}>
+                                    <CardHeader className="pb-2">
+                                        <CardDescription>{serviceData.serviceName}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-3xl font-bold text-blue-600">
+                                            ₪{serviceData.total.toLocaleString("he-IL")}
+                                        </div>
+                                        <p className="text-sm text-slate-500 mt-1">{serviceData.count} תורים</p>
+                                    </CardContent>
+                                </Card>
+                            ))}
 
                     </div>
 
@@ -646,7 +682,7 @@ export default function PaymentsReport() {
                                 </TabsContent>
 
                                 <TabsContent value="byService" className="mt-6">
-                                    <div className="h-80">
+                                    <div className="h-80 pb-8">
                                         <HighchartsReact
                                             highcharts={Highcharts}
                                             options={{
@@ -654,6 +690,7 @@ export default function PaymentsReport() {
                                                     type: "pie",
                                                     backgroundColor: "transparent",
                                                     style: { fontFamily: "inherit" },
+                                                    spacingBottom: 60,
                                                 },
                                                 title: { text: null },
                                                 tooltip: {
@@ -690,9 +727,9 @@ export default function PaymentsReport() {
                                                     align: "center",
                                                     verticalAlign: "bottom",
                                                     itemStyle: { fontSize: "13px", fontWeight: "500" },
-                                                    margin: 30,
-                                                    padding: 15,
-                                                    itemMarginBottom: 10,
+                                                    margin: 50,
+                                                    padding: 20,
+                                                    itemMarginBottom: 12,
                                                 },
                                                 series: [
                                                     {
@@ -738,6 +775,10 @@ export default function PaymentsReport() {
                     {
                         key: "clientCategoryName",
                         label: "קטגוריית לקוח",
+                    },
+                    {
+                        key: "serviceName",
+                        label: "שירות",
                     },
                     {
                         key: "amount_due",

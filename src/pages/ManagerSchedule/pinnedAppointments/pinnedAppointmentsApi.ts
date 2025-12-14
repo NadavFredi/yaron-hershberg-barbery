@@ -27,6 +27,8 @@ export const pinnedAppointmentsApi = createApi({
   defaultOptions: {
     queries: {
       refetchOnMountOrArgChange: false,
+      // Preserve cached pinned appointments when switching tabs to avoid refetching
+      keepUnusedDataFor: 300,
     },
   },
   tagTypes: ["PinnedAppointment"],

@@ -266,6 +266,8 @@ export const supabaseApi = createApi({
   defaultOptions: {
     queries: {
       refetchOnMountOrArgChange: false,
+      // Keep cached data available while navigating between tabs to avoid auto refetches
+      keepUnusedDataFor: 300,
     },
   },
   tagTypes: [

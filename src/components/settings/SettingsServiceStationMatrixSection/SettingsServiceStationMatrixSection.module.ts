@@ -45,6 +45,23 @@ const cloneMatrixMap = (matrixMap: Record<string, Record<string, MatrixCell>>) =
   return cloned
 }
 
+// Short-lived cache so navigating away and back doesn't refetch matrix data
+const MATRIX_CACHE_TTL_MS = 5 * 60 * 1000
+type MatrixCache = {
+  timestamp: number
+  services: Service[]
+  filteredServices: Service[]
+  allStations: Station[]
+  allStationsIncludingInactive: Station[]
+  visibleStations: Station[]
+  selectedStationIds: string[]
+  stationPage: number
+  servicePage: number
+  matrix: Record<string, Record<string, MatrixCell>>
+  initialMatrix: Record<string, Record<string, MatrixCell>>
+}
+let matrixCache: MatrixCache | null = null
+
 export function useSettingsServiceStationMatrixSection() {
   const { toast } = useToast()
 
@@ -95,6 +112,7 @@ export function useSettingsServiceStationMatrixSection() {
   const [savingServiceRowId, setSavingServiceRowId] = useState<string | null>(null)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  const isRestoringFromCache = useRef(false)
 
   const fetchStationWorkingHours = async (stationId: string) => {
     try {
@@ -375,7 +393,59 @@ export function useSettingsServiceStationMatrixSection() {
     setVisibleStations(paginated)
   }, [allStationsIncludingInactive, selectedStationIds, stationPage, selectedColumnFilter])
 
+  // Persist matrix state in a short-lived cache to avoid refetching when returning to this tab
   useEffect(() => {
+    if (isLoading || isRestoringFromCache.current) return
+    matrixCache = {
+      timestamp: Date.now(),
+      services,
+      filteredServices,
+      allStations,
+      allStationsIncludingInactive,
+      visibleStations,
+      selectedStationIds,
+      stationPage,
+      servicePage,
+      matrix: cloneMatrixMap(matrix),
+      initialMatrix: cloneMatrixMap(initialMatrix),
+    }
+  }, [
+    isLoading,
+    services,
+    filteredServices,
+    allStations,
+    allStationsIncludingInactive,
+    visibleStations,
+    selectedStationIds,
+    stationPage,
+    servicePage,
+    matrix,
+    initialMatrix,
+  ])
+
+  useEffect(() => {
+    const cached = matrixCache
+    const isCacheFresh = cached && Date.now() - cached.timestamp < MATRIX_CACHE_TTL_MS
+
+    if (isCacheFresh && cached) {
+      isRestoringFromCache.current = true
+      setServices(cached.services)
+      setFilteredServices(cached.filteredServices)
+      setAllStations(cached.allStations)
+      setAllStationsIncludingInactive(cached.allStationsIncludingInactive)
+      setVisibleStations(cached.visibleStations)
+      setSelectedStationIds(cached.selectedStationIds)
+      setStationPage(cached.stationPage)
+      setServicePage(cached.servicePage)
+      setMatrix(cloneMatrixMap(cached.matrix))
+      setInitialMatrix(cloneMatrixMap(cached.initialMatrix))
+      setIsLoading(false)
+      queueMicrotask(() => {
+        isRestoringFromCache.current = false
+      })
+      return
+    }
+
     loadData()
   }, [])
 

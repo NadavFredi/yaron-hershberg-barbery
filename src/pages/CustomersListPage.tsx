@@ -27,6 +27,23 @@ import { useAppDispatch } from "@/store/hooks"
 import { setSelectedClient, setIsClientDetailsOpen } from "@/store/slices/managerScheduleSlice"
 import type { ClientDetails } from "@/store/slices/managerScheduleSlice"
 
+// Keep a short-lived cache so navigating away and back doesn't refetch
+const CUSTOMERS_CACHE_TTL_MS = 5 * 60 * 1000
+type CustomersListCache = {
+    timestamp: number
+    customers: Customer[]
+    totalCount: number
+    currentPage: number
+    customerTypes: CustomerTypeSummary[]
+    leadSources: LeadSourceSummary[]
+    searchTerm: string
+    customerTypeFilter: string[]
+    leadSourceFilter: string | null
+    appointmentFilterEnabled: boolean
+    customersWithAppointments: Set<string>
+}
+let customersListCache: CustomersListCache | null = null
+
 interface CustomerTypeSummary {
     id: string
     name: string
@@ -338,7 +355,34 @@ export default function CustomersListPage() {
 
 
     const isInitialMount = useRef(true)
+    const isRestoringFromCache = useRef(false)
     useEffect(() => {
+        const cached = customersListCache
+        const isCacheFresh = cached && Date.now() - cached.timestamp < CUSTOMERS_CACHE_TTL_MS
+
+        if (isCacheFresh && cached) {
+            isRestoringFromCache.current = true
+            setCustomers(cached.customers)
+            setTotalCount(cached.totalCount)
+            setCurrentPage(cached.currentPage)
+            setCustomerTypes(cached.customerTypes)
+            setLeadSources(cached.leadSources)
+            setSearchTerm(cached.searchTerm)
+            setCustomerTypeFilter(cached.customerTypeFilter)
+            setLeadSourceFilter(cached.leadSourceFilter)
+            setAppointmentFilterEnabled(cached.appointmentFilterEnabled)
+            setCustomersWithAppointments(new Set(cached.customersWithAppointments))
+            setIsLoading(false)
+            setIsLoadingTypes(false)
+            setIsLoadingLeadSources(false)
+            isInitialMount.current = false
+            // Release the guard on the next tick so user actions still work
+            queueMicrotask(() => {
+                isRestoringFromCache.current = false
+            })
+            return
+        }
+
         fetchCustomerTypes()
         fetchLeadSources()
         if (isInitialMount.current) {
@@ -357,6 +401,8 @@ export default function CustomersListPage() {
 
     // Reset to page 1 when active filters change (selects/autocompletes)
     useEffect(() => {
+        if (isRestoringFromCache.current) return
+
         const filtersChanged =
             JSON.stringify(activeFilters.customerTypeFilter) !== JSON.stringify(customerTypeFilter) ||
             activeFilters.leadSourceFilter !== leadSourceFilter ||
@@ -378,7 +424,7 @@ export default function CustomersListPage() {
     // Fetch customers when page changes
     useEffect(() => {
         // Skip initial mount - handled separately
-        if (isInitialMount.current) return
+        if (isInitialMount.current || isRestoringFromCache.current) return
 
         fetchCustomers(currentPage)
     }, [currentPage])
@@ -487,6 +533,36 @@ export default function CustomersListPage() {
             setLastSelectedIndex(null)
         }
     }, [selectedCustomerIds])
+
+    // Cache the latest state on unmount so returning to this tab won't refetch
+    useEffect(() => {
+        return () => {
+            customersListCache = {
+                timestamp: Date.now(),
+                customers,
+                totalCount,
+                currentPage,
+                customerTypes,
+                leadSources,
+                searchTerm,
+                customerTypeFilter,
+                leadSourceFilter,
+                appointmentFilterEnabled,
+                customersWithAppointments,
+            }
+        }
+    }, [
+        customers,
+        totalCount,
+        currentPage,
+        customerTypes,
+        leadSources,
+        searchTerm,
+        customerTypeFilter,
+        leadSourceFilter,
+        appointmentFilterEnabled,
+        customersWithAppointments,
+    ])
 
     const fetchCustomerTypes = async () => {
         try {

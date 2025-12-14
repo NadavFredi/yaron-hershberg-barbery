@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { PaymentModal } from "@/components/dialogs/manager-schedule/PaymentModal"
 import { SeriesAppointmentsModal } from "@/components/dialogs/manager-schedule/SeriesAppointmentsModal"
@@ -173,6 +174,9 @@ export const AppointmentDetailsSheet = ({
     const [desiredGoalImagesCount, setDesiredGoalImagesCount] = useState<number | null>(null)
     const [sessionImagesCount, setSessionImagesCount] = useState<number | null>(null)
     const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+    const [workers, setWorkers] = useState<Array<{ id: string; full_name: string }>>([])
+    const [isLoadingWorkers, setIsLoadingWorkers] = useState(false)
+    const [isUpdatingWorker, setIsUpdatingWorker] = useState(false)
     const { toast } = useToast()
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
@@ -298,6 +302,32 @@ export const AppointmentDetailsSheet = ({
 
         fetchSessionImagesCount()
     }, [selectedAppointment?.id, selectedAppointment?.groomingAppointmentId, selectedAppointment?.serviceType, open])
+
+    // Fetch workers when sheet opens
+    useEffect(() => {
+        const fetchWorkers = async () => {
+            if (!open) return
+            setIsLoadingWorkers(true)
+            try {
+                const { data: workersData, error } = await supabase
+                    .from("profiles")
+                    .select("id, full_name")
+                    .eq("role", "worker")
+                    .eq("worker_is_active", true)
+                    .order("full_name", { ascending: true })
+
+                if (error) throw error
+                setWorkers(workersData || [])
+            } catch (error) {
+                console.error("Error fetching workers:", error)
+                setWorkers([])
+            } finally {
+                setIsLoadingWorkers(false)
+            }
+        }
+
+        fetchWorkers()
+    }, [open])
 
     // Fetch dog's general grooming notes and appointment notes when appointment is selected
     useEffect(() => {
@@ -1330,6 +1360,55 @@ export const AppointmentDetailsSheet = ({
         }
     }, [dispatch, selectedAppointment])
 
+    const handleWorkerChange = useCallback(async (workerId: string | null) => {
+        if (!selectedAppointment) return
+
+        setIsUpdatingWorker(true)
+        try {
+            const appointmentId = extractGroomingAppointmentId(
+                selectedAppointment.id,
+                selectedAppointment.groomingAppointmentId
+            )
+
+            if (!appointmentId) {
+                throw new Error("לא ניתן לזהות את התור")
+            }
+
+            const { error } = await supabase
+                .from("grooming_appointments")
+                .update({ worker_id: workerId || null })
+                .eq("id", appointmentId)
+
+            if (error) {
+                throw error
+            }
+
+            // Invalidate and refetch schedule data to update the UI
+            dispatch(
+                supabaseApi.util.invalidateTags([
+                    { type: "ManagerSchedule", id: `${formattedDate}-${serviceFilter}` },
+                    { type: "Appointment", id: `${appointmentId}-grooming` },
+                ])
+            )
+
+            toast({
+                title: "העובד עודכן בהצלחה",
+                description: workerId
+                    ? `העובד ${workers.find((w) => w.id === workerId)?.full_name || ""} שויך לתור`
+                    : "העובד הוסר מהתור",
+            })
+        } catch (error) {
+            console.error("Error updating worker assignment:", error)
+            toast({
+                title: "שגיאה בעדכון העובד",
+                description: error instanceof Error ? error.message : "אירעה שגיאה בעת עדכון העובד",
+                variant: "destructive",
+            })
+        } finally {
+            setIsUpdatingWorker(false)
+        }
+    }, [selectedAppointment, workers, dispatch, formattedDate, serviceFilter, toast])
+
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent side="right" className="w-full max-w-md overflow-y-auto" dir="rtl">
@@ -1436,11 +1515,31 @@ export const AppointmentDetailsSheet = ({
                                         <div>
                                             עמדה: <span className="font-medium text-gray-900">{selectedAppointment.stationName || "לא משויך"}</span>
                                         </div>
-                                        {selectedAppointment.workerName && (
-                                            <div>
-                                                עובד משויך: <span className="font-medium text-gray-900">{selectedAppointment.workerName}</span>
-                                            </div>
-                                        )}
+                                    </div>
+                                    <div className="pt-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-gray-600 min-w-[80px]">עובד משויך:</span>
+                                            <Select
+                                                value={selectedAppointment.workerId || "__unassigned__"}
+                                                onValueChange={(value) => handleWorkerChange(value === "__unassigned__" ? null : value)}
+                                                disabled={isUpdatingWorker || isLoadingWorkers}
+                                            >
+                                                <SelectTrigger className="flex-1">
+                                                    <SelectValue placeholder={isLoadingWorkers ? "טוען..." : selectedAppointment.workerName || "לא משויך"} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="__unassigned__">לא משויך</SelectItem>
+                                                    {workers.map((worker) => (
+                                                        <SelectItem key={worker.id} value={worker.id}>
+                                                            {worker.full_name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {isUpdatingWorker && (
+                                                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                            )}
+                                        </div>
                                     </div>
                                     {showDevId && (
                                         <div className="pt-2 border-t border-gray-100 space-y-2">

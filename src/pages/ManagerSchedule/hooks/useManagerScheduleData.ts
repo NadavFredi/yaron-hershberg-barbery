@@ -37,10 +37,17 @@ export function useManagerScheduleData() {
     null
   )
 
-  const { data: apiData, isLoading } = useGetManagerScheduleQuery({
-    date: formattedDate,
-    serviceType: "both", // Always fetch all data, filter on frontend
-  })
+  const { data: apiData, isLoading } = useGetManagerScheduleQuery(
+    {
+      date: formattedDate,
+      serviceType: "both", // Always fetch all data, filter on frontend
+    },
+    {
+      refetchOnMountOrArgChange: false,
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
+    }
+  )
 
   useEffect(() => {
     if (apiData) {
@@ -154,4 +161,3 @@ export function useManagerScheduleData() {
     formattedDate,
   }
 }
-
