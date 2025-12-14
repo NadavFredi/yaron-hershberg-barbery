@@ -867,11 +867,66 @@ export async function getManagerSchedule(
     // Sort appointments by start time
     appointments.sort((a, b) => a.startDateTime.localeCompare(b.startDateTime))
 
+    // Fetch business hours for the selected date's weekday
+    const selectedDate = new Date(`${dateOnly}T00:00:00.000Z`)
+    const weekdayIndex = selectedDate.getUTCDay()
+    const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+    const weekday = weekdayNames[weekdayIndex]
+
+    let businessHours: { openTime: string; closeTime: string } | undefined = undefined
+
+    try {
+      const { data: businessHoursData, error: businessHoursError } = await supabase
+        .from("business_hours")
+        .select("open_time, close_time, shift_order")
+        .eq("weekday", weekday)
+        .order("shift_order", { ascending: true })
+
+      if (!businessHoursError && businessHoursData && businessHoursData.length > 0) {
+        // Find earliest open_time and latest close_time across all shifts
+        let earliestOpen: string | null = null
+        let latestClose: string | null = null
+
+        for (const shift of businessHoursData) {
+          const openTime = shift.open_time?.substring(0, 5) // Extract HH:mm
+          const closeTime = shift.close_time?.substring(0, 5) // Extract HH:mm
+
+          if (openTime) {
+            if (!earliestOpen || openTime < earliestOpen) {
+              earliestOpen = openTime
+            }
+          }
+
+          if (closeTime) {
+            if (!latestClose || closeTime > latestClose) {
+              latestClose = closeTime
+            }
+          }
+        }
+
+        if (earliestOpen && latestClose) {
+          businessHours = {
+            openTime: earliestOpen,
+            closeTime: latestClose,
+          }
+          console.log(`✅ [getManagerSchedule] Using business hours for ${weekday}: ${earliestOpen} - ${latestClose}`)
+        } else {
+          console.log(`⚠️ [getManagerSchedule] Business hours found for ${weekday} but could not parse times`)
+        }
+      } else {
+        console.log(`ℹ️ [getManagerSchedule] No business hours configured for ${weekday}, will use defaults`)
+      }
+    } catch (error) {
+      console.warn(`⚠️ [getManagerSchedule] Failed to fetch business hours:`, error)
+      // Continue without business hours, will fall back to defaults
+    }
+
     return {
       date: dateOnly,
       serviceFilter: serviceType,
       stations,
       appointments,
+      businessHours,
     }
   } catch (error) {
     console.error(`❌ [getManagerSchedule] Error:`, error)

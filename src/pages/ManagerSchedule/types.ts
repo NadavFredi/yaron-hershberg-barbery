@@ -102,6 +102,10 @@ export interface ManagerScheduleData {
   serviceFilter: ManagerServiceFilter
   stations: ManagerStation[]
   appointments: ManagerAppointment[]
+  businessHours?: {
+    openTime: string // HH:mm format
+    closeTime: string // HH:mm format
+  }
 }
 
 export interface ManagerScheduleSearchClient {

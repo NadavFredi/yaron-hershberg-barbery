@@ -8,7 +8,11 @@ export const DEFAULT_PIXELS_PER_MINUTE_SCALE = 3 // Default to middle (scale 3)
 export const DEFAULT_INTERVAL_MINUTES = 15
 export const MAX_VISIBLE_STATIONS = 5
 
-export const ensureValidProposedMeetingRange = (startIso: string, endIso: string, intervalMinutes: number = DEFAULT_INTERVAL_MINUTES) => {
+export const ensureValidProposedMeetingRange = (
+  startIso: string,
+  endIso: string,
+  intervalMinutes: number = DEFAULT_INTERVAL_MINUTES
+) => {
   const start = new Date(startIso)
   const end = new Date(endIso)
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
@@ -174,19 +178,59 @@ export const buildTimeline = (
   globalEndHour?: number
 ): TimelineConfig => {
   const dayStart = startOfDay(selectedDate)
-  let start = addHours(dayStart, DEFAULT_START_HOUR)
-  // Use global end hour if provided, otherwise use default
-  let end = addHours(dayStart, globalEndHour ?? DEFAULT_END_HOUR)
+
+  // Determine start and end hours from business hours or defaults
+  // Business hours take priority over globalEndHour parameter
+  let startHour = DEFAULT_START_HOUR
+  let startMinute = 0
+  let endHour = DEFAULT_END_HOUR
+  let endMinute = 0
+
+  // Use business hours if available (priority over globalEndHour and defaults)
+  if (data?.businessHours) {
+    const openTimeParts = data.businessHours.openTime.split(":")
+    const closeTimeParts = data.businessHours.closeTime.split(":")
+
+    if (openTimeParts.length >= 2) {
+      startHour = parseInt(openTimeParts[0], 10)
+      startMinute = parseInt(openTimeParts[1], 10)
+      if (isNaN(startHour)) startHour = DEFAULT_START_HOUR
+      if (isNaN(startMinute)) startMinute = 0
+    }
+
+    if (closeTimeParts.length >= 2) {
+      endHour = parseInt(closeTimeParts[0], 10)
+      endMinute = parseInt(closeTimeParts[1], 10)
+      if (isNaN(endHour)) endHour = DEFAULT_END_HOUR
+      if (isNaN(endMinute)) endMinute = 0
+    }
+
+    console.log(
+      `🕐 [buildTimeline] Using business hours: ${data.businessHours.openTime} - ${
+        data.businessHours.closeTime
+      } (parsed: ${startHour}:${startMinute.toString().padStart(2, "0")} - ${endHour}:${endMinute
+        .toString()
+        .padStart(2, "0")})`
+    )
+  } else if (globalEndHour !== undefined) {
+    // Only use globalEndHour if business hours are not available
+    endHour = globalEndHour
+    console.log(`🕐 [buildTimeline] Using globalEndHour: ${globalEndHour}:00 (no business hours available)`)
+  } else {
+    console.log(
+      `🕐 [buildTimeline] Using default hours: ${DEFAULT_START_HOUR}:00 - ${DEFAULT_END_HOUR}:00 (no business hours or globalEndHour)`
+    )
+  }
+
+  let start = addMinutes(addHours(dayStart, startHour), startMinute)
+  let end = addMinutes(addHours(dayStart, endHour), endMinute)
 
   const appointments = [...(data?.appointments ?? []), ...optimisticAppointments]
-  const globalEnd = addHours(dayStart, globalEndHour ?? DEFAULT_END_HOUR)
+  const globalEnd = addMinutes(addHours(dayStart, endHour), endMinute)
 
   if (appointments.length > 0) {
     const validStarts = appointments
       .map((appointment) => parseISODate(appointment.startDateTime))
-      .filter((date): date is Date => !!date)
-    const validEnds = appointments
-      .map((appointment) => parseISODate(appointment.endDateTime))
       .filter((date): date is Date => !!date)
 
     if (validStarts.length > 0) {
