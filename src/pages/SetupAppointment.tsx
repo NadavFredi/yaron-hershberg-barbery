@@ -15,6 +15,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { supabase } from "@/integrations/supabase/client"
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
 import confetti from "canvas-confetti"
+import { AddWaitlistEntryModal } from "@/components/dialogs/AddWaitlistEntryModal"
+import { Bell } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 type ServiceOption = { id: string; name: string; description?: string | null }
 type AvailableDate = { date: string; available: boolean; stationId: string | null; availableTimes?: AvailableTime[] }
@@ -33,6 +36,7 @@ const toJerusalemDateString = (date: Date) => jerusalemDateFormatter.format(date
 const SetupAppointment: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useSupabaseAuthWithClientId()
+  const { toast } = useToast()
 
   const [services, setServices] = useState<ServiceOption[]>([])
   const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>(undefined)
@@ -45,6 +49,8 @@ const SetupAppointment: React.FC = () => {
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const listContainerRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false)
+  const [customer, setCustomer] = useState<{ id: string; full_name: string; phone: string; email: string | null } | null>(null)
 
   const filteredServices = useMemo(() => {
     return serviceSearchQuery.trim()
@@ -132,6 +138,28 @@ const SetupAppointment: React.FC = () => {
     }
     loadServices()
   }, [selectedServiceId])
+
+  useEffect(() => {
+    const loadCustomer = async () => {
+      if (!user?.id) {
+        setCustomer(null)
+        return
+      }
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, full_name, phone, email")
+        .eq("auth_user_id", user.id)
+        .maybeSingle()
+      if (error) {
+        console.error("Failed to load customer", error)
+        return
+      }
+      if (data) {
+        setCustomer(data)
+      }
+    }
+    loadCustomer()
+  }, [user])
 
   const datesQueryArg = selectedServiceId ? { serviceId: selectedServiceId } : skipToken
   const { data: availableDatesData, isFetching: isFetchingDates } = useGetAvailableDatesQuery(datesQueryArg, {
@@ -355,6 +383,28 @@ const SetupAppointment: React.FC = () => {
                   <Loader2 className="h-4 w-4 animate-spin" /> טוען זמינות...
                 </div>
               )}
+              {selectedServiceId && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        toast({
+                          title: "נדרש להתחבר",
+                          description: "יש להתחבר לחשבון כדי להירשם לרשימת ההמתנה",
+                          variant: "destructive",
+                        })
+                        return
+                      }
+                      setIsWaitlistModalOpen(true)
+                    }}
+                    className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
+                  >
+                    <Bell className="h-4 w-4" />
+                    לא מצאתם את התאריך שאתם מחפשים? הירשמו לרשימת ההמתנה
+                  </button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -432,6 +482,25 @@ const SetupAppointment: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      <AddWaitlistEntryModal
+        open={isWaitlistModalOpen}
+        onOpenChange={setIsWaitlistModalOpen}
+        defaultCustomer={customer ? { id: customer.id, full_name: customer.full_name, phone: customer.phone, email: customer.email } : null}
+        disableCustomerSelection={!!customer}
+        title="הירשמו לרשימת ההמתנה"
+        description="בחרו תאריכים מועדפים ואנו נודיע לכם כשיתפנה מקום"
+        submitLabel="הירשם לרשימת המתנה"
+        serviceScopeOptions={[{ value: "grooming" as const, label: "מספרה" }]}
+        initialServiceScope="grooming"
+        onSuccess={() => {
+          toast({
+            title: "הצלחה",
+            description: "נרשמת לרשימת ההמתנה בהצלחה",
+          })
+          setIsWaitlistModalOpen(false)
+        }}
+      />
     </div>
   )
 }

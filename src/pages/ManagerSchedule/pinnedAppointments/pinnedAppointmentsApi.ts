@@ -24,6 +24,11 @@ export const pinnedAppointmentsApi = createApi({
   baseQuery: customBaseQuery,
   refetchOnFocus: false,
   refetchOnReconnect: false,
+  defaultOptions: {
+    queries: {
+      refetchOnMountOrArgChange: false,
+    },
+  },
   tagTypes: ["PinnedAppointment"],
   endpoints: (builder) => ({
     getPinnedAppointments: builder.query<PinnedAppointment[], void>({

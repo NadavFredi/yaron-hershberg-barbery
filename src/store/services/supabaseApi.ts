@@ -263,6 +263,11 @@ export const supabaseApi = createApi({
   baseQuery: supabaseFunctionBaseQuery,
   refetchOnFocus: false,
   refetchOnReconnect: false,
+  defaultOptions: {
+    queries: {
+      refetchOnMountOrArgChange: false,
+    },
+  },
   tagTypes: [
     "User",
     "Appointment",

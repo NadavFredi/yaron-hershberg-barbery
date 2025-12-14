@@ -221,7 +221,7 @@ serve(async (req) => {
         station_id: stationIdToUse,
         start_at: startTime,
         end_at: endTime,
-        status: "pending" as const,
+        status: "scheduled" as const,
         appointment_kind: normalizedAppointmentType === "private" ? ("personal" as const) : ("business" as const),
         customer_notes: notes || null,
         internal_notes: internalNotes || null,

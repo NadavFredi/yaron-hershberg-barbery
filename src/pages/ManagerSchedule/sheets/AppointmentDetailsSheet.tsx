@@ -179,6 +179,7 @@ export const AppointmentDetailsSheet = ({
     const selectedDateStr = useAppSelector((state) => state.managerSchedule.selectedDate)
     const selectedDate = useMemo(() => new Date(selectedDateStr), [selectedDateStr])
     const serviceFilter = useAppSelector((state) => state.managerSchedule.serviceFilter)
+    const showDevId = useAppSelector((state) => state.managerSchedule.showDevId)
 
     // Fetch schedule data for pinned appointments hook
     const formattedDate = useMemo(() => format(selectedDate, "yyyy-MM-dd"), [selectedDate])
@@ -1441,44 +1442,46 @@ export const AppointmentDetailsSheet = ({
                                             </div>
                                         )}
                                     </div>
-                                    <div className="pt-2 border-t border-gray-100 space-y-2">
-                                        {(selectedAppointment as any).id && (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-gray-500">מזהה:</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={async () => {
-                                                        try {
-                                                            await navigator.clipboard.writeText((selectedAppointment as any).id)
-                                                            toast({
-                                                                title: "הועתק",
-                                                                description: "מזהה התור הועתק ללוח",
-                                                            })
-                                                        } catch (err) {
-                                                            console.error("Failed to copy:", err)
-                                                        }
-                                                    }}
-                                                    className="text-xs text-gray-600 hover:text-gray-900 font-mono cursor-pointer hover:underline"
-                                                >
-                                                    {(selectedAppointment as any).id.slice(0, 8)}...
-                                                </button>
-                                            </div>
-                                        )}
-                                        {(selectedAppointment as any).created_at || (selectedAppointment as any).updated_at ? (
-                                            <div className="grid grid-cols-2 gap-4">
-                                                {(selectedAppointment as any).created_at && (
-                                                    <div className="text-xs text-gray-400">
-                                                        נוצר: {format(new Date((selectedAppointment as any).created_at), "dd.MM.yyyy HH:mm")}
-                                                    </div>
-                                                )}
-                                                {(selectedAppointment as any).updated_at && (
-                                                    <div className="text-xs text-gray-400">
-                                                        עודכן: {format(new Date((selectedAppointment as any).updated_at), "dd.MM.yyyy HH:mm")}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : null}
-                                    </div>
+                                    {showDevId && (
+                                        <div className="pt-2 border-t border-gray-100 space-y-2">
+                                            {(selectedAppointment as any).id && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-gray-500">מזהה:</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            try {
+                                                                await navigator.clipboard.writeText((selectedAppointment as any).id)
+                                                                toast({
+                                                                    title: "הועתק",
+                                                                    description: "מזהה התור הועתק ללוח",
+                                                                })
+                                                            } catch (err) {
+                                                                console.error("Failed to copy:", err)
+                                                            }
+                                                        }}
+                                                        className="text-xs text-gray-600 hover:text-gray-900 font-mono cursor-pointer hover:underline"
+                                                    >
+                                                        {(selectedAppointment as any).id.slice(0, 8)}...
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {(selectedAppointment as any).created_at || (selectedAppointment as any).updated_at ? (
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    {(selectedAppointment as any).created_at && (
+                                                        <div className="text-xs text-gray-400">
+                                                            נוצר: {format(new Date((selectedAppointment as any).created_at), "dd.MM.yyyy HH:mm")}
+                                                        </div>
+                                                    )}
+                                                    {(selectedAppointment as any).updated_at && (
+                                                        <div className="text-xs text-gray-400">
+                                                            עודכן: {format(new Date((selectedAppointment as any).updated_at), "dd.MM.yyyy HH:mm")}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
