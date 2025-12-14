@@ -397,7 +397,6 @@ export function Navbar({ isManager }: NavbarProps) {
     const currentManagerSection = searchParams.get("section")
     const modeParam = searchParams.get("mode")
     const pinnedParam = searchParams.get("pinned")
-    const currentCustomersMode = currentManagerSection === "customers" ? (modeParam || "list") : null
     const currentSettingsMode = currentManagerSection === "settings" ? (modeParam || "working-hours") : null
     const currentSubscriptionsMode = currentManagerSection === "subscriptions" ? (modeParam || "list") : null
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ manager: false })
@@ -779,6 +778,8 @@ export function Navbar({ isManager }: NavbarProps) {
 
     const appointmentSection = MANAGER_NAV_SECTIONS.find((section) => section.id === "appointments")
     const appointmentChildren = appointmentSection?.children ?? []
+    const customersSection = MANAGER_NAV_SECTIONS.find((section) => section.id === "customers")
+    const customersChildren = customersSection?.children ?? []
 
     const nestedSectionLinks: Record<string, Array<{ to: string; label: string; icon: React.ReactNode; isActive: boolean }>> = {
         appointments: appointmentChildren.map((child) => ({
@@ -787,11 +788,11 @@ export function Navbar({ isManager }: NavbarProps) {
             icon: child.icon,
             isActive: child.match(location.pathname, currentManagerSection, modeParam)
         })),
-        customers: THIRD_LEVEL_SECTIONS.customers.map((section) => ({
-            to: `/manager-screens?section=customers&mode=${section.id}`,
-            label: section.label,
-            icon: section.icon,
-            isActive: currentManagerSection === "customers" && currentCustomersMode === section.id
+        customers: customersChildren.map((child) => ({
+            to: child.to,
+            label: child.label,
+            icon: child.icon,
+            isActive: child.match(location.pathname, currentManagerSection, modeParam)
         })),
         settings: THIRD_LEVEL_SECTIONS.settings.map((section) => ({
             to: `/manager-screens?section=settings&mode=${section.id}`,

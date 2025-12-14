@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
 import { setIsSubnavHovered, setIsNavbarHovered } from "@/store/slices/navbarSlice"
 import {
-  Users,
   Tag,
   Ticket,
   CreditCard,
@@ -37,10 +36,6 @@ export const THIRD_LEVEL_SECTIONS = {
     { id: "service-station-matrix", label: "מטריצת שירותים-עמדות", icon: Grid3x3 },
     { id: "constraints", label: "אילוצים", icon: AlertCircle },
     { id: "protected-screens", label: "מסכים מוגנים", icon: Settings },
-  ],
-  customers: [
-    { id: "list", label: "לקוחות", description: "ניהול רשימת לקוחות", icon: Users },
-    { id: "types", label: "סוגי לקוחות", description: "הגדרת סוגים וקדימויות", icon: Tag },
   ],
   subscriptions: [
     { id: "list", label: "מנויים", description: "ניהול רשימת מנויים", icon: Ticket },
@@ -150,7 +145,6 @@ export function ThirdLevelSubnav() {
   // Get aria label based on section
   const ariaLabels: Record<SectionKey, string> = {
     settings: "תפריט הגדרות",
-    customers: "תפריט לקוחות",
     subscriptions: "תפריט מנויים",
     payments: "תפריט תשלומים",
     products: "תפריט מוצרים",

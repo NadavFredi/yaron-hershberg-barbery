@@ -248,27 +248,48 @@ export function SettingsProtectedScreensSection() {
   }
 
   return (
-    <div className="space-y-2">
-      <div>
-        <h2 className="text-lg font-bold text-gray-900">מסכים מוגנים</h2>
-        <p className="text-xs text-gray-600 mt-0.5">הגדר אילו מסכים דורשים סיסמה לגישה</p>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">מסכים מוגנים</h2>
+          <p className="text-sm text-gray-500 mt-1">הגדר אילו מסכים דורשים סיסמה לגישה</p>
+        </div>
+        <Button
+          onClick={handleSaveProtectedScreens}
+          disabled={isSaving || !hasPassword}
+          className="flex items-center gap-2 shadow-sm"
+          size="sm"
+        >
+          {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+          <Save className="h-4 w-4" />
+          שמור שינויים
+        </Button>
       </div>
 
-      {/* Password Section */}
-      <div className="border rounded-md p-2 space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          {hasPassword ? <Lock className="h-3.5 w-3.5 text-green-600" /> : <LockOpen className="h-3.5 w-3.5 text-gray-400" />}
-          <h3 className="text-sm font-semibold">{hasPassword ? "סיסמה הוגדרה" : "הגדר סיסמה"}</h3>
+      {/* Password Section - Modern Card */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50 rounded-lg p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-2">
+          {hasPassword ? (
+            <Lock className="h-4 w-4 text-blue-600" />
+          ) : (
+            <LockOpen className="h-4 w-4 text-gray-400" />
+          )}
+          <h3 className="text-sm font-semibold text-gray-900">
+            {hasPassword ? "סיסמה מוגדרת" : "הגדר סיסמה"}
+          </h3>
         </div>
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-gray-600 mb-3">
           {hasPassword
-            ? "סיסמה מוגדרת. תוכל לשנות אותה למטה."
+            ? "ניתן לשנות את הסיסמה למטה. הסיסמה נדרשת לגישה למסכים המוגנים."
             : "יש להגדיר סיסמה לפני שמירת מסכים מוגנים. הסיסמה תשמש לגישה למסכים המוגנים בלבד."}
         </p>
 
-        <div className="space-y-1.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <Label htmlFor="new-password" className="text-xs">{hasPassword ? "סיסמה חדשה" : "סיסמה"}</Label>
+            <Label htmlFor="new-password" className="text-xs font-medium text-gray-700 mb-1 block">
+              {hasPassword ? "סיסמה חדשה" : "סיסמה"}
+            </Label>
             <div className="relative">
               <Input
                 id="new-password"
@@ -276,120 +297,119 @@ export function SettingsProtectedScreensSection() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="הזן סיסמה (לפחות 4 תווים)"
-                className="pr-8 h-7 text-xs"
+                className="pr-9 h-9 bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500/20"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               >
-                {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
           <div>
-            <Label htmlFor="confirm-password" className="text-xs">אישור סיסמה</Label>
+            <Label htmlFor="confirm-password" className="text-xs font-medium text-gray-700 mb-1 block">
+              אישור סיסמה
+            </Label>
             <Input
               id="confirm-password"
               type={showPassword ? "text" : "password"}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="הזן שוב את הסיסמה"
-              className="h-7 text-xs"
+              className="h-9 bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500/20"
             />
           </div>
-          <Button
-            onClick={hasPassword ? handleResetPassword : handleSetPassword}
-            disabled={isSettingPassword || !newPassword || !confirmPassword}
-            className="flex items-center gap-1 h-7 text-xs px-2"
-            size="sm"
-          >
-            {isSettingPassword && <Loader2 className="h-3 w-3 animate-spin" />}
-            {hasPassword ? "עדכן סיסמה" : "הגדר סיסמה"}
-          </Button>
         </div>
+        <Button
+          onClick={hasPassword ? handleResetPassword : handleSetPassword}
+          disabled={isSettingPassword || !newPassword || !confirmPassword}
+          className="mt-3 flex items-center gap-2"
+          size="sm"
+        >
+          {isSettingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
+          {hasPassword ? "עדכן סיסמה" : "הגדר סיסמה"}
+        </Button>
       </div>
 
-      {/* Protected Screens List */}
-      <div className="border rounded-md p-2 space-y-1.5">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">רשימת מסכים</h3>
-          <Button
-            onClick={handleSaveProtectedScreens}
-            disabled={isSaving || !hasPassword}
-            className="flex items-center gap-1 h-7 text-xs px-2"
-            size="sm"
-          >
-            {isSaving && <Loader2 className="h-3 w-3 animate-spin" />}
-            <Save className="h-3 w-3" />
-            שמור שינויים
-          </Button>
+      {/* Protected Screens List - 2 Column Layout */}
+      {!hasPassword && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 shadow-sm">
+          <p className="text-sm text-amber-800 flex items-center gap-2">
+            <Lock className="h-4 w-4" />
+            יש להגדיר סיסמה למעלה לפני שמירת מסכים מוגנים
+          </p>
+        </div>
+      )}
+
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-gray-200 bg-gray-50/50">
+          <h3 className="text-sm font-semibold text-gray-900">רשימת מסכים</h3>
         </div>
 
-        {!hasPassword && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
-            <p className="text-xs text-yellow-800">
-              יש להגדיר סיסמה למעלה לפני שמירת מסכים מוגנים
-            </p>
-          </div>
-        )}
+        <div className="p-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3">
+            {Object.entries(screensBySection).map(([sectionId, screens]) => {
+              const section = MANAGER_NAV_SECTIONS.find((s) => s.id === sectionId)
+              const isExpanded = expandedSections.has(sectionId)
+              const IconComponent = section?.icon
 
-        <div className="space-y-0.5">
-          {Object.entries(screensBySection).map(([sectionId, screens]) => {
-            const section = MANAGER_NAV_SECTIONS.find((s) => s.id === sectionId)
-            const isExpanded = expandedSections.has(sectionId)
-            const IconComponent = section?.icon
-
-            return (
-              <Collapsible
-                key={sectionId}
-                open={isExpanded}
-                onOpenChange={() => toggleSection(sectionId)}
-              >
-                <CollapsibleTrigger className="w-full">
-                  <div className="flex items-center justify-between w-full py-1 px-1.5 rounded hover:bg-gray-50">
-                    <div className="flex items-center gap-1.5">
-                      {IconComponent && <IconComponent className="h-3 w-3 text-gray-600" />}
-                      <h4 className="text-xs font-medium text-gray-700">
-                        {section?.label || sectionId}
-                      </h4>
-                      <span className="text-xs text-gray-500">({screens.length})</span>
-                    </div>
-                    <ChevronDown
-                      className={cn(
-                        "h-3 w-3 text-gray-500 transition-transform duration-200",
-                        isExpanded && "transform rotate-180"
-                      )}
-                    />
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="space-y-0.5 pr-3 pb-1">
-                    {screens.map((screen) => (
-                      <div
-                        key={screen.id}
-                        className="flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-gray-50"
-                      >
-                        <Label
-                          htmlFor={`screen-${screen.id}`}
-                          className="cursor-pointer flex-1 text-xs"
-                        >
-                          {screen.label}
-                        </Label>
-                        <Switch
-                          id={`screen-${screen.id}`}
-                          checked={protectedScreens[screen.id] || false}
-                          onCheckedChange={() => handleToggleScreen(screen.id)}
-                          disabled={!hasPassword}
-                          className="scale-75"
-                        />
+              return (
+                <Collapsible
+                  key={sectionId}
+                  open={isExpanded}
+                  onOpenChange={() => toggleSection(sectionId)}
+                  className="bg-gray-50/50 rounded-lg border border-gray-200 overflow-hidden hover:shadow-sm transition-shadow"
+                >
+                  <CollapsibleTrigger className="w-full group">
+                    <div className="flex items-center justify-between w-full py-3 px-4 hover:bg-gray-100/50 transition-colors">
+                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                        {IconComponent && (
+                          <IconComponent className="h-4 w-4 text-gray-600 flex-shrink-0" />
+                        )}
+                        <h4 className="text-sm font-semibold text-gray-900 truncate">
+                          {section?.label || sectionId}
+                        </h4>
+                        <span className="text-xs font-medium text-gray-600 bg-white px-2 py-0.5 rounded-md border border-gray-200 flex-shrink-0">
+                          {screens.length}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            )
-          })}
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 text-gray-400 transition-transform duration-200 flex-shrink-0 mr-1 group-hover:text-gray-600",
+                          isExpanded && "transform rotate-180"
+                        )}
+                      />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="space-y-1.5 p-3 pt-2">
+                      {screens.map((screen) => (
+                        <div
+                          key={screen.id}
+                          className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-md hover:bg-white transition-colors group bg-white/50"
+                        >
+                          <Label
+                            htmlFor={`screen-${screen.id}`}
+                            className="cursor-pointer text-sm font-medium text-gray-700 flex-1 group-hover:text-gray-900"
+                          >
+                            {screen.label}
+                          </Label>
+                          <Switch
+                            id={`screen-${screen.id}`}
+                            checked={protectedScreens[screen.id] || false}
+                            onCheckedChange={() => handleToggleScreen(screen.id)}
+                            disabled={!hasPassword}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>

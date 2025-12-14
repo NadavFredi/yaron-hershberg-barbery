@@ -188,9 +188,13 @@ serve(async (req) => {
     })
   } catch (error) {
     console.error("Error in manage-protected-screens:", error)
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    })
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    return new Response(
+      JSON.stringify({ error: "Internal server error", details: errorMessage }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    )
   }
 })
