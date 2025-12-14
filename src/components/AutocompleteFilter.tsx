@@ -10,6 +10,7 @@ interface AutocompleteFilterProps {
     value: string
     onChange: (value: string) => void
     onSelect?: (value: string) => void
+    onEnter?: () => void // Called when Enter is pressed (for triggering search)
     placeholder?: string
     className?: string
     searchFn: (searchTerm: string) => Promise<string[]>
@@ -24,6 +25,7 @@ export function AutocompleteFilter({
     value,
     onChange,
     onSelect,
+    onEnter,
     placeholder = "חפש...",
     className,
     searchFn,
@@ -359,10 +361,16 @@ export function AutocompleteFilter({
                 })
                 break
             case 'Enter':
-                if (hasSuggestions) {
-                    const indexToSelect = highlightedIndex >= 0 ? highlightedIndex : 0
-                    if (indexToSelect < suggestions.length) {
-                        handleSelect(suggestions[indexToSelect])
+                e.preventDefault() // Prevent form submission if inside a form
+                if (hasSuggestions && highlightedIndex >= 0) {
+                    // Select the highlighted suggestion
+                    if (highlightedIndex < suggestions.length) {
+                        handleSelect(suggestions[highlightedIndex])
+                    }
+                } else {
+                    // If no suggestions highlighted or no suggestions, trigger search with current value
+                    if (onEnter) {
+                        onEnter()
                     }
                 }
                 break

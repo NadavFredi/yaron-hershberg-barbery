@@ -230,6 +230,9 @@ export default function CustomersListPage() {
     const customerTypeParams = customerTypeParam ? customerTypeParam.split(",").filter(Boolean) : []
     const [customers, setCustomers] = useState<Customer[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalCount, setTotalCount] = useState(0)
+    const PAGE_SIZE = 100
     const [customerTypes, setCustomerTypes] = useState<CustomerTypeSummary[]>([])
     const [isLoadingTypes, setIsLoadingTypes] = useState(false)
     const [leadSources, setLeadSources] = useState<LeadSourceSummary[]>([])
@@ -334,11 +337,65 @@ export default function CustomersListPage() {
     }
 
 
+    const isInitialMount = useRef(true)
     useEffect(() => {
-        fetchCustomers()
         fetchCustomerTypes()
         fetchLeadSources()
+        if (isInitialMount.current) {
+            isInitialMount.current = false
+            fetchCustomers(1)
+        }
     }, [])
+
+    // Track active filters (selects/autocompletes that trigger immediately)
+    const [activeFilters, setActiveFilters] = useState({
+        customerTypeFilter: customerTypeFilter,
+        leadSourceFilter: leadSourceFilter,
+        appointmentFilterEnabled: appointmentFilterEnabled,
+        customersWithAppointments: customersWithAppointments,
+    })
+
+    // Reset to page 1 when active filters change (selects/autocompletes)
+    useEffect(() => {
+        const filtersChanged =
+            JSON.stringify(activeFilters.customerTypeFilter) !== JSON.stringify(customerTypeFilter) ||
+            activeFilters.leadSourceFilter !== leadSourceFilter ||
+            activeFilters.appointmentFilterEnabled !== appointmentFilterEnabled ||
+            activeFilters.customersWithAppointments.size !== customersWithAppointments.size
+
+        if (filtersChanged) {
+            setActiveFilters({
+                customerTypeFilter: customerTypeFilter,
+                leadSourceFilter: leadSourceFilter,
+                appointmentFilterEnabled: appointmentFilterEnabled,
+                customersWithAppointments: customersWithAppointments,
+            })
+            setCurrentPage(1)
+            fetchCustomers(1)
+        }
+    }, [customerTypeFilter, leadSourceFilter, appointmentFilterEnabled, customersWithAppointments])
+
+    // Fetch customers when page changes
+    useEffect(() => {
+        // Skip initial mount - handled separately
+        if (isInitialMount.current) return
+
+        fetchCustomers(currentPage)
+    }, [currentPage])
+
+    // Function to trigger search manually (called on Enter or Search button click)
+    const triggerSearch = () => {
+        setCurrentPage(1)
+        fetchCustomers(1)
+    }
+
+    // Handle Enter key in text inputs
+    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            triggerSearch()
+        }
+    }
 
     const fetchLeadSources = async () => {
         try {
@@ -460,27 +517,98 @@ export default function CustomersListPage() {
         }
     }
 
-    const fetchCustomers = async () => {
+    const fetchCustomers = async (page: number) => {
         try {
             setIsLoading(true)
-            console.log("🔍 [CustomersListPage] Fetching customers with filters:", { searchTerm })
+            console.log("🔍 [CustomersListPage] Fetching customers with filters:", {
+                searchTerm,
+                customerTypeFilter,
+                leadSourceFilter,
+                phoneFilter,
+                emailFilter,
+                nameFilter,
+                appointmentFilterEnabled,
+                page
+            })
+
             let query = supabase
                 .from("customers")
                 .select(`
                     *,
                     customer_type:customer_types(id, name, priority),
                     lead_source:lead_sources(id, name)
-                `)
+                `, { count: 'exact' })
                 .order("created_at", { ascending: false })
 
+            // Search term filter (searches across name, phone, email)
             if (searchTerm) {
                 query = query.or(`full_name.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
             }
 
-            const { data, error } = await query
+            // Name filter
+            if (nameFilter) {
+                query = query.ilike("full_name", `%${nameFilter}%`)
+            }
+
+            // Phone filter
+            if (phoneFilter) {
+                query = query.ilike("phone", `%${phoneFilter}%`)
+            }
+
+            // Email filter
+            if (emailFilter) {
+                query = query.ilike("email", `%${emailFilter}%`)
+            }
+
+            // Customer type filter (multiselect)
+            if (customerTypeFilter.length > 0) {
+                const hasNoneType = customerTypeFilter.includes("none")
+                const typeIds = customerTypeFilter.filter(id => id !== "none")
+
+                if (hasNoneType && typeIds.length > 0) {
+                    // Include customers with no type OR with matching types
+                    // Use PostgREST OR syntax: field1.op1.val1,field2.op2.val2
+                    query = query.or(`customer_type_id.is.null,customer_type_id.in.(${typeIds.join(",")})`)
+                } else if (hasNoneType) {
+                    // Only customers with no type
+                    query = query.is("customer_type_id", null)
+                } else if (typeIds.length > 0) {
+                    // Only customers with matching types
+                    query = query.in("customer_type_id", typeIds)
+                }
+            }
+
+            // Lead source filter
+            if (leadSourceFilter) {
+                if (leadSourceFilter === "none") {
+                    query = query.is("lead_source_id", null)
+                } else {
+                    query = query.eq("lead_source_id", leadSourceFilter)
+                }
+            }
+
+            // Appointment filter (filter by customer IDs from appointments)
+            if (appointmentFilterEnabled) {
+                if (customersWithAppointments.size > 0) {
+                    query = query.in("id", Array.from(customersWithAppointments))
+                } else {
+                    // If appointment filter is enabled but no matching customers, return empty result
+                    // Use a condition that will never match
+                    query = query.eq("id", "00000000-0000-0000-0000-000000000000")
+                }
+            }
+
+            // Apply pagination
+            const from = (page - 1) * PAGE_SIZE
+            const to = from + PAGE_SIZE - 1
+            query = query.range(from, to)
+
+            const { data, error, count } = await query
 
             if (error) throw error
             setCustomers(data || [])
+            setTotalCount(count || 0)
+            setCurrentPage(page)
         } catch (error) {
             console.error("Error fetching customers:", error)
             toast({
@@ -693,61 +821,9 @@ export default function CustomersListPage() {
     }
 
 
-    // Filter customers based on all criteria
-    const filteredCustomers = customers.filter((customer) => {
-        // Customer type filter (multiselect)
-        if (customerTypeFilter.length > 0) {
-            const hasNoneType = customerTypeFilter.includes("none")
-            const hasMatchingType = customer.customer_type_id && customerTypeFilter.includes(customer.customer_type_id)
-
-            // Include if: (none is selected AND customer has no type) OR (customer has matching type)
-            if (!((hasNoneType && !customer.customer_type_id) || hasMatchingType)) {
-                return false
-            }
-        }
-
-        // Lead source filter
-        if (leadSourceFilter) {
-            if (leadSourceFilter === "none") {
-                // Filter for customers without lead source
-                if (customer.lead_source_id) {
-                    return false
-                }
-            } else {
-                // Filter for customers with specific lead source
-                if (customer.lead_source_id !== leadSourceFilter) {
-                    return false
-                }
-            }
-        }
-
-        // Phone filter
-        if (phoneFilter && !customer.phone?.includes(phoneFilter)) {
-            return false
-        }
-
-        // Email filter
-        if (emailFilter && !customer.email?.toLowerCase().includes(emailFilter.toLowerCase())) {
-            return false
-        }
-
-        // Name filter
-        if (nameFilter && !customer.full_name?.toLowerCase().includes(nameFilter.toLowerCase())) {
-            return false
-        }
-
-        // Appointment filter (already combined in customersWithAppointments set)
-        if (appointmentFilterEnabled) {
-            if (!customersWithAppointments.has(customer.id)) {
-                return false
-            }
-        }
-
-        return true
-    })
 
     const selectedCount = selectedCustomerIds.length
-    const isAllSelected = filteredCustomers.length > 0 && selectedCount === filteredCustomers.length
+    const isAllSelected = customers.length > 0 && selectedCount === customers.length
     const isPartiallySelected = selectedCount > 0 && !isAllSelected
     const disableSelection = isLoading || isBulkActionLoading || isSaving
     const disableBulkButtons = selectedCount === 0 || isBulkActionLoading
@@ -760,7 +836,7 @@ export default function CustomersListPage() {
     const handleSelectAllChange = (value: boolean | "indeterminate") => {
         const isChecked = value === true
         if (isChecked) {
-            const ids = filteredCustomers.map((customer) => customer.id)
+            const ids = customers.map((customer) => customer.id)
             setSelectedCustomerIds(ids)
             if (ids.length > 0) {
                 setLastSelectedIndex(ids.length - 1)
@@ -794,13 +870,13 @@ export default function CustomersListPage() {
             if (isShiftSelection) {
                 const start = Math.min(lastSelectedIndex!, index)
                 const end = Math.max(lastSelectedIndex!, index)
-                const rangeIds = filteredCustomers.slice(start, end + 1).map((customer) => customer.id)
+                const rangeIds = customers.slice(start, end + 1).map((customer) => customer.id)
                 applyIds(rangeIds)
             } else {
                 applyIds([customerId])
             }
 
-            return filteredCustomers.map((customer) => customer.id).filter((id) => selectionSet.has(id))
+            return customers.map((customer) => customer.id).filter((id) => selectionSet.has(id))
         })
 
         if (isChecked) {
@@ -865,7 +941,7 @@ export default function CustomersListPage() {
 
             setIsAssignTypeDialogOpen(false)
             clearSelection()
-            fetchCustomers()
+            fetchCustomers(currentPage)
         } catch (error) {
             console.error("❌ [CustomersListPage] Bulk assign customer type failed:", error)
             toast({
@@ -904,7 +980,7 @@ export default function CustomersListPage() {
             })
 
             clearSelection()
-            fetchCustomers()
+            fetchCustomers(currentPage)
         } catch (error) {
             console.error("❌ [CustomersListPage] Bulk delete failed:", error)
             toast({
@@ -966,7 +1042,7 @@ export default function CustomersListPage() {
             })
 
             clearSelection()
-            fetchCustomers()
+            fetchCustomers(currentPage)
         } catch (error) {
             console.error("❌ [CustomersListPage] Bulk update receipt preference failed:", error)
             toast({
@@ -1039,13 +1115,6 @@ export default function CustomersListPage() {
         }
     }
 
-    useEffect(() => {
-        const debounce = setTimeout(() => {
-            fetchCustomers()
-        }, 300)
-
-        return () => clearTimeout(debounce)
-    }, [searchTerm])
 
     const handleAdd = () => {
         setIsAddDialogOpen(true)
@@ -1058,13 +1127,13 @@ export default function CustomersListPage() {
 
     const handleAddSuccess = () => {
         setIsAddDialogOpen(false)
-        fetchCustomers()
+        fetchCustomers(currentPage)
     }
 
     const handleEditSuccess = () => {
         setIsEditDialogOpen(false)
         setEditingCustomerId(null)
-        fetchCustomers()
+        fetchCustomers(currentPage)
     }
 
     const handleDelete = async () => {
@@ -1086,7 +1155,7 @@ export default function CustomersListPage() {
 
             setIsDeleteDialogOpen(false)
             setCustomerToDelete(null)
-            fetchCustomers()
+            fetchCustomers(currentPage)
         } catch (error: any) {
             console.error("Error deleting customer:", error)
             toast({
@@ -1374,23 +1443,27 @@ export default function CustomersListPage() {
                         <div>
                             <CardTitle>לקוחות</CardTitle>
                             <CardDescription>
-                                {filteredCustomers.length > 0
-                                    ? `נמצאו ${filteredCustomers.length} לקוחות${customers.length !== filteredCustomers.length ? ` מתוך ${customers.length} סה"כ` : ''}`
-                                    : customers.length > 0
-                                        ? `לא נמצאו תוצאות מתוך ${customers.length} לקוחות`
-                                        : "רשימת כל הלקוחות במערכת"}
+                                {totalCount > 0
+                                    ? `נמצאו ${totalCount} לקוחות${customers.length < totalCount ? ` (מציג ${customers.length} מתוכם)` : ''}`
+                                    : "לא נמצאו לקוחות"}
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="relative">
-                                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                                <Input
-                                    placeholder="חפש לקוחות..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pr-10 w-64"
-                                    dir="rtl"
-                                />
+                            <div className="relative flex items-center gap-2">
+                                <div className="relative">
+                                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                    <Input
+                                        placeholder="חפש לקוחות..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        onKeyDown={handleSearchKeyDown}
+                                        className="pr-10 w-64"
+                                        dir="rtl"
+                                    />
+                                </div>
+                                <Button onClick={triggerSearch} variant="outline" size="icon">
+                                    <Search className="h-4 w-4" />
+                                </Button>
                             </div>
                             <Button onClick={handleAdd}>
                                 <Plus className="h-4 w-4 ml-2" />
@@ -1408,6 +1481,12 @@ export default function CustomersListPage() {
                                 <AutocompleteFilter
                                     value={nameFilter}
                                     onChange={setNameFilter}
+                                    onSelect={(value) => {
+                                        setNameFilter(value)
+                                        // Trigger search immediately when selecting from autocomplete
+                                        triggerSearch()
+                                    }}
+                                    onEnter={triggerSearch}
                                     placeholder="שם לקוח..."
                                     searchFn={searchCustomerNames}
                                     minSearchLength={0}
@@ -1421,6 +1500,12 @@ export default function CustomersListPage() {
                                 <AutocompleteFilter
                                     value={phoneFilter}
                                     onChange={setPhoneFilter}
+                                    onSelect={(value) => {
+                                        setPhoneFilter(value)
+                                        // Trigger search immediately when selecting from autocomplete
+                                        triggerSearch()
+                                    }}
+                                    onEnter={triggerSearch}
                                     placeholder="טלפון..."
                                     searchFn={searchCustomerPhones}
                                     minSearchLength={0}
@@ -1434,6 +1519,12 @@ export default function CustomersListPage() {
                                 <AutocompleteFilter
                                     value={emailFilter}
                                     onChange={setEmailFilter}
+                                    onSelect={(value) => {
+                                        setEmailFilter(value)
+                                        // Trigger search immediately when selecting from autocomplete
+                                        triggerSearch()
+                                    }}
+                                    onEnter={triggerSearch}
                                     placeholder="אימייל..."
                                     searchFn={searchCustomerEmails}
                                     minSearchLength={0}
@@ -1521,7 +1612,7 @@ export default function CustomersListPage() {
                                 </div>
                             )}
                         </div>
-                        {(customerTypeFilter.length > 0 || leadSourceFilter || phoneFilter || emailFilter || nameFilter || appointmentFilterEnabled) && (
+                        {(customerTypeFilter.length > 0 || leadSourceFilter || phoneFilter || emailFilter || nameFilter || searchTerm || appointmentFilterEnabled) && (
                             <Button
                                 variant="outline"
                                 onClick={() => {
@@ -1530,6 +1621,7 @@ export default function CustomersListPage() {
                                     setPhoneFilter("")
                                     setEmailFilter("")
                                     setNameFilter("")
+                                    setSearchTerm("")
                                     setAppointmentFilterEnabled(false)
                                     setAppointmentFilterRoot({
                                         type: "group",
@@ -1544,6 +1636,8 @@ export default function CustomersListPage() {
                                     params.delete("type")
                                     params.delete("leadSource")
                                     setSearchParams(params, { replace: true })
+                                    // Trigger search after clearing filters
+                                    triggerSearch()
                                 }}
                             >
                                 נקה כל הסינונים
@@ -1637,7 +1731,7 @@ export default function CustomersListPage() {
                                                     onPointerLeave={handleCheckboxPointerUpOrLeave}
                                                     onCheckedChange={handleSelectAllChange}
                                                     aria-label="בחר את כל הלקוחות במסך הנוכחי"
-                                                    disabled={filteredCustomers.length === 0 || disableSelection}
+                                                    disabled={customers.length === 0 || disableSelection}
                                                 />
                                             </div>
                                         </TableHead>
@@ -1660,7 +1754,7 @@ export default function CustomersListPage() {
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        filteredCustomers.map((customer, index) => (
+                                        customers.map((customer, index) => (
                                             <TableRow
                                                 key={customer.id}
                                                 className="cursor-pointer hover:bg-gray-50"
@@ -1720,6 +1814,35 @@ export default function CustomersListPage() {
                             </Table>
                         </div>
                     </div>
+                    {/* Pagination Controls */}
+                    {totalCount > PAGE_SIZE && (
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                            <div className="text-sm text-muted-foreground">
+                                מציג {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, totalCount)} מתוך {totalCount} לקוחות
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1 || isLoading}
+                                >
+                                    הקודם
+                                </Button>
+                                <div className="text-sm">
+                                    עמוד {currentPage} מתוך {Math.ceil(totalCount / PAGE_SIZE)}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalCount / PAGE_SIZE), prev + 1))}
+                                    disabled={currentPage >= Math.ceil(totalCount / PAGE_SIZE) || isLoading}
+                                >
+                                    הבא
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

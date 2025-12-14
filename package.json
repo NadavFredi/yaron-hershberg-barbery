@@ -15,7 +15,8 @@
     "deploy:functions": "node scripts/deploy-functions.js",
     "functions:local": "supabase functions serve --env-file .env.local",
     "setup:local": "tsx scripts/setup-local-admin.ts",
-    "setup:remote": "tsx scripts/setup-remote-admin.ts"
+    "setup:remote": "tsx scripts/setup-remote-admin.ts",
+    "migrate:clients": "tsx scripts/migrate-clients.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
