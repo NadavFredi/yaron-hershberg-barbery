@@ -5,6 +5,7 @@ import { useManagerRole } from "@/hooks/useManagerRole"
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth"
 import { useProtectedScreenPassword } from "@/hooks/useProtectedScreenPassword"
 import { ProtectedScreenPasswordDialog } from "@/components/dialogs/ProtectedScreenPasswordDialog"
+import { ProtectedScreenGuard } from "@/components/ProtectedScreenGuard"
 import Settings from "@/pages/Settings/Settings"
 import WaitingListPage from "@/pages/WaitingListPage"
 import CustomersSection from "@/pages/CustomersSection"
@@ -20,23 +21,49 @@ import RemindersPage from "@/pages/RemindersPage"
 const VALID_SECTIONS = ["settings", "waiting-list", "customers", "appointments", "workers", "services", "products", "payments", "subscriptions", "reports", "reminders"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
-// Map screen IDs to their Hebrew labels
+// Map screen IDs to their Hebrew labels - must match the IDs from SettingsProtectedScreensSection
 const SCREEN_NAMES: Record<string, string> = {
+    // Appointments
     "manager": "לוח מנהל",
     "waiting-list": "רשימת המתנה",
     "appointments": "ניהול תורים",
+    // Customers
     "customers-list": "רשימת לקוחות",
     "customer-types": "סוגי לקוחות",
     "lead-sources": "מקורות הגעה",
-    "workers": "עובדים",
+    // Services
     "services": "שירותים",
     "service-category": "קטגוריות שירותים",
-    "products": "מוצרים",
-    "payments": "תשלומים",
-    "subscriptions": "מנויים",
-    "reports": "דוחות",
-    "reminders": "תזכורות תורים",
-    "settings": "הגדרות",
+    // Workers
+    "workers-workers": "עובדים",
+    "workers-shifts": "משמרות עובדים",
+    "workers-presence": "דיווח נוכחות",
+    // Products
+    "products-products": "מוצרים",
+    "products-brands": "מותגים",
+    // Payments
+    "payments-list": "תשלומים",
+    "payments-carts": "עגלות",
+    "payments-debts": "חובות",
+    // Subscriptions
+    "subscriptions-list": "מנויים",
+    "subscriptions-types": "סוגי מנויים",
+    // Reports
+    "reports-payments": "תשלומים",
+    "reports-clients": "לקוחות",
+    "reports-appointments": "תורים",
+    "reports-subscriptions": "מנויים",
+    "reports-shifts": "משמרות עובדים",
+    // Reminders
+    "reminders-settings": "הגדרות",
+    "reminders-sent": "תזכורות שנשלחו",
+    // Settings
+    "settings-working-hours": "שעות עבודה גלובליות",
+    "settings-stations": "ניהול עמדות",
+    "settings-stations-per-day": "עמדות לפי יום",
+    "settings-service-station-matrix": "מטריצת שירותים-עמדות",
+    "settings-constraints": "אילוצים",
+    "settings-protected-screens": "מסכים מוגנים",
 }
 
 export default function ManagerScreens() {
@@ -70,14 +97,7 @@ export default function ManagerScreens() {
         }
     }, [hasInitialized, isManager, isLoading, navigate])
 
-    // Check if password is required when screen changes
-    useEffect(() => {
-        if (!isChecking && hasInitialized && isManager) {
-            if (isProtected && !isPasswordVerified()) {
-                setShowPasswordDialog(true)
-            }
-        }
-    }, [isProtected, isChecking, hasInitialized, isManager, isPasswordVerified])
+    // Don't auto-show dialog - user must click "Enter Password" on the guard
 
     // Wait for auth to initialize before showing anything
     if (!hasInitialized || isLoading) {
@@ -104,12 +124,8 @@ export default function ManagerScreens() {
         )
     }
 
-    // Don't render content if protected and password not verified
-    if (isProtected && !isPasswordVerified() && !showPasswordDialog) {
-        return null
-    }
-
     const screenName = screenId ? SCREEN_NAMES[screenId] || screenId : undefined
+    const showGuard = isProtected && !isPasswordVerified() && !showPasswordDialog
 
     return (
         <>
@@ -117,18 +133,20 @@ export default function ManagerScreens() {
                 open={showPasswordDialog}
                 onClose={() => {
                     setShowPasswordDialog(false)
-                    // Redirect to manager dashboard if password cancelled
-                    if (!isPasswordVerified()) {
-                        navigate("/manager")
-                    }
                 }}
                 onSuccess={() => {
                     setShowPasswordDialog(false)
                 }}
                 screenName={screenName}
             />
-            <div className="min-h-screen" dir="rtl">
-                <div className="mx-auto w-full  ">
+            <div className="min-h-screen relative" dir="rtl">
+                {showGuard && (
+                    <ProtectedScreenGuard
+                        screenName={screenName}
+                        onEnterPassword={() => setShowPasswordDialog(true)}
+                    />
+                )}
+                <div className={`mx-auto w-full ${showGuard ? "opacity-40 pointer-events-none select-none" : ""}`}>
                     <div className="pt-0 pb-4 sm:pb-6">
                         {activeSection === "settings" && <Settings />}
                         {activeSection === "waiting-list" && <WaitingListPage />}

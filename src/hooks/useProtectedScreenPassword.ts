@@ -90,26 +90,82 @@ function getScreenIdFromRoute(pathname: string, searchParams: URLSearchParams): 
     const section = searchParams.get("section")
     const mode = searchParams.get("mode")
 
+    // Appointments section
     if (section === "waiting-list") return "waiting-list"
     if (section === "appointments") return "appointments"
+
+    // Customers section - from second-level children
     if (section === "customers") {
       if (mode === "list" || !mode) return "customers-list"
       if (mode === "types") return "customer-types"
       if (mode === "sources") return "lead-sources"
       return "customers-list"
     }
-    if (section === "workers") return "workers"
+
+    // Services section - from second-level children
     if (section === "services") {
       if (mode === "services" || !mode) return "services"
       if (mode === "service-category") return "service-category"
       return "services"
     }
-    if (section === "products") return "products"
-    if (section === "payments") return "payments"
-    if (section === "subscriptions") return "subscriptions"
-    if (section === "reports") return "reports"
-    if (section === "reminders") return "reminders"
-    if (section === "settings") return "settings"
+
+    // Workers section - from third-level items
+    if (section === "workers") {
+      if (mode === "workers" || !mode) return "workers-workers"
+      if (mode === "shifts") return "workers-shifts"
+      if (mode === "presence") return "workers-presence"
+      return "workers-workers"
+    }
+
+    // Products section - from third-level items
+    if (section === "products") {
+      if (mode === "products" || !mode) return "products-products"
+      if (mode === "brands") return "products-brands"
+      return "products-products"
+    }
+
+    // Payments section - from third-level items
+    if (section === "payments") {
+      if (mode === "list" || !mode) return "payments-list"
+      if (mode === "carts") return "payments-carts"
+      if (mode === "debts") return "payments-debts"
+      return "payments-list"
+    }
+
+    // Subscriptions section - from third-level items
+    if (section === "subscriptions") {
+      if (mode === "list" || !mode) return "subscriptions-list"
+      if (mode === "types") return "subscriptions-types"
+      return "subscriptions-list"
+    }
+
+    // Reports section - from third-level items
+    if (section === "reports") {
+      if (mode === "payments" || !mode) return "reports-payments"
+      if (mode === "clients") return "reports-clients"
+      if (mode === "appointments") return "reports-appointments"
+      if (mode === "subscriptions") return "reports-subscriptions"
+      if (mode === "shifts") return "reports-shifts"
+      return "reports-payments"
+    }
+
+    // Reminders section - from third-level items
+    if (section === "reminders") {
+      if (mode === "settings" || !mode) return "reminders-settings"
+      if (mode === "sent") return "reminders-sent"
+      return "reminders-settings"
+    }
+
+    // Settings section - from third-level items
+    if (section === "settings") {
+      if (mode === "working-hours" || !mode) return "settings-working-hours"
+      if (mode === "stations") return "settings-stations"
+      if (mode === "stations-per-day") return "settings-stations-per-day"
+      if (mode === "service-station-matrix") return "settings-service-station-matrix"
+      if (mode === "constraints") return "settings-constraints"
+      if (mode === "protected-screens") return "settings-protected-screens"
+      return "settings-working-hours"
+    }
   }
 
   return null

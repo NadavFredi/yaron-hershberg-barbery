@@ -147,6 +147,7 @@ interface TreatmentData {
   treatment_name: string
   worker_name: string
   price: number
+  treatment_external_id?: string // Optional external ID for the treatment itself
 }
 
 interface MigrationBatch {
@@ -420,6 +421,11 @@ async function processTreatmentBatch(
   const results = { created: 0, errors: [] as string[] }
   const customerMap = new Map<string, string>()
 
+  // Cache all workers for efficient lookup
+  const { data: allWorkers } = await supabase.from("profiles").select("id, full_name").eq("role", "worker")
+
+  const workersList = allWorkers || []
+
   for (const treatment of treatments) {
     try {
       // Find customer by external_id
@@ -471,15 +477,28 @@ async function processTreatmentBatch(
         }
       }
 
-      // Find worker by name
+      // Find worker by name - try multiple matching strategies
       let workerId: string | null = null
-      if (treatment.worker_name && treatment.worker_name.trim()) {
-        const { data: worker } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("role", "worker")
-          .ilike("full_name", treatment.worker_name.trim())
-          .maybeSingle()
+      if (treatment.worker_name && treatment.worker_name.trim() && workersList.length > 0) {
+        const workerNameTrimmed = treatment.worker_name.trim()
+        const normalizedName = workerNameTrimmed.replace(/\s+/g, " ").trim() // Normalize multiple spaces to single space
+
+        // Try exact match first (normalized)
+        let worker = workersList.find(
+          (w) => w.full_name && w.full_name.replace(/\s+/g, " ").trim().toLowerCase() === normalizedName.toLowerCase()
+        )
+
+        // If not found, try partial match (first word)
+        if (!worker && normalizedName.includes(" ")) {
+          const firstWord = normalizedName.split(" ")[0]
+          const matchingWorkers = workersList.filter(
+            (w) =>
+              w.full_name && w.full_name.replace(/\s+/g, " ").trim().toLowerCase().startsWith(firstWord.toLowerCase())
+          )
+          if (matchingWorkers.length === 1) {
+            worker = matchingWorkers[0]
+          }
+        }
 
         if (worker) {
           workerId = worker.id
@@ -502,7 +521,59 @@ async function processTreatmentBatch(
         continue
       }
 
-      // Create payment record
+      // Set appointment times (use date at 10:00 AM as default, duration 1 hour)
+      const startAt = new Date(treatmentDate)
+      startAt.setHours(10, 0, 0, 0)
+      const endAt = new Date(startAt)
+      endAt.setHours(startAt.getHours() + 1)
+
+      const STATION_ID = "e9b1d67c-ac32-4d6a-acbd-8efe31e73186"
+
+      // Create a composite external ID: customer_external_id + treatment_date + treatment_name
+      // This uniquely identifies the treatment from the old system
+      const treatmentExternalId = `${treatment.customer_external_id}-${treatment.treatment_date}-${
+        treatment.treatment_name || "treatment"
+      }`
+
+      // Create grooming appointment
+      const appointmentPayload: Record<string, unknown> = {
+        customer_id: customerId,
+        treatment_id: treatmentExternalId, // Store external ID from old system
+        service_id: serviceId,
+        station_id: STATION_ID,
+        status: "completed",
+        payment_status: "paid",
+        appointment_kind: "business",
+        start_at: startAt.toISOString(),
+        end_at: endAt.toISOString(),
+        amount_due: treatment.price,
+        created_at: treatmentDate.toISOString(),
+      }
+
+      if (workerId) {
+        appointmentPayload.worker_id = workerId
+      }
+
+      const { data: appointment, error: appointmentError } = await supabase
+        .from("grooming_appointments")
+        .insert(appointmentPayload)
+        .select("id")
+        .single()
+
+      if (appointmentError) {
+        console.error(
+          `❌ Error creating appointment for customer ${treatment.customer_external_id}:`,
+          formatError(appointmentError)
+        )
+        results.errors.push(
+          `Treatment for customer ${treatment.customer_external_id}: Failed to create appointment - ${formatError(
+            appointmentError
+          )}`
+        )
+        continue
+      }
+
+      // Create payment record linked to the appointment
       const paymentPayload: Record<string, unknown> = {
         customer_id: customerId,
         amount: treatment.price,
@@ -515,6 +586,7 @@ async function processTreatmentBatch(
           worker_name: treatment.worker_name || null,
           worker_id: workerId,
           service_id: serviceId,
+          appointment_id: appointment.id,
         },
         created_at: treatmentDate.toISOString(),
       }
@@ -526,12 +598,34 @@ async function processTreatmentBatch(
           `❌ Error creating payment for customer ${treatment.customer_external_id}:`,
           formatError(paymentError)
         )
-        results.errors.push(`Treatment for customer ${treatment.customer_external_id}: ${formatError(paymentError)}`)
-        continue
+        // Don't fail the whole operation if payment creation fails, appointment is already created
+      }
+
+      // Link payment to appointment via appointment_payments table
+      if (!paymentError) {
+        const { data: payment } = await supabase
+          .from("payments")
+          .select("id")
+          .eq("customer_id", customerId)
+          .eq("amount", treatment.price)
+          .eq("created_at", treatmentDate.toISOString())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (payment) {
+          await supabase.from("appointment_payments").insert({
+            payment_id: payment.id,
+            grooming_appointment_id: appointment.id,
+            amount: treatment.price,
+          })
+        }
       }
 
       results.created++
-      console.log(`✅ Created payment: ${treatment.price} for customer ${treatment.customer_external_id}`)
+      console.log(
+        `✅ Created appointment and payment: ${treatment.price} for customer ${treatment.customer_external_id}`
+      )
     } catch (error) {
       const errorMsg = formatError(error)
       console.error(`❌ Error processing treatment for customer ${treatment.customer_external_id}:`, errorMsg)

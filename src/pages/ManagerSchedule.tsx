@@ -1,9 +1,10 @@
 import { useAppSelector } from "@/store/hooks"
-import { useSearchParams, useNavigate } from "react-router-dom"
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom"
 import { useState, useEffect, useRef, useMemo } from "react"
 import { Loader2 } from "lucide-react"
 import { useProtectedScreenPassword } from "@/hooks/useProtectedScreenPassword"
 import { ProtectedScreenPasswordDialog } from "@/components/dialogs/ProtectedScreenPasswordDialog"
+import { ProtectedScreenGuard } from "@/components/ProtectedScreenGuard"
 import { useManagerSchedulePersistence } from "./ManagerSchedule/hooks/useManagerSchedulePersistence"
 import { useManagerScheduleData } from "./ManagerSchedule/hooks/useManagerScheduleData"
 import { useManagerScheduleStations } from "./ManagerSchedule/hooks/useManagerScheduleStations"
@@ -39,6 +40,7 @@ import { ManagerScheduleSidebar } from "./ManagerSchedule/components/ManagerSche
 
 const ManagerSchedule = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { isProtected, isChecking, isPasswordVerified } = useProtectedScreenPassword()
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
@@ -112,14 +114,7 @@ const ManagerSchedule = () => {
 
   const isUnpinMode = !showPinnedAppointmentsColumn
 
-  // Check if password is required
-  useEffect(() => {
-    if (!isChecking) {
-      if (isProtected && !isPasswordVerified()) {
-        setShowPasswordDialog(true)
-      }
-    }
-  }, [isProtected, isChecking, isPasswordVerified])
+  // Don't auto-show dialog - user must click "Enter Password" on the guard
 
   // Show loading while checking protection status
   if (isChecking) {
@@ -131,10 +126,7 @@ const ManagerSchedule = () => {
     )
   }
 
-  // Don't render content if protected and password not verified
-  if (isProtected && !isPasswordVerified() && !showPasswordDialog) {
-    return null
-  }
+  const showGuard = isProtected && !isPasswordVerified() && !showPasswordDialog
 
   return (
     <>
@@ -142,57 +134,61 @@ const ManagerSchedule = () => {
         open={showPasswordDialog}
         onClose={() => {
           setShowPasswordDialog(false)
-          // Redirect away if password cancelled
-          if (!isPasswordVerified()) {
-            navigate("/")
-          }
         }}
         onSuccess={() => {
           setShowPasswordDialog(false)
         }}
         screenName="לוח מנהל"
       />
-      <div className="mx-auto w-full px-4 sm:px-6 lg:px-8" dir="rtl">
-        <ManagerScheduleLoadingState />
-        <div className={`flex gap-4 transition-all duration-300 ease-in-out ${isUnpinMode ? 'h-screen py-4' : ''}`}>
-          <ManagerScheduleSidebar />
-          <div className={`overflow-x-auto  flex-1 h-full`}>
-            {showBoardLoader ? (
-              <div className="flex h-full items-center justify-center rounded-lg border border-slate-200 bg-white">
-                <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="text-sm text-gray-600">טוען את לוח הניהול...</span>
+      <div className="relative" dir="rtl">
+        {showGuard && (
+          <ProtectedScreenGuard
+            screenName="לוח מנהל"
+            onEnterPassword={() => setShowPasswordDialog(true)}
+          />
+        )}
+        <div className={`mx-auto w-full px-4 sm:px-6 lg:px-8 ${showGuard ? "opacity-40 pointer-events-none select-none" : ""}`}>
+          <ManagerScheduleLoadingState />
+          <div className={`flex gap-4 transition-all duration-300 ease-in-out ${isUnpinMode ? 'h-screen py-4' : ''}`}>
+            <ManagerScheduleSidebar />
+            <div className={`overflow-x-auto  flex-1 h-full`}>
+              {showBoardLoader ? (
+                <div className="flex h-full items-center justify-center rounded-lg border border-slate-200 bg-white">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="text-sm text-gray-600">טוען את לוח הניהול...</span>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <ManagerScheduleContent />
-            )}
+              ) : (
+                <ManagerScheduleContent />
+              )}
+            </div>
           </div>
+          <ManagerAppointmentDetailsSheet />
+          <ManagerClientDetailsSheet />
+          <ManagerConstraintDetailsSheet />
+          <MoveConfirmationDialog />
+          <DeleteConfirmationDialog />
+          <CancelConfirmationDialog />
+          <DuplicateSeriesModal />
+          <DuplicateSuccessModal />
+          <DeleteProposedMeetingDialog />
+          <ManagerGroomingEditModal />
+          <ManagerPersonalAppointmentEditModal />
+          <WaitlistDropDialog />
+          <ManagerAppointmentCreationModals />
+          <ManagerProposedMeetingModal />
+          <ManagerConstraintEditDialog />
+          <DeleteConstraintDialog />
+          <ManagerStationEditDialog />
+          <ManagerDuplicateStationDialog />
+          <ManagerStationConstraintsModal />
+          <ManagerProposeRescheduleModal />
+          <PinnedAppointmentDropDialog />
+          <ManagerCustomerCommunicationModal />
+          <ManagerInvoiceModal />
+          <ApproveWithModifyDialog />
         </div>
-        <ManagerAppointmentDetailsSheet />
-        <ManagerClientDetailsSheet />
-        <ManagerConstraintDetailsSheet />
-        <MoveConfirmationDialog />
-        <DeleteConfirmationDialog />
-        <CancelConfirmationDialog />
-        <DuplicateSeriesModal />
-        <DuplicateSuccessModal />
-        <DeleteProposedMeetingDialog />
-        <ManagerGroomingEditModal />
-        <ManagerPersonalAppointmentEditModal />
-        <WaitlistDropDialog />
-        <ManagerAppointmentCreationModals />
-        <ManagerProposedMeetingModal />
-        <ManagerConstraintEditDialog />
-        <DeleteConstraintDialog />
-        <ManagerStationEditDialog />
-        <ManagerDuplicateStationDialog />
-        <ManagerStationConstraintsModal />
-        <ManagerProposeRescheduleModal />
-        <PinnedAppointmentDropDialog />
-        <ManagerCustomerCommunicationModal />
-        <ManagerInvoiceModal />
-        <ApproveWithModifyDialog />
       </div>
     </>
   )

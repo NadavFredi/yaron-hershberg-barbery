@@ -9,15 +9,17 @@ import { useToast } from "@/components/ui/use-toast"
 import { useUpdateCustomerMutation } from "@/store/services/supabaseApi"
 import { supabase } from "@/integrations/supabase/client"
 import { normalizePhone } from "@/utils/phone"
+import { AutocompleteSelectWithCreate, type SelectOption } from "@/components/ui/AutocompleteSelectWithCreate"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Checkbox } from "@/components/ui/checkbox"
 import type { Database } from "@/integrations/supabase/types"
 
+const NO_TYPE_VALUE = "__NONE__"
+
 type CustomerContact = Database["public"]["Tables"]["customer_contacts"]["Row"]
 type CustomerContactInsert = Database["public"]["Tables"]["customer_contacts"]["Insert"]
 
-const NO_TYPE_VALUE = "__NONE__"
 
 interface CustomerFormData {
     full_name: string
@@ -66,10 +68,6 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
         city: "",
         is_banned: false,
     })
-    const [customerTypes, setCustomerTypes] = useState<Array<{ id: string; name: string; priority: number }>>([])
-    const [isLoadingTypes, setIsLoadingTypes] = useState(false)
-    const [leadSources, setLeadSources] = useState<Array<{ id: string; name: string }>>([])
-    const [isLoadingLeadSources, setIsLoadingLeadSources] = useState(false)
     const [contacts, setContacts] = useState<CustomerContact[]>([])
     const [isLoadingContacts, setIsLoadingContacts] = useState(false)
     const [newContactName, setNewContactName] = useState("")
@@ -185,76 +183,82 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
         }, 300)
     }, [isUpdatingCustomer, isLoadingCustomerData, onOpenChange])
 
-    useEffect(() => {
-        if (!open) {
-            return
+    // Search functions for autocomplete
+    const searchCustomerTypes = useCallback(async (searchTerm: string): Promise<SelectOption[]> => {
+        const { data, error } = await supabase
+            .from("customer_types")
+            .select("id, name")
+            .order("priority", { ascending: true })
+
+        if (error) throw error
+
+        const allTypes = (data || []).map((type) => ({
+            id: type.id,
+            name: type.name,
+        }))
+
+        if (!searchTerm.trim()) {
+            return allTypes
         }
 
-        const loadCustomerTypes = async () => {
-            try {
-                setIsLoadingTypes(true)
-                console.log("🔍 [EditCustomerDialog] Loading customer types...")
-                const { data, error } = await supabase
-                    .from("customer_types")
-                    .select("id, name, priority")
-                    .order("priority", { ascending: true })
+        const lowerSearch = searchTerm.toLowerCase()
+        return allTypes.filter((type) => type.name.toLowerCase().includes(lowerSearch))
+    }, [])
 
-                if (error) throw error
+    const createCustomerType = useCallback(async (name: string): Promise<SelectOption> => {
+        // Get max priority to set new one
+        const { data: existingTypes } = await supabase
+            .from("customer_types")
+            .select("priority")
+            .order("priority", { ascending: false })
+            .limit(1)
 
-                const types = (data || []).map((type) => ({
-                    id: type.id,
-                    name: type.name,
-                    priority: type.priority,
-                }))
+        const maxPriority = existingTypes && existingTypes.length > 0 ? existingTypes[0].priority : 0
+        const nextPriority = maxPriority + 1
 
-                setCustomerTypes(types)
-                console.log("✅ [EditCustomerDialog] Customer types loaded:", types)
-            } catch (error) {
-                console.error("❌ [EditCustomerDialog] Failed to load customer types:", error)
-                toast({
-                    title: "שגיאה בטעינת סוגי לקוחות",
-                    description: "לא ניתן לטעון את סוגי הלקוחות כעת",
-                    variant: "destructive",
-                })
-            } finally {
-                setIsLoadingTypes(false)
-            }
+        const { data, error } = await supabase
+            .from("customer_types")
+            .insert({ name: name.trim(), priority: nextPriority, description: null })
+            .select("id, name")
+            .single()
+
+        if (error) throw error
+
+        return { id: data.id, name: data.name }
+    }, [])
+
+    const searchLeadSources = useCallback(async (searchTerm: string): Promise<SelectOption[]> => {
+        const { data, error } = await supabase
+            .from("lead_sources")
+            .select("id, name")
+            .order("name", { ascending: true })
+
+        if (error) throw error
+
+        const allSources = (data || []).map((source) => ({
+            id: source.id,
+            name: source.name,
+        }))
+
+        if (!searchTerm.trim()) {
+            return allSources
         }
 
-        loadCustomerTypes()
+        const lowerSearch = searchTerm.toLowerCase()
+        return allSources.filter((source) => source.name.toLowerCase().includes(lowerSearch))
+    }, [])
 
-        const loadLeadSources = async () => {
-            try {
-                setIsLoadingLeadSources(true)
-                console.log("🔍 [EditCustomerDialog] Loading lead sources...")
-                const { data, error } = await supabase
-                    .from("lead_sources")
-                    .select("id, name")
-                    .order("name", { ascending: true })
+    const createLeadSource = useCallback(async (name: string): Promise<SelectOption> => {
+        const { data, error } = await supabase
+            .from("lead_sources")
+            .insert({ name: name.trim() })
+            .select("id, name")
+            .single()
 
-                if (error) throw error
+        if (error) throw error
 
-                const sources = (data || []).map((source) => ({
-                    id: source.id,
-                    name: source.name,
-                }))
-
-                setLeadSources(sources)
-                console.log("✅ [EditCustomerDialog] Lead sources loaded:", sources)
-            } catch (error) {
-                console.error("❌ [EditCustomerDialog] Failed to load lead sources:", error)
-                toast({
-                    title: "שגיאה בטעינת מקורות הגעה",
-                    description: "לא ניתן לטעון את מקורות ההגעה כעת",
-                    variant: "destructive",
-                })
-            } finally {
-                setIsLoadingLeadSources(false)
-            }
-        }
-
-        loadLeadSources()
-    }, [open, toast])
+        return { id: data.id, name: data.name }
+    }, [])
 
     const handleUpdateCustomer = useCallback(async () => {
         if (!customerId) {
@@ -584,64 +588,40 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-customer-type" className="text-right flex items-center gap-2">
-                                    סוג לקוח (אופציונלי)
-                                </Label>
-                                <Select
-                                    value={customerData.customer_type_id ?? NO_TYPE_VALUE}
-                                    onValueChange={(value) =>
-                                        setCustomerData({
-                                            ...customerData,
-                                            customer_type_id: value === NO_TYPE_VALUE ? null : value,
-                                        })
-                                    }
-                                    disabled={isUpdatingCustomer || isLoadingTypes}
-                                >
-                                    <SelectTrigger id="edit-customer-type" dir="rtl" className="text-right">
-                                        <SelectValue placeholder={isLoadingTypes ? "טוען סוגים..." : "בחר סוג"} />
-                                    </SelectTrigger>
-                                    <SelectContent dir="rtl">
-                                        <SelectItem value={NO_TYPE_VALUE}>ללא סוג</SelectItem>
-                                        {customerTypes.map((type) => (
-                                            <SelectItem key={type.id} value={type.id}>
-                                                {type.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <p className="text-xs text-gray-500 text-right">
-                                    רק מנהלים יכולים לשנות סוגי לקוחות. השינוי משפיע על קדימויות בתורים.
-                                </p>
-                            </div>
+                            <AutocompleteSelectWithCreate
+                                value={customerData.customer_type_id}
+                                onChange={(value) =>
+                                    setCustomerData({
+                                        ...customerData,
+                                        customer_type_id: value,
+                                    })
+                                }
+                                searchFn={searchCustomerTypes}
+                                createFn={createCustomerType}
+                                label="סוג לקוח (אופציונלי)"
+                                placeholder="חפש סוג לקוח או הוסף חדש..."
+                                allowClear={true}
+                                clearLabel="ללא סוג"
+                                disabled={isUpdatingCustomer}
+                                helperText="רק מנהלים יכולים לשנות סוגי לקוחות. השינוי משפיע על קדימויות בתורים."
+                            />
 
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-customer-lead-source" className="text-right flex items-center gap-2">
-                                    מקור הגעה (אופציונלי)
-                                </Label>
-                                <Select
-                                    value={customerData.lead_source_id ?? NO_TYPE_VALUE}
-                                    onValueChange={(value) =>
-                                        setCustomerData({
-                                            ...customerData,
-                                            lead_source_id: value === NO_TYPE_VALUE ? null : value,
-                                        })
-                                    }
-                                    disabled={isUpdatingCustomer || isLoadingLeadSources}
-                                >
-                                    <SelectTrigger id="edit-customer-lead-source" dir="rtl" className="text-right">
-                                        <SelectValue placeholder={isLoadingLeadSources ? "טוען מקורות..." : "בחר מקור הגעה"} />
-                                    </SelectTrigger>
-                                    <SelectContent dir="rtl">
-                                        <SelectItem value={NO_TYPE_VALUE}>ללא מקור</SelectItem>
-                                        {leadSources.map((source) => (
-                                            <SelectItem key={source.id} value={source.id}>
-                                                {source.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            <AutocompleteSelectWithCreate
+                                value={customerData.lead_source_id}
+                                onChange={(value) =>
+                                    setCustomerData({
+                                        ...customerData,
+                                        lead_source_id: value,
+                                    })
+                                }
+                                searchFn={searchLeadSources}
+                                createFn={createLeadSource}
+                                label="מקור הגעה (אופציונלי)"
+                                placeholder="חפש מקור הגעה או הוסף חדש..."
+                                allowClear={true}
+                                clearLabel="ללא מקור"
+                                disabled={isUpdatingCustomer}
+                            />
 
                             <div className="space-y-2">
                                 <Label htmlFor="edit-customer-address" className="text-right flex items-center gap-2">

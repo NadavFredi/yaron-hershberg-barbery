@@ -8,27 +8,72 @@ import { Loader2, Save, Lock, LockOpen, Eye, EyeOff, ChevronDown } from "lucide-
 import { supabase } from "@/integrations/supabase/client"
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth"
 import { MANAGER_NAV_SECTIONS, APPOINTMENT_CHILD_LINKS, CUSTOMERS_CHILD_LINKS, SERVICES_CHILD_LINKS } from "@/components/navigation/ManagerSubnav"
+import { THIRD_LEVEL_SECTIONS } from "@/components/navigation/ThirdLevelSubnav"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
-// Define all manager screens with their IDs
+// Build all manager screens dynamically from navbar structure
 const MANAGER_SCREENS = [
-  // Main sections
-  { id: "manager", label: "לוח מנהל", section: "appointments" },
-  { id: "waiting-list", label: "רשימת המתנה", section: "appointments" },
-  { id: "appointments", label: "ניהול תורים", section: "appointments" },
-  { id: "customers-list", label: "רשימת לקוחות", section: "customers" },
-  { id: "customer-types", label: "סוגי לקוחות", section: "customers" },
-  { id: "lead-sources", label: "מקורות הגעה", section: "customers" },
-  { id: "workers", label: "עובדים", section: "workers" },
-  { id: "services", label: "שירותים", section: "services" },
-  { id: "service-category", label: "קטגוריות שירותים", section: "services" },
-  { id: "products", label: "מוצרים", section: "products" },
-  { id: "payments", label: "תשלומים", section: "payments" },
-  { id: "subscriptions", label: "מנויים", section: "subscriptions" },
-  { id: "reports", label: "דוחות", section: "reports" },
-  { id: "reminders", label: "תזכורות תורים", section: "reminders" },
-  { id: "settings", label: "הגדרות", section: "settings" },
+  // Appointments section - from second-level children
+  ...APPOINTMENT_CHILD_LINKS.map((child) => ({
+    id: child.id,
+    label: child.label,
+    section: "appointments" as const,
+  })),
+  // Customers section - from second-level children
+  ...CUSTOMERS_CHILD_LINKS.map((child) => ({
+    id: child.id,
+    label: child.label,
+    section: "customers" as const,
+  })),
+  // Services section - from second-level children
+  ...SERVICES_CHILD_LINKS.map((child) => ({
+    id: child.id,
+    label: child.label,
+    section: "services" as const,
+  })),
+  // Workers section - from third-level items
+  ...THIRD_LEVEL_SECTIONS.workers.map((item) => ({
+    id: `workers-${item.id}`,
+    label: item.label,
+    section: "workers" as const,
+  })),
+  // Products section - from third-level items
+  ...THIRD_LEVEL_SECTIONS.products.map((item) => ({
+    id: `products-${item.id}`,
+    label: item.label,
+    section: "products" as const,
+  })),
+  // Payments section - from third-level items
+  ...THIRD_LEVEL_SECTIONS.payments.map((item) => ({
+    id: `payments-${item.id}`,
+    label: item.label,
+    section: "payments" as const,
+  })),
+  // Subscriptions section - from third-level items
+  ...THIRD_LEVEL_SECTIONS.subscriptions.map((item) => ({
+    id: `subscriptions-${item.id}`,
+    label: item.label,
+    section: "subscriptions" as const,
+  })),
+  // Reports section - from third-level items
+  ...THIRD_LEVEL_SECTIONS.reports.map((item) => ({
+    id: `reports-${item.id}`,
+    label: item.label,
+    section: "reports" as const,
+  })),
+  // Reminders section - from third-level items
+  ...THIRD_LEVEL_SECTIONS.reminders.map((item) => ({
+    id: `reminders-${item.id}`,
+    label: item.label,
+    section: "reminders" as const,
+  })),
+  // Settings section - from third-level items
+  ...THIRD_LEVEL_SECTIONS.settings.map((item) => ({
+    id: `settings-${item.id}`,
+    label: item.label,
+    section: "settings" as const,
+  })),
 ]
 
 interface ProtectedScreen {
@@ -233,7 +278,7 @@ export function SettingsProtectedScreensSection() {
     }
     acc[screen.section].push(screen)
     return acc
-  }, {} as Record<string, typeof MANAGER_SCREENS>)
+  }, {} as Record<string, Array<{ id: string; label: string; section: string }>>)
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections((prev) => {
