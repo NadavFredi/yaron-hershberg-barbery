@@ -682,68 +682,91 @@ export default function PaymentsReport() {
                                 </TabsContent>
 
                                 <TabsContent value="byService" className="mt-6">
-                                    <div className="h-80 pb-8">
-                                        <HighchartsReact
-                                            highcharts={Highcharts}
-                                            options={{
-                                                chart: {
-                                                    type: "pie",
-                                                    backgroundColor: "transparent",
-                                                    style: { fontFamily: "inherit" },
-                                                    spacingBottom: 60,
-                                                },
-                                                title: { text: null },
-                                                tooltip: {
-                                                    formatter: function (this: any) {
-                                                        return `<div style="font-weight: 600; margin-bottom: 4px;">${this.point.name}</div>
-                                                            <div><span style="color: ${this.point.color}">●</span> סכום: <strong>₪${this.point.y.toLocaleString("he-IL")}</strong></div>
-                                                            <div>אחוז: <strong>${this.point.percentage.toFixed(1)}%</strong></div>`
+                                    <div className="h-[600px] flex flex-col">
+                                        <div className="flex-1 min-h-0">
+                                            <HighchartsReact
+                                                highcharts={Highcharts}
+                                                options={{
+                                                    chart: {
+                                                        type: "pie",
+                                                        backgroundColor: "transparent",
+                                                        style: { fontFamily: "inherit" },
+                                                        spacingTop: 30,
+                                                        spacingBottom: 10,
+                                                        spacingLeft: 30,
+                                                        spacingRight: 30,
+                                                        height: 450,
                                                     },
-                                                    useHTML: true,
-                                                },
-                                                plotOptions: {
-                                                    pie: {
-                                                        allowPointSelect: true,
-                                                        cursor: "pointer",
-                                                        dataLabels: {
-                                                            enabled: true,
-                                                            format: "{point.name}: {point.percentage:.1f}%",
-                                                            style: {
-                                                                fontSize: "13px",
-                                                                fontWeight: "500",
-                                                            },
+                                                    title: { text: null },
+                                                    tooltip: {
+                                                        formatter: function (this: any) {
+                                                            return `<div style="font-weight: 600; margin-bottom: 4px;">${this.point.name}</div>
+                                                                <div><span style="color: ${this.point.color}">●</span> סכום: <strong>₪${this.point.y.toLocaleString("he-IL")}</strong></div>
+                                                                <div>אחוז: <strong>${this.point.percentage.toFixed(1)}%</strong></div>`
                                                         },
-                                                        showInLegend: true,
-                                                        point: {
-                                                            events: {
-                                                                click: function (this: any) {
-                                                                    handleChartClick(this.name, "service")
+                                                        useHTML: true,
+                                                    },
+                                                    plotOptions: {
+                                                        pie: {
+                                                            allowPointSelect: true,
+                                                            cursor: "pointer",
+                                                            dataLabels: {
+                                                                enabled: true,
+                                                                format: "{point.name}: {point.percentage:.1f}%",
+                                                                style: {
+                                                                    fontSize: "13px",
+                                                                    fontWeight: "500",
+                                                                },
+                                                            },
+                                                            showInLegend: false,
+                                                            point: {
+                                                                events: {
+                                                                    click: function (this: any) {
+                                                                        handleChartClick(this.name, "service")
+                                                                    },
                                                                 },
                                                             },
                                                         },
                                                     },
-                                                },
-                                                legend: {
-                                                    align: "center",
-                                                    verticalAlign: "bottom",
-                                                    itemStyle: { fontSize: "13px", fontWeight: "500" },
-                                                    margin: 50,
-                                                    padding: 20,
-                                                    itemMarginBottom: 12,
-                                                },
-                                                series: [
-                                                    {
-                                                        name: "סכום",
-                                                        data: pieDataByService.map((d, i) => ({
-                                                            name: d.name,
-                                                            y: d.value,
-                                                            color: COLORS[i % COLORS.length],
-                                                        })),
+                                                    legend: {
+                                                        enabled: false,
                                                     },
-                                                ],
-                                                credits: { enabled: false },
-                                            }}
-                                        />
+                                                    series: [
+                                                        {
+                                                            name: "סכום",
+                                                            data: pieDataByService.map((d, i) => ({
+                                                                name: d.name,
+                                                                y: d.value,
+                                                                color: COLORS[i % COLORS.length],
+                                                            })),
+                                                        },
+                                                    ],
+                                                    credits: { enabled: false },
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="mt-4 border-t pt-4 flex-shrink-0">
+                                            <div className="text-sm font-medium mb-3 text-slate-700 text-right">מקרא שירותים:</div>
+                                            <div className="max-h-40 overflow-y-auto overflow-x-hidden pr-2" dir="rtl">
+                                                <div className="flex flex-wrap gap-3 justify-center" dir="rtl">
+                                                    {pieDataByService.map((d, i) => (
+                                                        <div
+                                                            key={d.name}
+                                                            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors"
+                                                            onClick={() => handleChartClick(d.name, "service")}
+                                                        >
+                                                            <div
+                                                                className="w-3 h-3 rounded-full flex-shrink-0"
+                                                                style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                                                            />
+                                                            <span className="text-sm font-medium text-slate-700 whitespace-nowrap">
+                                                                {d.name}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </TabsContent>
                             </Tabs>

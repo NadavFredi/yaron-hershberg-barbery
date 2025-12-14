@@ -432,20 +432,135 @@ async function processClientBatch(
 }
 
 /**
+ * Extract unique worker names from treatments
+ */
+function extractUniqueWorkerNames(treatments: TreatmentData[]): string[] {
+  const workerNames = new Set<string>()
+  for (const treatment of treatments) {
+    if (treatment.worker_name && treatment.worker_name.trim()) {
+      workerNames.add(treatment.worker_name.trim())
+    }
+  }
+  return Array.from(workerNames)
+}
+
+/**
+ * Create workers from unique worker names
+ */
+async function createWorkers(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: ReturnType<typeof createClient<any>>,
+  workerNames: string[]
+): Promise<{ created: number; errors: string[]; workerMap: Map<string, string> }> {
+  const results = { created: 0, errors: [] as string[], workerMap: new Map<string, string>() }
+
+  // Get existing workers to avoid duplicates
+  const { data: existingWorkers } = await supabase.from("profiles").select("id, full_name").eq("role", "worker")
+
+  const existingWorkerMap = new Map<string, string>()
+  if (existingWorkers) {
+    for (const worker of existingWorkers) {
+      if (worker.full_name) {
+        const normalizedName = worker.full_name.replace(/\s+/g, " ").trim().toLowerCase()
+        existingWorkerMap.set(normalizedName, worker.id)
+      }
+    }
+  }
+
+  for (const workerName of workerNames) {
+    try {
+      // Normalize name for comparison
+      const normalizedName = workerName.replace(/\s+/g, " ").trim().toLowerCase()
+
+      // Check if worker already exists
+      if (existingWorkerMap.has(normalizedName)) {
+        const existingId = existingWorkerMap.get(normalizedName)!
+        results.workerMap.set(workerName, existingId)
+        console.log(`⏭️  Worker "${workerName}" already exists, skipping`)
+        continue
+      }
+
+      // Validate worker name
+      if (!workerName || !workerName.trim()) {
+        results.errors.push(`Invalid worker name: empty or whitespace only`)
+        continue
+      }
+
+      // Create auth user for worker (phone is optional for workers)
+      // Generate a placeholder phone if needed (using a format that won't conflict)
+      const placeholderPhone = `+972500000000${Math.floor(Math.random() * 10000)
+        .toString()
+        .padStart(4, "0")}`
+      const password = randomUUID() // Random password, user will need to reset
+
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        phone: placeholderPhone,
+        phone_confirm: true,
+        password,
+        user_metadata: {
+          full_name: workerName.trim(),
+          role: "worker",
+        },
+      })
+
+      if (authError) {
+        // Log but continue - try to find existing user by name
+        console.error(`❌ Error creating auth user for worker "${workerName}":`, formatError(authError))
+        results.errors.push(`Worker "${workerName}": Failed to create auth user - ${formatError(authError)}`)
+        continue
+      }
+
+      if (!authData?.user) {
+        results.errors.push(`Worker "${workerName}": Auth user creation returned no user`)
+        continue
+      }
+
+      const authUserId = authData.user.id
+
+      // Create profile for worker
+      const profilePayload: Record<string, unknown> = {
+        id: authUserId,
+        full_name: workerName.trim(),
+        role: "worker",
+        worker_is_active: true,
+      }
+
+      const { error: profileError } = await supabase.from("profiles").insert(profilePayload)
+
+      if (profileError) {
+        console.error(`❌ Error creating profile for worker "${workerName}":`, formatError(profileError))
+        // Try to clean up auth user if we created one
+        await supabase.auth.admin.deleteUser(authUserId)
+        results.errors.push(`Worker "${workerName}": Failed to create profile - ${formatError(profileError)}`)
+        continue
+      }
+
+      results.created++
+      results.workerMap.set(workerName, authUserId)
+      // Also add to existing map for future lookups
+      existingWorkerMap.set(normalizedName, authUserId)
+      console.log(`✅ Created worker: ${workerName} (${authUserId})`)
+    } catch (error) {
+      const errorMsg = formatError(error)
+      console.error(`❌ Error processing worker "${workerName}":`, errorMsg)
+      results.errors.push(`Worker "${workerName}": ${errorMsg}`)
+    }
+  }
+
+  return results
+}
+
+/**
  * Process a batch of treatments
  */
 async function processTreatmentBatch(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: ReturnType<typeof createClient<any>>,
-  treatments: TreatmentData[]
+  treatments: TreatmentData[],
+  workerMap: Map<string, string>
 ): Promise<{ created: number; errors: string[] }> {
   const results = { created: 0, errors: [] as string[] }
   const customerMap = new Map<string, string>()
-
-  // Cache all workers for efficient lookup
-  const { data: allWorkers } = await supabase.from("profiles").select("id, full_name").eq("role", "worker")
-
-  const workersList = allWorkers || []
 
   for (const treatment of treatments) {
     try {
@@ -498,33 +613,40 @@ async function processTreatmentBatch(
         }
       }
 
-      // Find worker by name - try multiple matching strategies
+      // Find worker by name using the worker map
       let workerId: string | null = null
-      if (treatment.worker_name && treatment.worker_name.trim() && workersList.length > 0) {
+      if (treatment.worker_name && treatment.worker_name.trim()) {
         const workerNameTrimmed = treatment.worker_name.trim()
-        const normalizedName = workerNameTrimmed.replace(/\s+/g, " ").trim() // Normalize multiple spaces to single space
 
-        // Try exact match first (normalized)
-        let worker = workersList.find(
-          (w) => w.full_name && w.full_name.replace(/\s+/g, " ").trim().toLowerCase() === normalizedName.toLowerCase()
-        )
-
-        // If not found, try partial match (first word)
-        if (!worker && normalizedName.includes(" ")) {
-          const firstWord = normalizedName.split(" ")[0]
-          const matchingWorkers = workersList.filter(
-            (w) =>
-              w.full_name && w.full_name.replace(/\s+/g, " ").trim().toLowerCase().startsWith(firstWord.toLowerCase())
-          )
-          if (matchingWorkers.length === 1) {
-            worker = matchingWorkers[0]
-          }
-        }
-
-        if (worker) {
-          workerId = worker.id
+        // Try exact match first
+        if (workerMap.has(workerNameTrimmed)) {
+          workerId = workerMap.get(workerNameTrimmed)!
         } else {
-          console.warn(`⚠️  Worker not found: ${treatment.worker_name}`)
+          // Try normalized match (handle multiple spaces)
+          const normalizedName = workerNameTrimmed.replace(/\s+/g, " ").trim()
+          for (const [name, id] of workerMap.entries()) {
+            const normalizedMapName = name.replace(/\s+/g, " ").trim()
+            if (normalizedMapName.toLowerCase() === normalizedName.toLowerCase()) {
+              workerId = id
+              break
+            }
+          }
+
+          // If still not found, try partial match (first word)
+          if (!workerId && normalizedName.includes(" ")) {
+            const firstWord = normalizedName.split(" ")[0]
+            const matchingEntries = Array.from(workerMap.entries()).filter(([name]) => {
+              const normalizedMapName = name.replace(/\s+/g, " ").trim()
+              return normalizedMapName.toLowerCase().startsWith(firstWord.toLowerCase())
+            })
+            if (matchingEntries.length === 1) {
+              workerId = matchingEntries[0][1]
+            }
+          }
+
+          if (!workerId) {
+            console.warn(`⚠️  Worker not found: ${treatment.worker_name}`)
+          }
         }
       }
 
@@ -666,7 +788,11 @@ async function processTreatmentBatch(
 /**
  * Load migration data from Excel file into memory
  */
-function loadMigrationData(excelPath: string): { clients: ClientData[]; treatments: TreatmentData[] } {
+function loadMigrationData(excelPath: string): {
+  clients: ClientData[]
+  treatments: TreatmentData[]
+  uniqueWorkerNames: string[]
+} {
   console.log("📊 Loading migration data from Excel...")
   console.log(`   Reading: ${excelPath}`)
 
@@ -748,14 +874,22 @@ function loadMigrationData(excelPath: string): { clients: ClientData[]; treatmen
 
   console.log(`   Loaded ${treatments.length} treatments (from ${treatmentsData.length} total rows)`)
 
-  return { clients, treatments }
+  // Extract unique worker names from treatments
+  const uniqueWorkerNames = extractUniqueWorkerNames(treatments)
+  console.log(`   Found ${uniqueWorkerNames.length} unique workers in treatments`)
+
+  return { clients, treatments, uniqueWorkerNames }
 }
 
 /**
  * Run migration - process all data in memory
- * Priority: First create clients with treatments, then create appointments, then create remaining clients
+ * Priority: First create workers, then create clients with treatments, then create appointments, then create remaining clients
  */
-async function runMigration(clients: ClientData[], treatments: TreatmentData[]): Promise<void> {
+async function runMigration(
+  clients: ClientData[],
+  treatments: TreatmentData[],
+  uniqueWorkerNames: string[]
+): Promise<void> {
   console.log("🚀 Starting migration...")
   console.log(`   Connecting to: ${SUPABASE_URL}`)
 
@@ -768,6 +902,25 @@ async function runMigration(clients: ClientData[], treatments: TreatmentData[]):
   }
 
   console.log("✅ Connected to Supabase")
+  console.log("")
+
+  // Step 0: Create workers first (before everything else)
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+  console.log("STEP 0: Creating workers...")
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+  console.log("")
+  const workerResults = await createWorkers(supabase, uniqueWorkerNames)
+
+  console.log(`✅ Workers: ${workerResults.created} created, ${workerResults.errors.length} errors`)
+  if (workerResults.errors.length > 0) {
+    console.log(`   First 10 errors:`)
+    workerResults.errors.slice(0, 10).forEach((err) => {
+      console.log(`      - ${err}`)
+    })
+    if (workerResults.errors.length > 10) {
+      console.log(`      ... and ${workerResults.errors.length - 10} more errors`)
+    }
+  }
   console.log("")
 
   // Step 1: Extract unique customer external IDs from treatments
@@ -820,7 +973,7 @@ async function runMigration(clients: ClientData[], treatments: TreatmentData[]):
   console.log("STEP 2: Creating appointments and payments...")
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
   console.log("")
-  const treatmentResults = await processTreatmentBatch(supabase, treatments)
+  const treatmentResults = await processTreatmentBatch(supabase, treatments, workerResults.workerMap)
 
   console.log(`✅ Appointments/Payments: ${treatmentResults.created} created, ${treatmentResults.errors.length} errors`)
   if (treatmentResults.errors.length > 0) {
@@ -862,6 +1015,7 @@ async function runMigration(clients: ClientData[], treatments: TreatmentData[]):
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
   console.log("✅ Migration Complete!")
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+  console.log(`Workers: ${workerResults.created} created, ${workerResults.errors.length} errors`)
   console.log(`Total Clients: ${totalClientsCreated} created, ${totalClientErrors} errors`)
   console.log(`  - Priority clients: ${priorityClientResults.created} created`)
   console.log(`  - Remaining clients: ${remainingClientResults.created} created`)
@@ -882,11 +1036,11 @@ async function main() {
     console.log("")
 
     // Load all data from Excel into memory
-    const { clients, treatments } = loadMigrationData(excelPath)
+    const { clients, treatments, uniqueWorkerNames } = loadMigrationData(excelPath)
     console.log("")
 
     // Run migration - process all data
-    await runMigration(clients, treatments)
+    await runMigration(clients, treatments, uniqueWorkerNames)
   } catch (error) {
     console.error("\n❌ Migration failed:")
     console.error(`   ${formatError(error)}`)
