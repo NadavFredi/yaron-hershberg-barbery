@@ -382,12 +382,7 @@ export function useSettingsServiceStationMatrixSection() {
   const serviceHasMatrixChanges = (serviceId: string): boolean => {
     const current = matrix[serviceId]
     const initial = initialMatrix[serviceId]
-    if (!current || !initial) {
-      console.log(
-        `[SettingsServiceStationMatrix] serviceHasMatrixChanges: No current or initial matrix for ${serviceId}`
-      )
-      return false
-    }
+    if (!current || !initial) return false
 
     const stationIds = new Set([...Object.keys(current), ...Object.keys(initial)])
     for (const stationId of stationIds) {
@@ -416,16 +411,10 @@ export function useSettingsServiceStationMatrixSection() {
         normalizedCurrent.remote_booking_allowed !== normalizedInitial.remote_booking_allowed ||
         normalizedCurrent.is_approval_needed !== normalizedInitial.is_approval_needed
       ) {
-        console.log(
-          `[SettingsServiceStationMatrix] serviceHasMatrixChanges: Changes detected for service ${serviceId}, station ${stationId}: ` +
-            `supported: ${normalizedInitial.supported} -> ${normalizedCurrent.supported}, ` +
-            `remote_booking_allowed: ${normalizedInitial.remote_booking_allowed} -> ${normalizedCurrent.remote_booking_allowed}`
-        )
         return true
       }
     }
 
-    console.log(`[SettingsServiceStationMatrix] serviceHasMatrixChanges: No changes detected for service ${serviceId}`)
     return false
   }
 
@@ -951,14 +940,7 @@ export function useSettingsServiceStationMatrixSection() {
   const handleSaveServiceRow = async (serviceId: string) => {
     const matrixChanges = serviceHasMatrixChanges(serviceId)
 
-    console.log(
-      `[SettingsServiceStationMatrix] handleSaveServiceRow called for serviceId=${serviceId}, hasChanges=${matrixChanges}`
-    )
-
-    if (!matrixChanges) {
-      console.log(`[SettingsServiceStationMatrix] No changes detected for service ${serviceId}, skipping save`)
-      return
-    }
+    if (!matrixChanges) return
 
     const service = services.find((s) => s.id === serviceId)
     const serviceName = service?.name ?? ""
@@ -977,7 +959,7 @@ export function useSettingsServiceStationMatrixSection() {
         const isActive = cell?.supported ?? false
         const remoteBooking = isActive ? cell?.remote_booking_allowed ?? false : false
 
-        const entry = {
+        return {
           service_id: serviceId,
           station_id: stationId,
           base_time_minutes: isActive ? cell?.stationTime ?? defaultTime : 60,
@@ -986,33 +968,14 @@ export function useSettingsServiceStationMatrixSection() {
           remote_booking_allowed: remoteBooking,
           requires_staff_approval: isActive ? cell?.is_approval_needed ?? false : false,
         }
-
-        console.log(
-          `[SettingsServiceStationMatrix] Saving entry: serviceId=${serviceId}, stationId=${stationId}, ` +
-            `is_active=${entry.is_active}, remote_booking_allowed=${entry.remote_booking_allowed}, ` +
-            `cell.supported=${cell?.supported}, cell.remote_booking_allowed=${cell?.remote_booking_allowed}, ` +
-            `cell exists=${!!cell}`
-        )
-
-        return entry
       })
 
       if (matrixToUpsert.length > 0) {
-        console.log(
-          `[SettingsServiceStationMatrix] Upserting ${matrixToUpsert.length} matrix entries for service ${serviceId}`
-        )
-        const { error, data } = await supabase
-          .from("service_station_matrix")
-          .upsert(matrixToUpsert, {
-            onConflict: "service_id,station_id",
-          })
-          .select()
+        const { error } = await supabase.from("service_station_matrix").upsert(matrixToUpsert, {
+          onConflict: "service_id,station_id",
+        })
 
-        if (error) {
-          console.error(`[SettingsServiceStationMatrix] Upsert error:`, error)
-          throw error
-        }
-        console.log(`[SettingsServiceStationMatrix] Upsert successful, returned data:`, data)
+        if (error) throw error
       }
 
       setInitialMatrix((prev) => ({

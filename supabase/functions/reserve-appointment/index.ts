@@ -162,7 +162,7 @@ serve(async (req) => {
     const endAt = new Date(startAt.getTime() + durationMinutes * 60 * 1000)
 
     const requiresApproval = await stationRequiresApproval(serviceId, stationId)
-    const status = requiresApproval ? "pending" : "approved"
+    const status = requiresApproval ? "pending" : "scheduled"
 
     const { data: appointment, error: insertError } = await adminClient
       .from("grooming_appointments")
