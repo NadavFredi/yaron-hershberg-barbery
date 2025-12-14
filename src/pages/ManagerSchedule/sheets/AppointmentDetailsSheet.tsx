@@ -1435,6 +1435,11 @@ export const AppointmentDetailsSheet = ({
                                         <div>
                                             עמדה: <span className="font-medium text-gray-900">{selectedAppointment.stationName || "לא משויך"}</span>
                                         </div>
+                                        {selectedAppointment.workerName && (
+                                            <div>
+                                                עובד משויך: <span className="font-medium text-gray-900">{selectedAppointment.workerName}</span>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="pt-2 border-t border-gray-100 space-y-2">
                                         {(selectedAppointment as any).id && (

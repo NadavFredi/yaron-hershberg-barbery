@@ -1394,6 +1394,11 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                   סוג שירות: <span className="text-gray-900">{appointment.serviceName}</span>
                 </div>
               )}
+              {appointment.workerName && (
+                <div className="text-xs text-gray-700 font-medium">
+                  עובד משויך: <span className="text-gray-900">{appointment.workerName}</span>
+                </div>
+              )}
             </>
           )}
         </div>

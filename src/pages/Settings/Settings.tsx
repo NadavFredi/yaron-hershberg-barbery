@@ -9,7 +9,8 @@ import { SettingsStationsSection } from "@/components/settings/SettingsStationsS
 import { SettingsStationsPerDaySection } from "@/components/settings/SettingsStationsPerDaySection/SettingsStationsPerDaySection"
 import { SettingsServiceStationMatrixSection } from "@/components/settings/SettingsServiceStationMatrixSection/SettingsServiceStationMatrixSection"
 import { SettingsConstraintsSection } from "@/components/settings/SettingsConstraintsSection/SettingsConstraintsSection"
-const VALID_SECTIONS = ["working-hours", "stations", "stations-per-day", "service-station-matrix", "constraints"] as const
+import { SettingsProtectedScreensSection } from "@/components/settings/SettingsProtectedScreensSection/SettingsProtectedScreensSection"
+const VALID_SECTIONS = ["working-hours", "stations", "stations-per-day", "service-station-matrix", "constraints", "protected-screens"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 export default function Settings() {
@@ -89,6 +90,7 @@ export default function Settings() {
                     {activeSection === "stations-per-day" && <SettingsStationsPerDaySection />}
                     {activeSection === "service-station-matrix" && <SettingsServiceStationMatrixSection />}
                     {activeSection === "constraints" && <SettingsConstraintsSection />}
+                    {activeSection === "protected-screens" && <SettingsProtectedScreensSection />}
                 </div>
             </div>
         </AdminLayout>

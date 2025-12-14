@@ -715,6 +715,7 @@ export async function getManagerSchedule(
         amount_due,
         series_id,
         customer_id,
+        worker_id,
         client_approved_arrival,
         manager_approved_arrival,
         treatment_started_at,
@@ -728,7 +729,9 @@ export async function getManagerSchedule(
           name,
           service_category_id,
           service_categories(id, variant)
-        )
+        ),
+        worker_id,
+        worker:profiles!grooming_appointments_worker_id_fkey(id, full_name)
       `
       )
       .gte("start_at", dayStart.toISOString())
@@ -754,6 +757,7 @@ export async function getManagerSchedule(
       const serviceCategory = Array.isArray(service?.service_categories)
         ? service.service_categories[0]
         : service?.service_categories
+      const worker = Array.isArray(apt.worker) ? apt.worker[0] : apt.worker
 
       const hasCrossService = combinedGroomingIds.has(apt.id)
 
@@ -788,6 +792,8 @@ export async function getManagerSchedule(
         treatmentEndedAt: apt.treatment_ended_at || null,
         serviceCategoryVariant: serviceCategory?.variant || null,
         serviceName: service?.name || undefined,
+        workerId: apt.worker_id || undefined,
+        workerName: worker?.full_name || undefined,
         ...(apt.created_at && { created_at: apt.created_at }),
         ...(apt.updated_at && { updated_at: apt.updated_at }),
       } as any)

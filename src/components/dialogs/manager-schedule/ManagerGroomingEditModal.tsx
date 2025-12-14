@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast"
 import { GroomingEditModal } from "./GroomingEditModal"
 import { supabaseApi, useGetManagerScheduleQuery, useMoveAppointmentMutation } from "@/store/services/supabaseApi"
 import { format } from "date-fns"
+import { supabase } from "@/integrations/supabase/client"
 import {
     setGroomingEditOpen,
     setEditingGroomingAppointment,
@@ -23,6 +24,7 @@ interface GroomingEditForm {
     notes: string
     internalNotes: string
     groomingNotes: string
+    workerId: string | null
 }
 
 export function ManagerGroomingEditModal() {
@@ -45,6 +47,34 @@ export function ManagerGroomingEditModal() {
     const stations = data?.stations || []
 
     const [moveAppointment] = useMoveAppointmentMutation()
+    const [workers, setWorkers] = useState<Array<{ id: string; full_name: string }>>([])
+    const [isLoadingWorkers, setIsLoadingWorkers] = useState(false)
+
+    // Fetch workers when modal opens
+    useEffect(() => {
+        const fetchWorkers = async () => {
+            if (!open) return
+            setIsLoadingWorkers(true)
+            try {
+                const { data: workersData, error } = await supabase
+                    .from("profiles")
+                    .select("id, full_name")
+                    .eq("role", "worker")
+                    .eq("worker_is_active", true)
+                    .order("full_name", { ascending: true })
+
+                if (error) throw error
+                setWorkers(workersData || [])
+            } catch (error) {
+                console.error("Error fetching workers:", error)
+                setWorkers([])
+            } finally {
+                setIsLoadingWorkers(false)
+            }
+        }
+
+        fetchWorkers()
+    }, [open])
 
     const [groomingEditForm, setGroomingEditForm] = useState<GroomingEditForm>({
         date: new Date(),
@@ -52,7 +82,8 @@ export function ManagerGroomingEditModal() {
         stationId: '',
         notes: '',
         internalNotes: '',
-        groomingNotes: ''
+        groomingNotes: '',
+        workerId: null
     })
 
     // Initialize form when appointment changes
@@ -66,6 +97,7 @@ export function ManagerGroomingEditModal() {
                 notes: editingGroomingAppointment.notes || '',
                 internalNotes: editingGroomingAppointment.internalNotes || '',
                 groomingNotes: (editingGroomingAppointment as any).groomingNotes || '',
+                workerId: (editingGroomingAppointment as any).workerId || null,
             })
         }
     }, [editingGroomingAppointment, open])
@@ -172,6 +204,24 @@ export function ManagerGroomingEditModal() {
                 throw new Error(moveResult.error || 'Failed to update appointment')
             }
 
+            // Update worker_id separately (if it changed)
+            if (groomingEditForm.workerId !== ((editingGroomingAppointment as any).workerId || null)) {
+                const { error: workerUpdateError } = await supabase
+                    .from("grooming_appointments")
+                    .update({ worker_id: groomingEditForm.workerId || null })
+                    .eq("id", editingGroomingAppointment.id)
+
+                if (workerUpdateError) {
+                    console.error("Error updating worker assignment:", workerUpdateError)
+                    // Don't throw - the appointment was updated successfully, just the worker assignment failed
+                    toast({
+                        title: "התור עודכן, אך הייתה שגיאה בעדכון העובד",
+                        description: workerUpdateError.message,
+                        variant: "destructive",
+                    })
+                }
+            }
+
             // Show success toast
             toast({
                 title: "התור עודכן בהצלחה",
@@ -242,6 +292,8 @@ export function ManagerGroomingEditModal() {
             setUpdateCustomerGrooming={(value) => dispatch(setUpdateCustomerGrooming(value))}
             groomingEditLoading={groomingEditLoading}
             stations={stations.map((s: any) => ({ id: s.id, name: s.name }))}
+            workers={workers}
+            isLoadingWorkers={isLoadingWorkers}
             pendingResizeState={pendingResizeStateWithDates}
             onCancel={handleCancel}
             onDelete={handleDelete}

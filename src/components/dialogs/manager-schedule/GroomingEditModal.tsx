@@ -31,6 +31,7 @@ interface GroomingEditForm {
     notes: string
     internalNotes: string
     groomingNotes: string
+    workerId: string | null
 }
 
 interface GroomingEditModalProps {
@@ -43,6 +44,8 @@ interface GroomingEditModalProps {
     setUpdateCustomerGrooming: (update: boolean) => void
     groomingEditLoading: boolean
     stations?: ManagerStation[]
+    workers?: Array<{ id: string; full_name: string }>
+    isLoadingWorkers?: boolean
     pendingResizeState?: {
         appointment: ManagerAppointment
         originalEndTime: Date
@@ -65,6 +68,8 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
     setUpdateCustomerGrooming,
     groomingEditLoading,
     stations = [],
+    workers = [],
+    isLoadingWorkers = false,
     pendingResizeState,
     onCancel,
     onDelete,
@@ -290,6 +295,29 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                                     ))}
                                 </select>
                             </div>
+                        </div>
+
+                        {/* Worker Selection */}
+                        <div className="space-y-2" dir="rtl">
+                            <label className="text-sm font-medium text-gray-700 text-right block">
+                                עובד משויך (אופציונלי)
+                            </label>
+                            <select
+                                value={groomingEditForm.workerId || ""}
+                                onChange={(e) => setGroomingEditForm(prev => ({
+                                    ...prev,
+                                    workerId: e.target.value || null
+                                }))}
+                                disabled={groomingEditLoading || isLoadingWorkers}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                            >
+                                <option value="">ללא עובד</option>
+                                {workers.map((worker) => (
+                                    <option key={worker.id} value={worker.id}>
+                                        {worker.full_name || 'עובד ללא שם'}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         {/* Time Selection */}
