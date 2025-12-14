@@ -1,5 +1,4 @@
 import { configureStore } from "@reduxjs/toolkit"
-import { setupListeners } from "@reduxjs/toolkit/query"
 import { supabaseApi } from "./services/supabaseApi"
 import { pinnedAppointmentsApi } from "@/pages/ManagerSchedule/pinnedAppointments/pinnedAppointmentsApi"
 import authReducer from "./slices/authSlice"
@@ -27,8 +26,6 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(supabaseApi.middleware, pinnedAppointmentsApi.middleware),
 })
-
-setupListeners(store.dispatch)
 
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch

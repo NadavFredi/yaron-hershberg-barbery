@@ -105,6 +105,8 @@ async function fetchCalendarWindow(): Promise<number> {
 }
 
 async function fetchStations(serviceId: string) {
+  console.log(`[get-available-times] fetchStations: Querying service_station_matrix for serviceId=${serviceId}`)
+
   const { data, error } = await supabase
     .from("service_station_matrix")
     .select(
@@ -124,6 +126,10 @@ async function fetchStations(serviceId: string) {
     `
     )
     .eq("service_id", serviceId)
+
+  if (error) {
+    console.error(`[get-available-times] Database query error:`, error)
+  }
 
   if (error) {
     console.error(`[get-available-times] Failed to load station matrix for service ${serviceId}:`, error.message)
@@ -147,6 +153,25 @@ async function fetchStations(serviceId: string) {
     stations: StationData[] | null
   }
 
+  console.log(`[get-available-times] Service ${serviceId}: Found ${data?.length ?? 0} raw matrix entries from database`)
+
+  // Log each entry for debugging with type information
+  if (data && data.length > 0) {
+    console.log(`[get-available-times] Raw matrix entries details (with types):`)
+    data.forEach((row: any, index: number) => {
+      const station = Array.isArray(row.stations) ? row.stations[0] : row.stations
+      console.log(
+        `  Entry ${index + 1}: station_id=${row.station_id}, ` +
+          `is_active=${row.is_active} (type: ${typeof row.is_active}, value: ${JSON.stringify(row.is_active)}), ` +
+          `remote_booking_allowed=${
+            row.remote_booking_allowed
+          } (type: ${typeof row.remote_booking_allowed}, value: ${JSON.stringify(row.remote_booking_allowed)}), ` +
+          `station.is_active=${station?.is_active}, ` +
+          `station.name=${station?.name || "N/A"}`
+      )
+    })
+  }
+
   const filtered =
     (data as unknown as StationRow[] | null)?.filter((row) => {
       // Supabase returns the relation as an array, take the first element
@@ -154,7 +179,19 @@ async function fetchStations(serviceId: string) {
       const matrixEntryActive = row.is_active !== false // Matrix entry must be active (default true)
       const stationActive = station?.is_active !== false // Station must be active
       const remoteBookingAllowed = row.remote_booking_allowed === true // Explicitly require true
-      return matrixEntryActive && stationActive && remoteBookingAllowed
+
+      const passes = matrixEntryActive && stationActive && remoteBookingAllowed
+
+      if (!passes) {
+        console.log(
+          `[get-available-times] Filtering out station ${row.station_id}: ` +
+            `matrixEntryActive=${matrixEntryActive}, ` +
+            `stationActive=${stationActive}, ` +
+            `remoteBookingAllowed=${remoteBookingAllowed}`
+        )
+      }
+
+      return passes
     }) ?? []
 
   console.log(
@@ -163,10 +200,21 @@ async function fetchStations(serviceId: string) {
     } after filtering (active + remote_booking_allowed=true)`
   )
 
-  return filtered.map((row) => {
+  if (data && data.length > 0 && filtered.length === 0) {
+    const inactiveCount = data.filter((row: any) => row.is_active === false).length
+    const noRemoteBookingCount = data.filter((row: any) => row.remote_booking_allowed !== true).length
+    console.warn(
+      `[get-available-times] All matrix entries filtered out! ` +
+        `${inactiveCount} entries have is_active=false, ` +
+        `${noRemoteBookingCount} entries have remote_booking_allowed!=true. ` +
+        `Please enable matrix entries in Settings > Service-Station Matrix by setting is_active=true and remote_booking_allowed=true`
+    )
+  }
+
+  const mappedStations = filtered.map((row) => {
     // Supabase returns the relation as an array, take the first element
     const station = row.stations?.[0]
-    return {
+    const result = {
       stationId: row.station_id,
       stationName: station?.name ?? "",
       name: station?.name ?? "", // Keep for backward compatibility
@@ -174,7 +222,15 @@ async function fetchStations(serviceId: string) {
       slotInterval: Number(station?.slot_interval_minutes ?? DEFAULT_SLOT_INTERVAL),
       breakBetween: Number(station?.break_between_treatments_minutes ?? 0),
     }
+    console.log(
+      `[get-available-times] Mapped station: ${result.stationName} (${result.stationId}), ` +
+        `duration=${result.duration}min, slotInterval=${result.slotInterval}min, breakBetween=${result.breakBetween}min`
+    )
+    return result
   })
+
+  console.log(`[get-available-times] Returning ${mappedStations.length} stations for service ${serviceId}`)
+  return mappedStations
 }
 
 async function fetchWorkingHours(stationIds: string[]) {
@@ -236,20 +292,44 @@ function dateFromKey(key: string): Date {
 }
 
 async function computeAvailability(serviceId: string, startDate: Date, endDate: Date) {
+  console.log(
+    `[get-available-times] computeAvailability: serviceId=${serviceId}, startDate=${startDate.toISOString()}, endDate=${endDate.toISOString()}`
+  )
+
   const stations = await fetchStations(serviceId)
   const stationIds = stations.map((s) => s.stationId)
+
+  console.log(
+    `[get-available-times] computeAvailability: Found ${stations.length} stations, stationIds=[${stationIds.join(
+      ", "
+    )}]`
+  )
 
   if (stations.length === 0) {
     console.warn(
       `[get-available-times] No stations found for service ${serviceId} with active matrix entries and remote_booking_allowed=true`
     )
+    return {
+      stations: [],
+      workingByStation: new Map(),
+      blockersByDateAndStation: new Map(),
+      appointmentsByDateAndStation: new Map(),
+    }
   }
 
+  console.log(
+    `[get-available-times] Fetching working hours, appointments, and unavailability for ${stationIds.length} stations`
+  )
   const [workingHours, appointments, unavailability] = await Promise.all([
     fetchWorkingHours(stationIds),
     fetchAppointments(stationIds, startDate, endDate),
     fetchUnavailability(stationIds, startDate, endDate),
   ])
+
+  console.log(
+    `[get-available-times] Fetched: ${workingHours.length} working hour entries, ` +
+      `${appointments.length} appointments, ${unavailability.length} unavailability blocks`
+  )
 
   const workingByStation = new Map<string, Map<string, Interval[]>>()
   for (const wh of workingHours) {
@@ -351,12 +431,26 @@ serve(async (req: Request) => {
 
     const computeForDate = (dateKey: string) => {
       const result: { time: string; stationId: string }[] = []
+      console.log(`[get-available-times] computeForDate: Processing date ${dateKey} for ${stations.length} stations`)
+
       for (const station of stations) {
         const weekday = getWeekday(dateFromKey(dateKey))
         const windows = workingByStation.get(station.stationId)?.get(weekday) ?? []
-        if (windows.length === 0) continue
+
+        if (windows.length === 0) {
+          console.log(
+            `[get-available-times] computeForDate: Station ${station.stationId} (${station.name}) has no working hours for ${weekday} (${dateKey})`
+          )
+          continue
+        }
+
         const blockers = blockersByDateAndStation.get(dateKey)?.get(station.stationId) ?? []
         const appts = appointmentsByDateAndStation.get(dateKey)?.get(station.stationId) ?? []
+
+        console.log(
+          `[get-available-times] computeForDate: Station ${station.stationId} (${station.name}) on ${dateKey}: ` +
+            `${windows.length} working windows, ${blockers.length} blockers, ${appts.length} appointments`
+        )
 
         const unavailable = [...blockers, ...appts]
         const availableWindows = windows
@@ -364,14 +458,25 @@ serve(async (req: Request) => {
           .flat()
           .filter((i) => i.end - i.start >= station.duration)
 
+        console.log(
+          `[get-available-times] computeForDate: Station ${station.stationId} after subtracting unavailable: ` +
+            `${availableWindows.length} available windows (min duration ${station.duration}min)`
+        )
+
         const slots = buildSlots(
           availableWindows,
           station.duration + station.breakBetween,
           Math.max(station.slotInterval, 5)
         ).map((slot) => ({ ...slot, stationId: station.stationId }))
 
+        console.log(
+          `[get-available-times] computeForDate: Station ${station.stationId} generated ${slots.length} time slots`
+        )
+
         result.push(...slots)
       }
+
+      console.log(`[get-available-times] computeForDate: Total ${result.length} slots for date ${dateKey}`)
       return result
     }
 
