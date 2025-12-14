@@ -18,8 +18,10 @@
     "setup:remote": "tsx scripts/setup-remote-admin.ts",
     "migrate:clients": "tsx scripts/migrate-clients.ts",
     "db:backup": "./scripts/backup-db.sh",
+    "db:backup:local": "./scripts/backup-local-db.sh",
     "db:restore": "./scripts/restore-local-db.sh",
-    "db:restore:remote": "./scripts/restore-remote-db.sh"
+    "db:restore:remote": "./scripts/restore-remote-db.sh",
+    "db:restore:remote:from_local": "./scripts/restore-remote-from-local-db.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

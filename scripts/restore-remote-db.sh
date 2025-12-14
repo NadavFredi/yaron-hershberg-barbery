@@ -39,7 +39,7 @@ if [ -z "$1" ] || [[ "$1" == postgresql://* ]]; then
         exit 1
     fi
     
-    LATEST_BACKUP=$(ls -td backups/backup_* 2>/dev/null | head -n 1)
+    LATEST_BACKUP=$(ls -td backups/backup_* 2>/dev/null | grep -v "backup_local_" | head -n 1)
     
     if [ -z "${LATEST_BACKUP}" ]; then
         echo "❌ Error: No backup directories found in backups/"
