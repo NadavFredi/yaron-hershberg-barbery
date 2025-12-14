@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { normalizePhone } from "@/utils/phone"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PhoneInput } from "@/components/ui/phone-input"
+import { Checkbox } from "@/components/ui/checkbox"
 import type { Database } from "@/integrations/supabase/types"
 
 type CustomerContact = Database["public"]["Tables"]["customer_contacts"]["Row"]
@@ -24,7 +25,13 @@ interface CustomerFormData {
     email: string
     address: string
     customer_type_id: string | null
+    lead_source_id: string | null
     staff_notes: string
+    gender: string | null
+    date_of_birth: string
+    external_id: string
+    city: string
+    is_banned: boolean
 }
 
 interface EditCustomerDialogProps {
@@ -51,10 +58,18 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
         email: "",
         address: "",
         customer_type_id: null,
+        lead_source_id: null,
         staff_notes: "",
+        gender: null,
+        date_of_birth: "",
+        external_id: "",
+        city: "",
+        is_banned: false,
     })
     const [customerTypes, setCustomerTypes] = useState<Array<{ id: string; name: string; priority: number }>>([])
     const [isLoadingTypes, setIsLoadingTypes] = useState(false)
+    const [leadSources, setLeadSources] = useState<Array<{ id: string; name: string }>>([])
+    const [isLoadingLeadSources, setIsLoadingLeadSources] = useState(false)
     const [contacts, setContacts] = useState<CustomerContact[]>([])
     const [isLoadingContacts, setIsLoadingContacts] = useState(false)
     const [newContactName, setNewContactName] = useState("")
@@ -70,7 +85,7 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
             // Fetch customer data directly from Supabase
             supabase
                 .from("customers")
-                .select("id, full_name, phone, email, address, customer_type_id, staff_notes")
+                .select("id, full_name, phone, email, address, customer_type_id, lead_source_id, staff_notes, gender, date_of_birth, external_id, city, is_banned")
                 .eq("id", customerId)
                 .single()
                 .then(({ data, error }) => {
@@ -88,7 +103,13 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
                             email: data.email || "",
                             address: data.address || "",
                             customer_type_id: data.customer_type_id ?? null,
+                            lead_source_id: (data as any).lead_source_id ?? null,
                             staff_notes: data.staff_notes || "",
+                            gender: (data as any).gender || null,
+                            date_of_birth: (data as any).date_of_birth ? new Date((data as any).date_of_birth).toISOString().split('T')[0] : "",
+                            external_id: (data as any).external_id || "",
+                            city: (data as any).city || "",
+                            is_banned: (data as any).is_banned || false,
                         })
                     }
                 })
@@ -147,7 +168,13 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
                 email: "",
                 address: "",
                 customer_type_id: null,
+                lead_source_id: null,
                 staff_notes: "",
+                gender: null,
+                date_of_birth: "",
+                external_id: "",
+                city: "",
+                is_banned: false,
             })
             setContacts([])
             setNewContactName("")
@@ -195,6 +222,38 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
         }
 
         loadCustomerTypes()
+
+        const loadLeadSources = async () => {
+            try {
+                setIsLoadingLeadSources(true)
+                console.log("🔍 [EditCustomerDialog] Loading lead sources...")
+                const { data, error } = await supabase
+                    .from("lead_sources")
+                    .select("id, name")
+                    .order("name", { ascending: true })
+
+                if (error) throw error
+
+                const sources = (data || []).map((source) => ({
+                    id: source.id,
+                    name: source.name,
+                }))
+
+                setLeadSources(sources)
+                console.log("✅ [EditCustomerDialog] Lead sources loaded:", sources)
+            } catch (error) {
+                console.error("❌ [EditCustomerDialog] Failed to load lead sources:", error)
+                toast({
+                    title: "שגיאה בטעינת מקורות הגעה",
+                    description: "לא ניתן לטעון את מקורות ההגעה כעת",
+                    variant: "destructive",
+                })
+            } finally {
+                setIsLoadingLeadSources(false)
+            }
+        }
+
+        loadLeadSources()
     }, [open, toast])
 
     const handleUpdateCustomer = useCallback(async () => {
@@ -244,20 +303,29 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
                 email: customerData.email.trim() || undefined,
                 address: customerData.address.trim() || undefined,
                 customer_type_id: customerData.customer_type_id,
+                lead_source_id: customerData.lead_source_id,
                 staff_notes: customerData.staff_notes.trim() || undefined,
             })
 
-            // Update staff_notes directly via Supabase since updateCustomer might not support it
-            const { error: staffNotesError } = await supabase
+            // Update staff_notes, lead_source_id, and additional fields directly via Supabase since updateCustomer might not support them
+            const { error: additionalFieldsError } = await supabase
                 .from("customers")
-                .update({ staff_notes: customerData.staff_notes.trim() || null })
+                .update({
+                    staff_notes: customerData.staff_notes.trim() || null,
+                    lead_source_id: customerData.lead_source_id,
+                    gender: customerData.gender || null,
+                    date_of_birth: customerData.date_of_birth ? customerData.date_of_birth : null,
+                    external_id: customerData.external_id.trim() || null,
+                    city: customerData.city.trim() || null,
+                    is_banned: customerData.is_banned,
+                })
                 .eq("id", customerId)
 
-            if (staffNotesError) {
-                console.error("Error updating staff notes:", staffNotesError)
+            if (additionalFieldsError) {
+                console.error("Error updating additional fields:", additionalFieldsError)
                 toast({
                     title: "שגיאה",
-                    description: "לא ניתן לעדכן את הערות הצוות",
+                    description: "לא ניתן לעדכן את כל השדות",
                     variant: "destructive",
                 })
                 return
@@ -548,6 +616,34 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
                             </div>
 
                             <div className="space-y-2">
+                                <Label htmlFor="edit-customer-lead-source" className="text-right flex items-center gap-2">
+                                    מקור הגעה (אופציונלי)
+                                </Label>
+                                <Select
+                                    value={customerData.lead_source_id ?? NO_TYPE_VALUE}
+                                    onValueChange={(value) =>
+                                        setCustomerData({
+                                            ...customerData,
+                                            lead_source_id: value === NO_TYPE_VALUE ? null : value,
+                                        })
+                                    }
+                                    disabled={isUpdatingCustomer || isLoadingLeadSources}
+                                >
+                                    <SelectTrigger id="edit-customer-lead-source" dir="rtl" className="text-right">
+                                        <SelectValue placeholder={isLoadingLeadSources ? "טוען מקורות..." : "בחר מקור הגעה"} />
+                                    </SelectTrigger>
+                                    <SelectContent dir="rtl">
+                                        <SelectItem value={NO_TYPE_VALUE}>ללא מקור</SelectItem>
+                                        {leadSources.map((source) => (
+                                            <SelectItem key={source.id} value={source.id}>
+                                                {source.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
                                 <Label htmlFor="edit-customer-address" className="text-right flex items-center gap-2">
                                     <MapPin className="h-4 w-4 text-gray-400" />
                                     כתובת
@@ -561,6 +657,89 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
                                     dir="rtl"
                                     disabled={isUpdatingCustomer}
                                 />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-customer-city" className="text-right flex items-center gap-2">
+                                    עיר
+                                </Label>
+                                <Input
+                                    id="edit-customer-city"
+                                    placeholder="הכנס עיר"
+                                    value={customerData.city}
+                                    onChange={(e) => setCustomerData({ ...customerData, city: e.target.value })}
+                                    className="text-right"
+                                    dir="rtl"
+                                    disabled={isUpdatingCustomer}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-customer-gender" className="text-right flex items-center gap-2">
+                                    מין
+                                </Label>
+                                <Select
+                                    value={customerData.gender ?? NO_TYPE_VALUE}
+                                    onValueChange={(value) =>
+                                        setCustomerData({
+                                            ...customerData,
+                                            gender: value === NO_TYPE_VALUE ? null : value,
+                                        })
+                                    }
+                                    disabled={isUpdatingCustomer}
+                                >
+                                    <SelectTrigger id="edit-customer-gender" dir="rtl" className="text-right">
+                                        <SelectValue placeholder="בחר מין" />
+                                    </SelectTrigger>
+                                    <SelectContent dir="rtl">
+                                        <SelectItem value={NO_TYPE_VALUE}>ללא מין</SelectItem>
+                                        <SelectItem value="male">זכר</SelectItem>
+                                        <SelectItem value="female">נקבה</SelectItem>
+                                        <SelectItem value="other">אחר</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-customer-date-of-birth" className="text-right flex items-center gap-2">
+                                    תאריך לידה
+                                </Label>
+                                <Input
+                                    id="edit-customer-date-of-birth"
+                                    type="date"
+                                    value={customerData.date_of_birth}
+                                    onChange={(e) => setCustomerData({ ...customerData, date_of_birth: e.target.value })}
+                                    className="text-right"
+                                    dir="rtl"
+                                    disabled={isUpdatingCustomer}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-customer-external-id" className="text-right flex items-center gap-2">
+                                    מזהה חיצוני
+                                </Label>
+                                <Input
+                                    id="edit-customer-external-id"
+                                    placeholder="הכנס מזהה חיצוני"
+                                    value={customerData.external_id}
+                                    onChange={(e) => setCustomerData({ ...customerData, external_id: e.target.value })}
+                                    className="text-right font-mono"
+                                    dir="rtl"
+                                    disabled={isUpdatingCustomer}
+                                />
+                            </div>
+
+                            <div className="flex items-center space-x-2 space-x-reverse">
+                                <Checkbox
+                                    id="edit-customer-is-banned"
+                                    checked={customerData.is_banned}
+                                    onCheckedChange={(checked) => setCustomerData({ ...customerData, is_banned: checked === true })}
+                                    disabled={isUpdatingCustomer}
+                                />
+                                <Label htmlFor="edit-customer-is-banned" className="text-right cursor-pointer">
+                                    לקוח חסום
+                                </Label>
                             </div>
 
                             <div className="space-y-2">

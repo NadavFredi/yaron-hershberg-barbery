@@ -5,7 +5,8 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
-import { MoreHorizontal, Pencil, Phone, Calendar, CreditCard, Save, Loader2, X, Bell, Image as ImageIcon, Plus, CalendarDays } from "lucide-react"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { MoreHorizontal, Pencil, Phone, Calendar, CreditCard, Save, Loader2, X, Bell, Image as ImageIcon, Plus, CalendarDays, Ban } from "lucide-react"
 import { EditCustomerDialog } from "@/components/EditCustomerDialog"
 import { CustomerPaymentsModal } from "@/components/dialogs/payments/CustomerPaymentsModal"
 import { CustomerRemindersModal } from "@/components/dialogs/reminders/CustomerRemindersModal"
@@ -73,6 +74,13 @@ export const ClientDetailsSheet = ({
     const [isCustomerImagesModalOpen, setIsCustomerImagesModalOpen] = useState(false)
     const [isCustomerAppointmentsModalOpen, setIsCustomerAppointmentsModalOpen] = useState(false)
     const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false)
+    const [additionalCustomerData, setAdditionalCustomerData] = useState<{
+        gender?: string | null
+        date_of_birth?: string | null
+        external_id?: string | null
+        city?: string | null
+        is_banned?: boolean
+    } | null>(null)
     const { toast } = useToast()
 
     // Get clientId from either clientId or id field (for compatibility)
@@ -228,16 +236,42 @@ export const ClientDetailsSheet = ({
             }
         }
 
+        const fetchAdditionalData = async () => {
+            if (!hasClientId) return
+
+            try {
+                const { data, error } = await supabase
+                    .from("customers")
+                    .select("gender, date_of_birth, external_id, city, is_banned")
+                    .eq("id", clientId)
+                    .single()
+
+                if (error) throw error
+
+                setAdditionalCustomerData({
+                    gender: data?.gender || null,
+                    date_of_birth: data?.date_of_birth || null,
+                    external_id: data?.external_id || null,
+                    city: data?.city || null,
+                    is_banned: data?.is_banned || false,
+                })
+            } catch (error) {
+                console.error("Error fetching additional customer data:", error)
+                setAdditionalCustomerData(null)
+            }
+        }
+
         if (open && hasClientId) {
             fetchStaffNotes()
             fetchContacts()
             fetchUnpaidPayments()
             fetchAnyPayments()
+            fetchAdditionalData()
         }
     }, [open, hasClientId, clientId])
 
     const handleCustomerUpdated = () => {
-        // Refresh staff notes and contacts after customer is updated
+        // Refresh staff notes, contacts, and additional data after customer is updated
         if (hasClientId) {
             supabase
                 .from("customers")
@@ -259,6 +293,24 @@ export const ClientDetailsSheet = ({
                 .then(({ data, error }) => {
                     if (!error && data) {
                         setContacts(data)
+                    }
+                })
+
+            // Refresh additional data
+            supabase
+                .from("customers")
+                .select("gender, date_of_birth, external_id, city, is_banned")
+                .eq("id", clientId)
+                .single()
+                .then(({ data, error }) => {
+                    if (!error && data) {
+                        setAdditionalCustomerData({
+                            gender: data?.gender || null,
+                            date_of_birth: data?.date_of_birth || null,
+                            external_id: data?.external_id || null,
+                            city: data?.city || null,
+                            is_banned: data?.is_banned || false,
+                        })
                     }
                 })
         }
@@ -596,8 +648,62 @@ export const ClientDetailsSheet = ({
                                             </button>
                                         </div>
                                     )}
+                                    {additionalCustomerData?.is_banned && (
+                                        <div className="flex items-center gap-2 pt-2 border-t border-red-200 bg-red-50 rounded-md px-2 py-1.5">
+                                            <Ban className="h-4 w-4 text-red-600" />
+                                            <span className="text-sm font-medium text-red-700">לקוח חסום</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
+
+                            {/* Additional Customer Data Accordion */}
+                            {hasClientId && additionalCustomerData && (
+                                <>
+                                    <Separator />
+                                    <Accordion type="single" collapsible className="w-full">
+                                        <AccordionItem value="additional-data">
+                                            <AccordionTrigger className="text-sm font-medium text-gray-700">
+                                                פרטים נוספים
+                                            </AccordionTrigger>
+                                            <AccordionContent>
+                                                <div className="space-y-2 text-sm text-gray-600">
+                                                    {additionalCustomerData.gender && (
+                                                        <div>
+                                                            מין: <span className="font-medium text-gray-900">
+                                                                {additionalCustomerData.gender === 'male' ? 'זכר' :
+                                                                    additionalCustomerData.gender === 'female' ? 'נקבה' :
+                                                                        additionalCustomerData.gender === 'other' ? 'אחר' :
+                                                                            additionalCustomerData.gender}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {additionalCustomerData.date_of_birth && (
+                                                        <div>
+                                                            תאריך לידה: <span className="font-medium text-gray-900">
+                                                                {new Date(additionalCustomerData.date_of_birth).toLocaleDateString('he-IL')}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {additionalCustomerData.external_id && (
+                                                        <div>
+                                                            מזהה חיצוני: <span className="font-medium text-gray-900 font-mono">{additionalCustomerData.external_id}</span>
+                                                        </div>
+                                                    )}
+                                                    {additionalCustomerData.city && (
+                                                        <div>
+                                                            עיר: <span className="font-medium text-gray-900">{additionalCustomerData.city}</span>
+                                                        </div>
+                                                    )}
+                                                    {!additionalCustomerData.gender && !additionalCustomerData.date_of_birth && !additionalCustomerData.external_id && !additionalCustomerData.city && (
+                                                        <p className="text-sm text-gray-500">אין פרטים נוספים</p>
+                                                    )}
+                                                </div>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    </Accordion>
+                                </>
+                            )}
 
                             {/* Customer Images and Appointments Buttons */}
                             {hasClientId && (

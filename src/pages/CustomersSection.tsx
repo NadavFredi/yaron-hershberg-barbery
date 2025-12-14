@@ -2,8 +2,9 @@ import { useEffect } from "react"
 import { useLocation, useSearchParams } from "react-router-dom"
 import CustomersListPage from "@/pages/CustomersListPage"
 import CustomerTypesPage from "@/pages/CustomerTypesPage"
+import LeadSourcesPage from "@/pages/LeadSourcesPage"
 
-const VALID_MODES = ["list", "types"] as const
+const VALID_MODES = ["list", "types", "sources"] as const
 
 type ModeId = (typeof VALID_MODES)[number]
 
@@ -54,6 +55,7 @@ export default function CustomersSection() {
         <div className="mx-auto w-full px-1 sm:px-2 lg:px-3">
           {activeMode === "list" && <CustomersListPage />}
           {activeMode === "types" && <CustomerTypesPage />}
+          {activeMode === "sources" && <LeadSourcesPage />}
         </div>
       </div>
     </div>

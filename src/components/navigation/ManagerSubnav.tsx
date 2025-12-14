@@ -87,6 +87,33 @@ export const SERVICES_CHILD_LINKS: ManagerNavChild[] = [
 
 ]
 
+export const CUSTOMERS_CHILD_LINKS: ManagerNavChild[] = [
+  {
+    id: "customers-list",
+    to: "/manager-screens?section=customers&mode=list",
+    label: "רשימת לקוחות",
+    icon: Users,
+    match: (pathname, sectionParam, modeParam) =>
+      pathname === "/manager-screens" && sectionParam === "customers" && (modeParam === "list" || modeParam === null)
+  },
+  {
+    id: "customer-types",
+    to: "/manager-screens?section=customers&mode=types",
+    label: "סוגי לקוחות",
+    icon: List,
+    match: (pathname, sectionParam, modeParam) =>
+      pathname === "/manager-screens" && sectionParam === "customers" && modeParam === "types"
+  },
+  {
+    id: "lead-sources",
+    to: "/manager-screens?section=customers&mode=sources",
+    label: "מקורות הגעה",
+    icon: FolderTree,
+    match: (pathname, sectionParam, modeParam) =>
+      pathname === "/manager-screens" && sectionParam === "customers" && modeParam === "sources"
+  }
+]
+
 export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
   {
     id: "appointments",
@@ -105,7 +132,8 @@ export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
     label: "לקוחות",
     icon: Users,
     match: (pathname, sectionParam) =>
-      pathname === "/manager-screens" && sectionParam === "customers"
+      pathname === "/manager-screens" && sectionParam === "customers",
+    children: CUSTOMERS_CHILD_LINKS
   },
   {
     id: "workers",

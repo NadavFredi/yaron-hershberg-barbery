@@ -33,6 +33,11 @@ interface CustomerTypeSummary {
     priority: number
 }
 
+interface LeadSourceSummary {
+    id: string
+    name: string
+}
+
 interface Customer {
     id: string
     full_name: string
@@ -44,6 +49,8 @@ interface Customer {
     created_at: string
     customer_type_id: string | null
     customer_type: CustomerTypeSummary | null
+    lead_source_id: string | null
+    lead_source: LeadSourceSummary | null
 }
 
 // Customer Type MultiSelect Component
@@ -218,12 +225,15 @@ export default function CustomersListPage() {
     const dispatch = useAppDispatch()
     const [searchParams, setSearchParams] = useSearchParams()
     const customerTypeParam = searchParams.get("type")
+    const leadSourceParam = searchParams.get("leadSource")
     // Parse comma-separated types from URL
     const customerTypeParams = customerTypeParam ? customerTypeParam.split(",").filter(Boolean) : []
     const [customers, setCustomers] = useState<Customer[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [customerTypes, setCustomerTypes] = useState<CustomerTypeSummary[]>([])
     const [isLoadingTypes, setIsLoadingTypes] = useState(false)
+    const [leadSources, setLeadSources] = useState<LeadSourceSummary[]>([])
+    const [isLoadingLeadSources, setIsLoadingLeadSources] = useState(false)
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null)
@@ -244,6 +254,7 @@ export default function CustomersListPage() {
 
     // Filter states
     const [customerTypeFilter, setCustomerTypeFilter] = useState<string[]>(customerTypeParams)
+    const [leadSourceFilter, setLeadSourceFilter] = useState<string | null>(leadSourceParam)
     const [phoneFilter, setPhoneFilter] = useState("")
     const [emailFilter, setEmailFilter] = useState("")
     const [nameFilter, setNameFilter] = useState("")
@@ -289,6 +300,14 @@ export default function CustomersListPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [customerTypeParam])
 
+    useEffect(() => {
+        if (leadSourceParam) {
+            setLeadSourceFilter(leadSourceParam)
+        } else {
+            setLeadSourceFilter(null)
+        }
+    }, [leadSourceParam])
+
     const handleCustomerTypeFilterChange = (typeIds: string[]) => {
         setCustomerTypeFilter(typeIds)
         const params = new URLSearchParams(searchParams.toString())
@@ -303,11 +322,51 @@ export default function CustomersListPage() {
         setSearchParams(params, { replace: true })
     }
 
+    const handleLeadSourceFilterChange = (sourceId: string | null) => {
+        setLeadSourceFilter(sourceId)
+        const params = new URLSearchParams(searchParams.toString())
+        if (sourceId) {
+            params.set("leadSource", sourceId)
+        } else {
+            params.delete("leadSource")
+        }
+        setSearchParams(params, { replace: true })
+    }
+
 
     useEffect(() => {
         fetchCustomers()
         fetchCustomerTypes()
+        fetchLeadSources()
     }, [])
+
+    const fetchLeadSources = async () => {
+        try {
+            setIsLoadingLeadSources(true)
+            console.log("🔍 [CustomersListPage] Fetching lead sources...")
+            const { data, error } = await supabase
+                .from("lead_sources")
+                .select("id, name")
+                .order("name", { ascending: true })
+
+            if (error) throw error
+            const sources = (data || []).map((source) => ({
+                id: source.id,
+                name: source.name,
+            })) as LeadSourceSummary[]
+            setLeadSources(sources)
+            console.log("✅ [CustomersListPage] Loaded lead sources:", sources)
+        } catch (error) {
+            console.error("❌ [CustomersListPage] Failed to load lead sources:", error)
+            toast({
+                title: "שגיאה",
+                description: "לא ניתן לטעון את מקורות ההגעה",
+                variant: "destructive",
+            })
+        } finally {
+            setIsLoadingLeadSources(false)
+        }
+    }
 
     // Helper function to check if a node has valid dates
     const hasValidDates = (node: AppointmentFilterNode): boolean => {
@@ -409,7 +468,8 @@ export default function CustomersListPage() {
                 .from("customers")
                 .select(`
                     *,
-                    customer_type:customer_types(id, name, priority)
+                    customer_type:customer_types(id, name, priority),
+                    lead_source:lead_sources(id, name)
                 `)
                 .order("created_at", { ascending: false })
 
@@ -643,6 +703,21 @@ export default function CustomersListPage() {
             // Include if: (none is selected AND customer has no type) OR (customer has matching type)
             if (!((hasNoneType && !customer.customer_type_id) || hasMatchingType)) {
                 return false
+            }
+        }
+
+        // Lead source filter
+        if (leadSourceFilter) {
+            if (leadSourceFilter === "none") {
+                // Filter for customers without lead source
+                if (customer.lead_source_id) {
+                    return false
+                }
+            } else {
+                // Filter for customers with specific lead source
+                if (customer.lead_source_id !== leadSourceFilter) {
+                    return false
+                }
             }
         }
 
@@ -1379,6 +1454,27 @@ export default function CustomersListPage() {
                                     disabled={isLoadingTypes}
                                 />
                             </div>
+                            <div>
+                                <Label className="text-sm mb-2 block">מקור הגעה</Label>
+                                <Select
+                                    value={leadSourceFilter || "all"}
+                                    onValueChange={(value) => handleLeadSourceFilterChange(value === "all" ? null : value === "none" ? "none" : value)}
+                                    disabled={isLoadingLeadSources}
+                                >
+                                    <SelectTrigger dir="rtl" className="text-right">
+                                        <SelectValue placeholder={isLoadingLeadSources ? "טוען..." : "כל המקורות"} />
+                                    </SelectTrigger>
+                                    <SelectContent dir="rtl">
+                                        <SelectItem value="all">כל המקורות</SelectItem>
+                                        <SelectItem value="none">ללא מקור</SelectItem>
+                                        {leadSources.map((source) => (
+                                            <SelectItem key={source.id} value={source.id}>
+                                                {source.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         {/* Appointment Filter - Each Group on Its Own Line */}
                         <div className="border rounded-lg p-3 bg-gray-50">
@@ -1425,11 +1521,12 @@ export default function CustomersListPage() {
                                 </div>
                             )}
                         </div>
-                        {(customerTypeFilter.length > 0 || phoneFilter || emailFilter || nameFilter || appointmentFilterEnabled) && (
+                        {(customerTypeFilter.length > 0 || leadSourceFilter || phoneFilter || emailFilter || nameFilter || appointmentFilterEnabled) && (
                             <Button
                                 variant="outline"
                                 onClick={() => {
                                     setCustomerTypeFilter([])
+                                    setLeadSourceFilter(null)
                                     setPhoneFilter("")
                                     setEmailFilter("")
                                     setNameFilter("")
@@ -1443,6 +1540,10 @@ export default function CustomersListPage() {
                                         ]
                                     })
                                     setCustomersWithAppointments(new Set())
+                                    const params = new URLSearchParams(searchParams.toString())
+                                    params.delete("type")
+                                    params.delete("leadSource")
+                                    setSearchParams(params, { replace: true })
                                 }}
                             >
                                 נקה כל הסינונים
@@ -1545,6 +1646,7 @@ export default function CustomersListPage() {
                                         <TableHead className="text-right align-middle font-medium text-primary font-semibold">אימייל</TableHead>
                                         <TableHead className="text-right align-middle font-medium text-primary font-semibold">סיווג</TableHead>
                                         <TableHead className="text-right align-middle font-medium text-primary font-semibold">סוג מותאם</TableHead>
+                                        <TableHead className="text-right align-middle font-medium text-primary font-semibold">מקור הגעה</TableHead>
                                         <TableHead className="text-right align-middle font-medium text-primary font-semibold">כתובת</TableHead>
                                         <TableHead className="text-right align-middle font-medium text-primary font-semibold">שלח חשבונית</TableHead>
                                         <TableHead className="text-right align-middle font-medium text-primary font-semibold">פעולות</TableHead>
@@ -1553,7 +1655,7 @@ export default function CustomersListPage() {
                                 <TableBody>
                                     {customers.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                                            <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                                                 לא נמצאו לקוחות
                                             </TableCell>
                                         </TableRow>
@@ -1583,6 +1685,7 @@ export default function CustomersListPage() {
                                                 <TableCell>{customer.email || "-"}</TableCell>
                                                 <TableCell>{getClassificationLabel(customer.classification)}</TableCell>
                                                 <TableCell>{customer.customer_type?.name || "ללא סוג"}</TableCell>
+                                                <TableCell>{(customer as any).lead_source?.name || "ללא מקור"}</TableCell>
                                                 <TableCell>{customer.address || "-"}</TableCell>
                                                 <TableCell>{customer.send_invoice ? "כן" : "לא"}</TableCell>
                                                 <TableCell>
