@@ -146,7 +146,7 @@ interface TreatmentData {
   treatment_date: string
   treatment_name: string
   worker_name: string
-  price: number
+  price: number | null // Can be 0 (valid) or null (missing)
   treatment_external_id?: string // Optional external ID for the treatment itself
 }
 
@@ -527,10 +527,12 @@ async function processTreatmentBatch(
         }
       }
 
-      // Parse treatment date
+      // Parse treatment date (YYYY-MM-DD format) - parse as local date to avoid timezone shifts
       let treatmentDate: Date
       try {
-        treatmentDate = new Date(treatment.treatment_date)
+        // Parse YYYY-MM-DD string and create date in local timezone
+        const [year, month, day] = treatment.treatment_date.split("-").map(Number)
+        treatmentDate = new Date(year, month - 1, day) // month is 0-indexed
         if (isNaN(treatmentDate.getTime())) {
           throw new Error("Invalid date")
         }
@@ -541,7 +543,7 @@ async function processTreatmentBatch(
         continue
       }
 
-      // Set appointment times (use date at 10:00 AM as default, duration 1 hour)
+      // Set appointment times (use date at 10:00 AM local time, duration 1 hour)
       const startAt = new Date(treatmentDate)
       startAt.setHours(10, 0, 0, 0)
       const endAt = new Date(startAt)
@@ -563,8 +565,8 @@ async function processTreatmentBatch(
         appointment_kind: "business",
         start_at: startAt.toISOString(),
         end_at: endAt.toISOString(),
-        amount_due: treatment.price,
-        created_at: treatmentDate.toISOString(),
+        amount_due: treatment.price ?? null, // Use null if price is null, otherwise use value (can be 0)
+        created_at: startAt.toISOString(), // Use startAt to ensure consistent date
       }
 
       if (workerId) {
@@ -590,42 +592,47 @@ async function processTreatmentBatch(
         continue
       }
 
-      // Create payment record linked to the appointment
-      const paymentPayload: Record<string, unknown> = {
-        customer_id: customerId,
-        amount: treatment.price,
-        currency: "ILS",
-        status: "paid",
-        method: "cash",
-        metadata: {
-          migrated: true,
-          treatment_name: treatment.treatment_name || null,
-          worker_name: treatment.worker_name || null,
-          worker_id: workerId,
-          service_id: serviceId,
-          appointment_id: appointment.id,
-        },
-        created_at: treatmentDate.toISOString(),
-      }
+      // Create payment record only if price is not null
+      // If price is null, skip payment creation (appointment exists but no payment)
+      let paymentError = null
+      if (treatment.price !== null) {
+        const paymentPayload: Record<string, unknown> = {
+          customer_id: customerId,
+          amount: treatment.price, // Can be 0, which is valid
+          currency: "ILS",
+          status: "paid",
+          method: "cash",
+          metadata: {
+            migrated: true,
+            treatment_name: treatment.treatment_name || null,
+            worker_name: treatment.worker_name || null,
+            worker_id: workerId,
+            service_id: serviceId,
+            appointment_id: appointment.id,
+          },
+          created_at: startAt.toISOString(), // Use startAt for consistent date
+        }
 
-      const { error: paymentError } = await supabase.from("payments").insert(paymentPayload)
+        const { error: err } = await supabase.from("payments").insert(paymentPayload)
+        paymentError = err
 
-      if (paymentError) {
-        console.error(
-          `❌ Error creating payment for customer ${treatment.customer_external_id}:`,
-          formatError(paymentError)
-        )
-        // Don't fail the whole operation if payment creation fails, appointment is already created
+        if (paymentError) {
+          console.error(
+            `❌ Error creating payment for customer ${treatment.customer_external_id}:`,
+            formatError(paymentError)
+          )
+          // Don't fail the whole operation if payment creation fails, appointment is already created
+        }
       }
 
       // Link payment to appointment via appointment_payments table
-      if (!paymentError) {
+      if (!paymentError && treatment.price !== null) {
         const { data: payment } = await supabase
           .from("payments")
           .select("id")
           .eq("customer_id", customerId)
           .eq("amount", treatment.price)
-          .eq("created_at", treatmentDate.toISOString())
+          .eq("created_at", startAt.toISOString())
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle()
@@ -640,8 +647,11 @@ async function processTreatmentBatch(
       }
 
       results.created++
+      const priceDisplay = treatment.price !== null ? treatment.price : "-"
       console.log(
-        `✅ Created appointment and payment: ${treatment.price} for customer ${treatment.customer_external_id}`
+        `✅ Created appointment${
+          treatment.price !== null ? ` and payment: ${priceDisplay}` : " (no payment)"
+        } for customer ${treatment.customer_external_id}`
       )
     } catch (error) {
       const errorMsg = formatError(error)
@@ -716,12 +726,22 @@ function loadMigrationData(excelPath: string): { clients: ClientData[]; treatmen
         return null
       }
 
+      // Parse price - distinguish between 0 and null/empty
+      const priceValue = row["מ.מעודכן"]
+      let price: number | null = null
+      if (priceValue !== null && priceValue !== undefined && priceValue !== "") {
+        const parsed = parseFloat(String(priceValue))
+        if (!isNaN(parsed)) {
+          price = parsed // This can be 0, which is valid
+        }
+      }
+
       return {
         customer_external_id: String(row["CustomerId"]).trim(),
         treatment_date: treatmentDate,
         treatment_name: row["טיפול"] ? String(row["טיפול"]).trim() : "",
         worker_name: row["שם המטפל"] ? String(row["שם המטפל"]).trim() : "",
-        price: parseFloat(String(row["מ.מעודכן"] || 0)) || 0,
+        price: price,
       }
     })
     .filter((t): t is TreatmentData => t !== null) // Accept all treatments, even with price 0

@@ -1461,6 +1461,19 @@ export default function CustomersListPage() {
                                         dir="rtl"
                                     />
                                 </div>
+                                {searchTerm && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-10 w-10"
+                                        onClick={() => {
+                                            setSearchTerm("")
+                                            triggerSearch()
+                                        }}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                )}
                                 <Button onClick={triggerSearch} variant="outline" size="icon">
                                     <Search className="h-4 w-4" />
                                 </Button>
@@ -1478,60 +1491,129 @@ export default function CustomersListPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <Label className="text-sm mb-2 block">שם לקוח</Label>
-                                <AutocompleteFilter
-                                    value={nameFilter}
-                                    onChange={setNameFilter}
-                                    onSelect={(value) => {
-                                        setNameFilter(value)
-                                        // Trigger search immediately when selecting from autocomplete
-                                        triggerSearch()
-                                    }}
-                                    onEnter={triggerSearch}
-                                    placeholder="שם לקוח..."
-                                    searchFn={searchCustomerNames}
-                                    minSearchLength={0}
-                                    autoSearchOnFocus
-                                    initialLoadOnMount
-                                    initialResultsLimit={5}
-                                />
+                                <div className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                        <AutocompleteFilter
+                                            value={nameFilter}
+                                            onChange={setNameFilter}
+                                            onSelect={(value) => {
+                                                setNameFilter(value)
+                                            }}
+                                            onEnter={triggerSearch}
+                                            placeholder="שם לקוח..."
+                                            searchFn={searchCustomerNames}
+                                            minSearchLength={0}
+                                            autoSearchOnFocus
+                                            initialLoadOnMount
+                                            initialResultsLimit={5}
+                                        />
+                                    </div>
+                                    {nameFilter && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-10 w-10"
+                                            onClick={() => {
+                                                setNameFilter("")
+                                                triggerSearch()
+                                            }}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-10 w-10"
+                                        onClick={triggerSearch}
+                                    >
+                                        <Search className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
                             <div>
                                 <Label className="text-sm mb-2 block">טלפון</Label>
-                                <AutocompleteFilter
-                                    value={phoneFilter}
-                                    onChange={setPhoneFilter}
-                                    onSelect={(value) => {
-                                        setPhoneFilter(value)
-                                        // Trigger search immediately when selecting from autocomplete
-                                        triggerSearch()
-                                    }}
-                                    onEnter={triggerSearch}
-                                    placeholder="טלפון..."
-                                    searchFn={searchCustomerPhones}
-                                    minSearchLength={0}
-                                    autoSearchOnFocus
-                                    initialLoadOnMount
-                                    initialResultsLimit={5}
-                                />
+                                <div className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                        <AutocompleteFilter
+                                            value={phoneFilter}
+                                            onChange={setPhoneFilter}
+                                            onSelect={(value) => {
+                                                setPhoneFilter(value)
+                                            }}
+                                            onEnter={triggerSearch}
+                                            placeholder="טלפון..."
+                                            searchFn={searchCustomerPhones}
+                                            minSearchLength={0}
+                                            autoSearchOnFocus
+                                            initialLoadOnMount
+                                            initialResultsLimit={5}
+                                        />
+                                    </div>
+                                    {phoneFilter && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-10 w-10"
+                                            onClick={() => {
+                                                setPhoneFilter("")
+                                                triggerSearch()
+                                            }}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-10 w-10"
+                                        onClick={triggerSearch}
+                                    >
+                                        <Search className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
                             <div>
                                 <Label className="text-sm mb-2 block">אימייל</Label>
-                                <AutocompleteFilter
-                                    value={emailFilter}
-                                    onChange={setEmailFilter}
-                                    onSelect={(value) => {
-                                        setEmailFilter(value)
-                                        // Trigger search immediately when selecting from autocomplete
-                                        triggerSearch()
-                                    }}
-                                    onEnter={triggerSearch}
-                                    placeholder="אימייל..."
-                                    searchFn={searchCustomerEmails}
-                                    minSearchLength={0}
-                                    autoSearchOnFocus
-                                    initialLoadOnMount
-                                    initialResultsLimit={5}
-                                />
+                                <div className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                        <AutocompleteFilter
+                                            value={emailFilter}
+                                            onChange={setEmailFilter}
+                                            onSelect={(value) => {
+                                                setEmailFilter(value)
+                                            }}
+                                            onEnter={triggerSearch}
+                                            placeholder="אימייל..."
+                                            searchFn={searchCustomerEmails}
+                                            minSearchLength={0}
+                                            autoSearchOnFocus
+                                            initialLoadOnMount
+                                            initialResultsLimit={5}
+                                        />
+                                    </div>
+                                    {emailFilter && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-10 w-10"
+                                            onClick={() => {
+                                                setEmailFilter("")
+                                                triggerSearch()
+                                            }}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-10 w-10"
+                                        onClick={triggerSearch}
+                                    >
+                                        <Search className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
