@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react"
-import { differenceInMinutes, isSameDay, isAfter, isBefore } from "date-fns"
+import { differenceInMinutes } from "date-fns"
 import type { TimelineConfig } from "../managerSchedule.module"
 
 interface CurrentTimeIndicatorProps {
@@ -24,21 +24,27 @@ export function CurrentTimeIndicator({ timeline, selectedDate }: CurrentTimeIndi
 
     // Calculate position and visibility
     const { top, isVisible } = useMemo(() => {
-        // Only show if current time is on the selected date
-        if (!isSameDay(currentTime, selectedDate)) {
-            return { top: 0, isVisible: false }
-        }
+        // Anchor "now" to the selected date so we always show the current hour/minute,
+        // regardless of which day is selected in the calendar.
+        const nowLocal = new Date(currentTime)
+        const selectedDateLocal = new Date(selectedDate)
+        const currentTimeOnSelectedDate = new Date(selectedDateLocal)
+        currentTimeOnSelectedDate.setHours(
+            nowLocal.getHours(),
+            nowLocal.getMinutes(),
+            nowLocal.getSeconds(),
+            nowLocal.getMilliseconds()
+        )
 
-        // Check if current time is within timeline range
-        if (isBefore(currentTime, timeline.start) || isAfter(currentTime, timeline.end)) {
-            return { top: 0, isVisible: false }
-        }
-
-        // Calculate position in pixels
-        const minutesFromStart = differenceInMinutes(currentTime, timeline.start)
+        // Calculate position in pixels and clamp to timeline bounds so we always show "now"
+        const minutesFromStart = differenceInMinutes(currentTimeOnSelectedDate, timeline.start)
         const totalMinutes = differenceInMinutes(timeline.end, timeline.start)
+
+
+
         const pixelsPerMinute = timeline.height / totalMinutes
-        const top = minutesFromStart * pixelsPerMinute
+        const clampedMinutesFromStart = Math.min(Math.max(minutesFromStart, 0), totalMinutes)
+        const top = clampedMinutesFromStart * pixelsPerMinute
 
         return { top, isVisible: true }
     }, [currentTime, selectedDate, timeline])
@@ -49,7 +55,7 @@ export function CurrentTimeIndicator({ timeline, selectedDate }: CurrentTimeIndi
 
     return (
         <div
-            className="absolute pointer-events-none z-50"
+            className="absolute pointer-events-none"
             style={{
                 top: `${top}px`,
                 left: 0,
@@ -57,7 +63,9 @@ export function CurrentTimeIndicator({ timeline, selectedDate }: CurrentTimeIndi
                 width: '100%',
                 height: "2px",
                 backgroundColor: "hsl(228, 36%, 65%)", // Lighter brand color
-                opacity: 0.6, // Make it more subtle
+                opacity: 0.6,
+                zIndex: 50,
+                // Make it more subtle
             }}
         />
     )

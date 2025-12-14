@@ -7,7 +7,6 @@ import { useGetManagerScheduleQuery } from "@/store/services/supabaseApi"
 import { buildTimeline } from "../managerSchedule.module"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
-import { DEFAULT_END_HOUR } from "../constants"
 
 export function TimeAxis() {
   const selectedDateStr = useAppSelector((state) => state.managerSchedule.selectedDate)
@@ -22,12 +21,12 @@ export function TimeAxis() {
     serviceType: "both",
   })
 
-  // Build timeline
+  // Build timeline (business hours are now included in data and will be used automatically)
   const timeline = useMemo(() => {
     if (!data) {
       return null
     }
-    return buildTimeline(selectedDate, data, intervalMinutes, pixelsPerMinuteScale, [], DEFAULT_END_HOUR)
+    return buildTimeline(selectedDate, data, intervalMinutes, pixelsPerMinuteScale, [])
   }, [selectedDate, data, intervalMinutes, pixelsPerMinuteScale])
 
   if (!timeline) {
