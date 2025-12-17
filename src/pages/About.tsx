@@ -11,9 +11,9 @@ export default function About() {
                 {/* Header with Logo */}
                 <header className="text-center mb-16">
                     <div className="flex items-center justify-center gap-4 mb-4">
-                        <img 
-                            src={logoImage} 
-                            alt="Yaron Hershberg Logo" 
+                        <img
+                            src={logoImage}
+                            alt="Yaron Hershberg Logo"
                             className="h-16 w-16 object-contain"
                         />
                         <div className="text-right">
@@ -86,6 +86,23 @@ export default function About() {
                             </CardContent>
                         </Card>
 
+
+
+                        {/* Video Card 1 (Bottom Middle) */}
+                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
+                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                <div className="p-3 bg-red-100 rounded-full mb-4">
+                                    <Play className="h-6 w-6 text-red-600" />
+                                </div>
+                                <p className="text-lg font-semibold text-gray-900 mb-2">
+                                    סרטון לפני ואחרי
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    YouTube video
+                                </p>
+                            </CardContent>
+                        </Card>
+
                         {/* FAQ Card (Bottom Left) */}
                         <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow md:col-span-2 lg:col-span-1 min-h-[200px]">
                             <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
@@ -109,21 +126,6 @@ export default function About() {
                                         כמה טיפולים צריך?
                                     </li>
                                 </ul>
-                            </CardContent>
-                        </Card>
-
-                        {/* Video Card 1 (Bottom Middle) */}
-                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
-                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
-                                <div className="p-3 bg-red-100 rounded-full mb-4">
-                                    <Play className="h-6 w-6 text-red-600" />
-                                </div>
-                                <p className="text-lg font-semibold text-gray-900 mb-2">
-                                    סרטון לפני ואחרי
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                    YouTube video
-                                </p>
                             </CardContent>
                         </Card>
 
@@ -153,17 +155,17 @@ export default function About() {
                             </h2>
                             <div className="prose prose-lg max-w-none text-gray-700 text-right space-y-4">
                                 <p className="text-base md:text-lg leading-relaxed">
-                                    ירון הרשברג הוא מומחה מוביל בתחום הטיפול בשיער וקרקפת, עם ניסיון של למעלה מ-20 שנה. 
+                                    ירון הרשברג הוא מומחה מוביל בתחום הטיפול בשיער וקרקפת, עם ניסיון של למעלה מ-20 שנה.
                                     המספרה שלו, שהוקמה בשנת 2001, מציעה שירותים מקצועיים ומתקדמים לטיפול בכל בעיות השיער והקרקפת.
                                 </p>
                                 <p className="text-base md:text-lg leading-relaxed">
-                                    עם גישה אישית ומותאמת לכל לקוח, ירון מספק אבחון מקצועי, טיפולים מתקדמים וליווי צמוד 
-                                    לאורך כל תהליך הטיפול. המספרה מציעה מגוון רחב של שירותים כולל צבע, גוונים, תספורות, 
+                                    עם גישה אישית ומותאמת לכל לקוח, ירון מספק אבחון מקצועי, טיפולים מתקדמים וליווי צמוד
+                                    לאורך כל תהליך הטיפול. המספרה מציעה מגוון רחב של שירותים כולל צבע, גוונים, תספורות,
                                     טיפולי שיקום שיער ואבחון מקצועי של בעיות קרקפת.
                                 </p>
                                 <p className="text-base md:text-lg leading-relaxed">
-                                    המחויבות שלנו היא לספק לכם את הטיפול הטוב ביותר, תוך שימוש בחומרים איכותיים וטכניקות 
-                                    מתקדמות. כל טיפול מותאם אישית לצרכים שלכם, ואנחנו כאן כדי ללוות אתכם בכל שלב בדרך 
+                                    המחויבות שלנו היא לספק לכם את הטיפול הטוב ביותר, תוך שימוש בחומרים איכותיים וטכניקות
+                                    מתקדמות. כל טיפול מותאם אישית לצרכים שלכם, ואנחנו כאן כדי ללוות אתכם בכל שלב בדרך
                                     לשיער בריא ויפה.
                                 </p>
                             </div>
