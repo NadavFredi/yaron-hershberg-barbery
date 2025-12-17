@@ -47,41 +47,11 @@ export default function About() {
                 {/* Services Grid */}
                 <section className="mb-16">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* Service Card 1 */}
-                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow">
-                            <CardContent className="p-0">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="p-3 bg-blue-100 rounded-full">
-                                        <Scissors className="h-6 w-6 text-blue-600" />
-                                    </div>
-                                </div>
-                                <p className="text-lg font-semibold text-gray-900">
-                                    צבע, גוונים תספורת וטיפולי מספרה
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        {/* Service Card 2 */}
-                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow">
-                            <CardContent className="p-0">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="p-3 bg-purple-100 rounded-full">
-                                        <Sparkles className="h-6 w-6 text-purple-600" />
-                                    </div>
-                                </div>
-                                <p className="text-lg font-semibold text-gray-900">
-                                    שיקום וטיפולי שיער
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        {/* Service Card 3 */}
-                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow">
-                            <CardContent className="p-0">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="p-3 bg-amber-100 rounded-full">
-                                        <Heart className="h-6 w-6 text-amber-600" />
-                                    </div>
+                        {/* Service Card 1 - Scalp Diagnosis (Top Left) */}
+                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
+                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                <div className="p-3 bg-amber-100 rounded-full mb-4">
+                                    <Heart className="h-6 w-6 text-amber-600" />
                                 </div>
                                 <p className="text-lg font-semibold text-gray-900 mb-2">
                                     אבחון וטיפולי קרקפת
@@ -92,52 +62,40 @@ export default function About() {
                             </CardContent>
                         </Card>
 
-                        {/* Video Card 1 */}
-                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow">
-                            <CardContent className="p-0">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="p-3 bg-red-100 rounded-full">
-                                        <Play className="h-6 w-6 text-red-600" />
-                                    </div>
+                        {/* Service Card 2 - Hair Restoration (Top Middle) */}
+                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
+                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                <div className="p-3 bg-purple-100 rounded-full mb-4">
+                                    <Sparkles className="h-6 w-6 text-purple-600" />
                                 </div>
-                                <p className="text-lg font-semibold text-gray-900 mb-2">
-                                    סרטון לפני ואחרי
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                    YouTube video
+                                <p className="text-lg font-semibold text-gray-900">
+                                    שיקום וטיפולי שיער
                                 </p>
                             </CardContent>
                         </Card>
 
-                        {/* Video Card 2 */}
-                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow">
-                            <CardContent className="p-0">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="p-3 bg-red-100 rounded-full">
-                                        <Play className="h-6 w-6 text-red-600" />
-                                    </div>
+                        {/* Service Card 3 - Color/Haircut (Top Right) */}
+                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
+                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                <div className="p-3 bg-blue-100 rounded-full mb-4">
+                                    <Scissors className="h-6 w-6 text-blue-600" />
                                 </div>
-                                <p className="text-lg font-semibold text-gray-900 mb-2">
-                                    סרטון לפני ואחרי
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                    YouTube video
+                                <p className="text-lg font-semibold text-gray-900">
+                                    צבע, גוונים תספורת וטיפולי מספרה
                                 </p>
                             </CardContent>
                         </Card>
 
-                        {/* FAQ Card */}
-                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow md:col-span-2 lg:col-span-1">
-                            <CardContent className="p-0">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-3 bg-green-100 rounded-full">
-                                        <HelpCircle className="h-6 w-6 text-green-600" />
-                                    </div>
-                                    <h3 className="text-xl font-bold text-gray-900">
-                                        שאלות שחשוב לדעת
-                                    </h3>
+                        {/* FAQ Card (Bottom Left) */}
+                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow md:col-span-2 lg:col-span-1 min-h-[200px]">
+                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                <div className="p-3 bg-green-100 rounded-full mb-4">
+                                    <HelpCircle className="h-6 w-6 text-green-600" />
                                 </div>
-                                <ul className="space-y-3 text-right">
+                                <h3 className="text-xl font-bold text-gray-900 mb-6">
+                                    שאלות שחשוב לדעת
+                                </h3>
+                                <ul className="space-y-3 w-full">
                                     <li className="text-base text-gray-700">
                                         עם איזה חומרים אתם משתמשים?
                                     </li>
@@ -151,6 +109,36 @@ export default function About() {
                                         כמה טיפולים צריך?
                                     </li>
                                 </ul>
+                            </CardContent>
+                        </Card>
+
+                        {/* Video Card 1 (Bottom Middle) */}
+                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
+                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                <div className="p-3 bg-red-100 rounded-full mb-4">
+                                    <Play className="h-6 w-6 text-red-600" />
+                                </div>
+                                <p className="text-lg font-semibold text-gray-900 mb-2">
+                                    סרטון לפני ואחרי
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    YouTube video
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        {/* Video Card 2 (Bottom Right) */}
+                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
+                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                <div className="p-3 bg-red-100 rounded-full mb-4">
+                                    <Play className="h-6 w-6 text-red-600" />
+                                </div>
+                                <p className="text-lg font-semibold text-gray-900 mb-2">
+                                    סרטון לפני ואחרי
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    YouTube video
+                                </p>
                             </CardContent>
                         </Card>
                     </div>
