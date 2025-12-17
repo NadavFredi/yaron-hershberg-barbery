@@ -31,19 +31,19 @@ export default function ScalpTreatments() {
                     <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
                         אבחון וטיפולי קרקפת
                     </h1>
-                    <p className="text-xl text-gray-600">
+                    <p className="text-xl text-gray-700 font-medium">
                         עבור נשים / גברים
                     </p>
                 </div>
 
                 {/* Shared Information Section */}
                 <section className="mb-12">
-                    <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
+                    <Card className="bg-white shadow-xl border border-gray-200 rounded-3xl p-8 md:p-12">
                         <CardContent className="p-0">
                             <div className="space-y-8">
                                 {/* Introduction */}
-                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border-r-4 border-blue-400">
-                                    <p className="text-lg md:text-xl text-gray-800 leading-relaxed">
+                                <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-2xl p-6 border-r-4 border-blue-600">
+                                    <p className="text-lg md:text-xl text-gray-900 font-medium leading-relaxed">
                                         לפני התאמת טיפול מתחילים באבחון קרקפת מקצועי עם ירון-טריקולוג מוסמך
                                     </p>
                                 </div>
@@ -55,26 +55,26 @@ export default function ScalpTreatments() {
                                     </h3>
                                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-700">
+                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                            <span className="text-base md:text-lg text-gray-800">
                                                 בדיקת קרקפת עם מצלמה מיקרוסקופית
                                             </span>
                                         </li>
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-700">
+                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                            <span className="text-base md:text-lg text-gray-800">
                                                 זיהוי שורש הבעיה
                                             </span>
                                         </li>
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-700">
+                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                            <span className="text-base md:text-lg text-gray-800">
                                                 התאמת תכנית טיפול
                                             </span>
                                         </li>
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-700">
+                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                            <span className="text-base md:text-lg text-gray-800">
                                                 המלצה על מוצרים משלימים
                                             </span>
                                         </li>
@@ -88,38 +88,38 @@ export default function ScalpTreatments() {
                                     </h3>
                                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-700">
+                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                            <span className="text-base md:text-lg text-gray-800">
                                                 פילינג מותאם על בסיס טבעי ואורגני לניקוי ואיזון הקרקפת
                                             </span>
                                         </li>
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-700">
+                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                            <span className="text-base md:text-lg text-gray-800">
                                                 ספא-מיסט מכשור אדים ייחודי המפחית גירויים
                                             </span>
                                         </li>
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-700">
+                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                            <span className="text-base md:text-lg text-gray-800">
                                                 שימוש בתאי גזע צמחיים לחיזוק ולעידוד צמיחה
                                             </span>
                                         </li>
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-700">
+                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                            <span className="text-base md:text-lg text-gray-800">
                                                 ליווי מקצועי ומעקב אישי לאורך כל הדרך
                                             </span>
                                         </li>
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-700">
+                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                            <span className="text-base md:text-lg text-gray-800">
                                                 הטיפולים נעימים, בטוחים ואינם פולשניים.
                                             </span>
                                         </li>
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-700">
+                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                            <span className="text-base md:text-lg text-gray-800">
                                                 מספר הטיפולים הדרוש נקבע באבחון לפי חומרת המצב.
                                             </span>
                                         </li>
@@ -133,7 +133,7 @@ export default function ScalpTreatments() {
                 {/* Pricing Cards - Two Column Layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
                     {/* Women Pricing Card */}
-                    <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
+                    <Card className="bg-white shadow-xl border border-gray-200 rounded-3xl p-8 md:p-12">
                         <CardContent className="p-0">
                             <div className="flex items-center gap-4 mb-8">
                                 <div className="p-3 bg-red-100 rounded-full">
@@ -191,7 +191,7 @@ export default function ScalpTreatments() {
                     </Card>
 
                     {/* Men Pricing Card */}
-                    <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
+                    <Card className="bg-white shadow-xl border border-gray-200 rounded-3xl p-8 md:p-12">
                         <CardContent className="p-0">
                             <div className="flex items-center gap-4 mb-8">
                                 <div className="p-3 bg-blue-100 rounded-full">
