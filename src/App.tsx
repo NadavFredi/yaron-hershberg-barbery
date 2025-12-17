@@ -18,7 +18,6 @@ import { Navbar } from "./components/navigation/Navbar";
 import { ManagerSubnav } from "./components/navigation/ManagerSubnav";
 import { ThirdLevelSubnav } from "./components/navigation/ThirdLevelSubnav";
 import { AppFooter } from "./components/layout/AppFooter";
-import { CreditCardWarningBanner } from "./components/layout/CreditCardWarningBanner";
 import { useAppSelector } from "./store/hooks";
 import SetupAppointment from "./pages/SetupAppointment"
 import Appointments from "./pages/Appointments/Appointments"
@@ -66,7 +65,6 @@ const AppContent = () => {
         <Navbar isManager={!!isManager} />
         <ManagerSubnav isManager={!!isManager} />
         <ThirdLevelSubnav />
-        <CreditCardWarningBanner />
         <main className={`flex-1 ${mainPaddingClass}`}>
           <Routes>
             <Route path="/" element={<Index />} />

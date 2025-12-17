@@ -16,8 +16,9 @@ import { supabase } from "@/integrations/supabase/client"
 import { useSupabaseAuthWithClientId } from "@/hooks/useSupabaseAuthWithClientId"
 import confetti from "canvas-confetti"
 import { AddWaitlistEntryModal } from "@/components/dialogs/AddWaitlistEntryModal"
-import { Bell } from "lucide-react"
+import { Bell, CreditCard } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { CreditCardSetupModal } from "@/components/dialogs/billing/CreditCardSetupModal"
 
 type ServiceOption = { id: string; name: string; description?: string | null }
 type AvailableDate = { date: string; available: boolean; stationId: string | null; availableTimes?: AvailableTime[] }
@@ -35,7 +36,7 @@ const toJerusalemDateString = (date: Date) => jerusalemDateFormatter.format(date
 
 const SetupAppointment: React.FC = () => {
   const navigate = useNavigate()
-  const { user } = useSupabaseAuthWithClientId()
+  const { user, clientId } = useSupabaseAuthWithClientId()
   const { toast } = useToast()
 
   const [services, setServices] = useState<ServiceOption[]>([])
@@ -51,6 +52,9 @@ const SetupAppointment: React.FC = () => {
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
   const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false)
   const [customer, setCustomer] = useState<{ id: string; full_name: string; phone: string; email: string | null } | null>(null)
+  const [creditToken, setCreditToken] = useState<{ id: string } | null>(null)
+  const [isLoadingCreditToken, setIsLoadingCreditToken] = useState(false)
+  const [isCreditCardModalOpen, setIsCreditCardModalOpen] = useState(false)
 
   const filteredServices = useMemo(() => {
     return serviceSearchQuery.trim()
@@ -161,6 +165,105 @@ const SetupAppointment: React.FC = () => {
     loadCustomer()
   }, [user])
 
+  // Fetch credit token to check if card is configured
+  useEffect(() => {
+    const fetchCreditToken = async () => {
+      if (!clientId) {
+        setCreditToken(null)
+        return
+      }
+
+      try {
+        setIsLoadingCreditToken(true)
+        const { data, error } = await supabase
+          .from("credit_tokens")
+          .select("id")
+          .eq("customer_id", clientId)
+          .maybeSingle()
+
+        if (error) {
+          console.error("Error fetching credit token:", error)
+          setCreditToken(null)
+          return
+        }
+
+        setCreditToken(data)
+      } catch (error) {
+        console.error("Error fetching credit token:", error)
+        setCreditToken(null)
+      } finally {
+        setIsLoadingCreditToken(false)
+      }
+    }
+
+    fetchCreditToken()
+  }, [clientId])
+
+  // Listen for credit card saved event to refresh
+  useEffect(() => {
+    const handleCreditCardSaved = () => {
+      console.log("🔄 [SetupAppointment] Credit card saved event received, refreshing...")
+      if (clientId) {
+        const fetchCreditToken = async () => {
+          try {
+            const { data, error } = await supabase
+              .from("credit_tokens")
+              .select("id")
+              .eq("customer_id", clientId)
+              .maybeSingle()
+
+            if (error) {
+              console.error("Error fetching credit token:", error)
+              return
+            }
+
+            setCreditToken(data)
+          } catch (error) {
+            console.error("Error fetching credit token:", error)
+          }
+        }
+        fetchCreditToken()
+      }
+    }
+
+    window.addEventListener("creditCardSaved", handleCreditCardSaved)
+    return () => {
+      window.removeEventListener("creditCardSaved", handleCreditCardSaved)
+    }
+  }, [clientId])
+
+  const handleCreditCardSetupSuccess = useCallback(() => {
+    // Refetch credit token after successful setup
+    if (!clientId) return
+
+    const fetchCreditToken = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("credit_tokens")
+          .select("id")
+          .eq("customer_id", clientId)
+          .maybeSingle()
+
+        if (error) {
+          console.error("Error fetching credit token:", error)
+          return
+        }
+
+        setCreditToken(data)
+        if (data) {
+          toast({
+            title: "כרטיס אשראי נשמר בהצלחה",
+            description: "פרטי כרטיס האשראי שלך נשמרו בהצלחה",
+          })
+        }
+      } catch (error) {
+        console.error("Error fetching credit token:", error)
+      }
+    }
+
+    fetchCreditToken()
+  }, [clientId, toast])
+
   const datesQueryArg = selectedServiceId ? { serviceId: selectedServiceId } : skipToken
   const { data: availableDatesData, isFetching: isFetchingDates } = useGetAvailableDatesQuery(datesQueryArg, {
     skip: !selectedServiceId,
@@ -206,6 +309,18 @@ const SetupAppointment: React.FC = () => {
     if (!selectedServiceId || !selectedDateKey || !selectedTime || !selectedTime.stationId) {
       return
     }
+
+    // Check if credit card is required and not set
+    if (isAuthenticated && clientId && !creditToken && !isLoadingCreditToken) {
+      toast({
+        title: "נדרש כרטיס אשראי",
+        description: "יש להגדיר כרטיס אשראי לפני קביעת תור",
+        variant: "destructive",
+      })
+      setIsCreditCardModalOpen(true)
+      return
+    }
+
     setIsBooking(true)
     try {
       const result = await reserveAppointment(
@@ -467,6 +582,32 @@ const SetupAppointment: React.FC = () => {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
+              
+              {/* Credit Card Warning - Show only when card is not defined and user is authenticated */}
+              {isAuthenticated && clientId && !isLoadingCreditToken && !creditToken && (
+                <div className="rounded-lg border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-orange-50 p-4 space-y-3 shadow-sm" dir="rtl">
+                  <div className="flex items-start gap-3">
+                    <CreditCard className="h-5 w-5 text-yellow-600 mt-0.5 shrink-0" />
+                    <div className="flex-1 space-y-2 text-right">
+                      <h4 className="text-sm font-semibold text-yellow-900">
+                        רגע לפני שנקבע את התור...
+                      </h4>
+                      <p className="text-xs text-yellow-800 leading-relaxed">
+                        בואו נגדיר את כרטיס האשראי שלך כדי שנוכל לקחת את התשלום עבור השירותים. זה ייקח רק רגע קטן!
+                      </p>
+                      <Button
+                        onClick={() => setIsCreditCardModalOpen(true)}
+                        className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white shadow-md hover:shadow-lg transition-all"
+                        size="sm"
+                      >
+                        <CreditCard className="h-4 w-4 ml-2" />
+                        הגדר כרטיס אשראי עכשיו
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end">
                 <Button
                   onClick={handleBook}
@@ -501,6 +642,15 @@ const SetupAppointment: React.FC = () => {
           setIsWaitlistModalOpen(false)
         }}
       />
+
+      {clientId && (
+        <CreditCardSetupModal
+          open={isCreditCardModalOpen}
+          onOpenChange={setIsCreditCardModalOpen}
+          customerId={clientId}
+          onSuccess={handleCreditCardSetupSuccess}
+        />
+      )}
     </div>
   )
 }
