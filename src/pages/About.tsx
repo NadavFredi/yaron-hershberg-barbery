@@ -1,396 +1,325 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Badge } from "../components/ui/badge.tsx"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card.tsx"
-import { cn } from "../lib/utils.ts"
-import { useServicesWithStats } from "../hooks/useServices.ts"
-import { AutocompleteFilter } from "../components/AutocompleteFilter.tsx"
-import { barberyPriceCopy, barberyPriceSections } from "../copy/pricing.ts"
-import { Scissors, DollarSign, Sparkles } from "lucide-react"
-
-type ExperienceId = "barber" | "pricing"
-type ExperienceType = "fillout" | "pricing"
-
-interface ExperienceOption {
-    id: ExperienceId
-    type: ExperienceType
-    title: string
-    subtitle: string
-    description: string
-    icon: React.ReactNode
-    accent: string
-    filloutId?: string
-}
-
-const FILL_OUT_SCRIPT_SRC = "https://server.fillout.com/embed/v1/"
-
-const experienceOptions: Record<ExperienceId, ExperienceOption> = {
-    barber: {
-        id: "barber",
-        type: "fillout",
-        title: "הכירו את המספרה המקצועית שלנו",
-        subtitle: "טיפוח שמרגיש כמו ספא",
-        description: "גלו כיצד אנחנו הופכים כל תספורת לחוויה רגועה ומפנקת - מהשיטות ועד המוצרים המיוחדים.",
-        icon: <Scissors className="h-6 w-6" />,
-        filloutId: "i1rmEvjoTCus",
-        accent: "from-sky-50 to-blue-100"
-    },
-    pricing: {
-        id: "pricing",
-        type: "pricing",
-        title: "השקיפות שלנו בתמחור",
-        subtitle: "בחרו שירות וקבלו טווח מחיר מיידי",
-        description: "התאימו את חוויית הטיפוח לצרכים שלכם. בחרו שירות, ראו את טווח המחירים המשוער וגלו מה משפיע על התמחור.",
-        icon: <DollarSign className="h-6 w-6" />,
-        accent: "from-amber-50 to-orange-100"
-    }
-}
-
-type PricingService = {
-    id: string
-    name: string
-    priceRange: {
-        min: number
-        max: number
-    }
-    averageTime: number
-}
+import { Link } from "react-router-dom"
+import { Button } from "../components/ui/button.tsx"
+import { Card, CardContent } from "../components/ui/card.tsx"
+import { Play, Scissors, Sparkles, Heart, HelpCircle, Store, Camera, UserCheck, Leaf, Clock, GraduationCap, Star } from "lucide-react"
 
 export default function About() {
-    const [selectedId, setSelectedId] = useState<ExperienceId>("barber")
-
-    const selectedExperience = useMemo(
-        () => experienceOptions[selectedId],
-        [selectedId]
-    )
-
     return (
-        <div className="py-12 px-4 sm:px-6 lg:px-8" dir="rtl">
-            <div className="max-w-6xl mx-auto space-y-12">
-                <header className="text-center space-y-4">
-                    <Badge variant="secondary" className="text-sm px-4 py-1 rounded-full">
-                        בואו נכיר מקרוב
-                    </Badge>
-                    <h1 className="text-4xl font-bold text-gray-900">
-                        רוצים לדעת על מה כולם מדברים?
-                    </h1>
-                    <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                        גלו עוד על המספרה המקצועית שלנו ועל השירותים שאנחנו מציעים. כל בחירה תפתח עבורכם חוויית עומק ממוקדת ומהנה.
-                    </p>
-                </header>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50" dir="rtl">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
-                <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {Object.values(experienceOptions).map((option) => {
-                        const isActive = option.id === selectedId
-                        return (
-                            <button
-                                key={option.id}
-                                type="button"
-                                onClick={() => setSelectedId(option.id)}
-                                className={cn(
-                                    "group relative flex h-full w-full flex-col items-start gap-4 rounded-2xl border bg-white/90 p-6 text-right transition-all",
-                                    "hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400",
-                                    isActive
-                                        ? "border-blue-300 shadow-lg"
-                                        : "border-transparent hover:border-blue-200"
-                                )}
-                                aria-pressed={isActive}
-                            >
-                                <div className={cn(
-                                    "flex h-12 w-12 items-center justify-center rounded-full transition-transform",
-                                    "bg-gradient-to-br shadow-inner",
-                                    option.accent,
-                                    isActive ? "scale-105" : "group-hover:scale-105"
-                                )}>
-                                    {option.icon}
-                                </div>
-                                <div className="space-y-2">
-                                    <p className="text-sm font-semibold text-blue-500">{option.subtitle}</p>
-                                    <h2 className="text-2xl font-bold text-gray-900">{option.title}</h2>
-                                    <p className="text-base text-gray-600 leading-relaxed">
-                                        {option.description}
-                                    </p>
-                                </div>
-                                <div className="mt-auto flex w-full items-center justify-between text-sm text-gray-500">
-                                    <span>
-                                        {isActive ? "מוצג כעת" : "הציגו פרטים מלאים"}
-                                    </span>
-                                    <span className="transition-transform group-hover:translate-x-1">
-                                        ↗
-                                    </span>
-                                </div>
-                            </button>
-                        )
-                    })}
+
+                {/* Main Heading Section */}
+                <section className="mb-16">
+                    <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
+                        <div className="text-center space-y-4">
+                            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold ">
+                                סובלים מנשירה או בעיות קרקפת?
+                            </h2>
+                            <p className="text-xl md:text-2xl text-gray-800 font-medium">
+                                אבחון טיפול וליווי מקצועי
+                            </p>
+                            <p className="text-base md:text-lg text-gray-600 max-w-2xl mx-auto">
+                                לא בטוחים מה הבעיה? אבחון מקצועי עושה סדר.
+                            </p>
+                        </div>
+                    </Card>
                 </section>
 
-                <section>
-                    <Card className="overflow-hidden border-0 shadow-xl">
-                        <CardHeader className="bg-white/70 backdrop-blur-sm">
-                            <CardTitle className="text-2xl font-bold text-gray-900">
-                                {selectedExperience.title}
-                            </CardTitle>
-                            <CardDescription className="text-base text-gray-600">
-                                {selectedExperience.description}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="bg-white/90 p-6">
-                            {selectedExperience.type === "fillout" && selectedExperience.filloutId ? (
-                                <FilloutEmbed
-                                    key={selectedExperience.id}
-                                    filloutId={selectedExperience.filloutId}
-                                    accent={selectedExperience.accent}
-                                />
-                            ) : null}
+                {/* Services Grid */}
+                <section className="mb-16">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* Service Card 1 - Scalp Diagnosis (Top Left) */}
+                        <Link to="/scalp-treatments" className="block h-full">
+                            <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer min-h-[200px] h-full">
+                                <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                    <div className="p-3 bg-amber-100 rounded-full mb-4">
+                                        <Heart className="h-6 w-6 text-amber-600" />
+                                    </div>
+                                    <p className="text-lg font-semibold text-gray-900 mb-2">
+                                        אבחון וטיפולי קרקפת
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        עבור נשים / גברים
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </Link>
 
-                            {selectedExperience.type === "pricing" ? (
-                                <PricingExperience key={selectedExperience.id} />
-                            ) : null}
+                        {/* Service Card 2 - Hair Restoration (Top Middle) */}
+                        <Link to="/hair-restoration" className="block h-full">
+                            <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer min-h-[200px] h-full">
+                                <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                    <div className="p-3 bg-purple-100 rounded-full mb-4">
+                                        <Sparkles className="h-6 w-6 text-purple-600" />
+                                    </div>
+                                    <p className="text-lg font-semibold text-gray-900">
+                                        שיקום וטיפולי שיער
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+
+                        {/* Service Card 3 - Color/Haircut (Top Right) */}
+                        <Link to="/salon-services" className="block h-full">
+                            <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer min-h-[200px] h-full">
+                                <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                    <div className="p-3 bg-blue-100 rounded-full mb-4">
+                                        <Scissors className="h-6 w-6 text-blue-600" />
+                                    </div>
+                                    <p className="text-lg font-semibold text-gray-900">
+                                        צבע, גוונים תספורת וטיפולי מספרה
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+
+
+
+                        {/* Video Card 1 (Bottom Middle) */}
+                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
+                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                <div className="p-3 bg-red-100 rounded-full mb-4">
+                                    <Play className="h-6 w-6 text-red-600" />
+                                </div>
+                                <p className="text-lg font-semibold text-gray-900 mb-2">
+                                    סרטון לפני ואחרי
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    YouTube video
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        {/* FAQ Card (Bottom Left) */}
+                        <Link to="/faq" className="block h-full md:col-span-2 lg:col-span-1">
+                            <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer min-h-[200px] h-full">
+                                <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                    <div className="p-3 bg-green-100 rounded-full mb-4">
+                                        <HelpCircle className="h-6 w-6 text-green-600" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-6">
+                                        שאלות שחשוב לדעת
+                                    </h3>
+                                    <ul className="space-y-3 w-full">
+                                        <li className="text-base text-gray-700">
+                                            עם איזה חומרים אתם משתמשים?
+                                        </li>
+                                        <li className="text-base text-gray-700">
+                                            כמה זמן כל טיפול?
+                                        </li>
+                                        <li className="text-base text-gray-700">
+                                            מתי רואים הטבה?
+                                        </li>
+                                        <li className="text-base text-gray-700">
+                                            כמה טיפולים צריך?
+                                        </li>
+                                    </ul>
+                                </CardContent>
+                            </Card>
+                        </Link>
+
+                        {/* Video Card 2 (Bottom Right) */}
+                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
+                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                <div className="p-3 bg-red-100 rounded-full mb-4">
+                                    <Play className="h-6 w-6 text-red-600" />
+                                </div>
+                                <p className="text-lg font-semibold text-gray-900 mb-2">
+                                    סרטון לפני ואחרי
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    YouTube video
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </section>
+
+                {/* About Section */}
+                <section className="mb-16 space-y-8">
+                    {/* Main About Card */}
+                    <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
+                        <CardContent className="p-0">
+                            <div className="flex items-center justify-center gap-3 mb-8">
+                                <div className="p-3 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full">
+                                    <Store className="h-8 w-8 text-amber-600" />
+                                </div>
+                                <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+                                    אודות ירון הרשברג
+                                </h2>
+                            </div>
+
+                            <div className="space-y-6 text-right">
+                                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border-r-4 border-amber-400">
+                                    <p className="text-xl md:text-2xl font-bold text-gray-900 mb-4">
+                                        "מספרה יוצאת דופן" – בוטיק ייחודי ברמת גן לבריאות הקרקפת והשיער.
+                                    </p>
+                                </div>
+
+                                <p className="text-base md:text-lg leading-relaxed text-gray-700">
+                                    הוקם על-ידי ירון הרשברג, מעצב שיער וכימאי משנת 2001, ובשנים האחרונות גם טריקולוג מוסמך לאבחון וטיפול בבעיות קרקפת בשיטה טבעית ולא פולשנית.
+                                </p>
+
+                                <p className="text-base md:text-lg leading-relaxed text-gray-700">
+                                    הבוטיק מציע עיצוב שיער מוקפד לצד טיפולי קרקפת מקצועיים ומתקדמים – שילוב נדיר שנותן מענה אמיתי מהשורש ועד הקצוות, מעטפת הכרחית לשיער בריא ומראה מושלם.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Why We're Unique Section */}
+                    <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
+                        <CardContent className="p-0">
+                            <div className="flex items-center justify-center gap-3 mb-10">
+                                <div className="p-3 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full">
+                                    <Star className="h-8 w-8 text-purple-600" />
+                                </div>
+                                <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+                                    למה אנחנו יוצאי דופן
+                                </h2>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Feature 1 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-blue-100 rounded-full">
+                                            <Camera className="h-6 w-6 text-blue-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            אבחון מקצועי מבוסס ידע ונסיון
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            בשילוב מצלמת קרקפת מתקדמת לפני כל טיפול.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Feature 2 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-purple-100 rounded-full">
+                                            <UserCheck className="h-6 w-6 text-purple-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            טיפולים מותאמים אישית
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            לכל לקוח/ה פרוטוקול ייחודי מותאם אישית לקרקפת ולשיער.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Feature 3 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-green-100 rounded-full">
+                                            <Leaf className="h-6 w-6 text-green-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            מוצרי פרימיום
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            אורגנים, ללא SLS, מלחים או חומרים משמרים, ולא נוסו על בעלי חיים.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Feature 4 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-orange-100 rounded-full">
+                                            <Clock className="h-6 w-6 text-orange-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            זמינות וגמישות
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            פתוחים עד חצות כדי להתאים ללוח הזמנים שלכם.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Feature 5 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-indigo-100 rounded-full">
+                                            <GraduationCap className="h-6 w-6 text-indigo-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            מומחיות אמיתית
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            ניסיון של מעל 20 שנה בעיצוב שיער לצד הסמכה בינלאומית בטריקולוגיה.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Feature 6 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-rose-100 rounded-full">
+                                            <Heart className="h-6 w-6 text-rose-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            חוויית שירות גבוהה
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            אווירה נעימה, יחס אישי וליווי מקצועי.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Closing Statement */}
+                            <div className="mt-10 text-center">
+                                <div className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-100 to-orange-100 rounded-2xl px-8 py-4">
+                                    <Heart className="h-6 w-6 text-rose-500" />
+                                    <p className="text-lg font-semibold text-gray-800">
+                                        אנחנו מאמינים שלשיער ולקרקפת שלכם מגיעה חוויה יוצאת דופן – ואם נפגשנו, זה בהחלט לא במקרה
+                                    </p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </section>
+
+                {/* Call to Action */}
+                <section className="text-center">
+                    <Card className="bg-white shadow-2xl border-2 border-[#4f60a8] rounded-3xl p-8 md:p-12">
+                        <CardContent className="p-0">
+                            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
+                                מוכנים להתחיל?
+                            </h2>
+                            <p className="text-lg text-gray-700 mb-8 max-w-2xl mx-auto">
+                                קבעו תור לאבחון וטיפול ראשון וקבלו ייעוץ מקצועי מותאם אישית
+                            </p>
+                            <Button
+                                asChild
+                                size="lg"
+                                className="bg-[#4f60a8] text-white hover:bg-[#445599] text-lg px-8 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                            >
+                                <Link to="/setup-appointment">
+                                    קבעו תור עכשיו
+                                </Link>
+                            </Button>
                         </CardContent>
                     </Card>
                 </section>
             </div>
-        </div>
-    )
-}
-
-interface FilloutEmbedProps {
-    filloutId: string
-    accent: string
-}
-
-function FilloutEmbed({ filloutId, accent }: FilloutEmbedProps) {
-    const containerRef = useRef<HTMLDivElement | null>(null)
-
-    useEffect(() => {
-        const container = containerRef.current
-        if (!container) return
-
-        container.innerHTML = ""
-
-        const embedDiv = document.createElement("div")
-        embedDiv.style.width = "100%"
-        embedDiv.style.height = "500px"
-        embedDiv.setAttribute("data-fillout-id", filloutId)
-        embedDiv.setAttribute("data-fillout-embed-type", "standard")
-        embedDiv.setAttribute("data-fillout-inherit-parameters", "")
-        embedDiv.setAttribute("data-fillout-dynamic-resize", "")
-        container.appendChild(embedDiv)
-
-        const script = document.createElement("script")
-        script.src = FILL_OUT_SCRIPT_SRC
-        script.async = true
-        script.setAttribute("data-fillout-script", `about-${filloutId}`)
-        container.appendChild(script)
-
-        return () => {
-            container.innerHTML = ""
-        }
-    }, [filloutId])
-
-    return (
-        <div
-            ref={containerRef}
-            className={cn(
-                "flex min-h-[500px] items-center justify-center rounded-2xl border shadow-inner transition-colors",
-                "border-blue-100 bg-white",
-                accent ? `bg-gradient-to-br ${accent}` : undefined
-            )}
-        />
-    )
-}
-
-function PricingExperience() {
-    const { data: services, isLoading, isError, error } = useServicesWithStats()
-    const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>(undefined)
-    const [inputValue, setInputValue] = useState("")
-
-    const sortedServices = useMemo<PricingService[]>(() => {
-        if (!services?.length) {
-            return []
-        }
-
-        const normalized = services.map((service) => ({
-            id: service.id,
-            name: service.name,
-            priceRange: service.priceRange,
-            averageTime: service.averageTime
-        }))
-
-        return normalized.sort((a, b) => a.name.localeCompare(b.name, "he"))
-    }, [services])
-
-    useEffect(() => {
-        if (sortedServices.length) {
-            console.log("💇 [PricingExperience] נטענו", sortedServices.length, "שירותים להצגת מחירים")
-        }
-    }, [sortedServices])
-
-    const selectedService = useMemo<PricingService | null>(() => {
-        return sortedServices.find((service) => service.id === selectedServiceId) ?? null
-    }, [selectedServiceId, sortedServices])
-
-    useEffect(() => {
-        if (selectedService) {
-            console.log("💡 [PricingExperience] השירות שנבחר עבור תמחור:", {
-                id: selectedService.id,
-                name: selectedService.name,
-                priceRange: selectedService.priceRange,
-                averageTime: selectedService.averageTime
-            })
-        }
-    }, [selectedService])
-
-    const searchServices = (term: string) => {
-        if (!sortedServices.length) {
-            return Promise.resolve<string[]>([])
-        }
-
-        const needle = term.trim().toLowerCase()
-        if (!needle) {
-            return Promise.resolve(sortedServices.slice(0, 8).map((service) => service.name))
-        }
-
-        return Promise.resolve(
-            sortedServices
-                .filter((service) => service.name.toLowerCase().includes(needle))
-                .slice(0, 8)
-                .map((service) => service.name)
-        )
-    }
-
-    const formatPrice = (price: number | null | undefined) => {
-        if (typeof price !== "number") {
-            return "—"
-        }
-
-        return `₪${price.toLocaleString("he-IL")}`
-    }
-
-    const formatTime = (minutes: number) => {
-        if (minutes < 60) {
-            return `${minutes} דקות`
-        }
-        const hours = Math.floor(minutes / 60)
-        const mins = minutes % 60
-        if (mins === 0) {
-            return `${hours} ${hours === 1 ? "שעה" : "שעות"}`
-        }
-        return `${hours} ${hours === 1 ? "שעה" : "שעות"} ו-${mins} דקות`
-    }
-
-    const hasPriceData = selectedService?.priceRange &&
-        (typeof selectedService.priceRange.min === "number" || typeof selectedService.priceRange.max === "number")
-
-    return (
-        <div className="space-y-4 text-right" dir="rtl">
-
-            {isLoading ? (
-                <div className="rounded-2xl border border-blue-100 bg-white/90 p-4 text-sm text-gray-600">
-                    טוען רשימת שירותים...
-                </div>
-            ) : null}
-
-            {!isLoading && isError ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                    קרתה תקלה בטעינת המחירים. נסו לרענן את העמוד או דברו איתנו ונשמח לעזור.
-                    {error instanceof Error ? ` (${error.message})` : null}
-                </div>
-            ) : null}
-
-            {!isLoading && !isError && !sortedServices.length ? (
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-                    עוד לא הזנו מחירים בטבלה – דברו איתנו כדי לקבל הצעת מחיר מותאמת.
-                </div>
-            ) : null}
-
-            {!isLoading && !isError && sortedServices.length ? (
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <span className="text-sm font-medium text-gray-800">
-                            חפשו שירות והציגו את טווח המחירים שלנו
-                        </span>
-                        <AutocompleteFilter
-                            value={inputValue}
-                            onChange={(value) => {
-                                setInputValue(value)
-                                if (!value.trim()) {
-                                    setSelectedServiceId(undefined)
-                                    return
-                                }
-                            }}
-                            onSelect={(value) => {
-                                setInputValue(value)
-                                const service = sortedServices.find((option) => option.name === value)
-                                if (service) {
-                                    setSelectedServiceId(service.id)
-                                    console.log("🎯 [PricingExperience] משתמש בחר שירות חדש:", {
-                                        id: service.id,
-                                        name: service.name
-                                    })
-                                }
-                            }}
-                            placeholder="הקלידו את שם השירות..."
-                            className="rounded-2xl border border-blue-200 bg-white/90 py-5 text-base font-medium text-gray-900"
-                            searchFn={searchServices}
-                            minSearchLength={1}
-                            debounceMs={150}
-                            initialLoadOnMount
-                            initialResultsLimit={8}
-                        />
-                    </div>
-
-                    <div className="grid gap-3 md:grid-cols-3">
-                        {barberyPriceSections.map((section) => (
-                            <div
-                                key={section.title}
-                                className="rounded-2xl border border-blue-50 bg-white/95 p-4 shadow-sm transition hover:shadow-md"
-                            >
-                                <h4 className="text-sm font-semibold text-gray-900">{section.title}</h4>
-                                <div className="mt-2 space-y-2 text-xs text-gray-600">
-                                    {section.paragraphs.map((paragraph, index) => {
-                                        const needsSparkles = section.title === "מה כולל השירות?" && index === 0
-                                        return (
-                                            <p key={`${section.title}-${index}`} className="flex items-center gap-1.5">
-                                                {paragraph}
-                                                {needsSparkles && <Sparkles className="h-3 w-3 inline text-blue-500" />}
-                                            </p>
-                                        )
-                                    })}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {selectedService ? (
-                        <div className="space-y-3 rounded-2xl border border-blue-200 bg-white/95 p-4">
-                            <div className="flex flex-col gap-1">
-                                <span className="text-sm text-gray-500">
-                                    טווח המחירים המשוער ל{selectedService.name}
-                                </span>
-                                {hasPriceData ? (
-                                    <div className="text-2xl font-bold text-blue-700">
-                                        {formatPrice(selectedService.priceRange.min)} – {formatPrice(selectedService.priceRange.max)}
-                                    </div>
-                                ) : (
-                                    <div className="text-sm text-amber-700">
-                                        עוד לא הזנו טווח מחירים לשירות {selectedService.name}. נשמח להתאים הצעת מחיר אישית.
-                                    </div>
-                                )}
-                                {selectedService.averageTime > 0 && (
-                                    <div className="text-sm text-gray-600 mt-2">
-                                        משך זמן ממוצע: {formatTime(selectedService.averageTime)}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="space-y-1 text-xs text-gray-600">
-                                <p>{barberyPriceCopy.hourly}</p>
-                                <p>{barberyPriceCopy.final}</p>
-                            </div>
-                        </div>
-                    ) : null}
-                </div>
-            ) : null}
         </div>
     )
 }

@@ -18,13 +18,16 @@ import { Navbar } from "./components/navigation/Navbar";
 import { ManagerSubnav } from "./components/navigation/ManagerSubnav";
 import { ThirdLevelSubnav } from "./components/navigation/ThirdLevelSubnav";
 import { AppFooter } from "./components/layout/AppFooter";
-import { CreditCardWarningBanner } from "./components/layout/CreditCardWarningBanner";
 import { useAppSelector } from "./store/hooks";
 import SetupAppointment from "./pages/SetupAppointment"
 import Appointments from "./pages/Appointments/Appointments"
 import ProfileSettings from "./pages/ProfileSettings"
 import Subscriptions from "./pages/Subscriptions"
 import About from "./pages/About"
+import ScalpTreatments from "./pages/ScalpTreatments"
+import HairRestoration from "./pages/HairRestoration"
+import FAQ from "./pages/FAQ"
+import SalonServices from "./pages/SalonServices"
 import ManagerSchedule from "./pages/ManagerSchedule"
 import Settings from "./pages/Settings/Settings"
 import ManagerScreens from "./pages/ManagerScreens"
@@ -66,7 +69,6 @@ const AppContent = () => {
         <Navbar isManager={!!isManager} />
         <ManagerSubnav isManager={!!isManager} />
         <ThirdLevelSubnav />
-        <CreditCardWarningBanner />
         <main className={`flex-1 ${mainPaddingClass}`}>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -81,6 +83,10 @@ const AppContent = () => {
             <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/manager" element={<ManagerSchedule />} />
             <Route path="/about" element={<About />} />
+            <Route path="/scalp-treatments" element={<ScalpTreatments />} />
+            <Route path="/hair-restoration" element={<HairRestoration />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/salon-services" element={<SalonServices />} />
             <Route path="/profile" element={<ProfileSettings />} />
             <Route path="/test" element={<SimpleTest />} />
             <Route path="/admin/stations" element={<StationsManagementPage />} />

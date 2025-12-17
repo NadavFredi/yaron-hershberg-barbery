@@ -49,6 +49,7 @@ import { useServiceCategories, useDefaultServiceCategory, type ServiceCategory }
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover"
+import { RichTextEditor } from "@/components/admin/RichTextEditor"
 
 interface PendingSubActionRowProps {
     subAction: {
@@ -459,6 +460,10 @@ export default function ServicesListPage() {
     const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
     const [categorySearchTerm, setCategorySearchTerm] = useState<string>("")
 
+    // Description edit modal state
+    const [editingDescriptionServiceId, setEditingDescriptionServiceId] = useState<string | null>(null)
+    const [descriptionEditValue, setDescriptionEditValue] = useState<string>("")
+
     // Inline sub-action creation state - accumulate multiple before saving
     const [addingSubActionTo, setAddingSubActionTo] = useState<string | null>(null)
     const [pendingSubActions, setPendingSubActions] = useState<Map<string, Array<{
@@ -691,6 +696,67 @@ export default function ServicesListPage() {
     const cancelInlineEdit = () => {
         setEditingField(null)
         setInlineEditValue("")
+    }
+
+    const openDescriptionEditModal = (service: Service) => {
+        setEditingDescriptionServiceId(service.id)
+        setDescriptionEditValue(service.description || "")
+    }
+
+    const closeDescriptionEditModal = () => {
+        setEditingDescriptionServiceId(null)
+        setDescriptionEditValue("")
+    }
+
+    const saveDescriptionEdit = async () => {
+        if (!editingDescriptionServiceId) return
+
+        const service = services.find(s => s.id === editingDescriptionServiceId)
+        if (!service) return
+
+        // Optimistic update
+        const previousServices = queryClient.getQueryData<Service[]>(["services"])
+        if (previousServices) {
+            const optimisticServices = previousServices.map((s) => {
+                if (s.id === service.id) {
+                    return { ...s, description: descriptionEditValue.trim() || null }
+                }
+                return s
+            })
+            queryClient.setQueryData<Service[]>(["services"], optimisticServices)
+        }
+
+        try {
+            await updateService.mutateAsync({
+                serviceId: service.id,
+                description: descriptionEditValue.trim() || null,
+            })
+
+            toast({
+                title: "הצלחה",
+                description: "התיאור עודכן בהצלחה",
+            })
+
+            closeDescriptionEditModal()
+            // Silently refetch to ensure sync
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["services"] })
+            }, 100)
+        } catch (error: unknown) {
+            console.error("Error updating service description:", error)
+
+            // Revert optimistic update on error
+            if (previousServices) {
+                queryClient.setQueryData<Service[]>(["services"], previousServices)
+            }
+
+            const errorMessage = error instanceof Error ? error.message : "לא ניתן לעדכן את התיאור"
+            toast({
+                title: "שגיאה",
+                description: errorMessage,
+                variant: "destructive",
+            })
+        }
     }
 
     // Check if there are any dirty/unsaved changes
@@ -1496,114 +1562,20 @@ export default function ServicesListPage() {
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => toggleExpanded(service.id)}
-                                                                className="h-6 w-6 p-0"
-                                                            >
-                                                                {isExpanded ? (
-                                                                    <ChevronRight className="h-4 w-4" />
-                                                                ) : (
-                                                                    <ChevronDown className="h-4 w-4" />
-                                                                )}
-                                                            </Button>
-                                                            {isEditingName ? (
-                                                                <div className="flex items-center gap-1">
-                                                                    <Input
-                                                                        value={inlineEditValue}
-                                                                        onChange={(e) => setInlineEditValue(e.target.value)}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === "Enter") {
-                                                                                saveInlineEdit(service)
-                                                                            } else if (e.key === "Escape") {
-                                                                                cancelInlineEdit()
-                                                                            }
-                                                                        }}
-                                                                        className="h-8 w-auto min-w-[100px] hover:ring-2 hover:ring-primary/20 transition-all"
-                                                                        autoFocus
-                                                                        dir="rtl"
-                                                                    />
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => saveInlineEdit(service)}
-                                                                        className="h-6 w-6 p-0"
-                                                                    >
-                                                                        <Check className="h-3 w-3 text-green-600" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={cancelInlineEdit}
-                                                                        className="h-6 w-6 p-0"
-                                                                    >
-                                                                        <X className="h-3 w-3 text-red-600" />
-                                                                    </Button>
-                                                                </div>
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => toggleExpanded(service.id)}
+                                                            className="h-6 w-6 p-0"
+                                                        >
+                                                            {isExpanded ? (
+                                                                <ChevronRight className="h-4 w-4" />
                                                             ) : (
-                                                                <span
-                                                                    className="font-medium cursor-pointer hover:underline"
-                                                                    onClick={() => startInlineEdit(service.id, "name", service.name)}
-                                                                >
-                                                                    {service.name}
-                                                                </span>
+                                                                <ChevronDown className="h-4 w-4" />
                                                             )}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {isEditingCategory ? (
-                                                            <CategoryAutocomplete
-                                                                serviceId={service.id}
-                                                                currentCategoryId={service.service_category_id || null}
-                                                                categories={categories}
-                                                                searchTerm={categorySearchTerm}
-                                                                onSearchChange={setCategorySearchTerm}
-                                                                onSelect={(categoryId) => {
-                                                                    handleCategoryChange(service.id, categoryId)
-                                                                    setEditingCategoryId(null)
-                                                                    setCategorySearchTerm("")
-                                                                }}
-                                                                onCancel={() => {
-                                                                    setEditingCategoryId(null)
-                                                                    setCategorySearchTerm("")
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <div
-                                                                className="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors"
-                                                                onClick={() => {
-                                                                    setEditingCategoryId(service.id)
-                                                                    setCategorySearchTerm(service.service_category?.name || "")
-                                                                }}
-                                                            >
-                                                                {service.service_category ? (
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div
-                                                                            className={cn(
-                                                                                "h-3 w-3 rounded-full",
-                                                                                SERVICE_CATEGORY_VARIANTS[service.service_category.variant as keyof typeof SERVICE_CATEGORY_VARIANTS]?.bg || "bg-gray-400"
-                                                                            )}
-                                                                        />
-                                                                        <span className="text-sm">
-                                                                            {service.service_category.name}
-                                                                        </span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-sm text-gray-400">ללא קטגוריה</span>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={serviceMode === "simple" ? "default" : "secondary"}>
-                                                            {serviceMode === "simple" ? "פשוט" : "מורכב"}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {isEditingDuration ? (
+                                                        </Button>
+                                                        {isEditingName ? (
                                                             <div className="flex items-center gap-1">
                                                                 <Input
-                                                                    type="number"
                                                                     value={inlineEditValue}
                                                                     onChange={(e) => setInlineEditValue(e.target.value)}
                                                                     onKeyDown={(e) => {
@@ -1613,11 +1585,10 @@ export default function ServicesListPage() {
                                                                             cancelInlineEdit()
                                                                         }
                                                                     }}
-                                                                    className="h-8 w-20"
+                                                                    className="h-8 w-auto min-w-[100px] hover:ring-2 hover:ring-primary/20 transition-all"
                                                                     autoFocus
                                                                     dir="rtl"
                                                                 />
-                                                                <span className="text-sm">דקות</span>
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="sm"
@@ -1637,169 +1608,272 @@ export default function ServicesListPage() {
                                                             </div>
                                                         ) : (
                                                             <span
-                                                                className={cn(
-                                                                    serviceMode === "simple" && "cursor-pointer hover:underline",
-                                                                    serviceMode === "complicated" && "cursor-default"
-                                                                )}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    if (serviceMode === "simple") {
-                                                                        startInlineEdit(service.id, "duration", service.duration || 0)
-                                                                    }
-                                                                }}
+                                                                className="font-medium cursor-pointer hover:underline"
+                                                                onClick={() => startInlineEdit(service.id, "name", service.name)}
                                                             >
-                                                                {totalDuration > 0 ? (
-                                                                    <div>
-                                                                        <span>{totalDuration} דקות</span>
-                                                                        {serviceMode === "complicated" && totalSubActionsCount > 0 && (
-                                                                            <span className="text-xs text-gray-500 block mt-1">
-                                                                                ({activeSubActionsCount}/{totalSubActionsCount} פעולות פעילות)
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-gray-400">לא הוגדר</span>
-                                                                )}
+                                                                {service.name}
                                                             </span>
                                                         )}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <span className="text-gray-600">
-                                                            {activeDuration > 0 ? (
-                                                                <span>{activeDuration} דקות</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {isEditingCategory ? (
+                                                        <CategoryAutocomplete
+                                                            serviceId={service.id}
+                                                            currentCategoryId={service.service_category_id || null}
+                                                            categories={categories}
+                                                            searchTerm={categorySearchTerm}
+                                                            onSearchChange={setCategorySearchTerm}
+                                                            onSelect={(categoryId) => {
+                                                                handleCategoryChange(service.id, categoryId)
+                                                                setEditingCategoryId(null)
+                                                                setCategorySearchTerm("")
+                                                            }}
+                                                            onCancel={() => {
+                                                                setEditingCategoryId(null)
+                                                                setCategorySearchTerm("")
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            className="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors"
+                                                            onClick={() => {
+                                                                setEditingCategoryId(service.id)
+                                                                setCategorySearchTerm(service.service_category?.name || "")
+                                                            }}
+                                                        >
+                                                            {service.service_category ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <div
+                                                                        className={cn(
+                                                                            "h-3 w-3 rounded-full",
+                                                                            SERVICE_CATEGORY_VARIANTS[service.service_category.variant as keyof typeof SERVICE_CATEGORY_VARIANTS]?.bg || "bg-gray-400"
+                                                                        )}
+                                                                    />
+                                                                    <span className="text-sm">
+                                                                        {service.service_category.name}
+                                                                    </span>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-sm text-gray-400">ללא קטגוריה</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={serviceMode === "simple" ? "default" : "secondary"}>
+                                                        {serviceMode === "simple" ? "פשוט" : "מורכב"}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {isEditingDuration ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <Input
+                                                                type="number"
+                                                                value={inlineEditValue}
+                                                                onChange={(e) => setInlineEditValue(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === "Enter") {
+                                                                        saveInlineEdit(service)
+                                                                    } else if (e.key === "Escape") {
+                                                                        cancelInlineEdit()
+                                                                    }
+                                                                }}
+                                                                className="h-8 w-20"
+                                                                autoFocus
+                                                                dir="rtl"
+                                                            />
+                                                            <span className="text-sm">דקות</span>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => saveInlineEdit(service)}
+                                                                className="h-6 w-6 p-0"
+                                                            >
+                                                                <Check className="h-3 w-3 text-green-600" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={cancelInlineEdit}
+                                                                className="h-6 w-6 p-0"
+                                                            >
+                                                                <X className="h-3 w-3 text-red-600" />
+                                                            </Button>
+                                                        </div>
+                                                    ) : (
+                                                        <span
+                                                            className={cn(
+                                                                serviceMode === "simple" && "cursor-pointer hover:underline",
+                                                                serviceMode === "complicated" && "cursor-default"
+                                                            )}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                if (serviceMode === "simple") {
+                                                                    startInlineEdit(service.id, "duration", service.duration || 0)
+                                                                }
+                                                            }}
+                                                        >
+                                                            {totalDuration > 0 ? (
+                                                                <div>
+                                                                    <span>{totalDuration} דקות</span>
+                                                                    {serviceMode === "complicated" && totalSubActionsCount > 0 && (
+                                                                        <span className="text-xs text-gray-500 block mt-1">
+                                                                            ({activeSubActionsCount}/{totalSubActionsCount} פעולות פעילות)
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             ) : (
                                                                 <span className="text-gray-400">לא הוגדר</span>
                                                             )}
                                                         </span>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {isEditingDescription ? (
-                                                            <div className="flex items-center gap-1">
-                                                                <Input
-                                                                    value={inlineEditValue}
-                                                                    onChange={(e) => setInlineEditValue(e.target.value)}
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === "Enter") {
-                                                                            saveInlineEdit(service)
-                                                                        } else if (e.key === "Escape") {
-                                                                            cancelInlineEdit()
-                                                                        }
-                                                                    }}
-                                                                    className="h-8 w-auto min-w-[150px] hover:ring-2 hover:ring-primary/20 transition-all"
-                                                                    autoFocus
-                                                                    dir="rtl"
-                                                                />
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => saveInlineEdit(service)}
-                                                                    className="h-6 w-6 p-0"
-                                                                >
-                                                                    <Check className="h-3 w-3 text-green-600" />
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={cancelInlineEdit}
-                                                                    className="h-6 w-6 p-0"
-                                                                >
-                                                                    <X className="h-3 w-3 text-red-600" />
-                                                                </Button>
-                                                            </div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <span className="text-gray-600">
+                                                        {activeDuration > 0 ? (
+                                                            <span>{activeDuration} דקות</span>
+                                                        ) : (
+                                                            <span className="text-gray-400">לא הוגדר</span>
+                                                        )}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {isEditingDescription ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <Input
+                                                                value={inlineEditValue}
+                                                                onChange={(e) => setInlineEditValue(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === "Enter") {
+                                                                        saveInlineEdit(service)
+                                                                    } else if (e.key === "Escape") {
+                                                                        cancelInlineEdit()
+                                                                    }
+                                                                }}
+                                                                className="h-8 w-auto min-w-[150px] hover:ring-2 hover:ring-primary/20 transition-all"
+                                                                autoFocus
+                                                                dir="rtl"
+                                                            />
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => saveInlineEdit(service)}
+                                                                className="h-6 w-6 p-0"
+                                                            >
+                                                                <Check className="h-3 w-3 text-green-600" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={cancelInlineEdit}
+                                                                className="h-6 w-6 p-0"
+                                                            >
+                                                                <X className="h-3 w-3 text-red-600" />
+                                                            </Button>
+                                                        </div>
+                                                    ) : (
+                                                        service.description ? (
+                                                            <div
+                                                                className="text-gray-600 cursor-pointer hover:underline"
+                                                                onClick={() => openDescriptionEditModal(service)}
+                                                                dangerouslySetInnerHTML={{ __html: service.description }}
+                                                            />
                                                         ) : (
                                                             <span
                                                                 className="text-gray-600 cursor-pointer hover:underline"
-                                                                onClick={() => startInlineEdit(service.id, "description", service.description || "")}
+                                                                onClick={() => openDescriptionEditModal(service)}
                                                             >
-                                                                {service.description || "-"}
+                                                                -
                                                             </span>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {isEditingPrice ? (
-                                                            <div className="flex items-center gap-1">
-                                                                <Input
-                                                                    type="number"
-                                                                    value={inlineEditValue}
-                                                                    onChange={(e) => setInlineEditValue(e.target.value)}
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === "Enter") {
-                                                                            saveInlineEdit(service)
-                                                                        } else if (e.key === "Escape") {
-                                                                            cancelInlineEdit()
-                                                                        }
-                                                                    }}
-                                                                    className="h-8 w-auto min-w-[80px] hover:ring-2 hover:ring-primary/20 transition-all"
-                                                                    autoFocus
-                                                                    dir="rtl"
-                                                                />
-                                                                <span className="text-sm">₪</span>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => saveInlineEdit(service)}
-                                                                    className="h-6 w-6 p-0"
-                                                                >
-                                                                    <Check className="h-3 w-3 text-green-600" />
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={cancelInlineEdit}
-                                                                    className="h-6 w-6 p-0"
-                                                                >
-                                                                    <X className="h-3 w-3 text-red-600" />
-                                                                </Button>
-                                                            </div>
-                                                        ) : (
-                                                            <span
-                                                                className="cursor-pointer hover:underline"
-                                                                onClick={() => startInlineEdit(service.id, "base_price", service.base_price)}
-                                                            >
-                                                                {service.base_price} ₪
-                                                            </span>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            <Checkbox
-                                                                checked={service.is_active ?? true}
-                                                                onCheckedChange={(checked) => {
-                                                                    handleServiceActiveChange(service.id, checked as boolean)
+                                                        )
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {isEditingPrice ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <Input
+                                                                type="number"
+                                                                value={inlineEditValue}
+                                                                onChange={(e) => setInlineEditValue(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === "Enter") {
+                                                                        saveInlineEdit(service)
+                                                                    } else if (e.key === "Escape") {
+                                                                        cancelInlineEdit()
+                                                                    }
                                                                 }}
+                                                                className="h-8 w-auto min-w-[80px] hover:ring-2 hover:ring-primary/20 transition-all"
+                                                                autoFocus
+                                                                dir="rtl"
                                                             />
-                                                            <Label className="text-xs cursor-pointer">
-                                                                גלוי ללקוחות
-                                                            </Label>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="w-[100px]">
-                                                        <div className="flex items-center justify-end gap-1">
+                                                            <span className="text-sm">₪</span>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    handleDuplicate(service)
-                                                                }}
-                                                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
-                                                                title="שכפל שירות"
+                                                                onClick={() => saveInlineEdit(service)}
+                                                                className="h-6 w-6 p-0"
                                                             >
-                                                                <Copy className="h-4 w-4" />
+                                                                <Check className="h-3 w-3 text-green-600" />
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    handleDelete(service)
-                                                                }}
-                                                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                                                                onClick={cancelInlineEdit}
+                                                                className="h-6 w-6 p-0"
                                                             >
-                                                                <Trash2 className="h-4 w-4" />
+                                                                <X className="h-3 w-3 text-red-600" />
                                                             </Button>
                                                         </div>
-                                                    </TableCell>
+                                                    ) : (
+                                                        <span
+                                                            className="cursor-pointer hover:underline"
+                                                            onClick={() => startInlineEdit(service.id, "base_price", service.base_price)}
+                                                        >
+                                                            {service.base_price} ₪
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Checkbox
+                                                            checked={service.is_active ?? true}
+                                                            onCheckedChange={(checked) => {
+                                                                handleServiceActiveChange(service.id, checked as boolean)
+                                                            }}
+                                                        />
+                                                        <Label className="text-xs cursor-pointer">
+                                                            גלוי ללקוחות
+                                                        </Label>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="w-[100px]">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleDuplicate(service)
+                                                            }}
+                                                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                                                            title="שכפל שירות"
+                                                        >
+                                                            <Copy className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleDelete(service)
+                                                            }}
+                                                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
                                             </TableRow>
                                         ]
 
@@ -2301,6 +2375,45 @@ export default function ServicesListPage() {
                         </Button>
                         <Button variant="outline" onClick={() => setIsDuplicateDialogOpen(false)}>
                             ביטול
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Description Edit Modal */}
+            <Dialog open={!!editingDescriptionServiceId} onOpenChange={(open) => !open && closeDescriptionEditModal()}>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" dir="rtl">
+                    <DialogHeader>
+                        <DialogTitle className="text-right">ערוך תיאור</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div>
+                            <Label htmlFor="edit-description">תיאור</Label>
+                            <div className="mt-1">
+                                <RichTextEditor
+                                    value={descriptionEditValue}
+                                    onChange={setDescriptionEditValue}
+                                    placeholder="הכנס תיאור כאן..."
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter className="sm:justify-start gap-2">
+                        <Button variant="outline" onClick={closeDescriptionEditModal}>
+                            ביטול
+                        </Button>
+                        <Button
+                            onClick={saveDescriptionEdit}
+                            disabled={updateService.isPending}
+                        >
+                            {updateService.isPending ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                                    שומר...
+                                </>
+                            ) : (
+                                'שמור שינויים'
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
