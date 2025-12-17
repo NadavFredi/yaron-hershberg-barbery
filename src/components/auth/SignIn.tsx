@@ -43,6 +43,34 @@ export function SignIn({
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
 
+    // Helper function to get redirect path based on user role
+    const getRedirectPath = async (userId: string): Promise<string> => {
+        try {
+            const { data, error: roleError } = await supabase
+                .from("profiles")
+                .select("role")
+                .eq("id", userId)
+                .single()
+
+            if (roleError || !data) {
+                // If we can't determine role, default to appointments page
+                return "/appointments"
+            }
+
+            // If user is a manager, redirect to manager board
+            if (data.role === "manager") {
+                return "/manager"
+            }
+
+            // Regular user - redirect to appointments page
+            return "/appointments"
+        } catch (err) {
+            console.error("Error checking user role:", err)
+            // Default to appointments page on error
+            return "/appointments"
+        }
+    }
+
     const handleSendOTP = async () => {
         setOtpLoading(true)
         setError(null)
@@ -115,13 +143,14 @@ export function SignIn({
             }
 
             if (data.user) {
-                setSuccess("התחברת בהצלחה! מעבירים אותך לתורים שלך כעת.")
+                setSuccess("התחברת בהצלחה! מעבירים אותך...")
                 console.log("User signed in:", data.user)
 
-                // For phone sign-in, skip user existence check since checkUserExists only works with email
-                // The user is already authenticated via OTP, so we can proceed directly
+                // Check user role and redirect accordingly
+                const redirectPath = await getRedirectPath(data.user.id)
+                
                 setTimeout(() => {
-                    navigate("/appointments")
+                    navigate(redirectPath)
                 }, 1200)
             } else {
                 throw new Error("שגיאה באימות קוד")
@@ -187,9 +216,18 @@ export function SignIn({
                 onUserOnboarding(identifier)
             }
 
-            setTimeout(() => {
-                navigate("/appointments")
-            }, 1200)
+            // Check user role and redirect accordingly
+            if (data.user) {
+                const redirectPath = await getRedirectPath(data.user.id)
+                setTimeout(() => {
+                    navigate(redirectPath)
+                }, 1200)
+            } else {
+                // Fallback if no user data
+                setTimeout(() => {
+                    navigate("/appointments")
+                }, 1200)
+            }
         } catch (err) {
             console.error("Sign in error:", err)
             let errorMessage = "שגיאה בהתחברות"
