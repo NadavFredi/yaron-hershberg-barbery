@@ -24,6 +24,7 @@ import Appointments from "./pages/Appointments/Appointments"
 import ProfileSettings from "./pages/ProfileSettings"
 import Subscriptions from "./pages/Subscriptions"
 import About from "./pages/About"
+import ScalpTreatments from "./pages/ScalpTreatments"
 import ManagerSchedule from "./pages/ManagerSchedule"
 import Settings from "./pages/Settings/Settings"
 import ManagerScreens from "./pages/ManagerScreens"
@@ -79,6 +80,7 @@ const AppContent = () => {
             <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/manager" element={<ManagerSchedule />} />
             <Route path="/about" element={<About />} />
+            <Route path="/scalp-treatments" element={<ScalpTreatments />} />
             <Route path="/profile" element={<ProfileSettings />} />
             <Route path="/test" element={<SimpleTest />} />
             <Route path="/admin/stations" element={<StationsManagementPage />} />

@@ -2,7 +2,6 @@ import { Link } from "react-router-dom"
 import { Button } from "../components/ui/button.tsx"
 import { Card, CardContent } from "../components/ui/card.tsx"
 import { Play, Scissors, Sparkles, Heart, HelpCircle, Store, Camera, UserCheck, Leaf, Clock, GraduationCap, Star } from "lucide-react"
-import logoImage from "../assets/logo.jpeg"
 
 export default function About() {
     return (
@@ -31,19 +30,21 @@ export default function About() {
                 <section className="mb-16">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {/* Service Card 1 - Scalp Diagnosis (Top Left) */}
-                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
-                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
-                                <div className="p-3 bg-amber-100 rounded-full mb-4">
-                                    <Heart className="h-6 w-6 text-amber-600" />
-                                </div>
-                                <p className="text-lg font-semibold text-gray-900 mb-2">
-                                    אבחון וטיפולי קרקפת
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                    עבור נשים / גברים
-                                </p>
-                            </CardContent>
-                        </Card>
+                        <Link to="/scalp-treatments" className="block h-full">
+                            <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer min-h-[200px] h-full">
+                                <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                    <div className="p-3 bg-amber-100 rounded-full mb-4">
+                                        <Heart className="h-6 w-6 text-amber-600" />
+                                    </div>
+                                    <p className="text-lg font-semibold text-gray-900 mb-2">
+                                        אבחון וטיפולי קרקפת
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        עבור נשים / גברים
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </Link>
 
                         {/* Service Card 2 - Hair Restoration (Top Middle) */}
                         <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
