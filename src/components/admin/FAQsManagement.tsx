@@ -2,10 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Table,
     TableBody,
@@ -14,10 +11,10 @@ import {
     TableHeader,
     TableRow
 } from '@/components/ui/table';
-import { Trash2, Plus, Edit, Eye, EyeOff, ArrowUp, ArrowDown, Loader2, GripVertical } from 'lucide-react';
+import { Trash2, Plus, Edit, Loader2, GripVertical } from 'lucide-react';
 import { useFAQs, useCreateFAQ, useUpdateFAQ, useDeleteFAQ, useReorderFAQs, FAQ } from '@/hooks/useFAQs';
 import { useToast } from '@/hooks/use-toast';
-import { RichTextEditor } from './RichTextEditor';
+import { FAQDialog } from '@/components/dialogs/FAQDialog';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -45,33 +42,56 @@ const SortableRow = ({ faq, onEdit, onDelete, onToggleVisibility }: SortableRowP
         opacity: isDragging ? 0.5 : 1,
     };
 
+    const handleRowClick = (e: React.MouseEvent) => {
+        // Don't open edit modal if clicking on drag handle, checkbox, or action buttons
+        const target = e.target as HTMLElement;
+        const isClickableElement =
+            target.closest('[data-drag-handle]') ||
+            target.closest('input[type="checkbox"]') ||
+            target.closest('button') ||
+            target.closest('[role="checkbox"]');
+
+        if (!isClickableElement) {
+            onEdit(faq);
+        }
+    };
+
     return (
-        <TableRow ref={setNodeRef} style={style} className={isDragging ? 'bg-gray-100' : ''}>
+        <TableRow
+            ref={setNodeRef}
+            style={style}
+            className={`${isDragging ? 'bg-gray-100' : ''} cursor-pointer hover:bg-gray-50`}
+            onClick={handleRowClick}
+        >
             <TableCell className="w-10">
                 <div
                     {...attributes}
                     {...listeners}
+                    data-drag-handle
                     className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded"
+                    onClick={(e) => e.stopPropagation()}
                 >
                     <GripVertical className="h-4 w-4 text-gray-400" />
                 </div>
             </TableCell>
-            <TableCell className="font-medium">{faq.question}</TableCell>
-            <TableCell>
+            <TableCell className="font-medium text-right">{faq.question}</TableCell>
+            <TableCell className="text-right">
                 <div
                     className="text-sm text-gray-600 line-clamp-2"
                     dangerouslySetInnerHTML={{ __html: faq.answer }}
                 />
             </TableCell>
             <TableCell>
-                <Checkbox
-                    checked={faq.is_visible}
-                    onCheckedChange={(checked) => onToggleVisibility(faq.id, checked === true)}
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                        checked={faq.is_visible}
+                        onCheckedChange={(checked) => onToggleVisibility(faq.id, checked === true)}
+                    />
+                </div>
             </TableCell>
             <TableCell className="text-center">{faq.display_order}</TableCell>
             <TableCell>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <Button
                         variant="ghost"
                         size="sm"
@@ -112,9 +132,6 @@ const SortableRow = ({ faq, onEdit, onDelete, onToggleVisibility }: SortableRowP
 const FAQsManagement = () => {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [editingFAQ, setEditingFAQ] = useState<FAQ | null>(null);
-    const [newQuestion, setNewQuestion] = useState('');
-    const [newAnswer, setNewAnswer] = useState('');
-    const [newIsVisible, setNewIsVisible] = useState(true);
     const { toast } = useToast();
 
     const { data: faqs = [], isLoading, error } = useFAQs(true); // Include hidden FAQs for managers
@@ -130,22 +147,13 @@ const FAQsManagement = () => {
         })
     );
 
-    const handleAddFAQ = async () => {
-        if (!newQuestion.trim() || !newAnswer.trim()) {
-            toast({
-                title: "שגיאה",
-                description: "יש למלא את השאלה והתשובה",
-                variant: "destructive",
-            });
-            return;
-        }
-
+    const handleAddFAQ = async (data: { question: string; answer: string; is_visible: boolean }) => {
         try {
             const maxOrder = faqs.length > 0 ? Math.max(...faqs.map(f => f.display_order)) : -1;
             await createFAQMutation.mutateAsync({
-                question: newQuestion.trim(),
-                answer: newAnswer,
-                is_visible: newIsVisible,
+                question: data.question,
+                answer: data.answer,
+                is_visible: data.is_visible,
                 display_order: maxOrder + 1,
             });
 
@@ -155,9 +163,6 @@ const FAQsManagement = () => {
             });
 
             setIsAddDialogOpen(false);
-            setNewQuestion('');
-            setNewAnswer('');
-            setNewIsVisible(true);
         } catch (error) {
             console.error('Error creating FAQ:', error);
             toast({
@@ -165,23 +170,16 @@ const FAQsManagement = () => {
                 description: "אנא נסה שוב",
                 variant: "destructive",
             });
+            throw error;
         }
     };
 
     const handleEditFAQ = (faq: FAQ) => {
         setEditingFAQ(faq);
-        setNewQuestion(faq.question);
-        setNewAnswer(faq.answer);
-        setNewIsVisible(faq.is_visible);
     };
 
-    const handleUpdateFAQ = async () => {
-        if (!editingFAQ || !newQuestion.trim() || !newAnswer.trim()) {
-            toast({
-                title: "שגיאה",
-                description: "יש למלא את השאלה והתשובה",
-                variant: "destructive",
-            });
+    const handleUpdateFAQ = async (data: { question: string; answer: string; is_visible: boolean }) => {
+        if (!editingFAQ) {
             return;
         }
 
@@ -189,9 +187,9 @@ const FAQsManagement = () => {
             await updateFAQMutation.mutateAsync({
                 id: editingFAQ.id,
                 updates: {
-                    question: newQuestion.trim(),
-                    answer: newAnswer,
-                    is_visible: newIsVisible,
+                    question: data.question,
+                    answer: data.answer,
+                    is_visible: data.is_visible,
                 },
             });
 
@@ -201,9 +199,6 @@ const FAQsManagement = () => {
             });
 
             setEditingFAQ(null);
-            setNewQuestion('');
-            setNewAnswer('');
-            setNewIsVisible(true);
         } catch (error) {
             console.error('Error updating FAQ:', error);
             toast({
@@ -211,6 +206,7 @@ const FAQsManagement = () => {
                 description: "אנא נסה שוב",
                 variant: "destructive",
             });
+            throw error;
         }
     };
 
@@ -262,7 +258,7 @@ const FAQsManagement = () => {
         const oldIndex = faqs.findIndex((faq) => faq.id === active.id);
         const newIndex = faqs.findIndex((faq) => faq.id === over.id);
 
-        const reorderedFAQs = arrayMove(faqs, oldIndex, newIndex);
+        const reorderedFAQs = arrayMove(faqs, oldIndex, newIndex) as FAQ[];
 
         try {
             const updates = reorderedFAQs.map((faq, index) => ({
@@ -286,12 +282,8 @@ const FAQsManagement = () => {
         }
     };
 
-    const handleCloseDialog = () => {
-        setIsAddDialogOpen(false);
+    const handleCloseEditDialog = () => {
         setEditingFAQ(null);
-        setNewQuestion('');
-        setNewAnswer('');
-        setNewIsVisible(true);
     };
 
     if (isLoading) {
@@ -316,66 +308,19 @@ const FAQsManagement = () => {
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <CardTitle className="text-2xl">ניהול שאלות ותשובות</CardTitle>
-                        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button onClick={() => handleCloseDialog()}>
+                        <FAQDialog
+                            open={isAddDialogOpen}
+                            onOpenChange={setIsAddDialogOpen}
+                            mode="add"
+                            onSave={handleAddFAQ}
+                            isPending={createFAQMutation.isPending}
+                            trigger={
+                                <Button>
                                     <Plus className="h-4 w-4 ml-2" />
                                     הוסף שאלה חדשה
                                 </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" dir="rtl">
-                                <DialogHeader>
-                                    <DialogTitle>הוסף שאלה חדשה</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                    <div>
-                                        <Label htmlFor="question">שאלה</Label>
-                                        <Input
-                                            id="question"
-                                            value={newQuestion}
-                                            onChange={(e) => setNewQuestion(e.target.value)}
-                                            placeholder="הכנס שאלה..."
-                                            className="mt-1"
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="answer">תשובה</Label>
-                                        <div className="mt-1">
-                                            <RichTextEditor
-                                                value={newAnswer}
-                                                onChange={setNewAnswer}
-                                                placeholder="הכנס תשובה כאן... ניתן לערוך עיצוב, צבעים, גודל גופן וכו'"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Checkbox
-                                            id="is-visible"
-                                            checked={newIsVisible}
-                                            onCheckedChange={(checked) => setNewIsVisible(checked === true)}
-                                        />
-                                        <Label htmlFor="is-visible" className="cursor-pointer">
-                                            גלוי למשתמשים
-                                        </Label>
-                                    </div>
-                                </div>
-                                <DialogFooter className="sm:justify-start gap-2">
-                                    <Button variant="outline" onClick={handleCloseDialog}>
-                                        ביטול
-                                    </Button>
-                                    <Button onClick={handleAddFAQ} disabled={createFAQMutation.isPending}>
-                                        {createFAQMutation.isPending ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                                                שומר...
-                                            </>
-                                        ) : (
-                                            'שמור'
-                                        )}
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                            }
+                        />
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -393,11 +338,11 @@ const FAQsManagement = () => {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="w-10"></TableHead>
-                                        <TableHead>שאלה</TableHead>
-                                        <TableHead>תשובה</TableHead>
-                                        <TableHead>גלוי</TableHead>
+                                        <TableHead className="text-right">שאלה</TableHead>
+                                        <TableHead className="text-right">תשובה</TableHead>
+                                        <TableHead className="text-right">גלוי</TableHead>
                                         <TableHead className="text-center">סדר</TableHead>
-                                        <TableHead>פעולות</TableHead>
+                                        <TableHead className="text-right">פעולות</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -420,60 +365,14 @@ const FAQsManagement = () => {
             </Card>
 
             {/* Edit Dialog */}
-            <Dialog open={!!editingFAQ} onOpenChange={(open) => !open && handleCloseDialog()}>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" dir="rtl">
-                    <DialogHeader>
-                        <DialogTitle className="text-right">ערוך שאלה</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        <div>
-                            <Label htmlFor="edit-question">שאלה</Label>
-                            <Input
-                                id="edit-question"
-                                value={newQuestion}
-                                onChange={(e) => setNewQuestion(e.target.value)}
-                                placeholder="הכנס שאלה..."
-                                className="mt-1"
-                            />
-                        </div>
-                        <div>
-                            <Label htmlFor="edit-answer">תשובה</Label>
-                            <div className="mt-1">
-                                <RichTextEditor
-                                    value={newAnswer}
-                                    onChange={setNewAnswer}
-                                    placeholder="הכנס תשובה כאן... ניתן לערוך עיצוב, צבעים, גודל גופן וכו'"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Checkbox
-                                id="edit-is-visible"
-                                checked={newIsVisible}
-                                onCheckedChange={(checked) => setNewIsVisible(checked === true)}
-                            />
-                            <Label htmlFor="edit-is-visible" className="cursor-pointer">
-                                גלוי למשתמשים
-                            </Label>
-                        </div>
-                    </div>
-                    <DialogFooter className="sm:justify-start">
-                        <Button variant="outline" onClick={handleCloseDialog}>
-                            ביטול
-                        </Button>
-                        <Button onClick={handleUpdateFAQ} disabled={updateFAQMutation.isPending}>
-                            {updateFAQMutation.isPending ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                                    שומר...
-                                </>
-                            ) : (
-                                'שמור שינויים'
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <FAQDialog
+                open={!!editingFAQ}
+                onOpenChange={(open) => !open && handleCloseEditDialog()}
+                mode="edit"
+                faq={editingFAQ}
+                onSave={handleUpdateFAQ}
+                isPending={updateFAQMutation.isPending}
+            />
         </div>
     );
 };
