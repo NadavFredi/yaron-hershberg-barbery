@@ -20,12 +20,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     () => ({
       toolbar: {
         container: [
-          [{ header: [1, 2, 3, false] }],
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ color: [] }, { background: [] }],
-          [{ size: ['small', false, 'large', 'huge'] }],
-          [{ align: [] }],
-          ['clean'],
+          ['bold', 'underline', 'strike'],
         ],
       },
     }),
@@ -33,15 +28,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   );
 
   const formats = [
-    'header',
     'bold',
-    'italic',
     'underline',
     'strike',
-    'color',
-    'background',
-    'size',
-    'align',
   ];
 
   useEffect(() => {
