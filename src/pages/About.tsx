@@ -47,28 +47,32 @@ export default function About() {
                         </Link>
 
                         {/* Service Card 2 - Hair Restoration (Top Middle) */}
-                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
-                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
-                                <div className="p-3 bg-purple-100 rounded-full mb-4">
-                                    <Sparkles className="h-6 w-6 text-purple-600" />
-                                </div>
-                                <p className="text-lg font-semibold text-gray-900">
-                                    שיקום וטיפולי שיער
-                                </p>
-                            </CardContent>
-                        </Card>
+                        <Link to="/hair-restoration" className="block h-full">
+                            <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer min-h-[200px] h-full">
+                                <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                    <div className="p-3 bg-purple-100 rounded-full mb-4">
+                                        <Sparkles className="h-6 w-6 text-purple-600" />
+                                    </div>
+                                    <p className="text-lg font-semibold text-gray-900">
+                                        שיקום וטיפולי שיער
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </Link>
 
                         {/* Service Card 3 - Color/Haircut (Top Right) */}
-                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
-                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
-                                <div className="p-3 bg-blue-100 rounded-full mb-4">
-                                    <Scissors className="h-6 w-6 text-blue-600" />
-                                </div>
-                                <p className="text-lg font-semibold text-gray-900">
-                                    צבע, גוונים תספורת וטיפולי מספרה
-                                </p>
-                            </CardContent>
-                        </Card>
+                        <Link to="/salon-services" className="block h-full">
+                            <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer min-h-[200px] h-full">
+                                <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                    <div className="p-3 bg-blue-100 rounded-full mb-4">
+                                        <Scissors className="h-6 w-6 text-blue-600" />
+                                    </div>
+                                    <p className="text-lg font-semibold text-gray-900">
+                                        צבע, גוונים תספורת וטיפולי מספרה
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </Link>
 
 
 
@@ -88,30 +92,32 @@ export default function About() {
                         </Card>
 
                         {/* FAQ Card (Bottom Left) */}
-                        <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow md:col-span-2 lg:col-span-1 min-h-[200px]">
-                            <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
-                                <div className="p-3 bg-green-100 rounded-full mb-4">
-                                    <HelpCircle className="h-6 w-6 text-green-600" />
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900 mb-6">
-                                    שאלות שחשוב לדעת
-                                </h3>
-                                <ul className="space-y-3 w-full">
-                                    <li className="text-base text-gray-700">
-                                        עם איזה חומרים אתם משתמשים?
-                                    </li>
-                                    <li className="text-base text-gray-700">
-                                        כמה זמן כל טיפול?
-                                    </li>
-                                    <li className="text-base text-gray-700">
-                                        מתי רואים הטבה?
-                                    </li>
-                                    <li className="text-base text-gray-700">
-                                        כמה טיפולים צריך?
-                                    </li>
-                                </ul>
-                            </CardContent>
-                        </Card>
+                        <Link to="/faq" className="block h-full md:col-span-2 lg:col-span-1">
+                            <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer min-h-[200px] h-full">
+                                <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
+                                    <div className="p-3 bg-green-100 rounded-full mb-4">
+                                        <HelpCircle className="h-6 w-6 text-green-600" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-6">
+                                        שאלות שחשוב לדעת
+                                    </h3>
+                                    <ul className="space-y-3 w-full">
+                                        <li className="text-base text-gray-700">
+                                            עם איזה חומרים אתם משתמשים?
+                                        </li>
+                                        <li className="text-base text-gray-700">
+                                            כמה זמן כל טיפול?
+                                        </li>
+                                        <li className="text-base text-gray-700">
+                                            מתי רואים הטבה?
+                                        </li>
+                                        <li className="text-base text-gray-700">
+                                            כמה טיפולים צריך?
+                                        </li>
+                                    </ul>
+                                </CardContent>
+                            </Card>
+                        </Link>
 
                         {/* Video Card 2 (Bottom Right) */}
                         <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">

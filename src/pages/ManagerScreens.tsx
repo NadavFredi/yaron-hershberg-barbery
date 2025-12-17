@@ -17,8 +17,9 @@ import PaymentsSection from "@/pages/PaymentsSection"
 import SubscriptionsSection from "@/pages/SubscriptionsSection"
 import ReportsSection from "@/pages/ReportsSection"
 import RemindersPage from "@/pages/RemindersPage"
+import FAQsManagement from "@/components/admin/FAQsManagement"
 
-const VALID_SECTIONS = ["settings", "waiting-list", "customers", "appointments", "workers", "services", "products", "payments", "subscriptions", "reports", "reminders"] as const
+const VALID_SECTIONS = ["settings", "waiting-list", "customers", "appointments", "workers", "services", "products", "payments", "subscriptions", "reports", "reminders", "faqs"] as const
 type SectionId = typeof VALID_SECTIONS[number]
 
 // Map screen IDs to their Hebrew labels - must match the IDs from SettingsProtectedScreensSection
@@ -159,6 +160,7 @@ export default function ManagerScreens() {
                         {activeSection === "subscriptions" && <SubscriptionsSection />}
                         {activeSection === "reports" && <ReportsSection />}
                         {activeSection === "reminders" && <RemindersPage />}
+                        {activeSection === "faqs" && <FAQsManagement />}
                     </div>
                 </div>
             </div>

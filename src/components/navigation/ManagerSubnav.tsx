@@ -17,7 +17,8 @@ import {
   Bell,
   Wrench,
   FolderTree,
-  List
+  List,
+  HelpCircle
 } from "lucide-react"
 
 interface ManagerSubnavProps {
@@ -191,6 +192,14 @@ export const MANAGER_NAV_SECTIONS: ManagerNavSection[] = [
     icon: Bell,
     match: (pathname, sectionParam) =>
       pathname === "/manager-screens" && sectionParam === "reminders"
+  },
+  {
+    id: "faqs",
+    to: "/manager-screens?section=faqs",
+    label: "שאלות ותשובות",
+    icon: HelpCircle,
+    match: (pathname, sectionParam) =>
+      pathname === "/manager-screens" && sectionParam === "faqs"
   },
   {
     id: "settings",
