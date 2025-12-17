@@ -27,10 +27,15 @@ export default function ScalpTreatments() {
                 </nav>
 
                 {/* Header */}
-                <div className="text-center mb-12">
-                    <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                        אבחון וטיפולי קרקפת
-                    </h1>
+                <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center gap-3 mb-6">
+                        <div className="p-3 bg-amber-100 rounded-full">
+                            <Heart className="h-8 w-8 text-amber-600" />
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-semibold text-gray-900">
+                            אבחון וטיפולי קרקפת
+                        </h1>
+                    </div>
                     <p className="text-xl text-gray-700 font-medium">
                         עבור נשים / גברים
                     </p>
@@ -50,7 +55,7 @@ export default function ScalpTreatments() {
 
                                 {/* Diagnosis Section */}
                                 <div>
-                                    <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
                                         האבחון כולל:
                                     </h3>
                                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -83,7 +88,7 @@ export default function ScalpTreatments() {
 
                                 {/* Treatments Section */}
                                 <div>
-                                    <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
                                         הטיפולים כוללים:
                                     </h3>
                                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -139,7 +144,7 @@ export default function ScalpTreatments() {
                                 <div className="p-3 bg-red-100 rounded-full">
                                     <Heart className="h-6 w-6 text-red-600" />
                                 </div>
-                                <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+                                <h2 className="text-3xl md:text-4xl font-semibold text-gray-900">
                                     עלויות לנשים
                                 </h2>
                             </div>
@@ -197,7 +202,7 @@ export default function ScalpTreatments() {
                                 <div className="p-3 bg-blue-100 rounded-full">
                                     <Heart className="h-6 w-6 text-blue-600" />
                                 </div>
-                                <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+                                <h2 className="text-3xl md:text-4xl font-semibold text-gray-900">
                                     עלויות לגברים
                                 </h2>
                             </div>

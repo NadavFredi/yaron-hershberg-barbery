@@ -299,18 +299,18 @@ export default function About() {
 
                 {/* Call to Action */}
                 <section className="text-center">
-                    <Card className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-2xl border-0 rounded-3xl p-8 md:p-12">
+                    <Card className="bg-white shadow-2xl border-2 border-[#4f60a8] rounded-3xl p-8 md:p-12">
                         <CardContent className="p-0">
-                            <h2 className="text-2xl md:text-3xl font-bold text-white mb-6">
+                            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                                 מוכנים להתחיל?
                             </h2>
-                            <p className="text-lg text-blue-50 mb-8 max-w-2xl mx-auto">
+                            <p className="text-lg text-gray-700 mb-8 max-w-2xl mx-auto">
                                 קבעו תור לאבחון וטיפול ראשון וקבלו ייעוץ מקצועי מותאם אישית
                             </p>
                             <Button
                                 asChild
                                 size="lg"
-                                className="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                                className="bg-[#4f60a8] text-white hover:bg-[#445599] text-lg px-8 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
                             >
                                 <Link to="/setup-appointment">
                                     קבעו תור עכשיו

@@ -27,10 +27,15 @@ export default function HairRestoration() {
                 </nav>
 
                 {/* Header */}
-                <div className="text-center mb-12">
-                    <h1 className="text-4xl md:text-5xl text-gray-900 mb-4">
-                        שיקום וטיפולי שיער
-                    </h1>
+                <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center gap-3 mb-6">
+                        <div className="p-3 bg-purple-100 rounded-full">
+                            <Sparkles className="h-8 w-8 text-purple-600" />
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-semibold text-gray-900">
+                            שיקום וטיפולי שיער
+                        </h1>
+                    </div>
                 </div>
 
                 {/* Main Information Section */}
@@ -40,7 +45,7 @@ export default function HairRestoration() {
                             <div className="space-y-8">
                                 {/* Who is it suitable for */}
                                 <div>
-                                    <h3 className="text-2xl text-gray-900 mb-4">
+                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
                                         שיקום וטיפולי שיער למי מתאים?
                                     </h3>
                                     <div className="space-y-3">
@@ -69,7 +74,7 @@ export default function HairRestoration() {
 
                                 {/* Difference from straightening treatments */}
                                 <div>
-                                    <h3 className="text-2xl text-gray-900 mb-4">
+                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
                                         מה ההבדל מטיפולי החלקה?
                                     </h3>
                                     <div className="space-y-3">
@@ -88,7 +93,7 @@ export default function HairRestoration() {
 
                                 {/* Treatment Components */}
                                 <div>
-                                    <h3 className="text-2xl text-gray-900 mb-4">
+                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
                                         מה כולל הטיפול?
                                     </h3>
                                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -135,7 +140,7 @@ export default function HairRestoration() {
 
                                 {/* Benefits */}
                                 <div>
-                                    <h3 className="text-2xl text-gray-900 mb-4">
+                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
                                         באמצעות סדרת טיפולים ייעודיים, ניתן:
                                     </h3>
                                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">

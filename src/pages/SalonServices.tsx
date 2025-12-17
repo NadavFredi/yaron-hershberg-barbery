@@ -59,7 +59,7 @@ export default function SalonServices() {
                         <div className="p-3 bg-blue-100 rounded-full">
                             <Scissors className="h-8 w-8 text-blue-600" />
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-bold text-gray-900">
+                        <h1 className="text-4xl md:text-5xl font-semibold text-gray-900">
                             צבע, גוונים תספורת וטיפולי מספרה
                         </h1>
                     </div>
@@ -129,7 +129,7 @@ export default function SalonServices() {
                                     >
                                         <AccordionTrigger className="text-right hover:no-underline py-3">
                                             <div className="flex items-center justify-between w-full gap-6">
-                                                <span className="text-base md:text-lg font-semibold text-gray-900">
+                                                <span className="text-base md:text-lg font-medium text-gray-900">
                                                     {service.name}
                                                 </span>
                                                 {service.base_price > 0 && (

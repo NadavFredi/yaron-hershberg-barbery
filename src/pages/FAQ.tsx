@@ -50,7 +50,7 @@ export default function FAQ() {
                         <div className="p-3 bg-green-100 rounded-full">
                             <HelpCircle className="h-8 w-8 text-green-600" />
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-bold text-gray-900">
+                        <h1 className="text-4xl md:text-5xl font-semibold text-gray-900">
                             שאלות ותשובות
                         </h1>
                     </div>
@@ -119,7 +119,7 @@ export default function FAQ() {
                                         className="border-b border-gray-200 last:border-b-0 py-1"
                                     >
                                         <AccordionTrigger className="text-right hover:no-underline py-3">
-                                            <span className="text-base md:text-lg font-semibold text-gray-900">
+                                            <span className="text-base md:text-lg font-medium text-gray-900">
                                                 {faq.question}
                                             </span>
                                         </AccordionTrigger>
