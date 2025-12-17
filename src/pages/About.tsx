@@ -1,37 +1,20 @@
 import { Link } from "react-router-dom"
 import { Button } from "../components/ui/button.tsx"
 import { Card, CardContent } from "../components/ui/card.tsx"
-import { Play, Scissors, Sparkles, Heart, HelpCircle } from "lucide-react"
+import { Play, Scissors, Sparkles, Heart, HelpCircle, Store, Camera, UserCheck, Leaf, Clock, GraduationCap, Star } from "lucide-react"
 import logoImage from "../assets/logo.jpeg"
 
 export default function About() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50" dir="rtl">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                {/* Header with Logo */}
-                <header className="text-center mb-16">
-                    <div className="flex items-center justify-center gap-4 mb-4">
-                        <img
-                            src={logoImage}
-                            alt="Yaron Hershberg Logo"
-                            className="h-16 w-16 object-contain"
-                        />
-                        <div className="text-right">
-                            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
-                                YARON HERSHBERG
-                            </h1>
-                            <p className="text-sm md:text-base text-gray-600 mt-1">
-                                HAIR BOUTIQUE | EST.2001
-                            </p>
-                        </div>
-                    </div>
-                </header>
+
 
                 {/* Main Heading Section */}
                 <section className="mb-16">
                     <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
                         <div className="text-center space-y-4">
-                            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-amber-700">
+                            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold ">
                                 סובלים מנשירה או בעיות קרקפת?
                             </h2>
                             <p className="text-xl md:text-2xl text-gray-800 font-medium">
@@ -147,27 +130,161 @@ export default function About() {
                 </section>
 
                 {/* About Section */}
-                <section className="mb-16">
+                <section className="mb-16 space-y-8">
+                    {/* Main About Card */}
                     <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
                         <CardContent className="p-0">
-                            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 text-center">
-                                אודות ירון הרשברג
-                            </h2>
-                            <div className="prose prose-lg max-w-none text-gray-700 text-right space-y-4">
-                                <p className="text-base md:text-lg leading-relaxed">
-                                    ירון הרשברג הוא מומחה מוביל בתחום הטיפול בשיער וקרקפת, עם ניסיון של למעלה מ-20 שנה.
-                                    המספרה שלו, שהוקמה בשנת 2001, מציעה שירותים מקצועיים ומתקדמים לטיפול בכל בעיות השיער והקרקפת.
+                            <div className="flex items-center justify-center gap-3 mb-8">
+                                <div className="p-3 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full">
+                                    <Store className="h-8 w-8 text-amber-600" />
+                                </div>
+                                <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+                                    אודות ירון הרשברג
+                                </h2>
+                            </div>
+
+                            <div className="space-y-6 text-right">
+                                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border-r-4 border-amber-400">
+                                    <p className="text-xl md:text-2xl font-bold text-gray-900 mb-4">
+                                        "מספרה יוצאת דופן" – בוטיק ייחודי ברמת גן לבריאות הקרקפת והשיער.
+                                    </p>
+                                </div>
+
+                                <p className="text-base md:text-lg leading-relaxed text-gray-700">
+                                    הוקם על-ידי ירון הרשברג, מעצב שיער וכימאי משנת 2001, ובשנים האחרונות גם טריקולוג מוסמך לאבחון וטיפול בבעיות קרקפת בשיטה טבעית ולא פולשנית.
                                 </p>
-                                <p className="text-base md:text-lg leading-relaxed">
-                                    עם גישה אישית ומותאמת לכל לקוח, ירון מספק אבחון מקצועי, טיפולים מתקדמים וליווי צמוד
-                                    לאורך כל תהליך הטיפול. המספרה מציעה מגוון רחב של שירותים כולל צבע, גוונים, תספורות,
-                                    טיפולי שיקום שיער ואבחון מקצועי של בעיות קרקפת.
+
+                                <p className="text-base md:text-lg leading-relaxed text-gray-700">
+                                    הבוטיק מציע עיצוב שיער מוקפד לצד טיפולי קרקפת מקצועיים ומתקדמים – שילוב נדיר שנותן מענה אמיתי מהשורש ועד הקצוות, מעטפת הכרחית לשיער בריא ומראה מושלם.
                                 </p>
-                                <p className="text-base md:text-lg leading-relaxed">
-                                    המחויבות שלנו היא לספק לכם את הטיפול הטוב ביותר, תוך שימוש בחומרים איכותיים וטכניקות
-                                    מתקדמות. כל טיפול מותאם אישית לצרכים שלכם, ואנחנו כאן כדי ללוות אתכם בכל שלב בדרך
-                                    לשיער בריא ויפה.
-                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Why We're Unique Section */}
+                    <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
+                        <CardContent className="p-0">
+                            <div className="flex items-center justify-center gap-3 mb-10">
+                                <div className="p-3 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full">
+                                    <Star className="h-8 w-8 text-purple-600" />
+                                </div>
+                                <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+                                    למה אנחנו יוצאי דופן
+                                </h2>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Feature 1 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-blue-100 rounded-full">
+                                            <Camera className="h-6 w-6 text-blue-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            אבחון מקצועי מבוסס ידע ונסיון
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            בשילוב מצלמת קרקפת מתקדמת לפני כל טיפול.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Feature 2 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-purple-100 rounded-full">
+                                            <UserCheck className="h-6 w-6 text-purple-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            טיפולים מותאמים אישית
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            לכל לקוח/ה פרוטוקול ייחודי מותאם אישית לקרקפת ולשיער.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Feature 3 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-green-100 rounded-full">
+                                            <Leaf className="h-6 w-6 text-green-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            מוצרי פרימיום
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            אורגנים, ללא SLS, מלחים או חומרים משמרים, ולא נוסו על בעלי חיים.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Feature 4 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-orange-100 rounded-full">
+                                            <Clock className="h-6 w-6 text-orange-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            זמינות וגמישות
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            פתוחים עד חצות כדי להתאים ללוח הזמנים שלכם.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Feature 5 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-indigo-100 rounded-full">
+                                            <GraduationCap className="h-6 w-6 text-indigo-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            מומחיות אמיתית
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            ניסיון של מעל 20 שנה בעיצוב שיער לצד הסמכה בינלאומית בטריקולוגיה.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Feature 6 */}
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                    <div className="flex-shrink-0">
+                                        <div className="p-3 bg-rose-100 rounded-full">
+                                            <Heart className="h-6 w-6 text-rose-600" />
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                            חוויית שירות גבוהה
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            אווירה נעימה, יחס אישי וליווי מקצועי.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Closing Statement */}
+                            <div className="mt-10 text-center">
+                                <div className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-100 to-orange-100 rounded-2xl px-8 py-4">
+                                    <Heart className="h-6 w-6 text-rose-500" />
+                                    <p className="text-lg font-semibold text-gray-800">
+                                        אנחנו מאמינים שלשיער ולקרקפת שלכם מגיעה חוויה יוצאת דופן – ואם נפגשנו, זה בהחלט לא במקרה
+                                    </p>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
