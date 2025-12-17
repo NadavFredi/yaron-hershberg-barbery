@@ -359,7 +359,7 @@ const FAQsManagement = () => {
                                         </Label>
                                     </div>
                                 </div>
-                                <DialogFooter className="">
+                                <DialogFooter className="sm:justify-start gap-2">
                                     <Button variant="outline" onClick={handleCloseDialog}>
                                         ביטול
                                     </Button>
@@ -457,7 +457,7 @@ const FAQsManagement = () => {
                             </Label>
                         </div>
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="sm:justify-start">
                         <Button variant="outline" onClick={handleCloseDialog}>
                             ביטול
                         </Button>
