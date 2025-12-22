@@ -680,11 +680,9 @@ export default function AppointmentsSection() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div>
-                                    {dateFilterType === "all" && (
-                                        <Label className="text-sm mb-2 block">תאריך</Label>
-                                    )}
-                                    {dateFilterType === "before" && (
+                                {dateFilterType !== "all" && (
+                                    <div>
+                                        {dateFilterType === "before" && (
                                         <>
                                             <Label className="text-sm mb-2 block">לפני תאריך</Label>
                                             <DatePickerInput
@@ -740,7 +738,8 @@ export default function AppointmentsSection() {
                                             />
                                         </>
                                     )}
-                                </div>
+                                    </div>
+                                )}
                                 <div>
                                     {dateFilterType === "range" ? (
                                         <>

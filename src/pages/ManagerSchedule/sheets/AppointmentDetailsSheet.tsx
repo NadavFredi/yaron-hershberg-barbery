@@ -1,5 +1,5 @@
 import { format, differenceInMinutes } from "date-fns"
-import { MoreHorizontal, Calendar, Save, Loader2, X, CreditCard, Receipt, Info, Link2Off, Image as ImageIcon, Clock, MapPin, User, CalendarDays, FileText, Edit, Pencil, Plus, Users, DollarSign, Upload } from "lucide-react"
+import { MoreHorizontal, Calendar, Save, Loader2, X, CreditCard, Receipt, Info, Link2Off, Image as ImageIcon, Clock, MapPin, User, CalendarDays, FileText, Edit, Pencil, Plus, Users, DollarSign, Upload, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 
@@ -182,6 +182,9 @@ export const AppointmentDetailsSheet = ({
     const [workers, setWorkers] = useState<Array<{ id: string; full_name: string }>>([])
     const [isLoadingWorkers, setIsLoadingWorkers] = useState(false)
     const [isUpdatingWorker, setIsUpdatingWorker] = useState(false)
+    const [isArrivalApprovalPopoverOpen, setIsArrivalApprovalPopoverOpen] = useState(false)
+    const [isManagerApprovalStatusPopoverOpen, setIsManagerApprovalStatusPopoverOpen] = useState(false)
+    const [freshAppointmentData, setFreshAppointmentData] = useState<ManagerAppointment | null>(null)
     const { toast } = useToast()
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
@@ -1515,6 +1518,334 @@ export const AppointmentDetailsSheet = ({
         }
     }, [selectedAppointment, workers, dispatch, formattedDate, serviceFilter, toast])
 
+    // Sync freshAppointmentData with selectedAppointment
+    useEffect(() => {
+        if (selectedAppointment) {
+            setFreshAppointmentData(selectedAppointment)
+        } else {
+            setFreshAppointmentData(null)
+        }
+    }, [selectedAppointment])
+
+    // Get current appointment (fresh data or fallback to selected)
+    const currentAppointment = freshAppointmentData || selectedAppointment
+
+    const handleUpdateArrivalApproval = useCallback(async (approved: boolean) => {
+        if (!selectedAppointment) return
+
+        // Set to current timestamp if approved, null if not approved
+        const newValue = approved ? new Date().toISOString() : null
+        const previousValue = selectedAppointment.clientApprovedArrival
+
+        // Get the appointment's date (not the selected date in the schedule)
+        const appointmentDate = format(new Date(selectedAppointment.startDateTime), "yyyy-MM-dd")
+
+        // Optimistically update local state immediately
+        setFreshAppointmentData((prev) => {
+            if (!prev || prev.id !== selectedAppointment.id) return prev
+            return {
+                ...prev,
+                clientApprovedArrival: newValue
+            }
+        })
+
+        // Optimistically update the Redux cache immediately
+        dispatch(
+            supabaseApi.util.updateQueryData(
+                'getManagerSchedule',
+                { date: appointmentDate, serviceType: "both" },
+                (draft) => {
+                    if (!draft) return
+                    // Find and update the appointment in the appointments array
+                    const appointmentIndex = draft.appointments.findIndex(
+                        (apt) => apt.id === selectedAppointment.id
+                    )
+                    if (appointmentIndex !== -1) {
+                        draft.appointments[appointmentIndex] = {
+                            ...draft.appointments[appointmentIndex],
+                            clientApprovedArrival: newValue
+                        }
+                    }
+                }
+            )
+        )
+
+        // Close popover immediately
+        setIsArrivalApprovalPopoverOpen(false)
+
+        try {
+            const appointmentId = extractGroomingAppointmentId(
+                selectedAppointment.id,
+                selectedAppointment.groomingAppointmentId
+            )
+
+            if (!appointmentId) {
+                console.error("❌ [AppointmentDetailsSheet] No appointment ID found for arrival approval")
+                // Revert optimistic update on error
+                setFreshAppointmentData((prev) => {
+                    if (!prev || prev.id !== selectedAppointment.id) return prev
+                    return {
+                        ...prev,
+                        clientApprovedArrival: previousValue
+                    }
+                })
+                dispatch(
+                    supabaseApi.util.updateQueryData(
+                        'getManagerSchedule',
+                        { date: appointmentDate, serviceType: "both" },
+                        (draft) => {
+                            if (!draft) return
+                            const appointmentIndex = draft.appointments.findIndex(
+                                (apt) => apt.id === selectedAppointment.id
+                            )
+                            if (appointmentIndex !== -1) {
+                                draft.appointments[appointmentIndex] = {
+                                    ...draft.appointments[appointmentIndex],
+                                    clientApprovedArrival: previousValue
+                                }
+                            }
+                        }
+                    )
+                )
+                return
+            }
+
+            const { error } = await supabase
+                .from("grooming_appointments")
+                .update({
+                    client_approved_arrival: newValue,
+                })
+                .eq("id", appointmentId)
+
+            if (error) {
+                console.error("❌ [AppointmentDetailsSheet] Error updating arrival approval:", error)
+                // Revert optimistic update on error
+                setFreshAppointmentData((prev) => {
+                    if (!prev || prev.id !== selectedAppointment.id) return prev
+                    return {
+                        ...prev,
+                        clientApprovedArrival: previousValue
+                    }
+                })
+                dispatch(
+                    supabaseApi.util.updateQueryData(
+                        'getManagerSchedule',
+                        { date: appointmentDate, serviceType: "both" },
+                        (draft) => {
+                            if (!draft) return
+                            const appointmentIndex = draft.appointments.findIndex(
+                                (apt) => apt.id === selectedAppointment.id
+                            )
+                            if (appointmentIndex !== -1) {
+                                draft.appointments[appointmentIndex] = {
+                                    ...draft.appointments[appointmentIndex],
+                                    clientApprovedArrival: previousValue
+                                }
+                            }
+                        }
+                    )
+                )
+                toast({
+                    title: "שגיאה",
+                    description: "לא ניתן לעדכן את סטטוס אישור ההגעה",
+                    variant: "destructive",
+                })
+                return
+            }
+
+            toast({
+                title: "הצלחה",
+                description: approved ? "אושרה הגעה" : "הוסר אישור הגעה",
+            })
+
+            // Refresh schedule to ensure consistency
+            dispatch(
+                supabaseApi.util.invalidateTags([
+                    { type: 'ManagerSchedule', id: 'LIST' },
+                    'Appointment',
+                ])
+            )
+        } catch (error) {
+            console.error("❌ [AppointmentDetailsSheet] Error updating arrival approval:", error)
+            // Revert optimistic update on error
+            dispatch(
+                supabaseApi.util.updateQueryData(
+                    'getManagerSchedule',
+                    { date: formattedDate, serviceType: "both" },
+                    (draft) => {
+                        if (!draft) return
+                        const appointmentIndex = draft.appointments.findIndex(
+                            (apt) => apt.id === selectedAppointment.id
+                        )
+                        if (appointmentIndex !== -1) {
+                            draft.appointments[appointmentIndex] = {
+                                ...draft.appointments[appointmentIndex],
+                                clientApprovedArrival: previousValue
+                            }
+                        }
+                    }
+                )
+            )
+            toast({
+                title: "שגיאה",
+                description: error instanceof Error ? error.message : "לא ניתן לעדכן",
+                variant: "destructive",
+            })
+        }
+    }, [selectedAppointment, toast, dispatch, formattedDate])
+
+    const handleManagerStatusChange = useCallback(async (status: 'approved' | 'pending' | 'cancelled') => {
+        if (!selectedAppointment) return
+
+        // Map status to Hebrew/English values that might be in the database
+        const statusMap: Record<'approved' | 'pending' | 'cancelled', string> = {
+            approved: 'approved',
+            pending: 'pending',
+            cancelled: 'cancelled'
+        }
+        const newStatus = statusMap[status]
+
+        // Get Hebrew labels for display
+        const statusLabels: Record<'approved' | 'pending' | 'cancelled', string> = {
+            approved: 'תור מאושר',
+            pending: 'ממתין לאישור מנהל',
+            cancelled: 'תור בוטל'
+        }
+
+        const previousStatus = selectedAppointment.status
+
+        // Get the appointment's date (not the selected date in the schedule)
+        const appointmentDate = format(new Date(selectedAppointment.startDateTime), "yyyy-MM-dd")
+
+        // Optimistically update local state immediately
+        setFreshAppointmentData((prev) => {
+            if (!prev || prev.id !== selectedAppointment.id) return prev
+            return {
+                ...prev,
+                status: statusLabels[status]
+            }
+        })
+
+        // Optimistically update the Redux cache immediately
+        dispatch(
+            supabaseApi.util.updateQueryData(
+                'getManagerSchedule',
+                { date: appointmentDate, serviceType: "both" },
+                (draft) => {
+                    if (!draft) return
+                    const appointmentIndex = draft.appointments.findIndex(
+                        (apt) => apt.id === selectedAppointment.id
+                    )
+                    if (appointmentIndex !== -1) {
+                        draft.appointments[appointmentIndex] = {
+                            ...draft.appointments[appointmentIndex],
+                            status: statusLabels[status]
+                        }
+                    }
+                }
+            )
+        )
+
+        try {
+            const appointmentId = extractGroomingAppointmentId(
+                selectedAppointment.id,
+                selectedAppointment.groomingAppointmentId
+            )
+
+            if (!appointmentId) {
+                console.error("❌ [AppointmentDetailsSheet] No appointment ID found for manager approval status")
+                // Revert optimistic update on error
+                setFreshAppointmentData((prev) => {
+                    if (!prev || prev.id !== selectedAppointment.id) return prev
+                    return {
+                        ...prev,
+                        status: previousStatus
+                    }
+                })
+                dispatch(
+                    supabaseApi.util.updateQueryData(
+                        'getManagerSchedule',
+                        { date: appointmentDate, serviceType: "both" },
+                        (draft) => {
+                            if (!draft) return
+                            const appointmentIndex = draft.appointments.findIndex(
+                                (apt) => apt.id === selectedAppointment.id
+                            )
+                            if (appointmentIndex !== -1) {
+                                draft.appointments[appointmentIndex] = {
+                                    ...draft.appointments[appointmentIndex],
+                                    status: previousStatus
+                                }
+                            }
+                        }
+                    )
+                )
+                return
+            }
+
+            const { error } = await supabase
+                .from("grooming_appointments")
+                .update({ status: newStatus })
+                .eq("id", appointmentId)
+
+            if (error) {
+                console.error("❌ [AppointmentDetailsSheet] Error updating manager approval status:", error)
+                // Revert optimistic update on error
+                setFreshAppointmentData((prev) => {
+                    if (!prev || prev.id !== selectedAppointment.id) return prev
+                    return {
+                        ...prev,
+                        status: previousStatus
+                    }
+                })
+                dispatch(
+                    supabaseApi.util.updateQueryData(
+                        'getManagerSchedule',
+                        { date: appointmentDate, serviceType: "both" },
+                        (draft) => {
+                            if (!draft) return
+                            const appointmentIndex = draft.appointments.findIndex(
+                                (apt) => apt.id === selectedAppointment.id
+                            )
+                            if (appointmentIndex !== -1) {
+                                draft.appointments[appointmentIndex] = {
+                                    ...draft.appointments[appointmentIndex],
+                                    status: previousStatus
+                                }
+                            }
+                        }
+                    )
+                )
+                toast({
+                    title: "שגיאה",
+                    description: "לא ניתן לעדכן את סטטוס האישור",
+                    variant: "destructive",
+                })
+                return
+            }
+
+            toast({
+                title: "הצלחה",
+                description: `סטטוס האישור עודכן ל-${statusLabels[status]}`,
+            })
+
+            // Refresh schedule to ensure consistency
+            dispatch(
+                supabaseApi.util.invalidateTags([
+                    { type: 'ManagerSchedule', id: 'LIST' },
+                    'Appointment',
+                ])
+            )
+        } catch (error) {
+            console.error("❌ [AppointmentDetailsSheet] Error updating manager approval status:", error)
+            toast({
+                title: "שגיאה",
+                description: error instanceof Error ? error.message : "לא ניתן לעדכן",
+                variant: "destructive",
+            })
+        }
+    }, [selectedAppointment, toast, dispatch])
+
     // Compute appointment details using useMemo to avoid IIFE parsing issues
     const appointmentContent = useMemo(() => {
         if (!selectedAppointment) return null
@@ -1735,9 +2066,136 @@ export const AppointmentDetailsSheet = ({
                                                     <Badge variant="outline" className={cn("text-[11px] font-medium", appointmentContent.serviceStyle.badge)}>
                                                         {appointmentContent.serviceLabel}
                                                     </Badge>
-                                                    <Badge variant="outline" className={cn("text-[11px] font-medium", appointmentContent.statusStyle)}>
-                                                        {selectedAppointment.status}
-                                                    </Badge>
+                                                    {/* Appointment Status Badge */}
+                                                    <Popover open={isManagerApprovalStatusPopoverOpen} onOpenChange={setIsManagerApprovalStatusPopoverOpen}>
+                                                        <PopoverTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                className={cn(
+                                                                    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                                                                    (() => {
+                                                                        const status = currentAppointment?.status || selectedAppointment?.status || ''
+                                                                        const statusLower = status.toLowerCase()
+                                                                        const isApproved = statusLower.includes('מאושר') || statusLower.includes('approved')
+                                                                        const isDenied = statusLower.includes('נדחה') || statusLower.includes('denied') || statusLower.includes('בוטל') || statusLower.includes('cancelled')
+                                                                        if (isApproved) return "border-green-200 bg-green-50 text-green-700"
+                                                                        if (isDenied) return "border-red-200 bg-red-50 text-red-700"
+                                                                        return "border-yellow-200 bg-yellow-50 text-yellow-700"
+                                                                    })()
+                                                                )}
+                                                            >
+                                                                <div className="flex items-center gap-1" dir="rtl">
+                                                                    {(() => {
+                                                                        const status = currentAppointment?.status || selectedAppointment?.status || ''
+                                                                        const statusLower = status.toLowerCase()
+                                                                        const isApproved = statusLower.includes('מאושר') || statusLower.includes('approved')
+                                                                        const isDenied = statusLower.includes('נדחה') || statusLower.includes('denied') || statusLower.includes('בוטל') || statusLower.includes('cancelled')
+                                                                        return isApproved ? (
+                                                                            <CheckCircle className="h-3 w-3" />
+                                                                        ) : isDenied ? (
+                                                                            <XCircle className="h-3 w-3" />
+                                                                        ) : (
+                                                                            <AlertTriangle className="h-3 w-3" />
+                                                                        )
+                                                                    })()}
+                                                                    <span>סטטוס התור</span>
+                                                                </div>
+                                                            </button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-56 p-2" dir="rtl" align="start">
+                                                            <div className="space-y-1">
+                                                                <div className="text-sm font-medium mb-2 px-2">סטטוס התור</div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleManagerStatusChange('approved')
+                                                                        setIsManagerApprovalStatusPopoverOpen(false)
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2 justify-end px-3 py-2 rounded-md hover:bg-green-50 text-right transition-colors"
+                                                                    dir="rtl"
+                                                                >
+                                                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                                                    <span>תור מאושר</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleManagerStatusChange('pending')
+                                                                        setIsManagerApprovalStatusPopoverOpen(false)
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2 justify-end px-3 py-2 rounded-md hover:bg-yellow-50 text-right transition-colors"
+                                                                    dir="rtl"
+                                                                >
+                                                                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                                                                    <span>ממתין לאישור מנהל</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleManagerStatusChange('cancelled')
+                                                                        setIsManagerApprovalStatusPopoverOpen(false)
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2 justify-end px-3 py-2 rounded-md hover:bg-red-50 text-right transition-colors"
+                                                                    dir="rtl"
+                                                                >
+                                                                    <XCircle className="h-4 w-4 text-red-600" />
+                                                                    <span>תור נדחה</span>
+                                                                </button>
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                    {/* Arrival Confirmation Status Badge */}
+                                                    <Popover open={isArrivalApprovalPopoverOpen} onOpenChange={setIsArrivalApprovalPopoverOpen}>
+                                                        <PopoverTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                className={cn(
+                                                                    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                                                                    currentAppointment?.clientApprovedArrival
+                                                                        ? "border-green-200 bg-green-50 text-green-700"
+                                                                        : "border-red-200 bg-red-50 text-red-700"
+                                                                )}
+                                                            >
+                                                                <div className="flex items-center gap-1" dir="rtl">
+                                                                    {currentAppointment?.clientApprovedArrival ? (
+                                                                        <CheckCircle className="h-3 w-3" />
+                                                                    ) : (
+                                                                        <XCircle className="h-3 w-3" />
+                                                                    )}
+                                                                    <span>אישור הגעה</span>
+                                                                </div>
+                                                            </button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-56 p-2" dir="rtl" align="start">
+                                                            <div className="space-y-1">
+                                                                <div className="text-sm font-medium mb-2 px-2">סטטוס אישור הגעה</div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleUpdateArrivalApproval(true)
+                                                                        setIsArrivalApprovalPopoverOpen(false)
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2 justify-end px-3 py-2 rounded-md hover:bg-green-50 text-right transition-colors"
+                                                                    dir="rtl"
+                                                                >
+                                                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                                                    <span>אושרה הגעה</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleUpdateArrivalApproval(false)
+                                                                        setIsArrivalApprovalPopoverOpen(false)
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2 justify-end px-3 py-2 rounded-md hover:bg-red-50 text-right transition-colors"
+                                                                    dir="rtl"
+                                                                >
+                                                                    <XCircle className="h-4 w-4 text-red-600" />
+                                                                    <span>לא אושרה הגעה</span>
+                                                                </button>
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
                                                     {selectedAppointment.seriesId && (
                                                         <Badge variant="outline" className="text-[11px] font-medium border-purple-200 bg-primary/20 text-purple-800">
                                                             תור בסדרה
