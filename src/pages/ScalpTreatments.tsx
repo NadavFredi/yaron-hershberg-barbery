@@ -7,7 +7,7 @@ export default function ScalpTreatments() {
     const primaryColor = "#4f60a8"
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-primary/10" dir="rtl">
+        <div className="min-h-screen  from-slate-50 via-primary/10 to-primary/10" dir="rtl">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 {/* Breadcrumb */}
                 <nav className="mb-8">
@@ -53,82 +53,55 @@ export default function ScalpTreatments() {
                                     </p>
                                 </div>
 
-                                {/* Diagnosis Section */}
-                                <div>
-                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                                        האבחון כולל:
-                                    </h3>
-                                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                בדיקת קרקפת עם מצלמה מיקרוסקופית
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                זיהוי שורש הבעיה
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                התאמת תכנית טיפול
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                המלצה על מוצרים משלימים
-                                            </span>
-                                        </li>
-                                    </ul>
-                                </div>
+                                {/* Two Column Layout for Diagnosis and Treatments */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    {/* Diagnosis Section - Left Column */}
+                                    <div>
+                                        <h3 className="text-2xl font-semibold text-gray-900 mb-4">
+                                            האבחון כולל:
+                                        </h3>
+                                        <ul className="space-y-3">
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    בדיקת קרקפת עם מצלמה מיקרוסקופית
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    התאמת תכנית טיפול
+                                                </span>
+                                            </li>
+                                        </ul>
+                                    </div>
 
-                                {/* Treatments Section */}
-                                <div>
-                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                                        הטיפולים כוללים:
-                                    </h3>
-                                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                פילינג מותאם על בסיס טבעי ואורגני לניקוי ואיזון הקרקפת
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                ספא-מיסט מכשור אדים ייחודי המפחית גירויים
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                שימוש בתאי גזע צמחיים לחיזוק ולעידוד צמיחה
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                ליווי מקצועי ומעקב אישי לאורך כל הדרך
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                הטיפולים נעימים, בטוחים ואינם פולשניים.
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                מספר הטיפולים הדרוש נקבע באבחון לפי חומרת המצב.
-                                            </span>
-                                        </li>
-                                    </ul>
+                                    {/* Treatments Section - Right Column */}
+                                    <div>
+                                        <h3 className="text-2xl font-semibold text-gray-900 mb-4">
+                                            הטיפולים כוללים:
+                                        </h3>
+                                        <ul className="space-y-3">
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    פילינג מותאם על בסיס טבעי ואורגני לניקוי ואיזון הקרקפת
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    שימוש בתאי גזע צמחיים לחיזוק ולעידוד צמיחה
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    הטיפולים נעימים, בטוחים ואינם פולשניים.
+                                                </span>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>

@@ -7,7 +7,7 @@ export default function HairRestoration() {
     const primaryColor = "#4f60a8"
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-primary/10" dir="rtl">
+        <div className="min-h-screen from-slate-50 via-primary/10 to-primary/10" dir="rtl">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 {/* Breadcrumb */}
                 <nav className="mb-8">
@@ -91,45 +91,6 @@ export default function HairRestoration() {
                                     </div>
                                 </div>
 
-                                {/* Treatment Components */}
-                                <div>
-                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                                        מה כולל הטיפול?
-                                    </h3>
-                                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                שימוש בפרוטאין טהור
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                חלבונים מן הצומח
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                קרטין צמחי
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                תמציות צמחים ושמנים אורגניים
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3 md:col-span-2">
-                                            <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                מכשיר הספא מיסט שמחדיר לחות באמצעות כובע האדים הידוע
-                                            </span>
-                                        </li>
-                                    </ul>
-                                </div>
-
                                 {/* Treatment Process */}
                                 <div>
                                     <p className="text-base md:text-lg text-gray-800 leading-relaxed">
@@ -138,37 +99,79 @@ export default function HairRestoration() {
                                     </p>
                                 </div>
 
-                                {/* Benefits */}
-                                <div>
-                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                                        באמצעות סדרת טיפולים ייעודיים, ניתן:
-                                    </h3>
-                                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                לחזק מבנה שיער חלש ופגום
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                לשפר את איכות ומרקם השיער
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                להשיב גמישות, חיוניות ומראה בריא
-                                            </span>
-                                        </li>
-                                        <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
-                                            <span className="text-base md:text-lg text-gray-800">
-                                                להשיג תוצאות יציבות ועמידות לאורך זמן
-                                            </span>
-                                        </li>
-                                    </ul>
+                                {/* Two Column Layout for Treatment Components and Benefits */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    {/* Treatment Components - Left Column */}
+                                    <div>
+                                        <h3 className="text-2xl font-semibold text-gray-900 mb-4">
+                                            מה כולל הטיפול?
+                                        </h3>
+                                        <ul className="space-y-3">
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    שימוש בפרוטאין טהור
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    חלבונים מן הצומח
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    קרטין צמחי
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    תמציות צמחים ושמנים אורגניים
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    מכשיר הספא מיסט שמחדיר לחות באמצעות כובע האדים הידוע
+                                                </span>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    {/* Benefits - Right Column */}
+                                    <div>
+                                        <h3 className="text-2xl font-semibold text-gray-900 mb-4">
+                                            באמצעות סדרת טיפולים ייעודיים, ניתן:
+                                        </h3>
+                                        <ul className="space-y-3">
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    לחזק מבנה שיער חלש ופגום
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    לשפר את איכות ומרקם השיער
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    להשיב גמישות, חיוניות ומראה בריא
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-gray-800">
+                                                    להשיג תוצאות יציבות ועמידות לאורך זמן
+                                                </span>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
 
                                 {/* Important Note about Process */}

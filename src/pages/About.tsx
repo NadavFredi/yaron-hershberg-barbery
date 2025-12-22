@@ -5,7 +5,7 @@ import { Play, Scissors, Sparkles, Heart, HelpCircle, Store, Camera, UserCheck, 
 
 export default function About() {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-primary/10" dir="rtl">
+        <div className="min-h-screen from-slate-50 via-primary/10 to-primary/10" dir="rtl">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
 
