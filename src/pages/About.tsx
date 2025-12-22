@@ -25,10 +25,9 @@ export default function About() {
                     <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12 relative z-30">
                         <div className="text-center space-y-4">
                             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold ">
-                                סובלים מנשירה או בעיות קרקפת?
-                            </h2>
+                                קרקפת לא מאוזנת דורשת אבחון מקצועי                            </h2>
                             <p className="text-xl md:text-2xl text-card-foreground font-medium">
-                                אבחון טיפול וליווי מקצועי
+                                אבחון טריקולוגי  • תהליך מותאם • ליווי אישי
                             </p>
                             <p className="text-base md:text-lg text-card-foreground/80 max-w-2xl mx-auto">
                                 לא בטוחים מה הבעיה? אבחון מקצועי עושה סדר.
