@@ -486,7 +486,7 @@ export function OrderDetailsModal({
                                                     <div className="flex flex-col gap-1">
                                                         <div className="flex items-center gap-2">
                                                             {invoice.invoice_type === "credit" ? (
-                                                                <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">זיכוי</span>
+                                                                <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">זיכוי</span>
                                                             ) : (
                                                                 <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">חיוב</span>
                                                             )}

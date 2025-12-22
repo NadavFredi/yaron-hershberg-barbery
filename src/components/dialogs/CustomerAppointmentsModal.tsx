@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import type { MouseEvent as ReactMouseEvent } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Loader2, Calendar, Clock, MapPin, CreditCard, FileText, CheckCircle2, XCircle, AlertCircle, Filter, Eye } from "lucide-react"
+import { Loader2, Calendar, Clock, MapPin, CreditCard, FileText, CheckCircle2, XCircle, AlertCircle, Filter, Eye, ExternalLink } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import type { Database } from "@/integrations/supabase/types"
 import { format } from "date-fns"
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { useAppDispatch } from "@/store/hooks"
 import { setSelectedAppointment, setIsDetailsOpen, setSelectedDate } from "@/store/slices/managerScheduleSlice"
 import { useLazyGetManagerAppointmentQuery } from "@/store/services/supabaseApi"
+import { useNavigate } from "react-router-dom"
 
 type GroomingAppointment = Database["public"]["Tables"]["grooming_appointments"]["Row"]
 type Station = Database["public"]["Tables"]["stations"]["Row"]
@@ -72,6 +73,7 @@ export function CustomerAppointmentsModal({
   const [dateFilter, setDateFilter] = useState<Date | null>(null)
   const dispatch = useAppDispatch()
   const [fetchManagerAppointment] = useLazyGetManagerAppointmentQuery()
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (!open || !customerId) {
@@ -148,6 +150,17 @@ export function CustomerAppointmentsModal({
     })
   }, [appointments, statusFilter, paymentStatusFilter, dateFilter])
 
+  // Calculate total payments
+  const totalPayments = useMemo(() => {
+    return filteredAppointments.reduce((sum, apt) => {
+      return sum + (apt.amount_due || 0)
+    }, 0)
+  }, [filteredAppointments])
+
+  // Count appointments
+  const appointmentsCount = filteredAppointments.length
+  const totalAppointmentsCount = appointments.length
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case "approved":
@@ -209,11 +222,37 @@ export function CustomerAppointmentsModal({
 
   const handleSeeOnCalendar = (appointment: AppointmentWithDetails, event: ReactMouseEvent) => {
     event.stopPropagation()
+    // Close the sheet if it's open
+    dispatch(setIsDetailsOpen(false))
     // Set the selected date to the appointment date
     const appointmentDate = new Date(appointment.start_at)
     dispatch(setSelectedDate(appointmentDate.toISOString()))
-    // Close the modal
+    // Close the modal first
     onOpenChange(false)
+    // Navigate to manager schedule
+    navigate("/manager")
+  }
+
+  const handleOpenAppointmentSheet = async (appointment: AppointmentWithDetails, event: ReactMouseEvent) => {
+    event.stopPropagation()
+    // Close the modal first to prevent any conflicts
+    onOpenChange(false)
+    
+    try {
+      // Fetch fresh appointment data from API
+      const result = await fetchManagerAppointment({
+        appointmentId: appointment.id,
+        serviceType: "grooming",
+      }).unwrap()
+
+      if (result?.appointment) {
+        // Set the appointment and open the details sheet
+        dispatch(setSelectedAppointment(result.appointment))
+        dispatch(setIsDetailsOpen(true))
+      }
+    } catch (error) {
+      console.error("❌ [CustomerAppointmentsModal] Error fetching appointment:", error)
+    }
   }
 
   return (
@@ -223,6 +262,22 @@ export function CustomerAppointmentsModal({
           <DialogTitle className="text-right">
             {customerName ? `תורים של ${customerName}` : "תורים של לקוח"}
           </DialogTitle>
+          <div className="flex items-center justify-between gap-4 mt-2 text-sm text-gray-600">
+            <div className="flex items-center gap-4">
+              <span>
+                סה"כ תורים: <span className="font-semibold text-gray-900">{totalAppointmentsCount}</span>
+              </span>
+              {filteredAppointments.length !== totalAppointmentsCount && (
+                <span>
+                  תורים מסוננים: <span className="font-semibold text-gray-900">{appointmentsCount}</span>
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-primary font-semibold">
+              <CreditCard className="h-4 w-4" />
+              סה"כ תשלומים: {totalPayments.toFixed(2)} ₪
+            </div>
+          </div>
         </DialogHeader>
 
         {/* Filters */}
@@ -282,7 +337,7 @@ export function CustomerAppointmentsModal({
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
               <p className="text-gray-600">טוען תורים...</p>
             </div>
           </div>
@@ -400,15 +455,28 @@ export function CustomerAppointmentsModal({
                         )}
                       </TableCell>
                       <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={(e) => handleSeeOnCalendar(appointment, e)}
-                        >
-                          <Eye className="h-3 w-3 ml-1" />
-                          הצג בלוח
-                        </Button>
+                        <div className="flex items-center gap-1 justify-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={(e) => handleOpenAppointmentSheet(appointment, e)}
+                            title="פתח פרטי תור"
+                          >
+                            <ExternalLink className="h-3 w-3 ml-1" />
+                            פרטי תור
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={(e) => handleSeeOnCalendar(appointment, e)}
+                            title="הצג בלוח"
+                          >
+                            <Eye className="h-3 w-3 ml-1" />
+                            הצג בלוח
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )

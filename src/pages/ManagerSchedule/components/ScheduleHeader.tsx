@@ -630,7 +630,7 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
                   }
                   return "border-slate-200 bg-slate-100 text-slate-700"
                 }
-                return "border-blue-100 bg-blue-50 text-blue-700"
+                return "border-primary/20 bg-primary/10 text-primary"
               })()
               const titleText =
                 result.entityType === "personal"
@@ -975,7 +975,7 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
                   <Button type="button" variant="outline" size="sm" className="flex items-center gap-0.5 text-[11px] px-2 h-7 flex-shrink-0">
                     <SlidersHorizontal className="h-3.5 w-3.5 flex-shrink-0" />
                     <span className="whitespace-nowrap">עמדות</span>
-                    <span className="inline-flex items-center rounded-full bg-blue-100 px-1.5 py-0 text-[10px] font-semibold text-blue-700 whitespace-nowrap">
+                    <span className="inline-flex items-center rounded-full bg-primary/20 px-1.5 py-0 text-[10px] font-semibold text-primary whitespace-nowrap">
                       {stationBadgeCount}/{stations.length}
                     </span>
                   </Button>
@@ -994,8 +994,8 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
             {isScheduleSearchVisuallyExpanded ? (
               <div
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs sm:text-sm text-gray-700 shadow-sm transition-all duration-300 focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100 w-full",
-                  isScheduleSearchOpen ? "border-blue-200 shadow-lg scale-[1.01]" : ""
+                  "flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs sm:text-sm text-gray-700 shadow-sm transition-all duration-300 focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-primary/20 w-full",
+                  isScheduleSearchOpen ? "border-primary/20 shadow-lg scale-[1.01]" : ""
                 )}
               >
                 <Search className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
@@ -1026,7 +1026,7 @@ export function ScheduleHeader({ showControlBarOnly = false, showColumnsOnly = f
               <button
                 type="button"
                 onClick={handleSearchExpand}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-gray-500 shadow-sm transition-all duration-300 hover:border-blue-200 hover:text-blue-600 hover:shadow-md flex-shrink-0"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-gray-500 shadow-sm transition-all duration-300 hover:border-primary/20 hover:text-primary hover:shadow-md flex-shrink-0"
                 title="פתח חיפוש"
               >
                 <Search className="h-3.5 w-3.5" />

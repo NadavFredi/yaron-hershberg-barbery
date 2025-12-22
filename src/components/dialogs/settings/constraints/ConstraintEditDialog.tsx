@@ -863,13 +863,13 @@ export function ConstraintEditDialog({
                                                                         <Button
                                                                             variant="ghost"
                                                                             size="sm"
-                                                                            className="h-6 w-6 p-0 hover:bg-blue-50"
+                                                                            className="h-6 w-6 p-0 hover:bg-primary/10"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation()
                                                                                 setEditingReason({ oldText: reason.value, newText: reason.value })
                                                                             }}
                                                                         >
-                                                                            <Pencil className="h-3 w-3 text-blue-500" />
+                                                                            <Pencil className="h-3 w-3 text-primary" />
                                                                         </Button>
                                                                         <Popover open={deleteConfirmOpen === reason.value} onOpenChange={(open) => setDeleteConfirmOpen(open ? reason.value : null)}>
                                                                             <PopoverTrigger asChild>

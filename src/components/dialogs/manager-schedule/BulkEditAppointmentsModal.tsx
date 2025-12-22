@@ -263,7 +263,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                 <select
                                     value={form.stationId}
                                     onChange={(e) => setForm(prev => ({ ...prev, stationId: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-right bg-white focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-right bg-white focus:ring-primary focus:border-primary"
                                     disabled={isSaving}
                                 >
                                     <option value="">שמור עמדה קיימת</option>
@@ -287,7 +287,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                         onChange={(time) => setForm(prev => ({ ...prev, startTime: time }))}
                                         intervalMinutes={15}
                                         wrapperClassName="w-full"
-                                        className="px-3 py-2 border border-gray-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
+                                        className="px-3 py-2 border border-gray-300 focus-visible:ring-primary focus-visible:border-primary"
                                         portalContainer={dialogContentElement}
                                     />
                                 </div>
@@ -300,7 +300,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                         onChange={(time) => setForm(prev => ({ ...prev, endTime: time }))}
                                         intervalMinutes={15}
                                         wrapperClassName="w-full"
-                                        className="px-3 py-2 border border-gray-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
+                                        className="px-3 py-2 border border-gray-300 focus-visible:ring-primary focus-visible:border-primary"
                                         portalContainer={dialogContentElement}
                                     />
                                 </div>
@@ -338,7 +338,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                 <AccordionItem value="internal-notes" className="border-b">
                                     <AccordionTrigger className="text-right hover:no-underline py-3">
                                         <div className="flex items-center gap-2 flex-1">
-                                            <FileText className="h-4 w-4 text-blue-400" />
+                                            <FileText className="h-4 w-4 text-primary/60" />
                                             <span className="font-medium">הערות פנימיות</span>
                                             {form.internalNotes ? (
                                                 <span className="text-xs text-gray-500 line-clamp-1">
@@ -360,7 +360,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-right resize-none min-h-[100px]"
                                                 disabled={isSaving}
                                             />
-                                            <p className="text-xs text-blue-600 text-right">
+                                            <p className="text-xs text-primary text-right">
                                                 הערות אלו נראות רק לצוות ולא ללקוח
                                             </p>
                                         </div>
@@ -393,7 +393,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-right resize-none min-h-[100px]"
                                                     disabled={isSaving}
                                                 />
-                                                <p className="text-xs text-purple-600 text-right">
+                                                <p className="text-xs text-primary text-right">
                                                     הערות ספציפיות לתספורת (רק עבור תורי מספרה)
                                                 </p>
                                             </div>
@@ -433,8 +433,8 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
 
                 {/* Update Customer Checkbox */}
                 <div className="py-4 border-t border-gray-200 flex-shrink-0" dir="rtl">
-                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-md p-3">
-                        <label htmlFor="updateCustomer" className="text-sm text-blue-800 font-medium text-right cursor-pointer flex-1">
+                    <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-md p-3">
+                        <label htmlFor="updateCustomer" className="text-sm text-primary font-medium text-right cursor-pointer flex-1">
                             עדכן את הלקוח על השינויים בתור
                         </label>
                         <input
@@ -445,14 +445,14 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                             className="rounded border-gray-300"
                             disabled={isSaving}
                         />
-                        <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                        <Info className="h-4 w-4 text-primary flex-shrink-0" />
                     </div>
                 </div>
 
                 <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-start sm:space-x-2 sm:space-x-reverse flex-shrink-0">
                     <Button
                         onClick={handleSave}
-                        className="bg-blue-600 hover:bg-blue-700"
+                        className="bg-primary hover:bg-primary/90"
                         disabled={isSaving}
                     >
                         {isSaving ? (

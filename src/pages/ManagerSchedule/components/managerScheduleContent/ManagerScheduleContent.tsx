@@ -75,43 +75,56 @@ export function ManagerScheduleContent() {
 
   return (
     <div className={`relative flex items-start gap-6 w-full overflow-x-auto custom-scrollbar ${isUnpinMode ? 'h-full flex-col' : 'overflow-y-visible'}`} dir="rtl">
-      <div className={`flex-1 min-w-0 ${isUnpinMode ? 'h-full flex flex-col' : ''}`} dir="rtl">
+      <div className={`flex-1 min-w-0 ${isUnpinMode ? 'h-full flex flex-col' : ''}`} dir="rtl" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: isUnpinMode ? '100%' : 'auto' }}>
         <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          {/* Schedule Header - Outside scroll container so it can stick */}
-          <div className={`${isUnpinMode ? 'flex-shrink-0' : 'sticky top-0 left-0 right-0'} z-30 bg-white`}>
+          {/* Scroll container for content - header is first element inside so it can stick */}
+          <div className="w-full flex-1" style={{ position: 'relative', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             <div
-              ref={scheduleScrollRefs.headerScrollContainerRef}
-              className="w-full overflow-x-auto overflow-y-visible scrollbar-hide"
+              ref={contentScrollContainerRef}
+              className={`w-full overflow-x-auto overflow-y-auto custom-scrollbar pb-2 ${isUnpinMode ? 'flex-1 min-h-0' : ''}`}
               dir="rtl"
               style={{
                 maxWidth: '100%',
+                maxHeight: isUnpinMode ? '100%' : 'calc(100vh - 120px)',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'hsl(var(--primary) / 0.3) hsl(var(--primary) / 0.05)',
               }}
-              onScroll={handleHeaderScroll}
+              onScroll={handleContentScroll}
             >
-              <ScheduleHeader />
-            </div>
-          </div>
-
-          {/* Scroll container for content only */}
-          <div
-            ref={contentScrollContainerRef}
-            className={`w-full overflow-x-auto overflow-y-auto custom-scrollbar pb-2 ${isUnpinMode ? 'flex-1 min-h-0' : ''}`}
-            dir="rtl"
-            style={{
-              maxWidth: '100%',
-              maxHeight: isUnpinMode ? '100%' : 'calc(100vh - 120px)',
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'hsl(var(--primary) / 0.3) hsl(var(--primary) / 0.05)',
-            }}
-            onScroll={handleContentScroll}
-          >
-            {/* Main grid content */}
-            <div
+              {/* Schedule Header - Sticky to top of scroll container, always visible */}
+              <div
+                className="sticky top-0 bg-white shadow-sm"
+                style={{
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 40,
+                  backgroundColor: 'white',
+                  width: '100%',
+                  flexShrink: 0,
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  display: 'block',
+                  visibility: 'visible',
+                }}
+              >
+                <div
+                  ref={scheduleScrollRefs.headerScrollContainerRef}
+                  className="w-full overflow-x-auto overflow-y-visible scrollbar-hide"
+                  dir="rtl"
+                  style={{
+                    maxWidth: '100%',
+                  }}
+                  onScroll={handleHeaderScroll}
+                >
+                  <ScheduleHeader />
+                </div>
+              </div>
+              {/* Main grid content */}
+              <div
               className="relative"
               style={{
                 width: 'max-content',
@@ -181,6 +194,7 @@ export function ManagerScheduleContent() {
                 ))}
               </div>
             </div>
+            </div>
           </div>
 
           <DragOverlay>
@@ -204,7 +218,7 @@ export function ManagerScheduleContent() {
                 : (appointment.dogs[0]?.name || 'תור')
 
               // Determine background color based on appointment type
-              let bgColor = "bg-blue-500" // Default for business appointments
+              let bgColor = "bg-primary/100" // Default for business appointments
               if (appointment.isProposedMeeting) {
                 bgColor = "bg-lime-500"
               } else if (appointment.isPersonalAppointment || appointment.appointmentType === "private") {

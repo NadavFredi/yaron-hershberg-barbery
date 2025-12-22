@@ -127,7 +127,7 @@ export default function Subscriptions() {
     if (isAuthLoading || isFetchingClientId) {
         return (
             <div className="min-h-screen flex items-center justify-center" dir="rtl">
-                <div className="flex flex-col items-center gap-2 text-gray-600">
+                <div className="flex flex-col items-center gap-2 text-foreground/90">
                     <Loader2 className="h-8 w-8 animate-spin" />
                     <p>{isFetchingClientId ? "מאמת פרטי חשבון..." : "טוען נתוני משתמש..."}</p>
                 </div>
@@ -137,7 +137,7 @@ export default function Subscriptions() {
 
     if (!user || !effectiveClientId) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
+            <div className="min-h-screen flex items-center justify-center" dir="rtl">
                 <Card className="w-full max-w-md text-center">
                     <CardHeader>
                         <CardTitle>נדרש להתחבר</CardTitle>
@@ -148,7 +148,7 @@ export default function Subscriptions() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
+                        <Button asChild className="w-full bg-primary hover:bg-primary/90">
                             <a href="/login">כניסה לחשבון</a>
                         </Button>
                     </CardContent>
@@ -161,11 +161,11 @@ export default function Subscriptions() {
         <div className="min-h-screen py-8" dir="rtl">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
                 <header className="space-y-3">
-                    <Badge variant="outline" className="px-3 py-1 text-sm bg-blue-50 text-blue-700 border-blue-200 w-fit">
+                    <Badge variant="outline" className="px-3 py-1 text-sm bg-primary/10 text-primary border-primary/20 w-fit">
                         הכרטיסיות שלי
                     </Badge>
-                    <h1 className="text-3xl font-bold text-gray-900">ניהול מנויים וכרטיסיות</h1>
-                    <p className="text-gray-600 max-w-3xl">
+                    <h1 className="text-3xl font-bold text-foreground">ניהול מנויים וכרטיסיות</h1>
+                    <p className="text-foreground/90 max-w-3xl">
                         כאן תמצאו את כל הכרטיסיות והחבילות שרכשתם, את היתרה שנותרה ואת האפשרות לרכוש בקלות חבילות חדשות.
                         ניהול פשוט ונוח של טיפוח שגרתי ללקוחות הבית.
                     </p>
@@ -184,7 +184,7 @@ export default function Subscriptions() {
                         </CardHeader>
                         <CardContent className="w-full">
                             {isSubscriptionTypesLoading ? (
-                                <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-4">
+                                <div className="flex items-center justify-center gap-2 text-sm text-foreground/70 py-4">
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                     טוען סוגי כרטיסיות...
                                 </div>
@@ -208,10 +208,10 @@ export default function Subscriptions() {
                                     </div>
                                 </div>
                             ) : subscriptionTypes.length === 0 ? (
-                                <div className="text-center text-gray-500 py-8">
-                                    <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                                    <p className="text-lg font-medium text-gray-700 mb-2">לא הוגדרו סוגי כרטיסיות</p>
-                                    <p className="text-sm text-gray-500">כרגע אין סוגי כרטיסיות זמינים לרכישה.</p>
+                                <div className="text-center text-foreground/70 py-8">
+                                    <AlertCircle className="h-12 w-12 mx-auto mb-3 text-foreground/50" />
+                                    <p className="text-lg font-medium text-foreground mb-2">לא הוגדרו סוגי כרטיסיות</p>
+                                    <p className="text-sm text-foreground/70">כרגע אין סוגי כרטיסיות זמינים לרכישה.</p>
                                 </div>
                             ) : (
                                 <div className="grid gap-4 w-full" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))' }}>
@@ -219,19 +219,19 @@ export default function Subscriptions() {
                                         return (
                                             <div
                                                 key={subscriptionType.id}
-                                                className="flex flex-col rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md w-full"
+                                                className="flex flex-col rounded-lg border border-border bg-card p-6 shadow-sm transition hover:shadow-md w-full"
                                             >
                                                 <div className="space-y-3 flex-grow">
                                                     <div className="flex items-center justify-between">
-                                                        <h3 className="text-lg font-semibold text-gray-900">{subscriptionType.name}</h3>
+                                                        <h3 className="text-lg font-semibold text-card-foreground">{subscriptionType.name}</h3>
                                                     </div>
-                                                    <p className="text-sm text-gray-600 leading-6">{subscriptionType.description}</p>
+                                                    <p className="text-sm text-card-foreground/80 leading-6">{subscriptionType.description}</p>
                                                 </div>
                                                 <div className="mt-auto pt-4">
-                                                    <div className="text-2xl font-bold text-gray-900 mb-4">₪{subscriptionType.price}</div>
+                                                    <div className="text-2xl font-bold text-card-foreground mb-4">₪{subscriptionType.price}</div>
                                                     <Button
                                                         type="button"
-                                                        className="w-full bg-blue-600 hover:bg-blue-700"
+                                                        className="w-full bg-primary hover:bg-primary/90"
                                                         onClick={() => {
                                                             setSelectedSubscriptionType(subscriptionType)
                                                             setPurchaseModalOpen(true)
@@ -253,7 +253,7 @@ export default function Subscriptions() {
                     <Card className="shadow-sm">
                         <CardHeader>
                             <div className="flex items-center gap-3">
-                                <CreditCard className="h-5 w-5 text-blue-500" />
+                                <CreditCard className="h-5 w-5 text-primary" />
                                 <div>
                                     <CardTitle className="text-xl">הכרטיסיות שלי</CardTitle>
                                     <CardDescription>מעקב אחר כל החבילות והכרטיסיות שרכשתם</CardDescription>
@@ -281,7 +281,7 @@ export default function Subscriptions() {
                                     </div>
                                 </div>
                             ) : subscriptions.length === 0 && !isLoadingState ? (
-                                <div className="text-center text-gray-500 py-6">
+                                <div className="text-center text-foreground/70 py-6">
                                     לא נמצאו כרטיסיות פעילות כרגע.
                                 </div>
                             ) : (
@@ -303,12 +303,12 @@ export default function Subscriptions() {
                                                 <AccordionTrigger className="text-right">
                                                     <div className="flex items-center justify-between w-full">
                                                         <div className="flex flex-col items-start">
-                                                            <span className="font-semibold text-gray-900">
+                                                            <span className="font-semibold text-foreground">
                                                                 {subscription.planName ?? "כרטיסייה ללא שם"}
                                                             </span>
-                                                            <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                                                            <div className="flex items-center gap-4 text-sm text-foreground/80 mt-1">
                                                                 <span>נוצר בתאריך: {formatDate(subscription.purchasedAt)}</span>
-                                                                <span>יתרה: <span className="font-semibold text-blue-600">{subscription.remainingUses ?? "—"}</span></span>
+                                                                <span>יתרה: <span className="font-semibold text-primary">{subscription.remainingUses ?? "—"}</span></span>
                                                                 <span>סה"כ: {subscription.totalUses ?? "—"}</span>
                                                             </div>
                                                         </div>
@@ -341,7 +341,7 @@ export default function Subscriptions() {
                                                             </Button>
                                                         </div>
                                                     ) : usageRecords.length === 0 && !showUsageLoading ? (
-                                                        <div className="text-sm text-gray-500 py-4 text-center">
+                                                        <div className="text-sm text-foreground/70 py-4 text-center">
                                                             עדיין לא בוצעו שימושים בכרטיסייה הזו.
                                                         </div>
                                                     ) : (
@@ -356,8 +356,8 @@ export default function Subscriptions() {
                                                                 <TableBody>
                                                                     {usageRecords.map((usageRecord) => (
                                                                         <TableRow key={usageRecord.id}>
-                                                                            <TableCell className="text-right text-gray-600">{formatDate(usageRecord.createdAt || usageRecord.date)}</TableCell>
-                                                                            <TableCell className="text-right text-gray-900">{usageRecord.dogName ?? ""}</TableCell>
+                                                                            <TableCell className="text-right text-foreground/80">{formatDate(usageRecord.createdAt || usageRecord.date)}</TableCell>
+                                                                            <TableCell className="text-right text-foreground">{usageRecord.dogName ?? ""}</TableCell>
                                                                         </TableRow>
                                                                     ))}
                                                                 </TableBody>
@@ -365,7 +365,7 @@ export default function Subscriptions() {
                                                         </div>
                                                     )}
                                                     {showUsageLoading && (
-                                                        <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-4">
+                                                        <div className="flex items-center justify-center gap-2 text-sm text-foreground/70 py-4">
                                                             <Loader2 className="h-4 w-4 animate-spin" />
                                                             טוען ניצול כרטיסייה...
                                                         </div>
@@ -377,7 +377,7 @@ export default function Subscriptions() {
                                 </Accordion>
                             )}
                             {isLoadingState && (
-                                <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-4">
+                                <div className="flex items-center justify-center gap-2 text-sm text-foreground/70 py-4">
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                     טוען כרטיסיות...
                                 </div>

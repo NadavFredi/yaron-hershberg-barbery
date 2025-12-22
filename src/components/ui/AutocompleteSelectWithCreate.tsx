@@ -342,13 +342,13 @@ export function AutocompleteSelectWithCreate({
                   className={cn(
                     "w-full text-right px-3 py-2 text-sm rounded-md hover:bg-gray-100 flex items-center justify-between",
                     highlightedIndex === 0 && "bg-gray-100",
-                    !value && "bg-blue-50"
+                    !value && "bg-primary/10"
                   )}
                   onClick={handleClear}
                   onMouseEnter={() => setHighlightedIndex(0)}
                 >
                   <span className={cn(!value && "font-medium")}>{clearLabel}</span>
-                  {!value && <Check className="h-4 w-4 text-blue-600" />}
+                  {!value && <Check className="h-4 w-4 text-primary" />}
                 </button>
               )}
 
@@ -362,13 +362,13 @@ export function AutocompleteSelectWithCreate({
                     className={cn(
                       "w-full text-right px-3 py-2 text-sm rounded-md hover:bg-gray-100 flex items-center justify-between",
                       highlightedIndex === adjustedIndex && "bg-gray-100",
-                      isSelected && "bg-blue-50"
+                      isSelected && "bg-primary/10"
                     )}
                     onClick={() => handleSelect(option)}
                     onMouseEnter={() => setHighlightedIndex(adjustedIndex)}
                   >
                     <span className={cn(isSelected && "font-medium")}>{option.name}</span>
-                    {isSelected && <Check className="h-4 w-4 text-blue-600" />}
+                    {isSelected && <Check className="h-4 w-4 text-primary" />}
                   </button>
                 )
               })}
@@ -377,8 +377,8 @@ export function AutocompleteSelectWithCreate({
                 <button
                   type="button"
                   className={cn(
-                    "w-full text-right px-3 py-2 text-sm rounded-md hover:bg-blue-50 flex items-center justify-between text-blue-600 border-t border-gray-200 mt-1 pt-2",
-                    highlightedIndex === (allowClear ? 1 : 0) + filteredOptions.length && "bg-blue-50",
+                    "w-full text-right px-3 py-2 text-sm rounded-md hover:bg-primary/10 flex items-center justify-between text-primary border-t border-gray-200 mt-1 pt-2",
+                    highlightedIndex === (allowClear ? 1 : 0) + filteredOptions.length && "bg-primary/10",
                     isCreating && "opacity-50 cursor-not-allowed"
                   )}
                   onClick={handleCreate}

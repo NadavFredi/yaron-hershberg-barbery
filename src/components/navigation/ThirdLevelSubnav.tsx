@@ -159,7 +159,7 @@ export function ThirdLevelSubnav() {
       ref={subnavRef}
       data-nav-level="3"
       className={cn(
-        "hidden xl:block xl:z-20 xl:-mt-px xl:bg-gradient-to-r xl:from-indigo-50 xl:to-purple-50 xl:border-b xl:border-indigo-200/50 xl:shadow-sm xl:border-t xl:border-indigo-200/30 transition-all duration-300",
+        "hidden xl:block xl:z-20 xl:-mt-px xl:bg-gradient-to-r xl:from-primary/10 xl:to-primary/5 xl:border-b xl:border-primary/20 xl:shadow-sm xl:border-t xl:border-primary/15 transition-all duration-300",
         isCollapsed && "xl:opacity-0 xl:max-h-0 xl:overflow-hidden"
       )}
       onMouseEnter={() => {
@@ -201,10 +201,10 @@ export function ThirdLevelSubnav() {
                 type="button"
                 onClick={() => handleSectionChange(section.id)}
                 className={cn(
-                  "flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-indigo-600 text-white shadow-md"
-                    : "text-gray-700 hover:text-indigo-600 hover:bg-white/80 hover:shadow-sm"
+                    ? "bg-primary text-white shadow-md"
+                    : "text-gray-700 hover:text-primary hover:bg-white/80 hover:shadow-sm"
                 )}
               >
                 <IconComponent className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-500"}`} />

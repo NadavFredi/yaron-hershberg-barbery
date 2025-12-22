@@ -724,7 +724,7 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
 
                             <div className="space-y-2">
                                 <Label htmlFor="edit-customer-staff-notes" className="text-right flex items-center gap-2">
-                                    <FileText className="h-4 w-4 text-blue-400" />
+                                    <FileText className="h-4 w-4 text-primary/60" />
                                     הערות צוות פנימי
                                 </Label>
                                 <Textarea
@@ -736,7 +736,7 @@ export function EditCustomerDialog({ open, onOpenChange, customerId, onSuccess }
                                     dir="rtl"
                                     disabled={isUpdatingCustomer}
                                 />
-                                <p className="text-xs text-blue-600 text-right">
+                                <p className="text-xs text-primary text-right">
                                     הערות אלו נראות רק לצוות ולא ללקוח
                                 </p>
                             </div>

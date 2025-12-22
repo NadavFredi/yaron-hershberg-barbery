@@ -142,7 +142,7 @@ const ProposedMeetingPage = () => {
   if (meetingLoading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     )
   }
@@ -174,8 +174,8 @@ const ProposedMeetingPage = () => {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       <div className="max-w-4xl mx-auto px-4 py-10">
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center p-3 bg-indigo-100 rounded-full mb-4">
-            <CalendarIcon className="h-6 w-6 text-indigo-600" />
+          <div className="inline-flex items-center justify-center p-3 bg-primary/20 rounded-full mb-4">
+            <CalendarIcon className="h-6 w-6 text-primary" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900">אישור הזמנה</h1>
           <p className="text-slate-600 mt-2">בחרו לאשר את המפגש או הזינו קוד הזמנה אם נדרש.</p>

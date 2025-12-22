@@ -87,7 +87,7 @@ export const ConstraintDeleteDialog: React.FC<ConstraintDeleteDialogProps> = ({
                                     {stationNames.map((name, idx) => (
                                         <span
                                             key={idx}
-                                            className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm"
+                                            className="inline-block px-2 py-1 bg-primary/20 text-primary rounded text-sm"
                                         >
                                             {name}
                                         </span>

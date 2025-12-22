@@ -2557,6 +2557,78 @@ export const usePaymentModal = ({
   const handlePaymentIframeSuccess = async (data?: any) => {
     console.log("✅ [PaymentModal] Payment successful:", data)
 
+    // Save credit card token if provided in callback data
+    let customerIdForToken: string | null = null
+    if (data?.Token) {
+      // Get customer ID
+      if (appointment?.clientId) {
+        customerIdForToken = appointment.clientId
+      } else if (providedCartId || cartId) {
+        const cartIdToUse = providedCartId || cartId
+        const { data: cartData } = await supabase.from("carts").select("customer_id").eq("id", cartIdToUse).single()
+        customerIdForToken = cartData?.customer_id || null
+      }
+
+      if (customerIdForToken) {
+        try {
+          console.log("💳 [PaymentModal] Saving credit card token...")
+          
+          // Extract card information
+          const last4 = data.CardNo ? data.CardNo.slice(-4) : null
+          let expmonth: string | null = null
+          let expyear: string | null = null
+          if (data.CardExp) {
+            const expStr = data.CardExp.replace(/\//g, "")
+            if (expStr.length >= 4) {
+              expmonth = expStr.slice(0, 2)
+              expyear = "20" + expStr.slice(2, 4)
+            }
+          }
+
+          // Check if customer already has a saved token
+          const { data: existingToken } = await supabase
+            .from("credit_tokens")
+            .select("id")
+            .eq("customer_id", customerIdForToken)
+            .maybeSingle()
+
+          if (existingToken) {
+            // Update existing token
+            await supabase
+              .from("credit_tokens")
+              .update({
+                token: data.Token,
+                provider: data.CardType || "Tranzila",
+                last4: last4,
+                expmonth: expmonth,
+                expyear: expyear,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existingToken.id)
+            
+            console.log("✅ [PaymentModal] Updated existing credit token")
+          } else {
+            // Create new token
+            await supabase
+              .from("credit_tokens")
+              .insert({
+                customer_id: customerIdForToken,
+                token: data.Token,
+                provider: data.CardType || "Tranzila",
+                last4: last4,
+                expmonth: expmonth,
+                expyear: expyear,
+              })
+            
+            console.log("✅ [PaymentModal] Created new credit token")
+          }
+        } catch (tokenError) {
+          console.warn("⚠️ [PaymentModal] Failed to save credit token (non-critical):", tokenError)
+          // Don't fail the payment if token saving fails
+        }
+      }
+    }
+
     // Close iframe and proceed with order creation
     setShowPaymentIframe(false)
     setPaymentPostData(undefined)
@@ -2587,27 +2659,31 @@ export const usePaymentModal = ({
 
       const totalAmount = productsTotal + appointmentPriceValue
 
+      // Get customer ID
+      let orderCustomerId: string | null = null
+      if (appointment?.clientId) {
+        orderCustomerId = appointment.clientId
+      } else if (providedCartId || currentCartId) {
+        const cartIdToUse = providedCartId || currentCartId
+        const { data: cartData } = await supabase.from("carts").select("customer_id").eq("id", cartIdToUse).single()
+        orderCustomerId = cartData?.customer_id || null
+      }
+
       const orderData: any = {
         cart_id: currentCartId,
-        status: "pending",
+        status: "paid",
         subtotal: productsTotal,
         total: totalAmount,
         payment_method: paymentType || "credit",
       }
 
       if (appointment?.id && appointment?.serviceType) {
-        const appointmentIdField = "grooming_appointment_id"
+        const appointmentIdField = appointment.serviceType === "grooming" ? "grooming_appointment_id" : "daycare_appointment_id"
         orderData[appointmentIdField] = appointment.id
       }
 
-      if (appointment?.clientId) {
-        orderData.customer_id = appointment.clientId
-      } else if (providedCartId) {
-        const { data: cartData } = await supabase.from("carts").select("customer_id").eq("id", currentCartId).single()
-
-        if (cartData?.customer_id) {
-          orderData.customer_id = cartData.customer_id
-        }
+      if (orderCustomerId) {
+        orderData.customer_id = orderCustomerId
       }
 
       const { data: newOrder, error: orderError } = await supabase
@@ -2637,6 +2713,40 @@ export const usePaymentModal = ({
         const { error: orderItemsError } = await supabase.from("order_items").insert(orderItemsToInsert)
 
         if (orderItemsError) throw orderItemsError
+      }
+
+      // Create payment record
+      if (orderCustomerId) {
+        try {
+          const transactionId = data?.Response || data?.ConfirmationCode || data?.TranzilaTK
+          const { error: paymentError } = await supabase
+            .from("payments")
+            .insert({
+              customer_id: orderCustomerId,
+              amount: totalAmount,
+              currency: "ILS",
+              status: "paid",
+              method: "credit_card",
+              external_id: transactionId || null,
+              metadata: {
+                transaction_id: transactionId,
+                order_id: newOrder.id,
+                cart_id: currentCartId,
+                payment_type: paymentType,
+                payment_sub_type: paymentSubType,
+              },
+            })
+
+          if (paymentError) {
+            console.error("❌ [PaymentModal] Failed to create payment record:", paymentError)
+            // Don't throw - order is already created
+          } else {
+            console.log("✅ [PaymentModal] Payment record created")
+          }
+        } catch (paymentErr) {
+          console.error("❌ [PaymentModal] Error creating payment record:", paymentErr)
+          // Don't throw - order is already created
+        }
       }
 
       const { error: cartUpdateError } = await supabase

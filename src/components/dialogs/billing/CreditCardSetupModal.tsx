@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,6 +33,9 @@ export const CreditCardSetupModal: React.FC<CreditCardSetupModalProps> = ({
     const [email, setEmail] = useState("")
     const [isPhoneValid, setIsPhoneValid] = useState(true)
     const [showForm, setShowForm] = useState(true)
+    const pollingIntervalRef = useRef<number | null>(null)
+    const isPollingRef = useRef<boolean>(false)
+    const iframeShownAtRef = useRef<Date | null>(null)
 
     // Fetch customer profile to prefill form
     const {
@@ -54,6 +57,133 @@ export const CreditCardSetupModal: React.FC<CreditCardSetupModalProps> = ({
     // Note: We rely on the Tranzilla callback (save-credit-token-callback) to save the token
     // The callback is triggered automatically when payment succeeds, so we don't need
     // to listen for postMessage events or manually save the token from the frontend
+
+    // Poll for credit token after iframe is shown (callback saves token server-side)
+    useEffect(() => {
+        console.log("🔍 [CreditCardSetupModal] Polling useEffect triggered:", {
+            showIframe,
+            isPolling: isPollingRef.current,
+            customerId,
+            hasInterval: !!pollingIntervalRef.current
+        })
+
+        // Only start polling if iframe is shown, we're not already polling, and we have a customer ID
+        if (showIframe && !isPollingRef.current && customerId && !pollingIntervalRef.current) {
+            // Record when iframe was shown to only check for payments created after this time
+            if (!iframeShownAtRef.current) {
+                iframeShownAtRef.current = new Date()
+                console.log("📅 [CreditCardSetupModal] Recording iframe shown timestamp:", iframeShownAtRef.current.toISOString())
+            }
+
+            console.log("🚀 [CreditCardSetupModal] Starting payment polling...")
+            isPollingRef.current = true
+            let pollCount = 0
+            const maxPolls = 60 // Poll for up to 3 minutes (60 * 3 second intervals)
+
+            pollingIntervalRef.current = window.setInterval(async () => {
+                pollCount++
+                console.log(`🔄 [CreditCardSetupModal] Polling attempt ${pollCount}/${maxPolls}`, {
+                    customerId,
+                    iframeShownAt: iframeShownAtRef.current?.toISOString()
+                })
+
+                try {
+                    // Check for credit token created after the iframe was shown
+                    const iframeShownAt = iframeShownAtRef.current
+                    const timestampFilter = iframeShownAt?.toISOString() || new Date().toISOString()
+
+                    console.log("🔎 [CreditCardSetupModal] Querying credit_tokens:", {
+                        customerId,
+                        createdAfter: timestampFilter
+                    })
+
+                    const { data, error } = await supabase
+                        .from("credit_tokens")
+                        .select("id, created_at, last4, provider")
+                        .eq("customer_id", customerId)
+                        .gte("created_at", timestampFilter)
+                        .order("created_at", { ascending: false })
+                        .limit(1)
+                        .maybeSingle()
+
+                    console.log("📊 [CreditCardSetupModal] Poll result:", {
+                        hasData: !!data,
+                        hasError: !!error,
+                        data: data ? { id: data.id, last4: data.last4, provider: data.provider, created_at: data.created_at } : null,
+                        error: error ? { message: error.message, details: error.details } : null
+                    })
+
+                    if (!error && data) {
+                        // Credit token found! Stop polling and close modal immediately
+                        console.log("✅ [CreditCardSetupModal] Credit token detected:", {
+                            tokenId: data.id,
+                            last4: data.last4,
+                            provider: data.provider,
+                            createdAt: data.created_at
+                        })
+
+                        if (pollingIntervalRef.current) {
+                            clearInterval(pollingIntervalRef.current)
+                            pollingIntervalRef.current = null
+                        }
+                        isPollingRef.current = false
+                        iframeShownAtRef.current = null
+
+                        toast({
+                            title: "כרטיס אשראי נשמר בהצלחה",
+                            description: "פרטי כרטיס האשראי שלך נשמרו בהצלחה",
+                        })
+
+                        // Dispatch event to notify banner to refresh
+                        window.dispatchEvent(new CustomEvent("creditCardSaved"))
+
+                        // Trigger success callback
+                        onSuccess()
+                        handleClose()
+                    } else if (pollCount >= maxPolls) {
+                        // Stop polling after max attempts
+                        console.log("⏱️ [CreditCardSetupModal] Polling timeout reached after", pollCount, "attempts")
+                        if (pollingIntervalRef.current) {
+                            clearInterval(pollingIntervalRef.current)
+                            pollingIntervalRef.current = null
+                        }
+                        isPollingRef.current = false
+                        iframeShownAtRef.current = null
+                    }
+                } catch (error) {
+                    console.error("❌ [CreditCardSetupModal] Error polling for credit tokens:", error)
+                    if (pollCount >= maxPolls) {
+                        if (pollingIntervalRef.current) {
+                            clearInterval(pollingIntervalRef.current)
+                            pollingIntervalRef.current = null
+                        }
+                        isPollingRef.current = false
+                        iframeShownAtRef.current = null
+                    }
+                }
+            }, 3000) // Poll every 3 seconds
+        } else {
+            console.log("⏸️ [CreditCardSetupModal] Polling conditions not met:", {
+                showIframe,
+                isPolling: isPollingRef.current,
+                customerId: !!customerId,
+                hasInterval: !!pollingIntervalRef.current
+            })
+        }
+
+        return () => {
+            // Only cleanup if the iframe is being hidden
+            if (!showIframe) {
+                console.log("🧹 [CreditCardSetupModal] Cleaning up polling interval (iframe hidden)")
+                if (pollingIntervalRef.current) {
+                    clearInterval(pollingIntervalRef.current)
+                    pollingIntervalRef.current = null
+                }
+                isPollingRef.current = false
+                iframeShownAtRef.current = null
+            }
+        }
+    }, [showIframe, customerId, onSuccess, toast, onOpenChange])
 
     const validateForm = (): boolean => {
         if (!fullName.trim()) {
@@ -248,7 +378,16 @@ export const CreditCardSetupModal: React.FC<CreditCardSetupModalProps> = ({
 
             setIframeUrl(url)
             setShowForm(false)
+            // Reset polling state to ensure fresh start
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current)
+                pollingIntervalRef.current = null
+            }
+            isPollingRef.current = false
+            iframeShownAtRef.current = null
             setShowIframe(true)
+            // Reset the timestamp when showing iframe so we can track new payments
+            // This will be set in the useEffect when polling starts
         } catch (error) {
             console.error("❌ [CreditCardSetupModal] Error opening iframe:", error)
             toast({
@@ -266,6 +405,12 @@ export const CreditCardSetupModal: React.FC<CreditCardSetupModalProps> = ({
         setShowForm(true)
         setIframeUrl("")
         setLoading(false)
+        if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+        }
+        isPollingRef.current = false
+        iframeShownAtRef.current = null
         onOpenChange(false)
     }
 
@@ -395,8 +540,8 @@ export const CreditCardSetupModal: React.FC<CreditCardSetupModalProps> = ({
                 <DialogHeader className="p-6 pb-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-100 rounded-lg">
-                                <CreditCard className="h-5 w-5 text-blue-600" />
+                            <div className="p-2 bg-primary/20 rounded-lg">
+                                <CreditCard className="h-5 w-5 text-primary" />
                             </div>
                             <div>
                                 <DialogTitle className="text-xl font-bold text-right">
@@ -420,11 +565,11 @@ export const CreditCardSetupModal: React.FC<CreditCardSetupModalProps> = ({
                                 <span>תשלום מאובטח</span>
                             </div>
                             <div className="flex items-center gap-1">
-                                <Shield className="w-4 h-4 text-blue-600" />
+                                <Shield className="w-4 h-4 text-primary" />
                                 <span>מוגן SSL</span>
                             </div>
                             <div className="flex items-center gap-1">
-                                <CreditCard className="w-4 h-4 text-blue-600" />
+                                <CreditCard className="w-4 h-4 text-primary" />
                                 <span>Tranzila</span>
                             </div>
                         </div>
@@ -481,11 +626,11 @@ export const CreditCardSetupModal: React.FC<CreditCardSetupModalProps> = ({
                         </div>
 
                         {/* Info Message */}
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-right">
-                            <p className="text-sm text-blue-900 font-medium mb-2">
+                        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 text-right">
+                            <p className="text-sm text-primary font-medium mb-2">
                                 אימות כרטיס אשראי
                             </p>
-                            <p className="text-xs text-blue-700">
+                            <p className="text-xs text-primary">
                                 אנו נאמת את כרטיס האשראי שלך באמצעות תשלום סמלי של 1 ₪ בלבד.
                                 הכרטיס יישמר במערכת לצורך תשלומים עתידיים.
                             </p>

@@ -498,7 +498,7 @@ export function SettingsServiceStationMatrixSection() {
                                             const isRowSaving = savingServiceRowId === service.id
 
                                             // Get status color for filled circle (softer colors)
-                                            const statusColor = serviceStatus === 'none' ? 'bg-gray-300' : serviceStatus === 'some' ? 'bg-blue-300' : 'bg-green-300'
+                                            const statusColor = serviceStatus === 'none' ? 'bg-gray-300' : serviceStatus === 'some' ? 'bg-primary/30' : 'bg-green-300'
 
                                             return [
                                                 <tr
@@ -577,7 +577,7 @@ export function SettingsServiceStationMatrixSection() {
                                                                             type="button"
                                                                             variant="ghost"
                                                                             size="sm"
-                                                                            className="h-6 w-6 p-0 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                                                                            className="h-6 w-6 p-0 text-primary hover:text-primary hover:bg-primary/10"
                                                                             title="תור מרחוק - כן (סמן את כל העמדות כתומכות בתור מרחוק)"
                                                                             onClick={() => handleMarkAllRemoteBooking(service.id)}
                                                                         >
@@ -867,7 +867,7 @@ export function SettingsServiceStationMatrixSection() {
                                                                         disabled={!cell.supported}
                                                                         className={`flex items-center justify-center p-0.5 rounded transition-colors ${cell.supported
                                                                             ? (remoteBooking
-                                                                                ? 'text-blue-500 hover:text-blue-600 hover:bg-blue-50'
+                                                                                ? 'text-primary hover:text-primary hover:bg-primary/10'
                                                                                 : 'text-gray-300 hover:text-gray-400 hover:bg-gray-50')
                                                                             : 'text-gray-200 cursor-not-allowed'
                                                                             } ${cell.supported ? 'cursor-pointer' : ''}`}

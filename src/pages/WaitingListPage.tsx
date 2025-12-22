@@ -412,7 +412,7 @@ export default function WaitingListPage() {
 
     const getServiceBadge = (service: string) => {
         const badges = {
-            grooming: { label: "מספרה", icon: Scissors, color: "bg-blue-100 text-blue-800 border-blue-200" }
+            grooming: { label: "מספרה", icon: Scissors, color: "bg-primary/20 text-primary border-primary/20" }
         }
         const badge = badges[service as keyof typeof badges] || badges.grooming
         const Icon = badge.icon
@@ -433,200 +433,180 @@ export default function WaitingListPage() {
         )
     }
 
+    const handleClearAllFilters = () => {
+        setSearchTerm("")
+        setServiceFilter("all")
+        setPhoneFilter("")
+        setCustomerNameFilter("")
+        setEmailFilter("")
+        setStartDateFilter(null)
+        setEndDateFilter(null)
+        setSingleDateFilter(null)
+        setStatusFilter('active')
+    }
+
     return (
-        <div className="space-y-6" dir="rtl">
+        <div className="space-y-4 sm:space-y-6 p-3 sm:p-6" dir="rtl">
 
             {/* Filters and Search */}
             <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
+                <CardHeader className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                         <div>
-                            <CardTitle>רשימת המתנה</CardTitle>
-                            <CardDescription>סנן את רשימת ההמתנה לפי קריטריונים שונים</CardDescription>
+                            <CardTitle className="text-lg sm:text-xl">רשימת המתנה</CardTitle>
+                            <CardDescription className="text-xs sm:text-sm">
+                                {filteredEntries.length > 0
+                                    ? `נמצאו ${filteredEntries.length} בקשות`
+                                    : "לא נמצאו בקשות התואמות לסינונים"}
+                            </CardDescription>
                         </div>
-                        <Button
-                            onClick={() => setIsAddWaitlistModalOpen(true)}
-                            className="flex items-center gap-2"
-                        >
-                            <Plus className="h-4 w-4" />
-                            הוסף לרשימת המתנה
-                        </Button>
+                        <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleClearAllFilters}
+                                className="text-slate-600 hover:text-slate-900 text-xs sm:text-sm"
+                            >
+                                נקה מסננים
+                            </Button>
+                            <Button
+                                onClick={() => setIsAddWaitlistModalOpen(true)}
+                                className="flex items-center gap-2 text-xs sm:text-sm"
+                            >
+                                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                <span className="hidden sm:inline">הוסף לרשימת המתנה</span>
+                                <span className="sm:hidden">הוסף</span>
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    {/* Basic Filters Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="relative">
-                            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                            <Input
-                                placeholder="חיפוש כללי..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pr-10"
-                                dir="rtl"
-                            />
-                        </div>
-
-                        <Select value={serviceFilter} onValueChange={(v: any) => setServiceFilter(v)}>
-                            <SelectTrigger dir="rtl">
-                                <SelectValue placeholder="סוג שירות" />
-                            </SelectTrigger>
-                            <SelectContent dir="rtl">
-                                <SelectItem value="all">הכל</SelectItem>
-                                <SelectItem value="grooming">מספרה</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {/* Customer Details Filters Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <Label className="text-sm mb-2 block">שם לקוח</Label>
-                            <AutocompleteFilter
-                                value={customerNameFilter}
-                                onChange={setCustomerNameFilter}
-                                placeholder="שם לקוח..."
-                                searchFn={searchCustomerNames}
-                                minSearchLength={0}
-                                autoSearchOnFocus
-                                initialLoadOnMount
-                                initialResultsLimit={5}
-                            />
-                        </div>
-                        <div>
-                            <Label className="text-sm mb-2 block">טלפון</Label>
-                            <AutocompleteFilter
-                                value={phoneFilter}
-                                onChange={setPhoneFilter}
-                                placeholder="טלפון..."
-                                searchFn={searchPhoneNumbers}
-                                minSearchLength={0}
-                                autoSearchOnFocus
-                                initialLoadOnMount
-                                initialResultsLimit={5}
-                            />
-                        </div>
-                        <div>
-                            <Label className="text-sm mb-2 block">אימייל</Label>
-                            <AutocompleteFilter
-                                value={emailFilter}
-                                onChange={setEmailFilter}
-                                placeholder="אימייל..."
-                                searchFn={searchEmails}
-                                minSearchLength={0}
-                                autoSearchOnFocus
-                                initialLoadOnMount
-                                initialResultsLimit={5}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Date Filters Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <Label className="text-sm mb-2 block">תאריך התחלה מינימום</Label>
-                            <DatePickerInput
-                                value={startDateFilter}
-                                onChange={setStartDateFilter}
-                                displayFormat="dd/MM/yyyy"
-                                className="w-full text-right"
-                            />
-                        </div>
-                        <div>
-                            <Label className="text-sm mb-2 block">תאריך סיום מקסימום</Label>
-                            <DatePickerInput
-                                value={endDateFilter}
-                                onChange={setEndDateFilter}
-                                displayFormat="dd/MM/yyyy"
-                                className="w-full text-right"
-                            />
-                        </div>
-                        <div>
-                            <Label className="text-sm mb-2 block">הצג בקשות ממתינות בתאריך זה</Label>
-                            <DatePickerInput
-                                value={singleDateFilter}
-                                onChange={setSingleDateFilter}
-                                displayFormat="dd/MM/yyyy"
-                                className="w-full text-right"
-                            />
-                            {singleDateFilter && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setSingleDateFilter(null)}
-                                    className="mt-2"
-                                >
-                                    <X className="h-3 w-3 ml-1" />
-                                    נקה תאריך
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Clear Filters Button */}
-                    {(phoneFilter || customerNameFilter || emailFilter ||
-                        startDateFilter || endDateFilter || singleDateFilter) && (
-                            <div className="flex justify-start pt-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setPhoneFilter("")
-                                        setCustomerNameFilter("")
-                                        setEmailFilter("")
-                                        setStartDateFilter(null)
-                                        setEndDateFilter(null)
-                                        setSingleDateFilter(null)
-                                    }}
-                                >
-                                    <X className="h-4 w-4 ml-2" />
-                                    נקה כל הסינונים
-                                </Button>
+                <CardContent className="p-4 sm:p-6">
+                    {/* Filters */}
+                    <div className="space-y-3 sm:space-y-4">
+                        {/* First Row */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                            <div>
+                                <Label className="text-sm mb-2 block">חיפוש כללי</Label>
+                                <div className="flex items-center gap-2">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                        <Input
+                                            placeholder="חיפוש כללי..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="pr-10 w-full"
+                                            dir="rtl"
+                                        />
+                                    </div>
+                                    {searchTerm && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-10 w-10"
+                                            onClick={() => setSearchTerm("")}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
-                        )}
+                            <div>
+                                <Label className="text-sm mb-2 block">סוג שירות</Label>
+                                <Select value={serviceFilter} onValueChange={(v: any) => setServiceFilter(v)}>
+                                    <SelectTrigger dir="rtl">
+                                        <SelectValue placeholder="סוג שירות" />
+                                    </SelectTrigger>
+                                    <SelectContent dir="rtl">
+                                        <SelectItem value="all">הכל</SelectItem>
+                                        <SelectItem value="grooming">מספרה</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label className="text-sm mb-2 block">שם לקוח</Label>
+                                <AutocompleteFilter
+                                    value={customerNameFilter}
+                                    onChange={setCustomerNameFilter}
+                                    placeholder="שם לקוח..."
+                                    searchFn={searchCustomerNames}
+                                    minSearchLength={0}
+                                    autoSearchOnFocus
+                                    initialLoadOnMount
+                                    initialResultsLimit={5}
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-sm mb-2 block">טלפון</Label>
+                                <AutocompleteFilter
+                                    value={phoneFilter}
+                                    onChange={setPhoneFilter}
+                                    placeholder="טלפון..."
+                                    searchFn={searchPhoneNumbers}
+                                    minSearchLength={0}
+                                    autoSearchOnFocus
+                                    initialLoadOnMount
+                                    initialResultsLimit={5}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Second Row */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                            <div>
+                                <Label className="text-sm mb-2 block">אימייל</Label>
+                                <AutocompleteFilter
+                                    value={emailFilter}
+                                    onChange={setEmailFilter}
+                                    placeholder="אימייל..."
+                                    searchFn={searchEmails}
+                                    minSearchLength={0}
+                                    autoSearchOnFocus
+                                    initialLoadOnMount
+                                    initialResultsLimit={5}
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-sm mb-2 block">תאריך התחלה מינימום</Label>
+                                <DatePickerInput
+                                    value={startDateFilter}
+                                    onChange={setStartDateFilter}
+                                    displayFormat="dd/MM/yyyy"
+                                    className="w-full text-right"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-sm mb-2 block">תאריך סיום מקסימום</Label>
+                                <DatePickerInput
+                                    value={endDateFilter}
+                                    onChange={setEndDateFilter}
+                                    displayFormat="dd/MM/yyyy"
+                                    className="w-full text-right"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-sm mb-2 block">הצג בקשות ממתינות בתאריך זה</Label>
+                                <DatePickerInput
+                                    value={singleDateFilter}
+                                    onChange={setSingleDateFilter}
+                                    displayFormat="dd/MM/yyyy"
+                                    className="w-full text-right"
+                                />
+                                {singleDateFilter && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setSingleDateFilter(null)}
+                                        className="mt-2"
+                                    >
+                                        <X className="h-3 w-3 ml-1" />
+                                        נקה תאריך
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
-
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>סה"כ בקשות</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{waitlistEntries.length}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>פעיל</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-blue-600">
-                            {waitlistEntries.filter(e => e.status === 'active').length}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>מבוצע</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600">
-                            {waitlistEntries.filter(e => e.status === 'fulfilled').length}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>בוטל</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-gray-600">
-                            {waitlistEntries.filter(e => e.status === 'cancelled').length}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
 
             {/* Waitlist Entries */}
             {filteredEntries.length === 0 ? (
@@ -638,16 +618,16 @@ export default function WaitingListPage() {
                 </Card>
             ) : (
                 <div className="border rounded-lg bg-white shadow-sm">
-                    <div className="overflow-x-auto overflow-y-auto max-h-[700px] [direction:ltr] custom-scrollbar">
+                    <div className="overflow-x-auto overflow-y-auto max-h-[60vh] sm:max-h-[700px] [direction:ltr] custom-scrollbar">
                         <div className="[direction:rtl]">
-                            <table className="w-full caption-bottom text-sm">
+                            <table className="w-full caption-bottom text-sm min-w-[800px]">
                                 <thead>
                                     <tr className="border-b bg-[hsl(228_36%_95%)] text-right text-primary [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-[hsl(228_36%_95%)]">
-                                        <th className="h-12 w-12 text-center align-middle font-semibold"></th>
-                                        <th className="h-12 px-3 align-middle font-semibold">לקוח</th>
-                                        <th className="h-12 px-3 align-middle font-semibold text-center">טווח המתנה</th>
-                                        <th className="h-12 px-3 align-middle font-semibold text-center w-32">סטטוס</th>
-                                        <th className="h-12 px-3 align-middle font-semibold text-center w-16">פעולות</th>
+                                        <th className="h-10 sm:h-12 w-10 sm:w-12 text-center align-middle font-semibold text-xs sm:text-sm"></th>
+                                        <th className="h-10 sm:h-12 px-2 sm:px-3 align-middle font-semibold text-xs sm:text-sm">לקוח</th>
+                                        <th className="h-10 sm:h-12 px-2 sm:px-3 align-middle font-semibold text-xs sm:text-sm text-center">טווח המתנה</th>
+                                        <th className="h-10 sm:h-12 px-2 sm:px-3 align-middle font-semibold text-xs sm:text-sm text-center w-24 sm:w-32">סטטוס</th>
+                                        <th className="h-10 sm:h-12 px-2 sm:px-3 align-middle font-semibold text-xs sm:text-sm text-center w-14 sm:w-16">פעולות</th>
                                     </tr>
                                 </thead>
                                 <tbody className="[&_tr:last-child]:border-0">
@@ -864,7 +844,7 @@ function WaitlistEntryRow({
     onViewInCalendar
 }: WaitlistEntryRowProps) {
     const statusBadges = {
-        active: { label: "פעיל", color: "bg-blue-100 text-blue-800 border-blue-200" },
+        active: { label: "פעיל", color: "bg-primary/20 text-primary border-primary/20" },
         fulfilled: { label: "מבוצע", color: "bg-green-100 text-green-800 border-green-200" },
         cancelled: { label: "בוטל", color: "bg-gray-100 text-gray-800 border-gray-200" }
     }
@@ -942,7 +922,7 @@ function WaitlistEntryRow({
                                 <>
                                     <DropdownMenuItem onClick={onApprove} className="flex items-center justify-between gap-2">
                                         <span>אשר</span>
-                                        <CheckCircle className="h-4 w-4 text-blue-600" />
+                                        <CheckCircle className="h-4 w-4 text-primary" />
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={onSuggest} className="flex items-center justify-between gap-2">
                                         <span>הצע זמן חלופי</span>
@@ -966,9 +946,9 @@ function WaitlistEntryRow({
             {isExpanded && (
                 <tr className="bg-[hsl(228_36%_98%)]">
                     <td className="border-b-0" />
-                    <td colSpan={4} className="border-b px-6 py-6">
-                        <div className="space-y-6">
-                            <div className="grid gap-8 lg:grid-cols-2">
+                    <td colSpan={4} className="border-b px-3 sm:px-6 py-4 sm:py-6">
+                        <div className="space-y-4 sm:space-y-6">
+                            <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
                                 <InfoSection
                                     icon={<User className="h-4 w-4" />}
                                     title="פרטי הלקוח"
@@ -990,7 +970,7 @@ function WaitlistEntryRow({
                                 />
                             </div>
                             {entry.notes && (
-                                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-6 py-4 text-sm text-gray-700">
+                                <div className="rounded-xl sm:rounded-2xl border border-primary/20 bg-primary/10 px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-700">
                                     <span className="font-semibold text-gray-900">הערות:</span> {entry.notes}
                                 </div>
                             )}
@@ -1008,9 +988,9 @@ interface DetailRowProps {
 }
 
 const DetailRow = ({ label, value }: DetailRowProps) => (
-    <div className="flex items-center  gap-3 text-right">
+    <div className="flex items-center gap-2 sm:gap-3 text-right">
         <span className="text-xs font-semibold text-gray-500">{label}</span>
-        <span className="text-sm font-medium text-gray-900">{value || "-"}</span>
+        <span className="text-xs sm:text-sm font-medium text-gray-900 break-words">{value || "-"}</span>
     </div>
 )
 
@@ -1021,13 +1001,13 @@ interface InfoSectionProps {
 }
 
 const InfoSection = ({ icon, title, rows }: InfoSectionProps) => (
-    <div className="space-y-3">
-        <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+    <div className="space-y-2 sm:space-y-3">
+        <h4 className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-700">
             {icon}
             {title}
         </h4>
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-4 shadow-sm">
-            <dl className="space-y-3 text-sm text-gray-700">
+        <div className="rounded-xl sm:rounded-2xl border border-primary/20 bg-white px-3 sm:px-4 py-3 sm:py-4 shadow-sm">
+            <dl className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-gray-700">
                 {rows.map((row, index) => (
                     <DetailRow key={`${title}-${row.label}-${index}`} label={row.label} value={row.value} />
                 ))}

@@ -58,7 +58,7 @@ export const TokenPaymentApproval: React.FC<TokenPaymentApprovalProps> = ({
             <Card>
                 <CardHeader>
                     <CardTitle className="text-right flex items-center gap-2">
-                        <Wallet className="h-5 w-5 text-blue-600" />
+                        <Wallet className="h-5 w-5 text-primary" />
                         <span>כרטיס אשראי שמור</span>
                     </CardTitle>
                     <CardDescription className="text-right">
@@ -66,7 +66,7 @@ export const TokenPaymentApproval: React.FC<TokenPaymentApprovalProps> = ({
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
                         <div className="flex items-center justify-between">
                             <span className="text-gray-600">מספר כרטיס:</span>
                             <span className="font-semibold text-gray-900">
@@ -125,7 +125,7 @@ export const TokenPaymentApproval: React.FC<TokenPaymentApprovalProps> = ({
                                 </div>
                                 <div className="flex items-center justify-between pt-2 border-t border-gray-300">
                                     <span className="text-gray-600">סכום לכל תשלום:</span>
-                                    <span className="text-lg font-bold text-blue-600">
+                                    <span className="text-lg font-bold text-primary">
                                         ₪{singlePaymentAmount.toFixed(2)}
                                     </span>
                                 </div>
@@ -135,7 +135,7 @@ export const TokenPaymentApproval: React.FC<TokenPaymentApprovalProps> = ({
 
                     {/* Security Notice */}
                     <div className="bg-purple-50 border border-purple-200 rounded p-3 flex items-start gap-2">
-                        <Lock className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                        <Lock className="w-4 h-4 flex-shrink-0 mt-0.5 text-primary" />
                         <div className="text-xs text-purple-800">
                             <p className="font-medium">תשלום מאובטח</p>
                             <p className="mt-1">התשלום יתבצע דרך Tranzila - מערכת תשלומים מאובטחת ומאושרת</p>

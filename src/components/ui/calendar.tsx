@@ -48,7 +48,7 @@ function CustomCaption(props: CustomCaptionProps) {
       <button
         type="button"
         onClick={handleToday}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-xs font-semibold shadow-sm transition-all duration-200 hover:shadow-md"
+        className="bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-md text-xs font-semibold shadow-sm transition-all duration-200 hover:shadow-md"
       >
         היום
       </button>

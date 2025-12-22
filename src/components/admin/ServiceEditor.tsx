@@ -167,7 +167,7 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-gray-600">טוען נתוני השירות...</p>
         </div>
       </div>
@@ -186,7 +186,7 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
           <Button
             variant="ghost"
             onClick={onBack}
-            className="mb-4 text-blue-600 hover:text-blue-700"
+            className="mb-4 text-primary hover:text-primary"
           >
             <ArrowRight className="w-4 h-4 ml-2" />
             חזרה לרשימת השירותים
@@ -213,7 +213,7 @@ const ServiceEditor = ({ serviceId, onBack }: ServiceEditorProps) => {
             <Button
               variant="outline"
               onClick={() => setIsApplyAllDialogOpen(true)}
-              className="text-blue-600 hover:text-blue-700"
+              className="text-primary hover:text-primary"
             >
               <Clock className="w-4 h-4 ml-2" />
               החל זמן אחיד על כל העמדות

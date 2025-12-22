@@ -20,7 +20,6 @@ interface CartAppointment {
     id: string
     appointment_price: number
     grooming_appointment_id: string | null
-    daycare_appointment_id: string | null
     appointment?: {
         id: string
         start_at: string
@@ -109,8 +108,7 @@ export default function PaymentPage() {
                     .select(`
                         id,
                         appointment_price,
-                        grooming_appointment_id,
-                        daycare_appointment_id
+                        grooming_appointment_id
                     `)
                     .eq("cart_id", cartId)
 
@@ -120,11 +118,6 @@ export default function PaymentPage() {
                 const groomingAppointmentIds = cartAppointments
                     ?.filter((ca) => ca.grooming_appointment_id)
                     .map((ca) => ca.grooming_appointment_id)
-                    .filter(Boolean) || []
-
-                const daycareAppointmentIds = cartAppointments
-                    ?.filter((ca) => ca.daycare_appointment_id)
-                    .map((ca) => ca.daycare_appointment_id)
                     .filter(Boolean) || []
 
                 let appointmentsData: any[] = []
@@ -149,30 +142,10 @@ export default function PaymentPage() {
                     groomingApps = groomingData || []
                 }
 
-                // Fetch daycare appointments
-                let daycareApps: any[] = []
-                if (daycareAppointmentIds.length > 0) {
-                    const { data: daycareData } = await supabase
-                        .from("daycare_appointments")
-                        .select(`
-                            id,
-                            start_at,
-                            end_at,
-                            dogs (
-                                name
-                            ),
-                            customers (
-                                full_name
-                            )
-                        `)
-                        .in("id", daycareAppointmentIds)
-                    daycareApps = daycareData || []
-                }
-
-                const allApps = [...groomingApps, ...daycareApps]
+                const allApps = [...groomingApps]
                 appointmentsData = cartAppointments?.map((ca) => {
                     const appt = allApps.find(
-                        (a) => a.id === (ca.grooming_appointment_id || ca.daycare_appointment_id)
+                        (a) => a.id === ca.grooming_appointment_id
                     )
                     return {
                         ...ca,
@@ -487,7 +460,7 @@ export default function PaymentPage() {
                                     <div key={apt.id} className="border rounded-lg p-4 bg-gray-50">
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-2 text-right">
-                                                <Calendar className="h-4 w-4 text-blue-600" />
+                                                <Calendar className="h-4 w-4 text-primary" />
                                                 {apt.appointment && (
                                                     <span className="font-medium">
                                                         {format(new Date(apt.appointment.start_at), "dd/MM/yyyy", { locale: he })}
@@ -563,4 +536,3 @@ export default function PaymentPage() {
         </div>
     )
 }
-

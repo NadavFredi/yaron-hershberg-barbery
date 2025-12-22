@@ -26,7 +26,7 @@ const PIN_REASON_LABELS: Record<PinReason, { label: string; badgeClass: string }
   reschedule: { label: "צריך שינוי תאריך", badgeClass: "bg-red-50 text-red-700 border-red-100" },
   attention: { label: "דורש תשומת לב", badgeClass: "bg-orange-50 text-orange-700 border-orange-100" },
   special: { label: "בקשה מיוחדת", badgeClass: "bg-purple-50 text-purple-700 border-purple-100" },
-  date_change: { label: "שינוי תאריך ממתין", badgeClass: "bg-blue-50 text-blue-700 border-blue-100" },
+  date_change: { label: "שינוי תאריך ממתין", badgeClass: "bg-primary/10 text-primary border-primary/20" },
   quick_access: { label: "גישה מהירה", badgeClass: "bg-gray-50 text-gray-700 border-gray-100" },
 }
 
@@ -169,7 +169,7 @@ export function PinnedAppointmentsColumn({
                     className={cn(
                       "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
                       selectedServiceType === "grooming"
-                        ? "border-blue-200 bg-blue-50 text-blue-700"
+                        ? "border-primary/20 bg-primary/10 text-primary"
                         : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
                     )}
                   >
@@ -245,7 +245,7 @@ export function PinnedAppointmentsColumn({
                             className={cn(
                               "text-[10px]",
                               pin.appointment_type === "grooming"
-                                ? "border-blue-200 bg-blue-50 text-blue-700"
+                                ? "border-primary/20 bg-primary/10 text-primary"
                                 : "border-emerald-200 bg-emerald-50 text-emerald-700"
                             )}
                           >

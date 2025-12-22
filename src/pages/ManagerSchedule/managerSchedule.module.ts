@@ -179,15 +179,44 @@ export const buildTimeline = (
 ): TimelineConfig => {
   const dayStart = startOfDay(selectedDate)
 
-  // Determine start and end hours from business hours or defaults
-  // Business hours take priority over globalEndHour parameter
+  // Determine start and end hours with priority:
+  // 1. Calendar window hours (for manager display - highest priority)
+  // 2. Business hours (if no calendar window hours)
+  // 3. globalEndHour parameter (if no business hours)
+  // 4. Defaults
   let startHour = DEFAULT_START_HOUR
   let startMinute = 0
   let endHour = DEFAULT_END_HOUR
   let endMinute = 0
 
-  // Use business hours if available (priority over globalEndHour and defaults)
-  if (data?.businessHours) {
+  // Use calendar window hours if available (highest priority for manager display)
+  if (data?.calendarWindowHours) {
+    const startTimeParts = data.calendarWindowHours.startTime.split(":")
+    const endTimeParts = data.calendarWindowHours.endTime.split(":")
+
+    if (startTimeParts.length >= 2) {
+      startHour = parseInt(startTimeParts[0], 10)
+      startMinute = parseInt(startTimeParts[1], 10)
+      if (isNaN(startHour)) startHour = DEFAULT_START_HOUR
+      if (isNaN(startMinute)) startMinute = 0
+    }
+
+    if (endTimeParts.length >= 2) {
+      endHour = parseInt(endTimeParts[0], 10)
+      endMinute = parseInt(endTimeParts[1], 10)
+      if (isNaN(endHour)) endHour = DEFAULT_END_HOUR
+      if (isNaN(endMinute)) endMinute = 0
+    }
+
+    console.log(
+      `🕐 [buildTimeline] Using calendar window hours: ${data.calendarWindowHours.startTime} - ${
+        data.calendarWindowHours.endTime
+      } (parsed: ${startHour}:${startMinute.toString().padStart(2, "0")} - ${endHour}:${endMinute
+        .toString()
+        .padStart(2, "0")})`
+    )
+  } else if (data?.businessHours) {
+    // Use business hours if calendar window hours are not available
     const openTimeParts = data.businessHours.openTime.split(":")
     const closeTimeParts = data.businessHours.closeTime.split(":")
 
@@ -213,12 +242,12 @@ export const buildTimeline = (
         .padStart(2, "0")})`
     )
   } else if (globalEndHour !== undefined) {
-    // Only use globalEndHour if business hours are not available
+    // Only use globalEndHour if calendar window hours and business hours are not available
     endHour = globalEndHour
-    console.log(`🕐 [buildTimeline] Using globalEndHour: ${globalEndHour}:00 (no business hours available)`)
+    console.log(`🕐 [buildTimeline] Using globalEndHour: ${globalEndHour}:00 (no calendar window hours or business hours available)`)
   } else {
     console.log(
-      `🕐 [buildTimeline] Using default hours: ${DEFAULT_START_HOUR}:00 - ${DEFAULT_END_HOUR}:00 (no business hours or globalEndHour)`
+      `🕐 [buildTimeline] Using default hours: ${DEFAULT_START_HOUR}:00 - ${DEFAULT_END_HOUR}:00 (no calendar window hours, business hours, or globalEndHour)`
     )
   }
 

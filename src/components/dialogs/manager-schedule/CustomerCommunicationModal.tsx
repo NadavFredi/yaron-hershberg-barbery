@@ -36,12 +36,12 @@ export const CustomerCommunicationModal: React.FC<CustomerCommunicationModalProp
                             onSuggestNewTime()
                             onOpenChange(false)
                         }}
-                        className="w-full h-auto p-4 flex items-center justify-start gap-3 text-right hover:bg-blue-50"
+                        className="w-full h-auto p-4 flex items-center justify-start gap-3 text-right hover:bg-primary/10"
                         variant="outline"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100">
-                                <CalendarCog className="h-5 w-5 text-blue-600" />
+                            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/20">
+                                <CalendarCog className="h-5 w-5 text-primary" />
                             </div>
                             <div className="text-right flex-1">
                                 <div className="font-semibold">הצע זמן חדש</div>

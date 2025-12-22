@@ -46,7 +46,7 @@ export const getAppointmentStatusBadgeConfig = (
 
     if (normalized.includes("approve") || normalized === "מאושר") {
         if (past) {
-            return createBadge('הושלם', "bg-blue-50 text-blue-700 border-blue-200")
+            return createBadge('הושלם', "bg-primary/10 text-primary border-primary/20")
         }
         return createBadge('מאושר', "bg-green-50 text-green-700 border-green-200")
     }
@@ -60,7 +60,7 @@ export const getAppointmentStatusBadgeConfig = (
     }
 
     if (normalized.includes("complete") || normalized === "הושלם" || past) {
-        return createBadge('הושלם', "bg-blue-50 text-blue-700 border-blue-200")
+        return createBadge('הושלם', "bg-primary/10 text-primary border-primary/20")
     }
 
     return createBadge(status, "bg-gray-100 text-gray-800 border-gray-200")

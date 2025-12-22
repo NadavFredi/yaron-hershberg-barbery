@@ -67,6 +67,7 @@ export const TimePickerInput = forwardRef<HTMLInputElement, TimePickerInputProps
     const wasOpenRef = useRef(false)
     const isManualModeChangeRef = useRef(false)
     const [portalStyles, setPortalStyles] = useState<CSSProperties>()
+    const [maxHeight, setMaxHeight] = useState<number>(288) // 18rem = 288px
 
     useImperativeHandle(ref, () => inputRef.current as HTMLInputElement)
 
@@ -221,11 +222,35 @@ export const TimePickerInput = forwardRef<HTMLInputElement, TimePickerInputProps
       const rect = anchor.getBoundingClientRect()
       const dropdownWidth = listRef.current?.offsetWidth || 280
       const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
       const gutter = 8
+      const defaultMaxHeight = 288 // 18rem = 288px
 
+      // Calculate available space
+      const spaceBelow = viewportHeight - rect.bottom - gutter
+      const spaceAbove = rect.top - gutter
+      
+      // Calculate dynamic max-height based on available space
+      // Use the larger of the two spaces, but cap at default max-height
+      const availableSpace = Math.max(spaceBelow, spaceAbove)
+      const calculatedMaxHeight = Math.min(availableSpace - 20, defaultMaxHeight) // 20px buffer
+      setMaxHeight(Math.max(calculatedMaxHeight, 200)) // Minimum 200px height
+
+      // Calculate horizontal position
       let left = rect.right - dropdownWidth
       left = Math.max(gutter, Math.min(left, viewportWidth - dropdownWidth - gutter))
-      const top = rect.bottom + gutter
+
+      // Calculate vertical position - check if dropdown fits below, otherwise show above
+      let top = rect.bottom + gutter
+      const estimatedDropdownHeight = Math.min(calculatedMaxHeight, defaultMaxHeight)
+      
+      // If not enough space below but more space above, show above
+      if (spaceBelow < estimatedDropdownHeight && spaceAbove > spaceBelow) {
+        top = rect.top - estimatedDropdownHeight - gutter
+      }
+      
+      // Ensure dropdown doesn't go off-screen vertically
+      top = Math.max(gutter, Math.min(top, viewportHeight - estimatedDropdownHeight - gutter))
 
       setPortalStyles({
         position: "fixed",
@@ -261,10 +286,10 @@ export const TimePickerInput = forwardRef<HTMLInputElement, TimePickerInputProps
         ref={listRef}
         data-time-picker-portal
         className={cn(
-          "w-64 sm:w-72 min-w-[240px] max-w-[320px] max-h-[18rem] overflow-auto rounded-md border border-gray-200 bg-white shadow-lg",
+          "w-64 sm:w-72 min-w-[240px] max-w-[320px] overflow-y-auto overflow-x-hidden rounded-md border border-gray-200 bg-white shadow-lg",
           usePortal ? "" : "absolute mt-2 z-50"
         )}
-        style={usePortal ? { ...portalStyles, pointerEvents: 'auto' } : undefined}
+        style={usePortal ? { ...portalStyles, pointerEvents: 'auto', maxHeight: `${maxHeight}px` } : { maxHeight: `${maxHeight}px` }}
       >
         {selectionMode === 'hour' ? (
           <div className="p-2">

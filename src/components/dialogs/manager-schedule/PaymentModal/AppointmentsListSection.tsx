@@ -117,7 +117,7 @@ export const AppointmentsListSection: React.FC<AppointmentsListSectionProps> = (
                 </Label>
                 <div className="flex items-center gap-2">
                     {groomingAppointments.length > 0 && (
-                        <div className="text-right text-base font-bold text-blue-700">
+                        <div className="text-right text-base font-bold text-primary">
                             ₪{calculateAppointmentsTotal().toFixed(2)}
                         </div>
                     )}
@@ -185,7 +185,7 @@ export const AppointmentsListSection: React.FC<AppointmentsListSectionProps> = (
                                         </td>
                                         <td className="p-2 align-middle text-right">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <Scissors className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                                <Scissors className="h-4 w-4 text-primary flex-shrink-0" />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <Badge variant="outline" className="text-xs px-2 py-0.5">
@@ -296,7 +296,7 @@ export const AppointmentsListSection: React.FC<AppointmentsListSectionProps> = (
                                                                     onClick={() => onUpdateAppointmentPrice(cartAppt.id, originalPrice)}
                                                                     title="איפוס למחיר המקורי"
                                                                 >
-                                                                    <RotateCcw className="h-3 w-3 text-blue-600" />
+                                                                    <RotateCcw className="h-3 w-3 text-primary" />
                                                                 </Button>
                                                             )
                                                         }
@@ -324,10 +324,10 @@ export const AppointmentsListSection: React.FC<AppointmentsListSectionProps> = (
                         <button
                             type="button"
                             onClick={onAddNewGroomingProduct}
-                            className="w-full border-2 border-dashed border-blue-300 rounded-lg p-2 bg-blue-50 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+                            className="w-full border-2 border-dashed border-primary/30 rounded-lg p-2 bg-primary/10 hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"
                         >
-                            <Plus className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium text-blue-900">הוסף מוצר חדש</span>
+                            <Plus className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-medium text-primary">הוסף מוצר חדש</span>
                         </button>
                     )}
                 </div>

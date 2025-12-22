@@ -1,5 +1,5 @@
 import { format, differenceInMinutes } from "date-fns"
-import { MoreHorizontal, Calendar, Save, Loader2, X, CreditCard, Receipt, Info, Link2Off, Image as ImageIcon } from "lucide-react"
+import { MoreHorizontal, Save, Loader2, X, CreditCard, Receipt, Info, Link2Off, Image as ImageIcon, Clock, MapPin, User, CalendarDays, FileText, Edit, Pencil, Users, DollarSign, Upload, CheckCircle, XCircle, AlertTriangle, Brush } from "lucide-react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 
@@ -7,14 +7,15 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { PaymentModal } from "@/components/dialogs/manager-schedule/PaymentModal"
 import { SeriesAppointmentsModal } from "@/components/dialogs/manager-schedule/SeriesAppointmentsModal"
 import { SendInvoiceDialog } from "@/components/dialogs/manager-schedule/SendInvoiceDialog"
 import { OrderDetailsModal } from "@/components/dialogs/manager-schedule/PaymentModal/OrderDetailsModal"
+import { HairColoringModal } from "@/components/dialogs/manager-schedule/HairColoringModal"
 import { MessagingActions } from "@/components/sheets/MessagingActions"
 import { AppointmentActionsMenu } from "@/pages/ManagerSchedule/components/appointmentCard/AppointmentActionsMenu"
 import { ImageGalleryModal } from "@/components/dialogs/ImageGalleryModal"
@@ -37,6 +38,8 @@ import {
     setCustomerCommunicationAppointment,
     setShowCustomerCommunicationModal,
     setSelectedAppointment,
+    setSelectedClient,
+    setIsClientDetailsOpen,
 } from "@/store/slices/managerScheduleSlice"
 import type { ManagerAppointment, ManagerDog } from "../types"
 import type { Database } from "@/integrations/supabase/types"
@@ -51,7 +54,7 @@ const SERVICE_LABELS: Record<string, string> = {
 
 const SERVICE_STYLES: Record<string, { badge: string }> = {
     grooming: {
-        badge: "border-blue-200 bg-blue-100 text-blue-800",
+        badge: "border-primary/20 bg-primary/20 text-primary",
     },
 }
 
@@ -172,12 +175,20 @@ export const AppointmentDetailsSheet = ({
     const [isDesiredGoalImagesModalOpen, setIsDesiredGoalImagesModalOpen] = useState(false)
     const [isSessionImagesModalOpen, setIsSessionImagesModalOpen] = useState(false)
     const [isCustomerImagesModalOpen, setIsCustomerImagesModalOpen] = useState(false)
+    const [isTreatmentImagesModalOpen, setIsTreatmentImagesModalOpen] = useState(false)
     const [desiredGoalImagesCount, setDesiredGoalImagesCount] = useState<number | null>(null)
     const [sessionImagesCount, setSessionImagesCount] = useState<number | null>(null)
     const [currentUserId, setCurrentUserId] = useState<string | null>(null)
     const [workers, setWorkers] = useState<Array<{ id: string; full_name: string }>>([])
     const [isLoadingWorkers, setIsLoadingWorkers] = useState(false)
     const [isUpdatingWorker, setIsUpdatingWorker] = useState(false)
+    const [isArrivalApprovalPopoverOpen, setIsArrivalApprovalPopoverOpen] = useState(false)
+    const [isManagerApprovalStatusPopoverOpen, setIsManagerApprovalStatusPopoverOpen] = useState(false)
+    const [freshAppointmentData, setFreshAppointmentData] = useState<ManagerAppointment | null>(null)
+
+    // Hair coloring modal state
+    const [isHairColoringModalOpen, setIsHairColoringModalOpen] = useState(false)
+
     const { toast } = useToast()
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
@@ -369,6 +380,8 @@ export const AppointmentDetailsSheet = ({
                 setResolvedClientId(null)
                 return
             }
+
+            // Always fetch fresh data when sheet opens
 
             // Extract the actual appointment ID
             const appointmentId = extractGroomingAppointmentId(
@@ -750,6 +763,35 @@ export const AppointmentDetailsSheet = ({
         setHasBeenUnlinkedFromSeries(false)
     }, [selectedAppointment, open])
 
+    // Auto-resize textareas when content changes or accordion opens
+    useEffect(() => {
+        if (!open) return
+
+        const resizeTextareas = () => {
+            const textareas = document.querySelectorAll('textarea[class*="bg-green-50"], textarea[class*="bg-purple-50"], textarea[class*="bg-blue-50"]')
+            textareas.forEach((textarea) => {
+                const el = textarea as HTMLTextAreaElement
+                if (el && el.offsetParent !== null) { // Only resize visible textareas
+                    el.style.height = 'auto'
+                    el.style.height = `${el.scrollHeight}px`
+                }
+            })
+        }
+
+        // Resize immediately when notes change
+        resizeTextareas()
+
+        // Resize after delays to ensure DOM is ready and accordion animations complete
+        const timeout1 = setTimeout(resizeTextareas, 50)
+        const timeout2 = setTimeout(resizeTextareas, 200)
+        const timeout3 = setTimeout(resizeTextareas, 500)
+
+        return () => {
+            clearTimeout(timeout1)
+            clearTimeout(timeout2)
+            clearTimeout(timeout3)
+        }
+    }, [appointmentClientNotes, appointmentInternalNotes, appointmentGroomingNotes, open])
 
     const handleSaveInternalNotes = async () => {
         if (!selectedAppointment) return
@@ -783,6 +825,36 @@ export const AppointmentDetailsSheet = ({
                 description: "הערות הצוות עודכנו בהצלחה",
             })
             setOriginalInternalNotes(appointmentInternalNotes.trim() || "")
+
+            // Invalidate cache and refetch appointment data to update UI
+            dispatch(supabaseApi.util.invalidateTags([
+                "ManagerSchedule",
+                "Appointment",
+                "GardenAppointment",
+                { type: "Appointment", id: `${appointmentId}-grooming` },
+            ]))
+
+            // Refetch appointment notes to ensure UI is up to date
+            if (selectedAppointment && open) {
+                const fetchNotes = async () => {
+                    try {
+                        const { data, error } = await supabase
+                            .from("grooming_appointments")
+                            .select("customer_notes, internal_notes, grooming_notes")
+                            .eq("id", appointmentId)
+                            .single()
+
+                        if (!error && data) {
+                            const internalNotesValue = data.internal_notes || ""
+                            setAppointmentInternalNotes(internalNotesValue)
+                            setOriginalInternalNotes(internalNotesValue)
+                        }
+                    } catch (err) {
+                        console.error("Error refetching notes:", err)
+                    }
+                }
+                fetchNotes()
+            }
         } catch (error) {
             console.error("❌ [AppointmentDetailsSheet] Error saving internal notes:", error)
             toast({
@@ -873,8 +945,35 @@ export const AppointmentDetailsSheet = ({
             })
             setOriginalClientNotes(notesValue || "")
 
-            // Invalidate cache so the appointment card refreshes and shows/hides the message icon
-            dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment", "GardenAppointment"]))
+            // Invalidate cache and refetch appointment data to update UI
+            dispatch(supabaseApi.util.invalidateTags([
+                "ManagerSchedule",
+                "Appointment",
+                "GardenAppointment",
+                { type: "Appointment", id: `${appointmentId}-grooming` },
+            ]))
+
+            // Refetch appointment notes to ensure UI is up to date
+            if (selectedAppointment && open) {
+                const fetchNotes = async () => {
+                    try {
+                        const { data, error } = await supabase
+                            .from("grooming_appointments")
+                            .select("customer_notes, internal_notes, grooming_notes")
+                            .eq("id", appointmentId)
+                            .single()
+
+                        if (!error && data) {
+                            const clientNotesValue = data.customer_notes || null
+                            setAppointmentClientNotes(clientNotesValue)
+                            setOriginalClientNotes(clientNotesValue || "")
+                        }
+                    } catch (err) {
+                        console.error("Error refetching notes:", err)
+                    }
+                }
+                fetchNotes()
+            }
         } catch (error) {
             console.error("❌ [AppointmentDetailsSheet] Error saving client notes:", error)
             toast({
@@ -894,6 +993,7 @@ export const AppointmentDetailsSheet = ({
             description: "הערות הלקוח שוחזרו לערך המקורי",
         })
     }
+
 
     const handleSaveAllChanges = async () => {
         if (!selectedAppointment) return
@@ -1091,225 +1191,94 @@ export const AppointmentDetailsSheet = ({
     }
 
     const handlePaymentClick = useCallback(async () => {
-        if (!selectedAppointment || selectedAppointment.isProposedMeeting || !selectedAppointment.clientId) {
+        console.log("[handlePaymentClick] Called with selectedAppointment:", selectedAppointment)
+        console.log("[handlePaymentClick] resolvedClientId:", resolvedClientId)
+
+        if (!selectedAppointment) {
+            console.warn("[handlePaymentClick] No selectedAppointment")
+            toast({
+                title: "שגיאה",
+                description: "לא נבחר תור",
+                variant: "destructive",
+            })
             return
         }
 
-        try {
-            // Use the selected date from the board (the date the user is viewing)
-            // Get date components in local timezone
-            const year = selectedDate.getFullYear()
-            const month = selectedDate.getMonth()
-            const day = selectedDate.getDate()
+        if (selectedAppointment.isProposedMeeting) {
+            console.warn("[handlePaymentClick] Cannot pay for proposed meeting")
+            return
+        }
 
-            // Create day boundaries in local timezone for the selected date
-            const dayStart = new Date(year, month, day, 0, 0, 0, 0)
-            const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
+        // Try to resolve clientId - use resolvedClientId as fallback
+        let clientIdToUse = selectedAppointment.clientId || resolvedClientId
 
-            // Find all appointments for the same owner on the same day
-            // Note: We only filter by enum value "cancelled" in the query, then filter Hebrew statuses in JS
-            const { data: groomingData, error: groomingError } = await supabase
-                .from("grooming_appointments")
-                .select("id, amount_due, status")
-                .eq("customer_id", selectedAppointment.clientId)
-                .gte("start_at", dayStart.toISOString())
-                .lte("start_at", dayEnd.toISOString())
-                .neq("status", "cancelled")
-
-            if (groomingError) {
-                console.error("Error fetching grooming appointments:", groomingError)
-                toast({
-                    title: "שגיאה",
-                    description: "לא הצלחנו לטעון את התורים",
-                    variant: "destructive",
-                })
-                return
+        // If still no clientId, try to get it from dogs
+        if (!clientIdToUse && selectedAppointment.dogs && selectedAppointment.dogs.length > 0) {
+            const firstDog = selectedAppointment.dogs[0]
+            if (firstDog.ownerId) {
+                clientIdToUse = firstDog.ownerId
             }
+        }
 
-            // Filter out cancelled appointments (including Hebrew statuses)
-            const isCancelledStatus = (status: string | null | undefined): boolean => {
-                if (!status) return false
-                const normalized = status.toLowerCase()
-                return (
-                    normalized === "cancelled" ||
-                    normalized.includes("cancel") ||
-                    normalized === "בוטל" ||
-                    normalized.includes("מבוטל")
-                )
-            }
+        // If still missing, try to fetch from the appointment record itself
+        if (!clientIdToUse) {
+            const appointmentId = extractGroomingAppointmentId(selectedAppointment.id, selectedAppointment.groomingAppointmentId) || selectedAppointment.id
+            if (appointmentId) {
+                try {
+                    const { data: appointmentData, error: appointmentError } = await supabase
+                        .from("grooming_appointments")
+                        .select("customer_id")
+                        .eq("id", appointmentId)
+                        .single()
 
-            const allAppointments = (groomingData || [])
-                .filter((apt) => !isCancelledStatus(apt.status))
-                .map((apt) => ({
-                    id: apt.id,
-                    serviceType: "grooming" as const,
-                    amountDue: apt.amount_due || 0,
-                }))
-
-            if (allAppointments.length === 0) {
-                toast({
-                    title: "שגיאה",
-                    description: "לא נמצאו תורים ללקוח זה ביום זה",
-                    variant: "destructive",
-                })
-                return
-            }
-
-            // Check if there's an existing active cart for this customer
-            const { data: existingCarts, error: cartsError } = await supabase
-                .from("carts")
-                .select("id")
-                .eq("customer_id", selectedAppointment.clientId)
-                .eq("status", "active")
-                .order("created_at", { ascending: false })
-                .limit(1)
-
-            if (cartsError) {
-                console.error("Error checking existing carts:", cartsError)
-            }
-
-            let cartId: string
-
-            if (existingCarts && existingCarts.length > 0) {
-                // Use existing cart
-                cartId = existingCarts[0].id
-
-                // Check which appointments are already in the cart
-                const { data: existingCartAppointments } = await supabase
-                    .from("cart_appointments")
-                    .select("grooming_appointment_id")
-                    .eq("cart_id", cartId)
-
-                const existingAppointmentIds = new Set<string>()
-                existingCartAppointments?.forEach((ca) => {
-                    if (ca.grooming_appointment_id) {
-                        existingAppointmentIds.add(ca.grooming_appointment_id)
+                    if (!appointmentError && appointmentData?.customer_id) {
+                        clientIdToUse = appointmentData.customer_id
+                        console.log("[handlePaymentClick] Fetched clientId from database:", clientIdToUse)
                     }
-                })
-
-                // Add appointments that aren't already in the cart
-                const appointmentsToAdd = allAppointments.filter((apt) => !existingAppointmentIds.has(apt.id))
-
-                if (appointmentsToAdd.length > 0) {
-                    const cartAppointmentsToInsert = appointmentsToAdd.map((apt) => ({
-                        cart_id: cartId,
-                        grooming_appointment_id: apt.id,
-                        appointment_price: apt.amountDue,
-                    }))
-
-                    const { error: insertError } = await supabase.from("cart_appointments").insert(cartAppointmentsToInsert)
-
-                    if (insertError) {
-                        console.error("Error adding appointments to cart:", insertError)
-                        toast({
-                            title: "שגיאה",
-                            description: "לא הצלחנו להוסיף את התורים לעגלה",
-                            variant: "destructive",
-                        })
-                        return
-                    }
-                }
-            } else {
-                // Create new cart
-                const { data: newCart, error: createCartError } = await supabase
-                    .from("carts")
-                    .insert({
-                        customer_id: selectedAppointment.clientId,
-                        status: "active",
-                    })
-                    .select("id")
-                    .single()
-
-                if (createCartError || !newCart) {
-                    console.error("Error creating cart:", createCartError)
-                    toast({
-                        title: "שגיאה",
-                        description: "לא הצלחנו ליצור עגלה",
-                        variant: "destructive",
-                    })
-                    return
-                }
-
-                cartId = newCart.id
-
-                // Add all appointments to cart_appointments
-                const cartAppointmentsToInsert = allAppointments.map((apt) => ({
-                    cart_id: cartId,
-                    grooming_appointment_id: apt.id,
-                    appointment_price: apt.amountDue,
-                }))
-
-                const { error: insertError } = await supabase.from("cart_appointments").insert(cartAppointmentsToInsert)
-
-                if (insertError) {
-                    console.error("Error adding appointments to cart:", insertError)
-                    toast({
-                        title: "שגיאה",
-                        description: "לא הצלחנו להוסיף את התורים לעגלה",
-                        variant: "destructive",
-                    })
-                    return
+                } catch (error) {
+                    console.error("[handlePaymentClick] Error fetching clientId from database:", error)
                 }
             }
+        }
 
-            // Open payment modal with cartId using Redux
-            // Ensure we're dispatching plain objects by creating a serializable copy
-            console.log("[handlePaymentClick] Preparing to open payment modal", {
-                hasSelectedAppointment: !!selectedAppointment,
-                hasCartId: !!cartId,
-                cartId,
-                appointmentId: selectedAppointment?.id,
+        if (!clientIdToUse) {
+            console.warn("[handlePaymentClick] No clientId available:", {
+                appointmentClientId: selectedAppointment.clientId,
+                resolvedClientId,
+                appointment: selectedAppointment
             })
-
-            if (!selectedAppointment || !cartId) {
-                console.error("[handlePaymentClick] Missing required data:", { selectedAppointment, cartId })
-                toast({
-                    title: "שגיאה",
-                    description: "חסרים נתונים נדרשים לפתיחת תשלום",
-                    variant: "destructive",
-                })
-                return
-            }
-
-            // Create a plain object copy with only serializable fields
-            const appointmentForPayment = {
-                id: selectedAppointment.id,
-                clientId: selectedAppointment.clientId,
-                clientName: selectedAppointment.clientName,
-                serviceType: selectedAppointment.serviceType,
-                startDateTime: selectedAppointment.startDateTime,
-                endDateTime: selectedAppointment.endDateTime,
-                stationId: selectedAppointment.stationId,
-                // Include other essential fields as needed
-            }
-
-            console.log("[handlePaymentClick] Created appointmentForPayment:", {
-                appointmentForPayment,
-                isPlainObject: appointmentForPayment.constructor === Object,
-                keys: Object.keys(appointmentForPayment),
-            })
-
-            console.log("[handlePaymentClick] About to dispatch actions", {
-                cartId,
-                cartIdType: typeof cartId,
-                appointmentId: appointmentForPayment.id,
-            })
-
-            // Dispatch actions - use the Redux action creator (aliased to avoid conflict with local state)
-            console.log("[handlePaymentClick] Dispatching Redux actions...")
-            dispatch(setSelectedAppointmentForPayment(appointmentForPayment as ManagerAppointment))
-            dispatch(setPaymentCartIdAction(cartId))
-            dispatch(setShowPaymentModal(true))
-            console.log("[handlePaymentClick] All actions dispatched successfully")
-        } catch (error) {
-            console.error("Error in handlePaymentClick:", error)
             toast({
                 title: "שגיאה",
-                description: "אירעה שגיאה בעת פתיחת תשלום",
+                description: "לתור זה אין לקוח משויך",
                 variant: "destructive",
             })
+            return
         }
-    }, [dispatch, selectedAppointment, selectedDate, toast])
+
+        // Create a plain object copy with only serializable fields for Redux
+        const appointmentForPayment = {
+            id: selectedAppointment.id,
+            clientId: clientIdToUse,
+            clientName: selectedAppointment.clientName || appointmentClientName,
+            serviceType: selectedAppointment.serviceType,
+            startDateTime: selectedAppointment.startDateTime,
+            endDateTime: selectedAppointment.endDateTime,
+            stationId: selectedAppointment.stationId,
+            price: selectedAppointment.price,
+            dogs: selectedAppointment.dogs,
+            clientPhone: selectedAppointment.clientPhone || appointmentClientPhone,
+            // Include other essential fields as needed
+        }
+
+        console.log("[handlePaymentClick] Opening payment modal for appointment:", appointmentForPayment.id, "with clientId:", clientIdToUse)
+
+        // Dispatch actions to Redux - the modal will handle cart creation/loading
+        dispatch(setSelectedAppointmentForPayment(appointmentForPayment as ManagerAppointment))
+        dispatch(setPaymentCartIdAction(null)) // Let the modal create/load the cart
+        dispatch(setShowPaymentModal(true))
+
+        console.log("[handlePaymentClick] Dispatched Redux actions successfully")
+    }, [dispatch, selectedAppointment, resolvedClientId, appointmentClientName, appointmentClientPhone, toast])
 
     const handleDuplicateAppointment = useCallback(() => {
         if (!selectedAppointment) return
@@ -1422,601 +1391,1340 @@ export const AppointmentDetailsSheet = ({
         }
     }, [selectedAppointment, workers, dispatch, formattedDate, serviceFilter, toast])
 
+    // Sync freshAppointmentData with selectedAppointment
+    useEffect(() => {
+        if (selectedAppointment) {
+            setFreshAppointmentData(selectedAppointment)
+        } else {
+            setFreshAppointmentData(null)
+        }
+    }, [selectedAppointment])
+
+    // Get current appointment (fresh data or fallback to selected)
+    const currentAppointment = freshAppointmentData || selectedAppointment
+
+    const handleUpdateArrivalApproval = useCallback(async (approved: boolean) => {
+        if (!selectedAppointment) return
+
+        // Set to current timestamp if approved, null if not approved
+        const newValue = approved ? new Date().toISOString() : null
+        const previousValue = selectedAppointment.clientApprovedArrival
+
+        // Get the appointment's date (not the selected date in the schedule)
+        const appointmentDate = format(new Date(selectedAppointment.startDateTime), "yyyy-MM-dd")
+
+        // Optimistically update local state immediately
+        setFreshAppointmentData((prev) => {
+            if (!prev || prev.id !== selectedAppointment.id) return prev
+            return {
+                ...prev,
+                clientApprovedArrival: newValue
+            }
+        })
+
+        // Optimistically update the Redux cache immediately
+        dispatch(
+            supabaseApi.util.updateQueryData(
+                'getManagerSchedule',
+                { date: appointmentDate, serviceType: "both" },
+                (draft) => {
+                    if (!draft) return
+                    // Find and update the appointment in the appointments array
+                    const appointmentIndex = draft.appointments.findIndex(
+                        (apt) => apt.id === selectedAppointment.id
+                    )
+                    if (appointmentIndex !== -1) {
+                        draft.appointments[appointmentIndex] = {
+                            ...draft.appointments[appointmentIndex],
+                            clientApprovedArrival: newValue
+                        }
+                    }
+                }
+            )
+        )
+
+        // Close popover immediately
+        setIsArrivalApprovalPopoverOpen(false)
+
+        try {
+            const appointmentId = extractGroomingAppointmentId(
+                selectedAppointment.id,
+                selectedAppointment.groomingAppointmentId
+            )
+
+            if (!appointmentId) {
+                console.error("❌ [AppointmentDetailsSheet] No appointment ID found for arrival approval")
+                // Revert optimistic update on error
+                setFreshAppointmentData((prev) => {
+                    if (!prev || prev.id !== selectedAppointment.id) return prev
+                    return {
+                        ...prev,
+                        clientApprovedArrival: previousValue
+                    }
+                })
+                dispatch(
+                    supabaseApi.util.updateQueryData(
+                        'getManagerSchedule',
+                        { date: appointmentDate, serviceType: "both" },
+                        (draft) => {
+                            if (!draft) return
+                            const appointmentIndex = draft.appointments.findIndex(
+                                (apt) => apt.id === selectedAppointment.id
+                            )
+                            if (appointmentIndex !== -1) {
+                                draft.appointments[appointmentIndex] = {
+                                    ...draft.appointments[appointmentIndex],
+                                    clientApprovedArrival: previousValue
+                                }
+                            }
+                        }
+                    )
+                )
+                return
+            }
+
+            const { error } = await supabase
+                .from("grooming_appointments")
+                .update({
+                    client_approved_arrival: newValue,
+                })
+                .eq("id", appointmentId)
+
+            if (error) {
+                console.error("❌ [AppointmentDetailsSheet] Error updating arrival approval:", error)
+                // Revert optimistic update on error
+                setFreshAppointmentData((prev) => {
+                    if (!prev || prev.id !== selectedAppointment.id) return prev
+                    return {
+                        ...prev,
+                        clientApprovedArrival: previousValue
+                    }
+                })
+                dispatch(
+                    supabaseApi.util.updateQueryData(
+                        'getManagerSchedule',
+                        { date: appointmentDate, serviceType: "both" },
+                        (draft) => {
+                            if (!draft) return
+                            const appointmentIndex = draft.appointments.findIndex(
+                                (apt) => apt.id === selectedAppointment.id
+                            )
+                            if (appointmentIndex !== -1) {
+                                draft.appointments[appointmentIndex] = {
+                                    ...draft.appointments[appointmentIndex],
+                                    clientApprovedArrival: previousValue
+                                }
+                            }
+                        }
+                    )
+                )
+                toast({
+                    title: "שגיאה",
+                    description: "לא ניתן לעדכן את סטטוס אישור ההגעה",
+                    variant: "destructive",
+                })
+                return
+            }
+
+            toast({
+                title: "הצלחה",
+                description: approved ? "אושרה הגעה" : "הוסר אישור הגעה",
+            })
+
+            // Refresh schedule to ensure consistency
+            dispatch(
+                supabaseApi.util.invalidateTags([
+                    { type: 'ManagerSchedule', id: 'LIST' },
+                    'Appointment',
+                ])
+            )
+        } catch (error) {
+            console.error("❌ [AppointmentDetailsSheet] Error updating arrival approval:", error)
+            // Revert optimistic update on error
+            dispatch(
+                supabaseApi.util.updateQueryData(
+                    'getManagerSchedule',
+                    { date: formattedDate, serviceType: "both" },
+                    (draft) => {
+                        if (!draft) return
+                        const appointmentIndex = draft.appointments.findIndex(
+                            (apt) => apt.id === selectedAppointment.id
+                        )
+                        if (appointmentIndex !== -1) {
+                            draft.appointments[appointmentIndex] = {
+                                ...draft.appointments[appointmentIndex],
+                                clientApprovedArrival: previousValue
+                            }
+                        }
+                    }
+                )
+            )
+            toast({
+                title: "שגיאה",
+                description: error instanceof Error ? error.message : "לא ניתן לעדכן",
+                variant: "destructive",
+            })
+        }
+    }, [selectedAppointment, toast, dispatch, formattedDate])
+
+    const handleManagerStatusChange = useCallback(async (status: 'approved' | 'pending' | 'cancelled') => {
+        if (!selectedAppointment) return
+
+        // Map status to Hebrew/English values that might be in the database
+        const statusMap: Record<'approved' | 'pending' | 'cancelled', string> = {
+            approved: 'approved',
+            pending: 'pending',
+            cancelled: 'cancelled'
+        }
+        const newStatus = statusMap[status]
+
+        // Get Hebrew labels for display
+        const statusLabels: Record<'approved' | 'pending' | 'cancelled', string> = {
+            approved: 'תור מאושר',
+            pending: 'ממתין לאישור מנהל',
+            cancelled: 'תור בוטל'
+        }
+
+        const previousStatus = selectedAppointment.status
+
+        // Get the appointment's date (not the selected date in the schedule)
+        const appointmentDate = format(new Date(selectedAppointment.startDateTime), "yyyy-MM-dd")
+
+        // Optimistically update local state immediately
+        setFreshAppointmentData((prev) => {
+            if (!prev || prev.id !== selectedAppointment.id) return prev
+            return {
+                ...prev,
+                status: statusLabels[status]
+            }
+        })
+
+        // Optimistically update the Redux cache immediately
+        dispatch(
+            supabaseApi.util.updateQueryData(
+                'getManagerSchedule',
+                { date: appointmentDate, serviceType: "both" },
+                (draft) => {
+                    if (!draft) return
+                    const appointmentIndex = draft.appointments.findIndex(
+                        (apt) => apt.id === selectedAppointment.id
+                    )
+                    if (appointmentIndex !== -1) {
+                        draft.appointments[appointmentIndex] = {
+                            ...draft.appointments[appointmentIndex],
+                            status: statusLabels[status]
+                        }
+                    }
+                }
+            )
+        )
+
+        try {
+            const appointmentId = extractGroomingAppointmentId(
+                selectedAppointment.id,
+                selectedAppointment.groomingAppointmentId
+            )
+
+            if (!appointmentId) {
+                console.error("❌ [AppointmentDetailsSheet] No appointment ID found for manager approval status")
+                // Revert optimistic update on error
+                setFreshAppointmentData((prev) => {
+                    if (!prev || prev.id !== selectedAppointment.id) return prev
+                    return {
+                        ...prev,
+                        status: previousStatus
+                    }
+                })
+                dispatch(
+                    supabaseApi.util.updateQueryData(
+                        'getManagerSchedule',
+                        { date: appointmentDate, serviceType: "both" },
+                        (draft) => {
+                            if (!draft) return
+                            const appointmentIndex = draft.appointments.findIndex(
+                                (apt) => apt.id === selectedAppointment.id
+                            )
+                            if (appointmentIndex !== -1) {
+                                draft.appointments[appointmentIndex] = {
+                                    ...draft.appointments[appointmentIndex],
+                                    status: previousStatus
+                                }
+                            }
+                        }
+                    )
+                )
+                return
+            }
+
+            const { error } = await supabase
+                .from("grooming_appointments")
+                .update({ status: newStatus })
+                .eq("id", appointmentId)
+
+            if (error) {
+                console.error("❌ [AppointmentDetailsSheet] Error updating manager approval status:", error)
+                // Revert optimistic update on error
+                setFreshAppointmentData((prev) => {
+                    if (!prev || prev.id !== selectedAppointment.id) return prev
+                    return {
+                        ...prev,
+                        status: previousStatus
+                    }
+                })
+                dispatch(
+                    supabaseApi.util.updateQueryData(
+                        'getManagerSchedule',
+                        { date: appointmentDate, serviceType: "both" },
+                        (draft) => {
+                            if (!draft) return
+                            const appointmentIndex = draft.appointments.findIndex(
+                                (apt) => apt.id === selectedAppointment.id
+                            )
+                            if (appointmentIndex !== -1) {
+                                draft.appointments[appointmentIndex] = {
+                                    ...draft.appointments[appointmentIndex],
+                                    status: previousStatus
+                                }
+                            }
+                        }
+                    )
+                )
+                toast({
+                    title: "שגיאה",
+                    description: "לא ניתן לעדכן את סטטוס האישור",
+                    variant: "destructive",
+                })
+                return
+            }
+
+            toast({
+                title: "הצלחה",
+                description: `סטטוס האישור עודכן ל-${statusLabels[status]}`,
+            })
+
+            // Refresh schedule to ensure consistency
+            dispatch(
+                supabaseApi.util.invalidateTags([
+                    { type: 'ManagerSchedule', id: 'LIST' },
+                    'Appointment',
+                ])
+            )
+        } catch (error) {
+            console.error("❌ [AppointmentDetailsSheet] Error updating manager approval status:", error)
+            toast({
+                title: "שגיאה",
+                description: error instanceof Error ? error.message : "לא ניתן לעדכן",
+                variant: "destructive",
+            })
+        }
+    }, [selectedAppointment, toast, dispatch])
+
+    // Compute appointment details using useMemo to avoid IIFE parsing issues
+    const appointmentContent = useMemo(() => {
+        if (!selectedAppointment) return null
+
+        const detailStart = new Date(selectedAppointment.startDateTime)
+        const detailEnd = new Date(selectedAppointment.endDateTime)
+        const detailDate = format(detailStart, "dd.MM.yyyy")
+        const detailTimeRange = `${format(detailStart, "HH:mm")} - ${format(detailEnd, "HH:mm")}`
+        const duration = selectedAppointment.durationMinutes ??
+            Math.max(1, differenceInMinutes(detailEnd, detailStart))
+        const serviceLabel = selectedAppointment.appointmentType === "private"
+            ? "תור פרטי"
+            : (selectedAppointment.serviceName ?? SERVICE_LABELS[selectedAppointment.serviceType])
+        const serviceStyle = selectedAppointment.appointmentType === "private"
+            ? { badge: "border-purple-200 bg-primary/20 text-purple-800" }
+            : SERVICE_STYLES[selectedAppointment.serviceType]
+        const statusStyle = getStatusStyle(selectedAppointment.status, selectedAppointment)
+        const primaryDog = selectedAppointment.dogs[0]
+        const clientName =
+            selectedAppointment.clientName ?? primaryDog?.clientName ?? "לא ידוע"
+        const classification =
+            selectedAppointment.clientClassification ?? primaryDog?.clientClassification ?? "לא ידוע"
+        const subscriptionName = selectedAppointment.subscriptionName
+        const clientEmail = selectedAppointment.clientEmail
+        const clientPhone = selectedAppointment.clientPhone
+
+        // Check if there are any unsaved changes
+        const hasUnsavedChanges =
+            (appointmentClientNotes !== null && appointmentClientNotes !== originalClientNotes) ||
+            (appointmentInternalNotes !== originalInternalNotes) ||
+            (selectedAppointment.serviceType === "grooming" && appointmentGroomingNotes !== originalGroomingNotes)
+
+        return {
+            detailStart,
+            detailEnd,
+            detailDate,
+            detailTimeRange,
+            duration,
+            serviceLabel,
+            serviceStyle,
+            statusStyle,
+            primaryDog,
+            clientName,
+            classification,
+            subscriptionName,
+            clientEmail,
+            clientPhone,
+            hasUnsavedChanges
+        }
+    }, [selectedAppointment, appointmentClientNotes, originalClientNotes, appointmentInternalNotes, originalInternalNotes, appointmentGroomingNotes, originalGroomingNotes])
+
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="w-full max-w-md overflow-y-auto" dir="rtl">
-                <SheetHeader>
-                    <SheetTitle className="text-right">פרטי תור</SheetTitle>
-                    <SheetDescription className="text-right">צפו בכל הפרטים על התור והלקוח.</SheetDescription>
-                </SheetHeader>
-
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-64">
-                        <div className="text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                            <p className="text-gray-600">טוען פרטי תור...</p>
+        <>
+            <Sheet open={open} onOpenChange={onOpenChange}>
+                <SheetContent side="right" className="!w-full !max-w-lg sm:!max-w-lg overflow-y-auto pt-12 flex flex-col" dir="rtl">
+                    <SheetHeader>
+                        <div className="flex items-start justify-between gap-4 mb-2">
+                            <div className="flex-1">
+                                <SheetTitle className="text-right">פרטי תור</SheetTitle>
+                                <SheetDescription className="text-right">צפו בכל הפרטים על התור והלקוח.</SheetDescription>
+                            </div>
+                            {/* More Actions Menu */}
+                            {selectedAppointment && (
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 px-2 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                                        >
+                                            <MoreHorizontal className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-48 p-1" align="end">
+                                        <AppointmentActionsMenu
+                                            appointment={selectedAppointment}
+                                            clientName={appointmentContent?.clientName}
+                                            primaryDog={appointmentContent?.primaryDog}
+                                            hasOrder={hasOrder}
+                                            pinnedAppointmentsHook={pinnedAppointmentsHook}
+                                            onEdit={() => onEditAppointment(selectedAppointment)}
+                                            onDuplicate={handleDuplicateAppointment}
+                                            onCancel={() => onCancelAppointment(selectedAppointment)}
+                                            onDelete={() => onDeleteAppointment(selectedAppointment)}
+                                            onOpenClientCommunication={handleOpenClientCommunication}
+                                            onRescheduleProposal={handleOpenRescheduleProposal}
+                                            onPayment={handlePaymentClick}
+                                            onShowOrder={() => setIsOrderDetailsModalOpen(true)}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            )}
                         </div>
-                    </div>
-                ) : selectedAppointment ? (() => {
-                    const detailStart = new Date(selectedAppointment.startDateTime)
-                    const detailEnd = new Date(selectedAppointment.endDateTime)
-                    const detailDate = format(detailStart, "dd.MM.yyyy")
-                    const detailTimeRange = `${format(detailStart, "HH:mm")} - ${format(detailEnd, "HH:mm")}`
-                    const duration = selectedAppointment.durationMinutes ??
-                        Math.max(1, differenceInMinutes(detailEnd, detailStart))
-                    const serviceLabel = selectedAppointment.appointmentType === "private"
-                        ? "תור פרטי"
-                        : (selectedAppointment.serviceName ?? SERVICE_LABELS[selectedAppointment.serviceType])
-                    const serviceStyle = selectedAppointment.appointmentType === "private"
-                        ? { badge: "border-purple-200 bg-purple-100 text-purple-800" }
-                        : SERVICE_STYLES[selectedAppointment.serviceType]
-                    const statusStyle = getStatusStyle(selectedAppointment.status, selectedAppointment)
-                    const primaryDog = selectedAppointment.dogs[0]
-                    const clientName =
-                        selectedAppointment.clientName ?? primaryDog?.clientName ?? "לא ידוע"
-                    const classification =
-                        selectedAppointment.clientClassification ?? primaryDog?.clientClassification ?? "לא ידוע"
-                    const subscriptionName = selectedAppointment.subscriptionName
-                    const clientEmail = selectedAppointment.clientEmail
-                    const clientPhone = selectedAppointment.clientPhone
+                    </SheetHeader>
 
-                    // Check if there are any unsaved changes
-                    const hasUnsavedChanges =
-                        (appointmentClientNotes !== null && appointmentClientNotes !== originalClientNotes) ||
-                        (appointmentInternalNotes !== originalInternalNotes) ||
-                        (selectedAppointment.serviceType === "grooming" && appointmentGroomingNotes !== originalGroomingNotes)
+                    <div className="flex-1 flex flex-col min-h-0">
+                        {(() => {
+                            if (isLoading) {
+                                return (
+                                    <div className="flex items-center justify-center h-64">
+                                        <div className="text-center">
+                                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                                            <p className="text-gray-600">טוען פרטי תור...</p>
+                                        </div>
+                                    </div>
+                                )
+                            }
 
-                    return (
-                        <div className="mt-6 space-y-6 text-right">
-                            <div className="space-y-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <Badge variant="outline" className={cn("text-[11px] font-medium", serviceStyle.badge)}>
-                                            {serviceLabel}
-                                        </Badge>
-                                        <Badge variant="outline" className={cn("text-[11px] font-medium", statusStyle)}>
-                                            {selectedAppointment.status}
-                                        </Badge>
-                                        {selectedAppointment.seriesId && (
-                                            <Badge variant="outline" className="text-[11px] font-medium border-purple-200 bg-purple-100 text-purple-800">
-                                                תור בסדרה
-                                            </Badge>
-                                        )}
-                                    </div>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                                            >
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-48 p-1" align="end">
-                                            <AppointmentActionsMenu
-                                                appointment={selectedAppointment}
-                                                clientName={clientName}
-                                                primaryDog={primaryDog}
-                                                hasOrder={hasOrder}
-                                                pinnedAppointmentsHook={pinnedAppointmentsHook}
-                                                onEdit={() => onEditAppointment(selectedAppointment)}
-                                                onDuplicate={handleDuplicateAppointment}
-                                                onCancel={() => onCancelAppointment(selectedAppointment)}
-                                                onDelete={() => onDeleteAppointment(selectedAppointment)}
-                                                onOpenClientCommunication={handleOpenClientCommunication}
-                                                onRescheduleProposal={handleOpenRescheduleProposal}
-                                                onPayment={handlePaymentClick}
-                                                onShowOrder={() => setIsOrderDetailsModalOpen(true)}
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                <div className="space-y-2 text-sm text-gray-600">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            תאריך: <span className="font-medium text-gray-900">{detailDate}</span>
-                                        </div>
-                                        <div>
-                                            שעה: <span className="font-medium text-gray-900">{detailTimeRange}</span>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            משך: <span className="font-medium text-gray-900">{formatDuration(duration)}</span>
-                                        </div>
-                                        <div>
-                                            עמדה: <span className="font-medium text-gray-900">{selectedAppointment.stationName || "לא משויך"}</span>
-                                        </div>
-                                    </div>
-                                    <div className="pt-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-gray-600 min-w-[80px]">עובד משויך:</span>
-                                            <Select
-                                                value={selectedAppointment.workerId || "__unassigned__"}
-                                                onValueChange={(value) => handleWorkerChange(value === "__unassigned__" ? null : value)}
-                                                disabled={isUpdatingWorker || isLoadingWorkers}
-                                            >
-                                                <SelectTrigger className="flex-1">
-                                                    <SelectValue placeholder={isLoadingWorkers ? "טוען..." : selectedAppointment.workerName || "לא משויך"} />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="__unassigned__">לא משויך</SelectItem>
-                                                    {workers.map((worker) => (
-                                                        <SelectItem key={worker.id} value={worker.id}>
-                                                            {worker.full_name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {isUpdatingWorker && (
-                                                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                                            )}
-                                        </div>
-                                    </div>
-                                    {showDevId && (
-                                        <div className="pt-2 border-t border-gray-100 space-y-2">
-                                            {(selectedAppointment as any).id && (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-gray-500">מזהה:</span>
-                                                    <button
+                            if (appointmentContent) {
+                                return (
+                                    <div className="mt-6 flex flex-col flex-1 text-right">
+                                        <div className="flex-1 space-y-4 min-h-0">
+                                            {/* Action Buttons Section - Sticky */}
+                                            <div className="sticky top-[-24px] z-10 bg-white pb-3 pt-2 -mx-6 px-6 border-b border-gray-200">
+                                                <div className="flex items-center gap-2 flex-wrap mb-3">
+                                                    {/* Edit Button */}
+                                                    <Button
                                                         type="button"
-                                                        onClick={async () => {
-                                                            try {
-                                                                await navigator.clipboard.writeText((selectedAppointment as any).id)
-                                                                toast({
-                                                                    title: "הועתק",
-                                                                    description: "מזהה התור הועתק ללוח",
-                                                                })
-                                                            } catch (err) {
-                                                                console.error("Failed to copy:", err)
-                                                            }
-                                                        }}
-                                                        className="text-xs text-gray-600 hover:text-gray-900 font-mono cursor-pointer hover:underline"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                        onClick={() => onEditAppointment(selectedAppointment)}
+                                                        title="ערוך תור"
                                                     >
-                                                        {(selectedAppointment as any).id.slice(0, 8)}...
-                                                    </button>
-                                                </div>
-                                            )}
-                                            {(selectedAppointment as any).created_at || (selectedAppointment as any).updated_at ? (
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    {(selectedAppointment as any).created_at && (
-                                                        <div className="text-xs text-gray-400">
-                                                            נוצר: {format(new Date((selectedAppointment as any).created_at), "dd.MM.yyyy HH:mm")}
-                                                        </div>
-                                                    )}
-                                                    {(selectedAppointment as any).updated_at && (
-                                                        <div className="text-xs text-gray-400">
-                                                            עודכן: {format(new Date((selectedAppointment as any).updated_at), "dd.MM.yyyy HH:mm")}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Series Info Banner */}
-                            {selectedAppointment.seriesId && !hasBeenUnlinkedFromSeries && (
-                                <>
-                                    <Separator />
-                                    <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
-                                        <div className="flex items-center gap-2 space-x-2 rtl:space-x-reverse">
-                                            <Info className="h-5 w-5 text-purple-600 flex-shrink-0" />
-                                            <div className="flex-1 text-sm text-purple-800">
-                                                <p className="font-medium">
-                                                    תור מחזורי
-                                                    {weeksInterval && (
-                                                        <span className="mr-1"> {weeksInterval}</span>
-                                                    )}
-                                                </p>
-                                            </div>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-purple-700 border-purple-300 hover:bg-purple-100 hover:text-purple-800"
-                                                onClick={() => setIsSeriesAppointmentsModalOpen(true)}
-                                            >
-                                                <Calendar className="h-4 w-4 ml-2" />
-                                                הצג סדרה
-                                            </Button>
-                                        </div>
-                                        <div className="mt-2 flex items-center gap-2 cursor-pointer" onClick={() => setUnlinkConfirmOpen(true)}>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 w-6 p-0 text-purple-600 hover:text-purple-800 hover:bg-purple-100"
-                                                disabled={isUnlinkingFromSeries}
-                                                title="הפרד תור מהסדרה"
-                                            >
-                                                {isUnlinkingFromSeries ? (
-                                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                                ) : (
-                                                    <Link2Off className="h-3 w-3" />
-                                                )}
-                                            </Button>
-                                            <span className="text-xs text-purple-600 hover:text-purple-800">
-                                                הפרד תור מהסדרה
-                                            </span>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-
-                            {/* Client Section */}
-                            {selectedAppointment.clientId && (
-                                <>
-                                    <Separator />
-                                    <div className="space-y-3">
-                                        <h3 className="text-sm font-medium text-gray-900">לקוח</h3>
-                                        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => onClientClick({
-                                                    name: clientName,
-                                                    classification: classification,
-                                                    phone: selectedAppointment.clientPhone,
-                                                    email: selectedAppointment.clientEmail,
-                                                    recordId: selectedAppointment.recordId,
-                                                    recordNumber: selectedAppointment.recordNumber,
-                                                    clientId: selectedAppointment.clientId,
-                                                    id: selectedAppointment.clientId
-                                                })}
-                                                className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                                            >
-                                                {clientName}
-                                            </button>
-                                            {classification && classification !== "לא ידוע" && (
-                                                <div className="mt-1 text-xs text-gray-600">
-                                                    סיווג: <span className="font-medium text-gray-700">{classification}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-
-                            {/* Images Section */}
-                            <Separator />
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-medium text-gray-900">תמונות</h3>
-                                <div className="space-y-2">
-                                    {selectedAppointment.dogs?.[0]?.id && (
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-center gap-2"
-                                            onClick={() => setIsDesiredGoalImagesModalOpen(true)}
-                                        >
-                                            <ImageIcon className="h-4 w-4" />
-                                            {desiredGoalImagesCount === null
-                                                ? "טוען..."
-                                                : desiredGoalImagesCount === 0
-                                                    ? "תמונות מטרה רצויה (אין תמונות שהועלו)"
-                                                    : `תמונות מטרה רצויה (${desiredGoalImagesCount} תמונות)`}
-                                        </Button>
-                                    )}
-                                    {selectedAppointment.groomingAppointmentId && (
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-center gap-2"
-                                            onClick={() => setIsSessionImagesModalOpen(true)}
-                                        >
-                                            <ImageIcon className="h-4 w-4" />
-                                            {sessionImagesCount === null
-                                                ? "טוען..."
-                                                : sessionImagesCount === 0
-                                                    ? "תמונות מהשירות הנוכחי (אין תמונות שהועלו)"
-                                                    : `תמונות מהשירות הנוכחי (${sessionImagesCount} תמונות)`}
-                                        </Button>
-                                    )}
-                                    {selectedAppointment.clientId && (
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-center gap-2"
-                                            onClick={() => setIsCustomerImagesModalOpen(true)}
-                                        >
-                                            <ImageIcon className="h-4 w-4" />
-                                            הצג את כל התמונות של הלקוח
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-
-                            <Separator />
-
-                            {/* Payments Section */}
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-medium text-gray-900">תשלומים</h3>
-                                <div className="space-y-2">
-                                    {payments.length === 0 ? (
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-center gap-2"
-                                            onClick={(e) => {
-                                                e.preventDefault()
-                                                e.stopPropagation()
-                                                void handlePaymentClick()
-                                            }}
-                                        >
-                                            <CreditCard className="h-4 w-4" />
-                                            השלם תשלום
-                                        </Button>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {payments.map((payment) => (
-                                                <div
-                                                    key={payment.id}
-                                                    className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
-                                                >
-                                                    <div className="flex items-center justify-between text-sm">
-                                                        <div>
-                                                            <div className="font-medium text-gray-900">
-                                                                סכום: ₪{payment.amount.toFixed(2)}
-                                                            </div>
-                                                            <div className="text-xs text-gray-600 mt-1">
-                                                                סטטוס: <span className={cn(
-                                                                    "font-medium",
-                                                                    payment.status === "paid" ? "text-green-700" :
-                                                                        payment.status === "partial" ? "text-amber-700" :
-                                                                            "text-red-700"
-                                                                )}>
-                                                                    {payment.status === "paid" ? "שולם" :
-                                                                        payment.status === "partial" ? "חלקי" :
-                                                                            "לא שולם"}
-                                                                </span>
-                                                            </div>
-                                                        </div>
+                                                        <Edit className="h-3.5 w-3.5" />
+                                                        <span>ערוך</span>
+                                                    </Button>
+                                                    {/* Payment Button */}
+                                                    {payments.length === 0 && (
                                                         <Button
+                                                            type="button"
                                                             variant="outline"
                                                             size="sm"
-                                                            onClick={() => setIsInvoiceDialogOpen(true)}
+                                                            className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                            onClick={handlePaymentClick}
+                                                            title="תשלום"
                                                         >
-                                                            <Receipt className="h-4 w-4 ml-2" />
-                                                            שלח חשבונית
+                                                            <DollarSign className="h-3.5 w-3.5" />
+                                                            <span>תשלום</span>
+                                                        </Button>
+                                                    )}
+                                                    {/* Images Button */}
+                                                    {selectedAppointment.dogs?.[0]?.id && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                            onClick={() => setIsDesiredGoalImagesModalOpen(true)}
+                                                            title="תמונות"
+                                                        >
+                                                            <ImageIcon className="h-3.5 w-3.5" />
+                                                            <span>תמונות</span>
+                                                        </Button>
+                                                    )}
+                                                    {/* Series Button */}
+                                                    {selectedAppointment.seriesId && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                            onClick={() => setIsSeriesAppointmentsModalOpen(true)}
+                                                            title="הצג סדרה"
+                                                        >
+                                                            <CalendarDays className="h-3.5 w-3.5" />
+                                                            <span>סדרה</span>
+                                                        </Button>
+                                                    )}
+                                                    {/* Hair Coloring Button */}
+                                                    {selectedAppointment.serviceType === "grooming" && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                            onClick={() => setIsHairColoringModalOpen(true)}
+                                                            title="ניהול צביעה"
+                                                        >
+                                                            <Brush className="h-3.5 w-3.5" />
+                                                            <span>צבעים</span>
+                                                        </Button>
+                                                    )}
+                                                    {/* Client Subscriptions & Photos Button */}
+                                                    {selectedAppointment.clientId && (
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                                    title="כרטיסיות ותמונות לקוח"
+                                                                >
+                                                                    <Users className="h-3.5 w-3.5" />
+                                                                    <span>לקוח</span>
+                                                                </Button>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-64 p-2" dir="rtl" align="start">
+                                                                <div className="space-y-2">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="w-full justify-start text-xs"
+                                                                        onClick={() => {
+                                                                            // Navigate to subscriptions page with client ID
+                                                                            navigate(`/subscriptions?clientId=${selectedAppointment.clientId}`)
+                                                                        }}
+                                                                    >
+                                                                        <CreditCard className="h-3.5 w-3.5 ml-2" />
+                                                                        הצג כרטיסיות
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="w-full justify-start text-xs"
+                                                                        onClick={() => setIsCustomerImagesModalOpen(true)}
+                                                                    >
+                                                                        <ImageIcon className="h-3.5 w-3.5 ml-2" />
+                                                                        הצג תמונות מכל התורים
+                                                                    </Button>
+                                                                </div>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Appointment Info - Compact 2-column grid */}
+                                            <div className="space-y-3">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <Badge variant="outline" className={cn("text-[11px] font-medium", appointmentContent.serviceStyle.badge)}>
+                                                        {appointmentContent.serviceLabel}
+                                                    </Badge>
+                                                    {/* Appointment Status Badge */}
+                                                    <Popover open={isManagerApprovalStatusPopoverOpen} onOpenChange={setIsManagerApprovalStatusPopoverOpen}>
+                                                        <PopoverTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                className={cn(
+                                                                    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                                                                    (() => {
+                                                                        const status = currentAppointment?.status || selectedAppointment?.status || ''
+                                                                        const statusLower = status.toLowerCase()
+                                                                        const isApproved = statusLower.includes('מאושר') || statusLower.includes('approved')
+                                                                        const isDenied = statusLower.includes('נדחה') || statusLower.includes('denied') || statusLower.includes('בוטל') || statusLower.includes('cancelled')
+                                                                        if (isApproved) return "border-green-200 bg-green-50 text-green-700"
+                                                                        if (isDenied) return "border-red-200 bg-red-50 text-red-700"
+                                                                        return "border-yellow-200 bg-yellow-50 text-yellow-700"
+                                                                    })()
+                                                                )}
+                                                            >
+                                                                <div className="flex items-center gap-1" dir="rtl">
+                                                                    {(() => {
+                                                                        const status = currentAppointment?.status || selectedAppointment?.status || ''
+                                                                        const statusLower = status.toLowerCase()
+                                                                        const isApproved = statusLower.includes('מאושר') || statusLower.includes('approved')
+                                                                        const isDenied = statusLower.includes('נדחה') || statusLower.includes('denied') || statusLower.includes('בוטל') || statusLower.includes('cancelled')
+                                                                        return isApproved ? (
+                                                                            <CheckCircle className="h-3 w-3" />
+                                                                        ) : isDenied ? (
+                                                                            <XCircle className="h-3 w-3" />
+                                                                        ) : (
+                                                                            <AlertTriangle className="h-3 w-3" />
+                                                                        )
+                                                                    })()}
+                                                                    <span>סטטוס התור</span>
+                                                                </div>
+                                                            </button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-56 p-2" dir="rtl" align="start">
+                                                            <div className="space-y-1">
+                                                                <div className="text-sm font-medium mb-2 px-2">סטטוס התור</div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleManagerStatusChange('approved')
+                                                                        setIsManagerApprovalStatusPopoverOpen(false)
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2 justify-end px-3 py-2 rounded-md hover:bg-green-50 text-right transition-colors"
+                                                                    dir="rtl"
+                                                                >
+                                                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                                                    <span>תור מאושר</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleManagerStatusChange('pending')
+                                                                        setIsManagerApprovalStatusPopoverOpen(false)
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2 justify-end px-3 py-2 rounded-md hover:bg-yellow-50 text-right transition-colors"
+                                                                    dir="rtl"
+                                                                >
+                                                                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                                                                    <span>ממתין לאישור מנהל</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleManagerStatusChange('cancelled')
+                                                                        setIsManagerApprovalStatusPopoverOpen(false)
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2 justify-end px-3 py-2 rounded-md hover:bg-red-50 text-right transition-colors"
+                                                                    dir="rtl"
+                                                                >
+                                                                    <XCircle className="h-4 w-4 text-red-600" />
+                                                                    <span>תור נדחה</span>
+                                                                </button>
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                    {/* Arrival Confirmation Status Badge */}
+                                                    <Popover open={isArrivalApprovalPopoverOpen} onOpenChange={setIsArrivalApprovalPopoverOpen}>
+                                                        <PopoverTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                className={cn(
+                                                                    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                                                                    currentAppointment?.clientApprovedArrival
+                                                                        ? "border-green-200 bg-green-50 text-green-700"
+                                                                        : "border-red-200 bg-red-50 text-red-700"
+                                                                )}
+                                                            >
+                                                                <div className="flex items-center gap-1" dir="rtl">
+                                                                    {currentAppointment?.clientApprovedArrival ? (
+                                                                        <CheckCircle className="h-3 w-3" />
+                                                                    ) : (
+                                                                        <XCircle className="h-3 w-3" />
+                                                                    )}
+                                                                    <span>אישור הגעה</span>
+                                                                </div>
+                                                            </button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-56 p-2" dir="rtl" align="start">
+                                                            <div className="space-y-1">
+                                                                <div className="text-sm font-medium mb-2 px-2">סטטוס אישור הגעה</div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleUpdateArrivalApproval(true)
+                                                                        setIsArrivalApprovalPopoverOpen(false)
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2 justify-end px-3 py-2 rounded-md hover:bg-green-50 text-right transition-colors"
+                                                                    dir="rtl"
+                                                                >
+                                                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                                                    <span>אושרה הגעה</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleUpdateArrivalApproval(false)
+                                                                        setIsArrivalApprovalPopoverOpen(false)
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2 justify-end px-3 py-2 rounded-md hover:bg-red-50 text-right transition-colors"
+                                                                    dir="rtl"
+                                                                >
+                                                                    <XCircle className="h-4 w-4 text-red-600" />
+                                                                    <span>לא אושרה הגעה</span>
+                                                                </button>
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                    {selectedAppointment.seriesId && (
+                                                        <Badge variant="outline" className="text-[11px] font-medium border-purple-200 bg-primary/20 text-purple-800">
+                                                            תור בסדרה
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-600">
+                                                    {/* Date - Editable */}
+                                                    <div
+                                                        className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5"
+                                                        onClick={() => onEditAppointment(selectedAppointment)}
+                                                    >
+                                                        <CalendarDays className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                                        <span className="text-xs">תאריך:</span>
+                                                        <span className="font-medium text-gray-900">{appointmentContent.detailDate}</span>
+                                                        <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
+                                                    </div>
+                                                    {/* Time - Editable */}
+                                                    <div
+                                                        className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5"
+                                                        onClick={() => onEditAppointment(selectedAppointment)}
+                                                    >
+                                                        <Clock className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                                        <span className="text-xs">שעה:</span>
+                                                        <span className="font-medium text-gray-900">{appointmentContent.detailTimeRange}</span>
+                                                        <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
+                                                    </div>
+                                                    {/* Duration - Editable */}
+                                                    <div
+                                                        className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5"
+                                                        onClick={() => onEditAppointment(selectedAppointment)}
+                                                    >
+                                                        <Clock className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                                        <span className="text-xs">משך:</span>
+                                                        <span className="font-medium text-gray-900">{formatDuration(appointmentContent.duration)}</span>
+                                                        <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
+                                                    </div>
+                                                    {/* Station - Editable */}
+                                                    <div
+                                                        className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5"
+                                                        onClick={() => onEditAppointment(selectedAppointment)}
+                                                    >
+                                                        <MapPin className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                                        <span className="text-xs">עמדה:</span>
+                                                        <span className="font-medium text-gray-900">{selectedAppointment.stationName || "לא משויך"}</span>
+                                                        <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
+                                                    </div>
+                                                    {/* Customer Name - Clickable */}
+                                                    {selectedAppointment.clientId && (
+                                                        <div
+                                                            className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5"
+                                                            onClick={async () => {
+                                                                if (!selectedAppointment.clientId) return
+                                                                try {
+                                                                    const { data: customerData, error } = await supabase
+                                                                        .from("customers")
+                                                                        .select(`
+                                                                            id,
+                                                                            full_name,
+                                                                            phone,
+                                                                            email,
+                                                                            address,
+                                                                            classification,
+                                                                            customer_type_id,
+                                                                            customer_type:customer_types (
+                                                                                id,
+                                                                                name
+                                                                            )
+                                                                        `)
+                                                                        .eq("id", selectedAppointment.clientId)
+                                                                        .single()
+
+                                                                    if (error) throw error
+
+                                                                    if (customerData) {
+                                                                        dispatch(setSelectedClient({
+                                                                            id: customerData.id,
+                                                                            name: customerData.full_name,
+                                                                            phone: customerData.phone || undefined,
+                                                                            email: customerData.email || undefined,
+                                                                            address: customerData.address || undefined,
+                                                                            classification: customerData.classification || undefined,
+                                                                            customerTypeId: customerData.customer_type_id || undefined,
+                                                                            customerTypeName: customerData.customer_type?.name || undefined,
+                                                                        }))
+                                                                        dispatch(setIsClientDetailsOpen(true))
+                                                                    }
+                                                                } catch (error) {
+                                                                    console.error("Error fetching client:", error)
+                                                                    toast({
+                                                                        title: "שגיאה",
+                                                                        description: "לא ניתן לטעון את פרטי הלקוח",
+                                                                        variant: "destructive",
+                                                                    })
+                                                                }
+                                                            }}
+                                                        >
+                                                            <User className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                                            <span className="text-xs">לקוח:</span>
+                                                            <span className="font-medium text-primary hover:underline">{appointmentContent.clientName}</span>
+                                                            {appointmentContent.classification && appointmentContent.classification !== "לא ידוע" && (
+                                                                <span className="text-xs text-gray-500">({appointmentContent.classification})</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {/* Worker - Editable with Popover */}
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <div className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5">
+                                                                <User className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                                                <span className="text-xs">עובד:</span>
+                                                                <span className="font-medium text-gray-900">{selectedAppointment.workerName || "לא משויך"}</span>
+                                                                <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
+                                                            </div>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-64 p-3" dir="rtl" align="start">
+                                                            <div className="space-y-2">
+                                                                <h4 className="text-sm font-medium mb-2">בחר עובד</h4>
+                                                                <Select
+                                                                    value={selectedAppointment.workerId || "__unassigned__"}
+                                                                    onValueChange={(value) => handleWorkerChange(value === "__unassigned__" ? null : value)}
+                                                                    disabled={isUpdatingWorker || isLoadingWorkers}
+                                                                >
+                                                                    <SelectTrigger className="w-full h-8 text-xs">
+                                                                        <SelectValue placeholder={isLoadingWorkers ? "טוען..." : selectedAppointment.workerName || "לא משויך"} />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="__unassigned__">לא משויך</SelectItem>
+                                                                        {workers.map((worker) => (
+                                                                            <SelectItem key={worker.id} value={worker.id}>
+                                                                                {worker.full_name}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                                {isUpdatingWorker && (
+                                                                    <div className="flex items-center justify-center py-2">
+                                                                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                    {/* Manager - If available */}
+                                                    {selectedAppointment.managerId && (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <User className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                                            <span className="text-xs">מנהל:</span>
+                                                            <span className="font-medium text-gray-900">{selectedAppointment.managerName || "לא משויך"}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Notes Sections - Compact */}
+                                            <div className="space-y-2 pt-1 border-t border-gray-100">
+                                                <Accordion type="multiple" defaultValue={["client-notes", "grooming-notes", "internal-notes"]} className="w-full">
+                                                    {/* Client Notes */}
+                                                    <AccordionItem value="client-notes" className="border-none">
+                                                        <AccordionTrigger className="py-2 hover:no-underline">
+                                                            <div className="flex items-center justify-between w-full pr-2">
+                                                                <h4 className="text-xs font-medium text-green-900 flex items-center gap-1.5">
+                                                                    <FileText className="h-3.5 w-3.5" />
+                                                                    הערות לקוח
+                                                                </h4>
+                                                                {(appointmentClientNotes !== null && appointmentClientNotes !== originalClientNotes) && (
+                                                                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                                                        <Button
+                                                                            onClick={handleSaveClientNotes}
+                                                                            disabled={isSavingClientNotes}
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 px-2 text-xs"
+                                                                        >
+                                                                            {isSavingClientNotes ? (
+                                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                                            ) : (
+                                                                                <Save className="h-3 w-3" />
+                                                                            )}
+                                                                        </Button>
+                                                                        <Button
+                                                                            onClick={handleRevertClientNotes}
+                                                                            disabled={isSavingClientNotes}
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 px-2 text-xs"
+                                                                        >
+                                                                            <X className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </AccordionTrigger>
+                                                        <AccordionContent>
+                                                            <Textarea
+                                                                value={appointmentClientNotes ?? selectedAppointment.notes ?? ""}
+                                                                onChange={(e) => {
+                                                                    setAppointmentClientNotes(e.target.value)
+                                                                    // Auto-resize
+                                                                    e.target.style.height = 'auto'
+                                                                    e.target.style.height = `${e.target.scrollHeight}px`
+                                                                }}
+                                                                onInput={(e) => {
+                                                                    const target = e.target as HTMLTextAreaElement
+                                                                    target.style.height = 'auto'
+                                                                    target.style.height = `${target.scrollHeight}px`
+                                                                }}
+                                                                ref={(el) => {
+                                                                    if (el) {
+                                                                        // Resize immediately when element is mounted
+                                                                        el.style.height = 'auto'
+                                                                        el.style.height = `${el.scrollHeight}px`
+                                                                    }
+                                                                }}
+                                                                placeholder="הזן הערות לקוח..."
+                                                                className="text-xs text-right bg-green-50 border-green-200 resize-y overflow-hidden min-h-[60px]"
+                                                                style={{ maxHeight: 'none' }}
+                                                                dir="rtl"
+                                                            />
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+
+                                                    {/* Grooming Notes */}
+                                                    {selectedAppointment.serviceType === "grooming" && (
+                                                        <AccordionItem value="grooming-notes" className="border-none">
+                                                            <AccordionTrigger className="py-2 hover:no-underline">
+                                                                <div className="flex items-center justify-between w-full pr-2 ml-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h4 className="text-xs font-medium text-purple-900 flex items-center gap-1.5">
+                                                                            <FileText className="h-3.5 w-3.5" />
+                                                                            מה עשינו היום
+                                                                        </h4>
+                                                                        {selectedAppointment.dogs?.[0]?.id && (
+                                                                            <>
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation()
+                                                                                        setIsDesiredGoalImagesModalOpen(true)
+                                                                                    }}
+                                                                                    title="תמונות מטרה"
+                                                                                >
+                                                                                    <ImageIcon className="h-3.5 w-3.5" />
+                                                                                    <span>תמונות מטרה</span>
+                                                                                </Button>
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation()
+                                                                                        setIsSessionImagesModalOpen(true)
+                                                                                    }}
+                                                                                    title="תמונות מהתור"
+                                                                                >
+                                                                                    <ImageIcon className="h-3.5 w-3.5" />
+                                                                                    <span>תמונות מהתור</span>
+                                                                                </Button>
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation()
+                                                                                        setIsTreatmentImagesModalOpen(true)
+                                                                                    }}
+                                                                                    title="העלה תמונות טיפול מהיום"
+                                                                                >
+                                                                                    <Upload className="h-3.5 w-3.5" />
+                                                                                    <span>תמונות טיפול</span>
+                                                                                </Button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {selectedAppointment.clientId && (
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation()
+                                                                                    setIsCustomerImagesModalOpen(true)
+                                                                                }}
+                                                                                title="תמונות מכל הטיפולים של הלקוח"
+                                                                            >
+                                                                                <ImageIcon className="h-3.5 w-3.5" />
+                                                                                <span>תמונות לקוח</span>
+                                                                            </Button>
+                                                                        )}
+                                                                        {(() => {
+                                                                            const appointmentId = extractGroomingAppointmentId(
+                                                                                selectedAppointment.id,
+                                                                                selectedAppointment.groomingAppointmentId
+                                                                            )
+                                                                            return appointmentId ? (
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation()
+                                                                                        setIsTreatmentImagesModalOpen(true)
+                                                                                    }}
+                                                                                    title="העלה תמונות מטיפול היום"
+                                                                                >
+                                                                                    <Upload className="h-3.5 w-3.5" />
+                                                                                    <span>העלה תמונות</span>
+                                                                                </Button>
+                                                                            ) : null
+                                                                        })()}
+                                                                    </div>
+                                                                    {(appointmentGroomingNotes !== originalGroomingNotes) && (
+                                                                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                                                            <Button
+                                                                                onClick={handleSaveGroomingNotes}
+                                                                                disabled={isSavingGroomingNotes}
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                                className="h-6 px-2 text-xs"
+                                                                            >
+                                                                                {isSavingGroomingNotes ? (
+                                                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                                                ) : (
+                                                                                    <Save className="h-3 w-3" />
+                                                                                )}
+                                                                            </Button>
+                                                                            <Button
+                                                                                onClick={handleRevertGroomingNotes}
+                                                                                disabled={isSavingGroomingNotes}
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                                className="h-6 px-2 text-xs"
+                                                                            >
+                                                                                <X className="h-3 w-3" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </AccordionTrigger>
+                                                            <AccordionContent>
+                                                                <Textarea
+                                                                    value={appointmentGroomingNotes || selectedAppointment.groomingNotes || ""}
+                                                                    onChange={(e) => {
+                                                                        setAppointmentGroomingNotes(e.target.value)
+                                                                        // Auto-resize
+                                                                        e.target.style.height = 'auto'
+                                                                        e.target.style.height = `${e.target.scrollHeight}px`
+                                                                    }}
+                                                                    onInput={(e) => {
+                                                                        const target = e.target as HTMLTextAreaElement
+                                                                        target.style.height = 'auto'
+                                                                        target.style.height = `${target.scrollHeight}px`
+                                                                    }}
+                                                                    ref={(el) => {
+                                                                        if (el) {
+                                                                            // Resize immediately when element is mounted
+                                                                            el.style.height = 'auto'
+                                                                            el.style.height = `${el.scrollHeight}px`
+                                                                        }
+                                                                    }}
+                                                                    placeholder="הזן מה עשינו היום..."
+                                                                    className="text-xs text-right bg-purple-50 border-purple-200 resize-y overflow-hidden min-h-[60px]"
+                                                                    style={{ maxHeight: 'none' }}
+                                                                    dir="rtl"
+                                                                />
+                                                            </AccordionContent>
+                                                        </AccordionItem>
+                                                    )}
+
+                                                    {/* Internal Notes */}
+                                                    <AccordionItem value="internal-notes" className="border-none">
+                                                        <AccordionTrigger className="py-2 hover:no-underline">
+                                                            <div className="flex items-center justify-between w-full pr-2">
+                                                                <h4 className="text-xs font-medium text-primary flex items-center gap-1.5">
+                                                                    <FileText className="h-3.5 w-3.5" />
+                                                                    הערות צוות
+                                                                </h4>
+                                                                {(appointmentInternalNotes !== originalInternalNotes) && (
+                                                                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                                                        <Button
+                                                                            onClick={handleSaveInternalNotes}
+                                                                            disabled={isSavingInternalNotes}
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 px-2 text-xs"
+                                                                        >
+                                                                            {isSavingInternalNotes ? (
+                                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                                            ) : (
+                                                                                <Save className="h-3 w-3" />
+                                                                            )}
+                                                                        </Button>
+                                                                        <Button
+                                                                            onClick={handleRevertInternalNotes}
+                                                                            disabled={isSavingInternalNotes}
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 px-2 text-xs"
+                                                                        >
+                                                                            <X className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </AccordionTrigger>
+                                                        <AccordionContent>
+                                                            <Textarea
+                                                                value={appointmentInternalNotes || selectedAppointment.internalNotes || ""}
+                                                                onChange={(e) => {
+                                                                    setAppointmentInternalNotes(e.target.value)
+                                                                    // Auto-resize
+                                                                    e.target.style.height = 'auto'
+                                                                    e.target.style.height = `${e.target.scrollHeight}px`
+                                                                }}
+                                                                onInput={(e) => {
+                                                                    const target = e.target as HTMLTextAreaElement
+                                                                    target.style.height = 'auto'
+                                                                    target.style.height = `${target.scrollHeight}px`
+                                                                }}
+                                                                ref={(el) => {
+                                                                    if (el) {
+                                                                        // Resize immediately when element is mounted
+                                                                        el.style.height = 'auto'
+                                                                        el.style.height = `${el.scrollHeight}px`
+                                                                    }
+                                                                }}
+                                                                placeholder="הזן הערות צוות פנימיות..."
+                                                                className="text-xs text-right bg-blue-50 border-blue-200 resize-y overflow-hidden min-h-[60px]"
+                                                                style={{ maxHeight: 'none' }}
+                                                                dir="rtl"
+                                                            />
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                </Accordion>
+                                            </div>
+
+                                            {/* Dev ID Section - Compact */}
+                                            {showDevId && (
+                                                <div className="pt-2 border-t border-gray-100 space-y-1 text-xs text-gray-500">
+                                                    {(selectedAppointment as any).id && (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span>מזהה:</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        await navigator.clipboard.writeText((selectedAppointment as any).id)
+                                                                        toast({
+                                                                            title: "הועתק",
+                                                                            description: "מזהה התור הועתק ללוח",
+                                                                        })
+                                                                    } catch (err) {
+                                                                        console.error("Failed to copy:", err)
+                                                                    }
+                                                                }}
+                                                                className="text-[10px] text-gray-600 hover:text-gray-900 font-mono cursor-pointer hover:underline"
+                                                            >
+                                                                {(selectedAppointment as any).id.slice(0, 8)}...
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    {(selectedAppointment as any).created_at || (selectedAppointment as any).updated_at ? (
+                                                        <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-400">
+                                                            {(selectedAppointment as any).created_at && (
+                                                                <div>נוצר: {format(new Date((selectedAppointment as any).created_at), "dd.MM.yyyy HH:mm")}</div>
+                                                            )}
+                                                            {(selectedAppointment as any).updated_at && (
+                                                                <div>עודכן: {format(new Date((selectedAppointment as any).updated_at), "dd.MM.yyyy HH:mm")}</div>
+                                                            )}
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Series Info - Compact */}
+                                        {selectedAppointment.seriesId && !hasBeenUnlinkedFromSeries && (
+                                            <div className="bg-purple-50 border border-purple-200 rounded-md p-2">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Info className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                                                        <span className="text-xs font-medium text-purple-800">
+                                                            תור מחזורי{weeksInterval && ` ${weeksInterval}`}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-6 w-6 p-0 text-primary hover:text-purple-800 hover:bg-primary/20"
+                                                            disabled={isUnlinkingFromSeries}
+                                                            onClick={() => setUnlinkConfirmOpen(true)}
+                                                            title="הפרד תור מהסדרה"
+                                                        >
+                                                            {isUnlinkingFromSeries ? (
+                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                            ) : (
+                                                                <Link2Off className="h-3 w-3" />
+                                                            )}
                                                         </Button>
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {/* Show Orders Button */}
-                                    {hasOrder && (
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-center gap-2"
-                                            onClick={(e) => {
-                                                e.preventDefault()
-                                                e.stopPropagation()
-                                                setIsOrderDetailsModalOpen(true)
-                                            }}
-                                        >
-                                            <Receipt className="h-4 w-4" />
-                                            הצג הזמנות
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
+                                            </div>
+                                        )}
 
-                            {subscriptionName ? (
-                                <>
-                                    <Separator />
-                                    <div className="space-y-2 text-sm text-gray-600">
-                                        <h3 className="text-sm font-medium text-gray-900">כרטיסייה</h3>
-                                        <div className="font-medium text-gray-900">{subscriptionName}</div>
-                                    </div>
-                                </>
-                            ) : null}
 
-                            {/* Client Notes Section */}
-                            <Separator />
-                            <div className="space-y-2">
-                                <h3 className="text-sm font-medium text-green-900"> הערות לקוח לתור</h3>
-                                <Textarea
-                                    value={appointmentClientNotes ?? selectedAppointment.notes ?? ""}
-                                    onChange={(e) => setAppointmentClientNotes(e.target.value)}
-                                    placeholder="הזן הערות לקוח..."
-                                    className="min-h-[100px] text-right bg-green-50 border-green-200"
-                                    dir="rtl"
-                                />
-                                {(appointmentClientNotes !== null && appointmentClientNotes !== originalClientNotes) && (
-                                    <div className="flex gap-2">
-                                        <Button
-                                            onClick={handleSaveClientNotes}
-                                            disabled={isSavingClientNotes}
-                                            size="sm"
-                                            className="flex-1"
-                                            variant="outline"
-                                        >
-                                            {isSavingClientNotes ? (
-                                                <>
-                                                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                                                    שומר...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Save className="h-4 w-4 ml-2" />
-                                                    שמור הערות לקוח
-                                                </>
-                                            )}
-                                        </Button>
-                                        <Button
-                                            onClick={handleRevertClientNotes}
-                                            disabled={isSavingClientNotes}
-                                            size="sm"
-                                            variant="outline"
-                                            className="flex-shrink-0"
-                                        >
-                                            <X className="h-4 w-4 ml-2" />
-                                            ביטול
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
+                                        {/* Payments Section - Compact */}
+                                        {payments.length > 0 && (
+                                            <div className="pt-2 border-t border-gray-100">
+                                                <div className="space-y-1.5">
+                                                    {payments.map((payment) => (
+                                                        <div
+                                                            key={payment.id}
+                                                            className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5"
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <CreditCard className="h-3.5 w-3.5 text-gray-400" />
+                                                                <div className="text-xs">
+                                                                    <span className="font-medium text-gray-900">₪{payment.amount.toFixed(2)}</span>
+                                                                    <span className={cn(
+                                                                        "mr-1.5 text-[10px]",
+                                                                        payment.status === "paid" ? "text-green-700" :
+                                                                            payment.status === "partial" ? "text-amber-700" :
+                                                                                "text-red-700"
+                                                                    )}>
+                                                                        {payment.status === "paid" ? "שולם" :
+                                                                            payment.status === "partial" ? "חלקי" :
+                                                                                "לא שולם"}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-6 px-2 text-xs"
+                                                                onClick={() => setIsInvoiceDialogOpen(true)}
+                                                            >
+                                                                <Receipt className="h-3 w-3 ml-1" />
+                                                                חשבונית
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                    {hasOrder && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 w-full justify-center gap-1.5 text-xs mt-1.5"
+                                                            onClick={(e) => {
+                                                                e.preventDefault()
+                                                                e.stopPropagation()
+                                                                setIsOrderDetailsModalOpen(true)
+                                                            }}
+                                                        >
+                                                            <Receipt className="h-3.5 w-3.5" />
+                                                            הצג הזמנות
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
 
-                            {/* Internal Staff Notes Section */}
-                            <Separator />
-                            {/* Grooming Notes - Show for grooming appointments */}
-                            {selectedAppointment.serviceType === "grooming" && (
-                                <>
-                                    <div className="space-y-2">
-                                        <h3 className="text-sm font-medium text-purple-900">מה עשינו היום</h3>
-                                        <Textarea
-                                            value={appointmentGroomingNotes || selectedAppointment.groomingNotes || ""}
-                                            onChange={(e) => setAppointmentGroomingNotes(e.target.value)}
-                                            placeholder="הזן מה עשינו היום..."
-                                            className="min-h-[100px] text-right bg-purple-50 border-purple-200"
-                                            dir="rtl"
-                                        />
-                                        {(appointmentGroomingNotes !== originalGroomingNotes) && (
-                                            <div className="flex gap-2">
+                                        {/* Subscription - Compact */}
+                                        {appointmentContent.subscriptionName && (
+                                            <div className="pt-2 border-t border-gray-100 text-xs">
+                                                <div className="flex items-center gap-1.5">
+                                                    <FileText className="h-3.5 w-3.5 text-gray-400" />
+                                                    <span className="text-gray-600">כרטיסייה:</span>
+                                                    <span className="font-medium text-gray-900">{appointmentContent.subscriptionName}</span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Save All Changes Button */}
+                                        {appointmentContent.hasUnsavedChanges && (
+                                            <div className="pt-2 border-t border-gray-100">
                                                 <Button
-                                                    onClick={handleSaveGroomingNotes}
-                                                    disabled={isSavingGroomingNotes}
+                                                    onClick={handleSaveAllChanges}
+                                                    disabled={isSavingAllChanges || isSavingInternalNotes || isSavingGroomingNotes || isSavingClientNotes}
                                                     size="sm"
-                                                    className="flex-1"
-                                                    variant="outline"
+                                                    className="w-full h-7 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
                                                 >
-                                                    {isSavingGroomingNotes ? (
+                                                    {isSavingAllChanges ? (
                                                         <>
-                                                            <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                                                            <Loader2 className="h-3 w-3 ml-1.5 animate-spin" />
                                                             שומר...
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <Save className="h-4 w-4 ml-2" />
-                                                            שמור הערות תספורת
+                                                            <Save className="h-3 w-3 ml-1.5" />
+                                                            שמור את כל השינויים
                                                         </>
                                                     )}
                                                 </Button>
-                                                <Button
-                                                    onClick={handleRevertGroomingNotes}
-                                                    disabled={isSavingGroomingNotes}
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="flex-shrink-0"
-                                                >
-                                                    <X className="h-4 w-4 ml-2" />
-                                                    ביטול
-                                                </Button>
                                             </div>
                                         )}
-                                        {/* Session Images for Grooming Appointments */}
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-center"
-                                            onClick={() => setIsSessionImagesModalOpen(true)}
-                                        >
-                                            <ImageIcon className="h-4 w-4" />
-                                            {sessionImagesCount === null
-                                                ? "טוען..."
-                                                : sessionImagesCount === 0
-                                                    ? "הצג תמונות (אין תמונות שהועלו)"
-                                                    : `הצג תמונות (${sessionImagesCount} תמונות)`}
-                                        </Button>
-                                    </div>
-                                </>
-                            )}
-                            <Separator />
 
-                            <div className="space-y-2">
-                                <h3 className="text-sm font-medium text-blue-900">הערות צוות לתור</h3>
-                                <Textarea
-                                    value={appointmentInternalNotes || selectedAppointment.internalNotes || ""}
-                                    onChange={(e) => setAppointmentInternalNotes(e.target.value)}
-                                    placeholder="הזן הערות צוות פנימיות..."
-                                    className="min-h-[100px] text-right bg-blue-50 border-blue-200"
-                                    dir="rtl"
-                                />
-                                {(appointmentInternalNotes !== originalInternalNotes) && (
-                                    <div className="flex gap-2">
-                                        <Button
-                                            onClick={handleSaveInternalNotes}
-                                            disabled={isSavingInternalNotes}
-                                            size="sm"
-                                            className="flex-1"
-                                            variant="outline"
-                                        >
-                                            {isSavingInternalNotes ? (
-                                                <>
-                                                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                                                    שומר...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Save className="h-4 w-4 ml-2" />
-                                                    שמור הערות צוות
-                                                </>
-                                            )}
-                                        </Button>
-                                        <Button
-                                            onClick={handleRevertInternalNotes}
-                                            disabled={isSavingInternalNotes}
-                                            size="sm"
-                                            variant="outline"
-                                            className="flex-shrink-0"
-                                        >
-                                            <X className="h-4 w-4 ml-2" />
-                                            ביטול
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Save All Changes Button */}
-                            {hasUnsavedChanges && (
-                                <div className="mt-4">
-                                    <Button
-                                        onClick={handleSaveAllChanges}
-                                        disabled={isSavingAllChanges || isSavingInternalNotes || isSavingGroomingNotes || isSavingClientNotes}
-                                        size="lg"
-                                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                                    >
-                                        {isSavingAllChanges ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                                                שומר את כל השינויים...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Save className="h-4 w-4 ml-2" />
-                                                שמור את כל השינויים
-                                            </>
+                                        {/* Record Information - Compact */}
+                                        {(selectedAppointment.recordId || selectedAppointment.recordNumber) && (
+                                            <div className="pt-2 border-t border-gray-100 text-xs text-gray-500">
+                                                {selectedAppointment.recordId && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span>מזהה:</span>
+                                                        <span className="font-mono text-gray-700">{selectedAppointment.recordId}</span>
+                                                    </div>
+                                                )}
+                                                {selectedAppointment.recordNumber && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span>מספר:</span>
+                                                        <span className="font-mono text-gray-700">{selectedAppointment.recordNumber}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
-                                    </Button>
-                                </div>
-                            )}
 
-
-                            {/* Record Information */}
-                            {(selectedAppointment.recordId || selectedAppointment.recordNumber) && (
-                                <>
-                                    <Separator />
-                                    <div className="space-y-2">
-                                        <h3 className="text-sm font-medium text-gray-900">פרטי רשומה</h3>
-                                        <div className="text-xs text-gray-500 space-y-1">
-                                            {selectedAppointment.recordId && (
-                                                <div>מזהה רשומה: <span className="font-mono text-gray-700">{selectedAppointment.recordId}</span></div>
-                                            )}
-                                            {selectedAppointment.recordNumber && (
-                                                <div>מספר רשומה: <span className="font-mono text-gray-700">{selectedAppointment.recordNumber}</span></div>
-                                            )}
+                                        {/* Messaging Actions - Sticky to bottom */}
+                                        <div className="mt-auto pt-6">
+                                            <MessagingActions
+                                                phone={appointmentClientPhone || appointmentContent.clientPhone}
+                                                name={appointmentClientName || appointmentContent.clientName}
+                                                contacts={customerContacts}
+                                                customerId={resolvedClientId || selectedAppointment.clientId}
+                                            />
                                         </div>
                                     </div>
-                                </>
-                            )}
+                                )
+                            }
 
-                            {/* Messaging Actions */}
-                            <MessagingActions
-                                phone={appointmentClientPhone || clientPhone}
-                                name={appointmentClientName || clientName}
-                                contacts={customerContacts}
-                                customerId={resolvedClientId || selectedAppointment.clientId}
-                            />
-                        </div>
-                    )
-                })() : null}
-            </SheetContent>
+                            return (
+                                <div className="py-12 text-center text-sm text-gray-500">לא נבחר תור</div>
+                            )
+                        })()}
+                    </div>
+                </SheetContent>
+            </Sheet>
 
             {/* Payment Modal */}
             {selectedAppointment && (
@@ -2140,36 +2848,68 @@ export const AppointmentDetailsSheet = ({
                 if (!appointmentId) return null
 
                 return (
-                    <ImageGalleryModal
-                        open={isSessionImagesModalOpen}
-                        onOpenChange={(open) => {
-                            setIsSessionImagesModalOpen(open)
-                            // Refresh count when modal closes
-                            if (!open && selectedAppointment) {
-                                let refreshAppointmentId: string | null = null
-                                if (selectedAppointment.serviceType === "grooming") {
-                                    refreshAppointmentId = extractGroomingAppointmentId(
-                                        selectedAppointment.id,
-                                        selectedAppointment.groomingAppointmentId
-                                    )
-                                }
+                    <>
+                        <ImageGalleryModal
+                            open={isSessionImagesModalOpen}
+                            onOpenChange={(open) => {
+                                setIsSessionImagesModalOpen(open)
+                                // Refresh count when modal closes
+                                if (!open && selectedAppointment) {
+                                    let refreshAppointmentId: string | null = null
+                                    if (selectedAppointment.serviceType === "grooming") {
+                                        refreshAppointmentId = extractGroomingAppointmentId(
+                                            selectedAppointment.id,
+                                            selectedAppointment.groomingAppointmentId
+                                        )
+                                    }
 
-                                if (refreshAppointmentId) {
-                                    supabase
-                                        .from("appointment_session_images")
-                                        .select("*", { count: "exact", head: true })
-                                        .eq("grooming_appointment_id", refreshAppointmentId)
-                                        .then(({ count }) => {
-                                            setSessionImagesCount(count ?? 0)
-                                        })
+                                    if (refreshAppointmentId) {
+                                        supabase
+                                            .from("appointment_session_images")
+                                            .select("*", { count: "exact", head: true })
+                                            .eq("grooming_appointment_id", refreshAppointmentId)
+                                            .then(({ count }) => {
+                                                setSessionImagesCount(count ?? 0)
+                                            })
+                                    }
                                 }
-                            }
-                        }}
-                        title="תמונות מהשירות הנוכחי"
-                        imageType="appointment-session"
-                        entityId={appointmentId}
-                        userId={currentUserId}
-                    />
+                            }}
+                            title="תמונות מהשירות הנוכחי"
+                            imageType="appointment-session"
+                            entityId={appointmentId}
+                            userId={currentUserId}
+                        />
+                        <ImageGalleryModal
+                            open={isTreatmentImagesModalOpen}
+                            onOpenChange={(open) => {
+                                setIsTreatmentImagesModalOpen(open)
+                                // Refresh count when modal closes
+                                if (!open && selectedAppointment) {
+                                    let refreshAppointmentId: string | null = null
+                                    if (selectedAppointment.serviceType === "grooming") {
+                                        refreshAppointmentId = extractGroomingAppointmentId(
+                                            selectedAppointment.id,
+                                            selectedAppointment.groomingAppointmentId
+                                        )
+                                    }
+
+                                    if (refreshAppointmentId) {
+                                        supabase
+                                            .from("appointment_session_images")
+                                            .select("*", { count: "exact", head: true })
+                                            .eq("grooming_appointment_id", refreshAppointmentId)
+                                            .then(({ count }) => {
+                                                setSessionImagesCount(count ?? 0)
+                                            })
+                                    }
+                                }
+                            }}
+                            title="תמונות טיפול מהיום"
+                            imageType="appointment-session"
+                            entityId={appointmentId}
+                            userId={currentUserId}
+                        />
+                    </>
                 )
             })()}
 
@@ -2182,6 +2922,18 @@ export const AppointmentDetailsSheet = ({
                     customerName={selectedAppointment.clientName}
                 />
             )}
-        </Sheet>
+
+            {/* Hair Coloring Modal */}
+            {selectedAppointment?.serviceType === "grooming" && (
+                <HairColoringModal
+                    open={isHairColoringModalOpen}
+                    onOpenChange={setIsHairColoringModalOpen}
+                    appointmentId={selectedAppointment.id}
+                    groomingAppointmentId={selectedAppointment.groomingAppointmentId}
+                    customerId={selectedAppointment.clientId}
+                    customerName={selectedAppointment.clientName}
+                />
+            )}
+        </>
     )
 }

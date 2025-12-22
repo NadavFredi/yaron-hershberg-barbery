@@ -252,7 +252,7 @@ export const ProposedMeetingSheet = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      className="w-full justify-start text-primary hover:text-primary hover:bg-primary/10"
                       onClick={() => onEdit(meeting)}
                     >
                       <Pencil className="h-4 w-4 ml-2" />
@@ -349,12 +349,12 @@ export const ProposedMeetingSheet = ({
             </div>
 
             {meeting.proposedLinkedAppointmentId && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-4 space-y-1 text-right">
-                <div className="text-xs font-semibold text-blue-700">מקושר לתור קיים</div>
+              <div className="rounded-lg border border-primary/20 bg-primary/10/70 p-4 space-y-1 text-right">
+                <div className="text-xs font-semibold text-primary">מקושר לתור קיים</div>
                 {originalRangeLabel && (
-                  <div className="text-sm font-medium text-blue-900">{originalRangeLabel}</div>
+                  <div className="text-sm font-medium text-primary">{originalRangeLabel}</div>
                 )}
-                <div className="text-xs text-blue-700">
+                <div className="text-xs text-primary">
                   כאשר הלקוח יאשר, התור המקורי יועבר לשעה החדשה וההצעה תימחק אוטומטית.
                 </div>
               </div>

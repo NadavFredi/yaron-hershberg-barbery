@@ -449,7 +449,7 @@ export default function PaymentsReport() {
                                 <CardDescription>סה"כ תשלומים</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-3xl font-bold text-blue-600">
+                                <div className="text-3xl font-bold text-primary">
                                     ₪{paymentData.total.toLocaleString("he-IL")}
                                 </div>
                                 <p className="text-sm text-slate-500 mt-1">{paymentData.count} תורים</p>
@@ -465,7 +465,7 @@ export default function PaymentsReport() {
                                         <CardDescription>{serviceData.serviceName}</CardDescription>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="text-3xl font-bold text-blue-600">
+                                        <div className="text-3xl font-bold text-primary">
                                             ₪{serviceData.total.toLocaleString("he-IL")}
                                         </div>
                                         <p className="text-sm text-slate-500 mt-1">{serviceData.count} תורים</p>

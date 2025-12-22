@@ -299,7 +299,7 @@ export function ManagerSubnav({ isManager }: ManagerSubnavProps) {
       ref={subnavRef}
       data-nav-level="2"
       className={cn(
-        "hidden xl:block xl:z-40 xl:-mb-px xl:bg-gradient-to-r xl:from-blue-50 xl:to-indigo-50 xl:border-b xl:border-blue-200/50 xl:shadow-sm transition-all duration-300",
+        "hidden xl:block xl:z-40 xl:-mb-px xl:bg-gradient-to-r xl:from-primary/10 xl:to-primary/5 xl:border-b xl:border-primary/20 xl:shadow-sm transition-all duration-300",
         isCollapsed && "xl:opacity-0 xl:max-h-0 xl:overflow-hidden"
       )}
       onMouseEnter={() => {
@@ -336,8 +336,8 @@ export function ManagerSubnav({ isManager }: ManagerSubnavProps) {
                 className={cn(
                   "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-blue-600 text-white shadow-md"
-                    : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-sm"
+                    ? "bg-primary text-white shadow-md"
+                    : "text-gray-700 hover:text-primary hover:bg-white/80 hover:shadow-sm"
                 )}
               >
                 <section.icon className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-500"}`} />
@@ -348,7 +348,7 @@ export function ManagerSubnav({ isManager }: ManagerSubnavProps) {
         </nav>
 
         {activeSection?.children ? (
-          <div className="mt-3 rounded-xl border border-indigo-200/40 bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50 shadow-sm">
+          <div className="mt-3 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 shadow-sm">
             <nav
               className="flex items-center justify-center gap-2 overflow-x-auto px-3 py-2 sm:px-4"
               aria-label="תפריט משנה לניהול תורים"
@@ -363,8 +363,8 @@ export function ManagerSubnav({ isManager }: ManagerSubnavProps) {
                     className={cn(
                       "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200",
                       isChildActive
-                        ? "bg-indigo-600 text-white shadow-md"
-                        : "text-gray-700 hover:text-indigo-600 hover:bg-white/80 hover:shadow-sm"
+                        ? "bg-primary text-white shadow-md"
+                        : "text-gray-700 hover:text-primary hover:bg-white/80 hover:shadow-sm"
                     )}
                   >
                     <child.icon className={`h-4 w-4 ${isChildActive ? "text-white" : "text-slate-500"}`} />

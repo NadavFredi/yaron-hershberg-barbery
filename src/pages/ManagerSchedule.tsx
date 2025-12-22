@@ -147,7 +147,7 @@ const ManagerSchedule = () => {
             onEnterPassword={() => setShowPasswordDialog(true)}
           />
         )}
-        <div className={`mx-auto w-full px-4 sm:px-6 lg:px-8 ${showGuard ? "opacity-40 pointer-events-none select-none" : ""}`}>
+        <div className={`mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4 ${showGuard ? "opacity-40 pointer-events-none select-none" : ""}`}>
           <ManagerScheduleLoadingState />
           <div className={`flex gap-4 transition-all duration-300 ease-in-out ${isUnpinMode ? 'h-screen py-4' : ''}`}>
             <ManagerScheduleSidebar />

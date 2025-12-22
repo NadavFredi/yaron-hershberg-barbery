@@ -1318,7 +1318,7 @@ export default function CustomersListPage() {
             return (
                 <div className="flex items-center gap-2 flex-wrap" style={{ paddingRight: `${depth * 24}px` }}>
                     {!isFirst && parentOperator && (
-                        <span className="text-xs font-semibold text-blue-600 px-1">{parentOperator === "AND" ? "וגם" : "או"}</span>
+                        <span className="text-xs font-semibold text-primary px-1">{parentOperator === "AND" ? "וגם" : "או"}</span>
                     )}
                     <Select
                         value={node.condition.type}
@@ -1407,11 +1407,11 @@ export default function CustomersListPage() {
             // Group node
             return (
                 <div className="space-y-2" style={{ paddingRight: `${depth * 24}px` }}>
-                    <div className="flex items-center gap-2 flex-wrap border-r-2 border-blue-300 pr-3 rounded bg-blue-50/30">
+                    <div className="flex items-center gap-2 flex-wrap border-r-2 border-primary/30 pr-3 rounded bg-primary/10/30">
                         {!isFirst && parentOperator && (
-                            <span className="text-xs font-semibold text-blue-600 px-1">{parentOperator === "AND" ? "וגם" : "או"}</span>
+                            <span className="text-xs font-semibold text-primary px-1">{parentOperator === "AND" ? "וגם" : "או"}</span>
                         )}
-                        <span className="text-lg font-bold text-blue-600">(</span>
+                        <span className="text-lg font-bold text-primary">(</span>
                         <Select
                             value={node.operator}
                             onValueChange={(value: "AND" | "OR") => {
@@ -1444,7 +1444,7 @@ export default function CustomersListPage() {
                                 <X className="h-4 w-4" />
                             </Button>
                         )}
-                        <span className="text-lg font-bold text-blue-600">)</span>
+                        <span className="text-lg font-bold text-primary">)</span>
                     </div>
                     <div className="space-y-2 pr-6">
                         {node.children.map((child, index) => (
@@ -1802,10 +1802,10 @@ export default function CustomersListPage() {
                             </Button>
                         )}
                         {(selectedCount > 0) && (
-                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
-                                <div className="flex flex-col text-right text-blue-900">
+                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/10 p-4">
+                                <div className="flex flex-col text-right text-primary">
                                     <span className="text-sm font-semibold">נבחרו {selectedCount} לקוחות</span>
-                                    <span className="text-xs text-blue-800/80">באפשרותך לבצע פעולות מרובות על כל הלקוחות שנבחרו</span>
+                                    <span className="text-xs text-primary/80">באפשרותך לבצע פעולות מרובות על כל הלקוחות שנבחרו</span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <Button

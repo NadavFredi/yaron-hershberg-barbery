@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Loader2, Search, ShoppingCart, Scissors, Home, Calendar, ExternalLink, CreditCard, Plus, Trash2 } from "lucide-react"
+import { Loader2, Search, ShoppingCart, Scissors, Calendar, ExternalLink, CreditCard, Plus, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { format } from "date-fns"
@@ -38,7 +38,6 @@ interface Cart {
     cart_number: number
     customer_id: string | null
     grooming_appointment_id: string | null
-    daycare_appointment_id: string | null
     appointment_price: number
     status: string
     created_at: string
@@ -50,21 +49,7 @@ interface Cart {
     grooming_appointments?: {
         id: string
         start_at: string
-        dogs?: {
-            id: string
-            name: string
-        }[] | {
-            id: string
-            name: string
-        } | null
-    } | null
-    daycare_appointments?: {
-        id: string
-        start_at: string
-        dogs?: {
-            id: string
-            name: string
-        }[] | {
+        treatments?: {
             id: string
             name: string
         } | null
@@ -78,7 +63,7 @@ export default function CartsSection() {
     const [carts, setCarts] = useState<Cart[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
-    const [appointmentTypeFilter, setAppointmentTypeFilter] = useState<"all" | "grooming" | "daycare" | "both">("all")
+    const [appointmentTypeFilter, setAppointmentTypeFilter] = useState<"all" | "grooming">("all")
     const [statusFilter, setStatusFilter] = useState<"all" | "active" | "completed" | "abandoned">("all")
     const [minPriceFilter, setMinPriceFilter] = useState("")
     const [maxPriceFilter, setMaxPriceFilter] = useState("")
@@ -119,20 +104,11 @@ export default function CartsSection() {
                     cart_appointments (
                         id,
                         grooming_appointment_id,
-                        daycare_appointment_id,
                         appointment_price,
                         grooming_appointments (
                             id,
                             start_at,
-                            dogs (
-                                id,
-                                name
-                            )
-                        ),
-                        daycare_appointments (
-                            id,
-                            start_at,
-                            dogs (
+                            treatments (
                                 id,
                                 name
                             )
@@ -156,20 +132,13 @@ export default function CartsSection() {
             if (error) throw error
 
             // Transform data to match Cart interface (for backward compatibility)
-            interface CartWithAppointments {
-                cart_appointments?: Array<{
-                    grooming_appointment_id?: string | null
-                    daycare_appointment_id?: string | null
-                    appointment_price?: number
-                    grooming_appointments?: { id: string; start_at: string; dogs?: Array<{ id: string; name: string }> | { id: string; name: string } | null }
-                    daycare_appointments?: { id: string; start_at: string; dogs?: Array<{ id: string; name: string }> | { id: string; name: string } | null }
-                }>
-            }
-
-            const transformedCarts = (data || []).map((cart: CartWithAppointments & Cart) => {
+            const transformedCarts = (data || []).map((cart: Cart & { cart_appointments?: Array<{
+                grooming_appointment_id?: string | null
+                appointment_price?: number
+                grooming_appointments?: { id: string; start_at: string; treatments?: { id: string; name: string } | null }
+            }> }) => {
                 const cartAppointments = cart.cart_appointments || []
                 const firstGrooming = cartAppointments.find((ca) => ca.grooming_appointment_id)
-                const firstDaycare = cartAppointments.find((ca) => ca.daycare_appointment_id)
 
                 // Calculate total appointment price
                 const totalAppointmentPrice = cartAppointments.reduce((sum: number, ca) =>
@@ -178,10 +147,8 @@ export default function CartsSection() {
                 return {
                     ...cart,
                     grooming_appointment_id: firstGrooming?.grooming_appointment_id || null,
-                    daycare_appointment_id: firstDaycare?.daycare_appointment_id || null,
                     appointment_price: totalAppointmentPrice,
                     grooming_appointments: firstGrooming?.grooming_appointments || null,
-                    daycare_appointments: firstDaycare?.daycare_appointments || null,
                 }
             })
 
@@ -205,43 +172,23 @@ export default function CartsSection() {
         return itemsTotal + (cart.appointment_price || 0)
     }
 
-    const getAppointmentType = (cart: Cart): "grooming" | "daycare" | "both" | null => {
-        const hasGrooming = !!cart.grooming_appointment_id
-        const hasDaycare = !!cart.daycare_appointment_id
-
-        if (hasGrooming && hasDaycare) return "both"
-        if (hasGrooming) return "grooming"
-        if (hasDaycare) return "daycare"
-        return null
+    const getAppointmentType = (cart: Cart): "grooming" | null => {
+        return cart.grooming_appointment_id ? "grooming" : null
     }
 
-    // Helper function to safely extract dog names from appointments
+    // Helper function to safely extract treatment names from appointments
     const getDogNames = (cart: Cart): string[] => {
-        const dogNames: string[] = []
+        const treatmentNames: string[] = []
 
         // Handle grooming appointments
-        if (cart.grooming_appointments) {
-            const dogs = cart.grooming_appointments.dogs
-            if (Array.isArray(dogs)) {
-                dogNames.push(...dogs.map(d => d.name).filter(Boolean))
-            } else if (dogs && typeof dogs === 'object' && 'name' in dogs) {
-                // Handle single dog object
-                dogNames.push(dogs.name)
+        if (cart.grooming_appointments?.treatments) {
+            const treatment = cart.grooming_appointments.treatments
+            if (treatment && typeof treatment === 'object' && 'name' in treatment) {
+                treatmentNames.push(treatment.name)
             }
         }
 
-        // Handle daycare appointments
-        if (cart.daycare_appointments) {
-            const dogs = cart.daycare_appointments.dogs
-            if (Array.isArray(dogs)) {
-                dogNames.push(...dogs.map(d => d.name).filter(Boolean))
-            } else if (dogs && typeof dogs === 'object' && 'name' in dogs) {
-                // Handle single dog object
-                dogNames.push(dogs.name)
-            }
-        }
-
-        return dogNames
+        return treatmentNames
     }
 
     const filteredCarts = useMemo(() => {
@@ -252,11 +199,8 @@ export default function CartsSection() {
             }
 
             // Appointment type filter
-            if (appointmentTypeFilter !== "all") {
-                const cartType = getAppointmentType(cart)
-                if (appointmentTypeFilter === "both" && cartType !== "both") return false
-                if (appointmentTypeFilter === "grooming" && cartType !== "grooming") return false
-                if (appointmentTypeFilter === "daycare" && cartType !== "daycare") return false
+            if (appointmentTypeFilter === "grooming" && getAppointmentType(cart) !== "grooming") {
+                return false
             }
 
             // Price filter
@@ -285,7 +229,7 @@ export default function CartsSection() {
             }
 
             // Appointment date filter
-            const appointmentDate = cart.grooming_appointments?.start_at || cart.daycare_appointments?.start_at
+            const appointmentDate = cart.grooming_appointments?.start_at
             if (appointmentDate) {
                 if (appointmentFromDate) {
                     const apptDate = new Date(appointmentDate)
@@ -349,8 +293,8 @@ export default function CartsSection() {
     }
 
     const handleNavigateToAppointment = (cart: Cart) => {
-        const appointmentId = cart.grooming_appointment_id || cart.daycare_appointment_id
-        const appointmentDate = cart.grooming_appointments?.start_at || cart.daycare_appointments?.start_at
+        const appointmentId = cart.grooming_appointment_id
+        const appointmentDate = cart.grooming_appointments?.start_at
 
         if (!appointmentId || !appointmentDate) {
             toast({
@@ -438,7 +382,7 @@ export default function CartsSection() {
         setIsSelectCustomerDialogOpen(true)
     }
 
-    const handleCustomerSelected = async (customer: Customer, dog: Dog | null) => {
+    const handleCustomerSelected = async (customer: Customer) => {
         try {
             // Create a new cart with the selected customer
             const { data: newCart, error } = await supabase
@@ -593,13 +537,11 @@ export default function CartsSection() {
                             </Select>
 
                             {/* Appointment Type Filter */}
-                            <Select value={appointmentTypeFilter} onValueChange={(value: "all" | "grooming" | "daycare" | "both") => setAppointmentTypeFilter(value)}>
+                            <Select value={appointmentTypeFilter} onValueChange={(value: "all" | "grooming") => setAppointmentTypeFilter(value)}>
                                 <SelectTrigger dir="rtl">
                                     <SelectValue>
                                         {appointmentTypeFilter === "all" ? "סוג תור: הכל" :
-                                            appointmentTypeFilter === "grooming" ? "סוג תור: מספרה" :
-                                                appointmentTypeFilter === "daycare" ? "סוג תור: " :
-                                                    "סוג תור: שניהם"}
+                                            "סוג תור: מספרה"}
                                     </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent dir="rtl">
@@ -610,12 +552,6 @@ export default function CartsSection() {
                                             מספרה
                                         </div>
                                     </SelectItem>
-                                    <SelectItem value="daycare">
-                                        <div className="flex items-center gap-2">
-                                            <Home className="h-4 w-4" />
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="both">שניהם</SelectItem>
                                 </SelectContent>
                             </Select>
 
@@ -739,25 +675,14 @@ export default function CartsSection() {
                                                         {cart.customers?.full_name || "-"}
                                                     </TableCell>
                                                     <TableCell>
-                                                        {appointmentType === "grooming" && (
+                                                        {appointmentType === "grooming" ? (
                                                             <Badge variant="outline" className="flex items-center gap-1 w-fit">
                                                                 <Scissors className="h-3 w-3" />
                                                                 מספרה
                                                             </Badge>
+                                                        ) : (
+                                                            "-"
                                                         )}
-                                                        {appointmentType === "daycare" && (
-                                                            <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                                                                <Home className="h-3 w-3" />
-                                                            </Badge>
-                                                        )}
-                                                        {appointmentType === "both" && (
-                                                            <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                                                                <Scissors className="h-3 w-3" />
-                                                                <Home className="h-3 w-3" />
-                                                                שניהם
-                                                            </Badge>
-                                                        )}
-                                                        {!appointmentType && "-"}
                                                     </TableCell>
                                                     <TableCell>
                                                         {cart.cart_items?.length || 0} פריטים
@@ -803,7 +728,7 @@ export default function CartsSection() {
                                                                     השלם תשלום
                                                                 </Button>
                                                             )}
-                                                            {(cart.grooming_appointment_id || cart.daycare_appointment_id) && (
+                                                            {cart.grooming_appointment_id && (
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
@@ -890,4 +815,3 @@ export default function CartsSection() {
         </div>
     )
 }
-

@@ -347,7 +347,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 {(step === 2 || step === 3 || step === 4) && (
                     <div className="flex items-center gap-2 text-sm text-gray-600 pb-2 border-b">
                         <span
-                            className="cursor-pointer hover:text-blue-600 transition-colors"
+                            className="cursor-pointer hover:text-primary transition-colors"
                             onClick={() => handleBreadcrumbClick(1)}
                         >
                             מחיר ומוצרים
@@ -355,7 +355,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         {(step === 3 || step === 4) && paymentType && (
                             <>
                                 <ChevronLeft className="h-4 w-4" />
-                                <span className="cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleBreadcrumbClick(2)}>
+                                <span className="cursor-pointer hover:text-primary transition-colors" onClick={() => handleBreadcrumbClick(2)}>
                                     אמצעי תשלום
                                 </span>
                             </>
@@ -364,7 +364,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <>
                                 <ChevronLeft className="h-4 w-4" />
                                 <span
-                                    className="cursor-pointer hover:text-blue-600 transition-colors"
+                                    className="cursor-pointer hover:text-primary transition-colors"
                                     onClick={() => handleBreadcrumbClick(3)}
                                 >
                                     {getSubTypeLabel()}
@@ -541,7 +541,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     setTimeout(() => setStep(3), 100)
                                 }}
                             >
-                                <Smartphone className="h-6 w-6 text-purple-600" />
+                                <Smartphone className="h-6 w-6 text-primary" />
                                 <span className="flex-1 text-right">אפליקציות</span>
                             </Button>
 
@@ -553,7 +553,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     setTimeout(() => setStep(3), 100)
                                 }}
                             >
-                                <CreditCard className="h-6 w-6 text-blue-600" />
+                                <CreditCard className="h-6 w-6 text-primary" />
                                 <span className="flex-1 text-right">אשראי</span>
                             </Button>
 
@@ -565,7 +565,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     setTimeout(() => setStep(3), 100)
                                 }}
                             >
-                                <Building2 className="h-6 w-6 text-indigo-600" />
+                                <Building2 className="h-6 w-6 text-primary" />
                                 <span className="flex-1 text-right">העברה בנקאית ומזומן</span>
                             </Button>
                         </div>
@@ -641,7 +641,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                         }}
                                         disabled={!hasSavedCard || isCheckingSavedCard}
                                     >
-                                        <CreditCard className="h-6 w-6 text-blue-600" />
+                                        <CreditCard className="h-6 w-6 text-primary" />
                                         <span className="flex-1 text-right">תשלום דרך אשראי שמור במערכת</span>
                                         {isCheckingSavedCard && <Loader2 className="h-4 w-4 animate-spin" />}
                                     </Button>
@@ -664,7 +664,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                             setTimeout(() => setStep(4), 100)
                                         }}
                                     >
-                                        <Smartphone className="h-6 w-6 text-indigo-600" />
+                                        <Smartphone className="h-6 w-6 text-primary" />
                                         <span className="flex-1 text-right">קריאה ממסופון</span>
                                     </Button>
                                 </>
@@ -680,7 +680,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                             setTimeout(() => setStep(4), 100)
                                         }}
                                     >
-                                        <Building2 className="h-6 w-6 text-indigo-600" />
+                                        <Building2 className="h-6 w-6 text-primary" />
                                         <span className="flex-1 text-right">העברה בנקאית</span>
                                     </Button>
                                     <Button
@@ -781,12 +781,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                         {paymentLink && (
                                             <div className="space-y-3">
                                                 <div className="flex items-center gap-2 p-2 bg-white border rounded text-sm">
-                                                    <LinkIcon className="h-4 w-4 flex-shrink-0 text-blue-600" />
+                                                    <LinkIcon className="h-4 w-4 flex-shrink-0 text-primary" />
                                                     <a
                                                         href={paymentLink}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="flex-1 text-blue-600 hover:underline truncate"
+                                                        className="flex-1 text-primary hover:underline truncate"
                                                         dir="ltr"
                                                         style={{ textAlign: "left" }}
                                                     >
@@ -804,7 +804,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                                 />
 
                                                 {isPollingPayment && (
-                                                    <div className="flex items-center gap-2 text-sm text-blue-600">
+                                                    <div className="flex items-center gap-2 text-sm text-primary">
                                                         <Loader2 className="h-4 w-4 animate-spin" />
                                                         <span>ממתין לתשלום...</span>
                                                     </div>

@@ -266,7 +266,7 @@ export function DuplicateSeriesModal() {
                                                 dispatch(setSelectedDog(dog))
                                                 dispatch(setIsDogDetailsOpen(true))
                                             }}
-                                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                            className="text-primary hover:text-primary hover:underline cursor-pointer"
                                         >
                                             {appointmentToDuplicate.dogs[0].name || 'לא ידוע'}
                                         </button>
@@ -291,7 +291,7 @@ export function DuplicateSeriesModal() {
                                                 dispatch(setSelectedClient(client))
                                                 dispatch(setIsClientDetailsOpen(true))
                                             }}
-                                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                            className="text-primary hover:text-primary hover:underline cursor-pointer"
                                         >
                                             {appointmentToDuplicate.clientName}
                                         </button>
@@ -409,7 +409,7 @@ export function DuplicateSeriesModal() {
                                             </div>
                                             {appointmentToDuplicate.serviceType === 'grooming' && (
                                                 <div className={`flex items-center gap-2 space-x-2 rtl:space-x-reverse rounded-md p-3 border transition-colors ${duplicateGroomingNotes
-                                                    ? 'bg-purple-100 border-purple-300'
+                                                    ? 'bg-primary/20 border-purple-300'
                                                     : 'bg-transparent border-purple-200'
                                                     }`}>
                                                     <Checkbox
@@ -430,8 +430,8 @@ export function DuplicateSeriesModal() {
                                                 </div>
                                             )}
                                             <div className={`flex items-center gap-2 space-x-2 rtl:space-x-reverse rounded-md p-3 border transition-colors ${duplicateTeamNotes
-                                                ? 'bg-blue-100 border-blue-300'
-                                                : 'bg-transparent border-blue-200'
+                                                ? 'bg-primary/20 border-primary/30'
+                                                : 'bg-transparent border-primary/20'
                                                 }`}>
                                                 <Checkbox
                                                     id="duplicate-team-notes"
@@ -442,7 +442,7 @@ export function DuplicateSeriesModal() {
                                                 <Label
                                                     htmlFor="duplicate-team-notes"
                                                     className={`text-sm font-medium cursor-pointer ${duplicateTeamNotes
-                                                        ? 'text-blue-900'
+                                                        ? 'text-primary'
                                                         : 'text-gray-700'
                                                         }`}
                                                 >
@@ -458,8 +458,8 @@ export function DuplicateSeriesModal() {
                         {/* Send Message Checkbox Banner */}
                         <div className="py-3 border-t border-gray-200">
                             <div className={`flex items-center gap-2 space-x-2 rtl:space-x-reverse rounded-md p-3 border transition-colors ${sendRepeatedAppointmentMessage
-                                ? 'bg-blue-100 border-blue-300'
-                                : 'bg-transparent border-blue-200'
+                                ? 'bg-primary/20 border-primary/30'
+                                : 'bg-transparent border-primary/20'
                                 }`}>
                                 <Checkbox
                                     id="send-repeated-message"
@@ -470,7 +470,7 @@ export function DuplicateSeriesModal() {
                                 <Label
                                     htmlFor="send-repeated-message"
                                     className={`text-sm font-medium cursor-pointer ${sendRepeatedAppointmentMessage
-                                        ? 'text-blue-900'
+                                        ? 'text-primary'
                                         : 'text-gray-700'
                                         }`}
                                 >

@@ -123,7 +123,7 @@ export function CustomerImagesModal({
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
               <p className="text-gray-600">טוען תמונות...</p>
             </div>
           </div>
@@ -152,7 +152,7 @@ export function CustomerImagesModal({
                     {images.map((item) => (
                       <div
                         key={item.image.id}
-                        className="relative group rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-colors"
+                        className="relative group rounded-lg overflow-hidden border border-gray-200 hover:border-primary/40 transition-colors"
                       >
                         <img
                           src={item.image.image_url}

@@ -337,7 +337,7 @@ export function SignIn({
                                 <div className="flex items-center justify-between">
                                     <Link
                                         to="/reset-password"
-                                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                        className="text-sm text-primary hover:text-primary/90 font-medium"
                                     >
                                         שכחת סיסמה?
                                     </Link>
@@ -357,7 +357,7 @@ export function SignIn({
 
                                 <Button
                                     type="submit"
-                                    className="w-full bg-blue-600 hover:bg-blue-700"
+                                    className="w-full bg-primary hover:bg-primary/90"
                                     disabled={isLoading}
                                 >
                                     {isLoading ? (
@@ -405,7 +405,7 @@ export function SignIn({
                                     <Button
                                         type="button"
                                         onClick={handleSendOTP}
-                                        className="w-full bg-blue-600 hover:bg-blue-700"
+                                        className="w-full bg-primary hover:bg-primary/90"
                                         disabled={otpLoading || !phoneE164}
                                     >
                                         {otpLoading ? (
@@ -474,7 +474,7 @@ export function SignIn({
                                         </Button>
                                         <Button
                                             type="submit"
-                                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                                            className="flex-1 bg-primary hover:bg-primary/90"
                                             disabled={isLoading || otp.length !== 6}
                                         >
                                             {isLoading ? (
@@ -505,7 +505,7 @@ export function SignIn({
                         <span className="text-sm text-gray-600">אין לך חשבון? </span>
                         <Link
                             to="/signup"
-                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                            className="text-sm text-primary hover:text-primary font-medium"
                         >
                             הרשמה
                         </Link>

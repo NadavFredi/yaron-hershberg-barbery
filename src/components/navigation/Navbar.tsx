@@ -36,7 +36,7 @@ import {
 } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth"
-import logoImage from "@/assets/logo.jpeg"
+import logoImage from "@/assets/logo.png"
 import { MANAGER_NAV_SECTIONS } from "./ManagerSubnav"
 import { THIRD_LEVEL_SECTIONS } from "./ThirdLevelSubnav"
 import {
@@ -63,9 +63,13 @@ import {
     TooltipProvider,
     TooltipTrigger
 } from "@/components/ui/tooltip"
+import {
+    Sheet,
+    SheetContent,
+} from "@/components/ui/sheet"
 
 const SERVICE_BADGE_STYLES: Record<PendingAppointmentRequest["serviceType"], string> = {
-    grooming: "bg-blue-100 text-blue-700 border border-blue-200"
+    grooming: "bg-primary/20 text-primary border border-primary/20"
 }
 
 const SERVICE_TYPE_LABELS: Record<PendingAppointmentRequest["serviceType"], string> = {
@@ -102,6 +106,7 @@ interface ManagerNotificationBellProps {
     }
     triggerSize?: "icon" | "default" | "sm"
     triggerClassName?: string
+    iconSize?: string
     align?: "start" | "end"
 }
 
@@ -115,6 +120,7 @@ const ManagerNotificationBell = ({
     meta,
     triggerSize = "icon",
     triggerClassName,
+    iconSize = "h-5 w-5",
     align = "end"
 }: ManagerNotificationBellProps) => {
     const showInitialLoading = isLoading && !requests.length
@@ -129,7 +135,7 @@ const ManagerNotificationBell = ({
                     className={`relative rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100 ${triggerClassName ?? ""}`}
                     aria-label="בקשות ממתינות לאישור"
                 >
-                    <Bell className="h-5 w-5" />
+                    <Bell className={iconSize} />
                     {pendingCount > 0 && (
                         <span className="absolute -top-1 -left-1 min-w-[20px] rounded-full bg-amber-500 px-1.5 py-0.5 text-xs font-bold text-white">
                             {pendingCount > 99 ? "99+" : pendingCount}
@@ -137,7 +143,7 @@ const ManagerNotificationBell = ({
                     )}
                     {isFetching && (
                         <span className="absolute -bottom-1 -left-1">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                         </span>
                     )}
                 </Button>
@@ -230,7 +236,7 @@ const ManagerNotificationBell = ({
                         size="sm"
                         onClick={onRefresh}
                         disabled={isFetching}
-                        className="justify-center text-blue-600 hover:text-blue-700"
+                        className="justify-center text-primary hover:text-primary"
                     >
                         {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>רענון עכשיו</span>}
                     </Button>
@@ -671,7 +677,7 @@ export function Navbar({ isManager }: NavbarProps) {
                             "relative rounded-full transition-colors",
                             hasOpenShift
                                 ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                                : "text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                : "text-primary hover:text-primary hover:bg-primary/10"
                         )}
                         aria-label={hasOpenShift ? "סיום משמרת" : "התחלת משמרת"}
                     >
@@ -700,7 +706,7 @@ export function Navbar({ isManager }: NavbarProps) {
                         </div>
                     ) : (
                         <div className="space-y-1">
-                            <div className="font-semibold text-blue-700">לחיצה תתחיל משמרת חדשה</div>
+                            <div className="font-semibold text-primary">לחיצה תתחיל משמרת חדשה</div>
                             <div className="text-xs text-slate-500">
                                 עד כה היום עבדת {formatMinutesToLabel(workerStatus.totals.todayMinutes)}
                             </div>
@@ -952,30 +958,18 @@ export function Navbar({ isManager }: NavbarProps) {
                 )}>
                     <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
                         {/* Mobile Header */}
-                        <div className="flex items-center justify-between gap-4 py-3 xl:hidden">
-                            <Link to="/" className="flex items-center gap-3">
-                                <div className="w-10 h-10 shrink-0">
-                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
-                                </div>
-                                <div>
-                                    <h1 className="text-lg font-bold text-gray-900 leading-tight">Yaron Hershberg</h1>
-                                    <p className="text-xs text-gray-600 leading-tight">מספרה מקצועית</p>
+                        <div className={cn(
+                            "relative flex items-center justify-center gap-4 py-3 xl:hidden",
+                            isOnManagerBoard && "hidden"
+                        )}>
+                            <Link to={user ? "/setup-appointment" : "/"} className="flex items-center justify-center">
+                                <div className="h-12 w-auto shrink-0 max-w-[180px]">
+                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="h-full w-auto object-contain" style={{ verticalAlign: 'middle' }} />
                                 </div>
                             </Link>
-                            <div className="flex items-center gap-2">
+                            {/* Right side buttons (WorkerClock, etc.) */}
+                            <div className="absolute left-0 flex items-center gap-2">
                                 <WorkerClockButton />
-                                {isManager && (
-                                    <ManagerNotificationBell
-                                        requests={pendingRequests}
-                                        pendingCount={pendingCount}
-                                        isLoading={isPendingLoading}
-                                        isFetching={isPendingFetching}
-                                        isError={isPendingError}
-                                        onRefresh={refetchPending}
-                                        meta={pendingMeta}
-                                        triggerSize="icon"
-                                    />
-                                )}
                                 {/* Secure Mode Indicator - Mobile - only show when active */}
                                 {isManager && isSecureModeActive && (
                                     <Button
@@ -988,26 +982,44 @@ export function Navbar({ isManager }: NavbarProps) {
                                         <Lock className="h-5 w-5" />
                                     </Button>
                                 )}
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-full border-slate-300 text-slate-700"
-                                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                >
-                                    {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                                </Button>
                             </div>
                         </div>
 
+                        {/* Floating Menu Button - Mobile Only */}
+                        <Button
+                            variant="default"
+                            size="icon"
+                            className="fixed bottom-6 left-6 z-50 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-shadow xl:hidden"
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                            aria-label={isMobileMenuOpen ? "סגור תפריט" : "פתח תפריט"}
+                        >
+                            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                        </Button>
+
+                        {/* Floating Notifications Button - Mobile Only - Manager Screens Only */}
+                        {isManager && isOnManagerBoard && (
+                            <div className="fixed bottom-6 right-6 z-50 xl:hidden">
+                                <ManagerNotificationBell
+                                    requests={pendingRequests}
+                                    pendingCount={pendingCount}
+                                    isLoading={isPendingLoading}
+                                    isFetching={isPendingFetching}
+                                    isError={isPendingError}
+                                    onRefresh={refetchPending}
+                                    meta={pendingMeta}
+                                    triggerSize="icon"
+                                    triggerClassName="h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-shadow bg-white hover:bg-slate-50 border border-slate-200"
+                                    iconSize="h-7 w-7"
+                                    align="end"
+                                />
+                            </div>
+                        )}
+
                         {/* Desktop Header */}
-                        <div className="hidden xl:grid xl:grid-cols-[auto,1fr,auto] xl:items-center xl:gap-6 py-4">
-                            <Link to={user ? "/setup-appointment" : "/"} className="flex items-center gap-3">
-                                <div className="w-12 h-12 shrink-0">
-                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl font-bold text-gray-900 leading-tight">Yaron Hershberg</h1>
-                                    <p className="text-sm text-gray-600 leading-tight">מספרה מקצועית</p>
+                        <div className="hidden xl:grid xl:grid-cols-[auto,1fr,auto] xl:items-center xl:gap-6 py-1">
+                            <Link to={user ? "/setup-appointment" : "/"} className="flex items-center justify-center">
+                                <div className="h-12 w-auto shrink-0 max-w-[200px]">
+                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="h-full w-auto object-contain" style={{ verticalAlign: 'middle' }} />
                                 </div>
                             </Link>
 
@@ -1021,7 +1033,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                             key={item.path}
                                             to={item.path}
                                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive(item.path)
-                                                ? "bg-blue-600 text-white shadow-sm"
+                                                ? "bg-primary text-primary-foreground shadow-sm"
                                                 : "text-gray-700 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm"
                                                 }`}
                                         >
@@ -1078,7 +1090,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                                 className={cn(
                                                     "rounded-full transition-colors",
                                                     isNavbarPinned
-                                                        ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                                        ? "bg-primary/20 text-primary hover:bg-primary/30"
                                                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                                                 )}
                                                 aria-label={isNavbarPinned ? "בטל נעיצה" : "נעץ"}
@@ -1101,9 +1113,6 @@ export function Navbar({ isManager }: NavbarProps) {
                                             <Button variant="ghost" className="flex items-center gap-2 px-4 py-2.5">
                                                 <User className="h-5 w-5" />
                                                 <span className="text-base">{user.email}</span>
-                                                <Badge variant="secondary" className="mr-2 text-sm py-1 px-2">
-                                                    {user.user_metadata?.full_name || "משתמש"}
-                                                </Badge>
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-56">
@@ -1156,184 +1165,201 @@ export function Navbar({ isManager }: NavbarProps) {
                         </div>
 
                         {/* Mobile Navigation */}
-                        {isMobileMenuOpen && (
-                            <div className="xl:hidden border-t border-gray-200 py-4">
-                                <div className="space-y-3">
-                                    {navItems.map((item) => {
-                                        if (item.requiresAuth && !user) return null
-                                        if (item.requiresManager && !isManager) return null
+                        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                            <SheetContent
+                                side="right"
+                                className="w-[85vw] sm:max-w-md p-0 [&>button]:hidden flex flex-col"
+                            >
+                                <div className="flex-1 overflow-y-auto p-6 min-h-0">
+                                    <div className="space-y-3">
+                                        {navItems.map((item) => {
+                                            if (item.requiresAuth && !user) return null
+                                            if (item.requiresManager && !isManager) return null
 
-                                        if (item.path === "/manager") {
-                                            const isSectionExpanded = expandedSections.manager
+                                            if (item.path === "/manager") {
+                                                const isSectionExpanded = expandedSections.manager
+
+                                                return (
+                                                    <div key={item.path} className="rounded-xl border border-slate-200 bg-slate-50/80 py-2 shadow-sm">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleAccordionSection("manager")}
+                                                            className="flex w-full items-center justify-between px-4 py-2 text-base font-semibold text-gray-700 bg-slate-50/50 rounded-lg hover:bg-slate-100/50 transition-colors"
+                                                        >
+                                                            <span className="flex items-center gap-2">
+                                                                <item.icon className={`h-5 w-5 ${isActive(item.path) ? "text-primary" : "text-slate-500"}`} />
+                                                                <span>{item.label}</span>
+                                                            </span>
+                                                            <ChevronDown
+                                                                className={`h-4 w-4 transition-transform ${isSectionExpanded ? "rotate-180 text-primary" : "text-gray-500"}`}
+                                                            />
+                                                        </button>
+
+                                                        {isSectionExpanded && (
+                                                            <div className="mt-2 space-y-1">
+                                                                {MANAGER_NAV_SECTIONS.map((section) => {
+                                                                    const nestedItems = nestedSectionLinks[section.id]
+                                                                    const isNestedExpanded = !!expandedNestedSections[section.id]
+                                                                    const nestedActive = nestedItems?.some((item) => item.isActive)
+                                                                    const isSectionActive = section.match(location.pathname, currentManagerSection, modeParam) || nestedActive
+                                                                    const baseClasses = `flex w-full items-center justify-between gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors`
+                                                                    const activeClasses = isSectionActive
+                                                                        ? "bg-primary/10 text-primary"
+                                                                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+
+                                                                    return (
+                                                                        <div key={section.id} className="px-2 py-1">
+                                                                            {nestedItems ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const wasExpanded = isNestedExpanded
+                                                                                        toggleNestedAccordion(section.id)
+                                                                                        if (!wasExpanded && section.id === "appointments") {
+                                                                                            navigate(section.to)
+                                                                                        }
+                                                                                    }}
+                                                                                    className={`${baseClasses} ${activeClasses}`}
+                                                                                >
+                                                                                    <span className="flex items-center gap-2">
+                                                                                        <section.icon className={`h-4 w-4 ${isSectionActive ? "text-primary" : "text-slate-500"}`} />
+                                                                                        <span>{section.label}</span>
+                                                                                    </span>
+                                                                                    <ChevronDown
+                                                                                        className={`h-4 w-4 transition-transform ${isNestedExpanded ? "rotate-180 text-primary" : ""}`}
+                                                                                    />
+                                                                                </button>
+                                                                            ) : (
+                                                                                <Link
+                                                                                    to={section.to}
+                                                                                    onClick={() => setIsMobileMenuOpen(false)}
+                                                                                    className={`${baseClasses} ${activeClasses}`}
+                                                                                >
+                                                                                    <span className="flex items-center gap-2">
+                                                                                        <section.icon className={`h-4 w-4 ${isSectionActive ? "text-primary" : "text-slate-500"}`} />
+                                                                                        <span>{section.label}</span>
+                                                                                    </span>
+                                                                                </Link>
+                                                                            )}
+
+                                                                            {nestedItems && isNestedExpanded && (
+                                                                                <div className="mt-2 space-y-1 border-r border-dashed border-primary/20 pr-8">
+                                                                                    {nestedItems.map((nestedLink) => (
+                                                                                        <Link
+                                                                                            key={nestedLink.to}
+                                                                                            to={nestedLink.to}
+                                                                                            onClick={() => setIsMobileMenuOpen(false)}
+                                                                                            className={`flex items-center gap-2 rounded-md px-4 py-1.5 text-sm transition-colors ${nestedLink.isActive
+                                                                                                ? "bg-primary/10 text-primary"
+                                                                                                : "text-gray-600 hover:text-primary hover:bg-primary/5"
+                                                                                                }`}
+                                                                                        >
+                                                                                            <nestedLink.icon className={`h-4 w-4 ${nestedLink.isActive ? "text-primary" : "text-slate-500"}`} />
+                                                                                            <span>{nestedLink.label}</span>
+                                                                                        </Link>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            }
 
                                             return (
-                                                <div key={item.path} className="rounded-xl border border-slate-200 bg-white/80 py-2 shadow-sm">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => toggleAccordionSection("manager")}
-                                                        className="flex w-full items-center justify-between px-4 py-2 text-base font-semibold text-gray-700"
-                                                    >
-                                                        <span className="flex items-center gap-2">
-                                                            <item.icon className={`h-5 w-5 ${isActive(item.path) ? "text-blue-600" : "text-slate-500"}`} />
-                                                            <span>{item.label}</span>
-                                                        </span>
-                                                        <ChevronDown
-                                                            className={`h-4 w-4 transition-transform ${isSectionExpanded ? "rotate-180 text-blue-600" : "text-gray-500"}`}
-                                                        />
-                                                    </button>
+                                                <Link
+                                                    key={item.path}
+                                                    to={item.path}
+                                                    onClick={() => setIsMobileMenuOpen(false)}
+                                                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-all duration-200 ${isActive(item.path)
+                                                        ? "bg-primary text-primary-foreground shadow-sm"
+                                                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm"
+                                                        }`}
+                                                >
+                                                    <item.icon className={`h-4 w-4 ${isActive(item.path) ? "text-white" : "text-slate-500"}`} />
+                                                    <span>{item.label}</span>
+                                                </Link>
+                                            )
+                                        })}
 
-                                                    {isSectionExpanded && (
-                                                        <div className="mt-2 space-y-1">
-                                                            {MANAGER_NAV_SECTIONS.map((section) => {
-                                                                const nestedItems = nestedSectionLinks[section.id]
-                                                                const isNestedExpanded = !!expandedNestedSections[section.id]
-                                                                const nestedActive = nestedItems?.some((item) => item.isActive)
-                                                                const isSectionActive = section.match(location.pathname, currentManagerSection, modeParam) || nestedActive
-                                                                const baseClasses = `flex w-full items-center justify-between gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors`
-                                                                const activeClasses = isSectionActive
-                                                                    ? "bg-blue-100 text-blue-700"
-                                                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-
-                                                                return (
-                                                                    <div key={section.id} className="px-2 py-1">
-                                                                        {nestedItems ? (
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    const wasExpanded = isNestedExpanded
-                                                                                    toggleNestedAccordion(section.id)
-                                                                                    if (!wasExpanded && section.id === "appointments") {
-                                                                                        navigate(section.to)
-                                                                                    }
-                                                                                }}
-                                                                                className={`${baseClasses} ${activeClasses}`}
-                                                                            >
-                                                                                <span className="flex items-center gap-2">
-                                                                                    <section.icon className={`h-4 w-4 ${isSectionActive ? "text-blue-600" : "text-slate-500"}`} />
-                                                                                    <span>{section.label}</span>
-                                                                                </span>
-                                                                                <ChevronDown
-                                                                                    className={`h-4 w-4 transition-transform ${isNestedExpanded ? "rotate-180 text-blue-600" : ""}`}
-                                                                                />
-                                                                            </button>
-                                                                        ) : (
-                                                                            <Link
-                                                                                to={section.to}
-                                                                                onClick={() => setIsMobileMenuOpen(false)}
-                                                                                className={`${baseClasses} ${activeClasses}`}
-                                                                            >
-                                                                                <span className="flex items-center gap-2">
-                                                                                    <section.icon className={`h-4 w-4 ${isSectionActive ? "text-blue-600" : "text-slate-500"}`} />
-                                                                                    <span>{section.label}</span>
-                                                                                </span>
-                                                                            </Link>
-                                                                        )}
-
-                                                                        {nestedItems && isNestedExpanded && (
-                                                                            <div className="mt-2 space-y-1 border-r border-dashed border-indigo-100 pr-8">
-                                                                                {nestedItems.map((nestedLink) => (
-                                                                                    <Link
-                                                                                        key={nestedLink.to}
-                                                                                        to={nestedLink.to}
-                                                                                        onClick={() => setIsMobileMenuOpen(false)}
-                                                                                        className={`flex items-center gap-2 rounded-md px-4 py-1.5 text-sm transition-colors ${nestedLink.isActive
-                                                                                            ? "bg-indigo-100 text-indigo-700"
-                                                                                            : "text-gray-600 hover:text-indigo-700 hover:bg-indigo-50"
-                                                                                            }`}
-                                                                                    >
-                                                                                        <nestedLink.icon className={`h-4 w-4 ${nestedLink.isActive ? "text-indigo-700" : "text-slate-500"}`} />
-                                                                                        <span>{nestedLink.label}</span>
-                                                                                    </Link>
-                                                                                ))}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )
-                                                            })}
+                                        {user ? (
+                                            <div className="border-t border-gray-200 pt-4 mt-4">
+                                                <div className="px-3 py-2">
+                                                    <p className="text-sm font-medium text-gray-900">{user.email}</p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {user.user_metadata?.full_name || "לא הוגדר שם"}
+                                                    </p>
+                                                    {impersonationState.impersonatedCustomerId && (
+                                                        <div className="mt-2 px-2 py-1.5 bg-amber-50 rounded border border-amber-200">
+                                                            <p className="text-xs font-semibold text-amber-800">
+                                                                מתחזה כ:
+                                                            </p>
+                                                            <p className="text-xs text-amber-700">
+                                                                {impersonationState.impersonatedCustomerName || "לקוח ללא שם"}
+                                                            </p>
                                                         </div>
                                                     )}
                                                 </div>
-                                            )
-                                        }
-
-                                        return (
-                                            <Link
-                                                key={item.path}
-                                                to={item.path}
-                                                onClick={() => setIsMobileMenuOpen(false)}
-                                                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-all duration-200 ${isActive(item.path)
-                                                    ? "bg-blue-600 text-white shadow-sm"
-                                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm"
-                                                    }`}
-                                            >
-                                                <item.icon className={`h-4 w-4 ${isActive(item.path) ? "text-white" : "text-slate-500"}`} />
-                                                <span>{item.label}</span>
-                                            </Link>
-                                        )
-                                    })}
-
-                                    {user ? (
-                                        <div className="border-t border-gray-200 pt-4 mt-4">
-                                            <div className="px-3 py-2">
-                                                <p className="text-sm font-medium text-gray-900">{user.email}</p>
-                                                <p className="text-xs text-gray-500">
-                                                    {user.user_metadata?.full_name || "לא הוגדר שם"}
-                                                </p>
-                                                {impersonationState.impersonatedCustomerId && (
-                                                    <div className="mt-2 px-2 py-1.5 bg-amber-50 rounded border border-amber-200">
-                                                        <p className="text-xs font-semibold text-amber-800">
-                                                            מתחזה כ:
-                                                        </p>
-                                                        <p className="text-xs text-amber-700">
-                                                            {impersonationState.impersonatedCustomerName || "לקוח ללא שם"}
-                                                        </p>
+                                                {isManager && (
+                                                    <div className="px-3 py-2">
+                                                        <ImpersonationSelector isManager={isManager} />
                                                     </div>
                                                 )}
+                                                <Link
+                                                    to="/profile"
+                                                    onClick={() => setIsMobileMenuOpen(false)}
+                                                    className="flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                                >
+                                                    <Settings className="h-5 w-5" />
+                                                    <span>הגדרות פרופיל</span>
+                                                </Link>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSignOut}
+                                                    className="mt-2 flex w-full items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                >
+                                                    <LogOut className="h-5 w-5" />
+                                                    <span>התנתק</span>
+                                                </button>
                                             </div>
-                                            {isManager && (
-                                                <div className="px-3 py-2">
-                                                    <ImpersonationSelector isManager={isManager} />
-                                                </div>
-                                            )}
-                                            <Link
-                                                to="/profile"
-                                                onClick={() => setIsMobileMenuOpen(false)}
-                                                className="flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                                            >
-                                                <Settings className="h-5 w-5" />
-                                                <span>הגדרות פרופיל</span>
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                onClick={handleSignOut}
-                                                className="mt-2 flex w-full items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
-                                            >
-                                                <LogOut className="h-5 w-5" />
-                                                <span>התנתק</span>
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="border-t border-gray-200 pt-4 mt-4 space-y-2">
-                                            <Link
-                                                to="/login"
-                                                onClick={() => setIsMobileMenuOpen(false)}
-                                                className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50"
-                                            >
-                                                <User className="h-5 w-5" />
-                                                <span>כניסה</span>
-                                            </Link>
-                                            <Link
-                                                to="/signup"
-                                                onClick={() => setIsMobileMenuOpen(false)}
-                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-md text-base font-medium hover:bg-primary/90"
-                                            >
-                                                <span>הרשמה</span>
-                                            </Link>
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <div className="border-t border-gray-200 pt-4 mt-4 space-y-2">
+                                                <Link
+                                                    to="/login"
+                                                    onClick={() => setIsMobileMenuOpen(false)}
+                                                    className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50"
+                                                >
+                                                    <User className="h-5 w-5" />
+                                                    <span>כניסה</span>
+                                                </Link>
+                                                <Link
+                                                    to="/signup"
+                                                    onClick={() => setIsMobileMenuOpen(false)}
+                                                    className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-md text-base font-medium hover:bg-primary/90"
+                                                >
+                                                    <span>הרשמה</span>
+                                                </Link>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+
+                                {/* Setup Appointment Button - Fixed at Bottom */}
+                                <div className="p-6 pt-0 border-t border-gray-200">
+                                    <Link
+                                        to="/setup-appointment"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className="flex w-full items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-md text-base font-medium hover:bg-primary/90 shadow-sm"
+                                    >
+                                        <Calendar className="h-5 w-5" />
+                                        <span>קבע תור</span>
+                                    </Link>
+                                </div>
+                            </SheetContent>
+                        </Sheet>
                     </div>
                 </div>
             </nav>

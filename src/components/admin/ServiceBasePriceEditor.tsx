@@ -93,7 +93,7 @@ const ServiceBasePriceEditor = ({
                 value={displayPrice}
                 onChange={handlePriceChange}
                 className={`pl-8 text-lg font-semibold text-right ${
-                  isOptimistic ? 'border-blue-300 bg-blue-50' : ''
+                  isOptimistic ? 'border-primary/30 bg-primary/10' : ''
                 }`}
                 min="0"
                 step="5"

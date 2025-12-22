@@ -25,16 +25,16 @@ const AppointmentsList = ({
       case 'מאושר': return 'bg-green-100 text-green-800';
       case 'ממתין': return 'bg-yellow-100 text-yellow-800';
       case 'בוטל': return 'bg-red-100 text-red-800';
-      case 'הושלם': return 'bg-blue-100 text-blue-800';
+      case 'הושלם': return 'bg-primary/20 text-primary';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStationColor = (stationId: string) => {
     const colors = [
-      'bg-purple-100 text-purple-800',
+      'bg-primary/20 text-purple-800',
       'bg-green-100 text-green-800',
-      'bg-blue-100 text-blue-800',
+      'bg-primary/20 text-primary',
     ];
     return colors[parseInt(stationId) - 1] || colors[0];
   };

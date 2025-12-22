@@ -91,8 +91,8 @@ const ServiceLibrary = ({ onEditService }: ServiceLibraryProps) => {
               <CardContent className="p-6">
                 {/* Service Icon and Name */}
                 <div className="text-center mb-4">
-                  <div className="w-16 h-16 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Scissors className="w-8 h-8 text-blue-600" />
+                  <div className="w-16 h-16 mx-auto mb-3 bg-primary/20 rounded-full flex items-center justify-center">
+                    <Scissors className="w-8 h-8 text-primary" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900">{service.name}</h3>
                   {service.description && (
@@ -105,7 +105,7 @@ const ServiceLibrary = ({ onEditService }: ServiceLibraryProps) => {
                   <div className="bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm text-center">
                     מחיר בסיס: ₪{service.base_price}
                   </div>
-                  <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm text-center">
+                  <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm text-center">
                     זמן ממוצע: {service.averageTime} דקות
                   </div>
                   <div className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm text-center">
@@ -115,7 +115,7 @@ const ServiceLibrary = ({ onEditService }: ServiceLibraryProps) => {
 
                 {/* Hover Action Button */}
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-white">
                     נהל שירות
                   </Button>
                 </div>
@@ -128,7 +128,7 @@ const ServiceLibrary = ({ onEditService }: ServiceLibraryProps) => {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button 
-              className="fixed bottom-6 left-6 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+              className="fixed bottom-6 left-6 w-14 h-14 rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg hover:shadow-xl transition-all"
               size="icon"
             >
               <Plus className="w-6 h-6" />

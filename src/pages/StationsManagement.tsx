@@ -22,7 +22,7 @@ const StationsManagementPage = () => {
             <Button 
               variant="ghost" 
               onClick={handleBack}
-              className="mb-4 text-blue-600 hover:text-blue-700"
+              className="mb-4 text-primary hover:text-primary"
             >
               <ArrowRight className="w-4 h-4 ml-2" />
               חזרה לדשבורד

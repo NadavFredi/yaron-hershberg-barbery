@@ -1556,10 +1556,10 @@ export function ConstraintManagerPanel({
             </div>
 
             {selectedCount > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
-                    <div className="flex flex-col text-right text-blue-900">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/10 p-4">
+                    <div className="flex flex-col text-right text-primary">
                         <span className="text-sm font-semibold">נבחרו {selectedCount} אילוצים</span>
-                        <span className="text-xs text-blue-800/80">בצע פעולות מרובות על כל האילוצים שנבחרו</span>
+                        <span className="text-xs text-primary/80">בצע פעולות מרובות על כל האילוצים שנבחרו</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Button
@@ -1684,7 +1684,7 @@ export function ConstraintManagerPanel({
                                                     {group.stations.map((station) => (
                                                         <span
                                                             key={station.id}
-                                                            className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm"
+                                                            className="inline-block px-2 py-1 bg-primary/20 text-primary rounded text-sm"
                                                         >
                                                             {station.name}
                                                         </span>
@@ -1719,7 +1719,7 @@ export function ConstraintManagerPanel({
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={() => handleEdit(group)}
-                                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                        className="text-primary hover:text-primary hover:bg-primary/10"
                                                         title="ערוך"
                                                     >
                                                         <Pencil className="h-4 w-4" />
@@ -1728,7 +1728,7 @@ export function ConstraintManagerPanel({
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={() => handleDuplicate(group)}
-                                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                        className="text-primary hover:text-primary hover:bg-primary/10"
                                                         title="שכפל"
                                                     >
                                                         <Copy className="h-4 w-4" />

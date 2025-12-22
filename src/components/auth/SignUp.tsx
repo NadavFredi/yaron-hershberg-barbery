@@ -301,12 +301,10 @@ export function SignUp({ onSwitchToSignIn }: SignUpProps) {
         <div className="flex items-center justify-center">
             <Card className="w-full max-w-md shadow-lg border border-gray-200">
                 <CardHeader className="text-center space-y-2">
-                    <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                        <User className="w-6 h-6 text-green-600" />
-                    </div>
+
                     <CardTitle className="text-2xl font-bold text-gray-900">צור חשבון</CardTitle>
                     <CardDescription className="text-gray-600">
-                        הירשם כדי להתחיל עם מערכת הזימון תורים שלך
+                        הירשם כדי להזמין תור
                     </CardDescription>
                 </CardHeader>
 

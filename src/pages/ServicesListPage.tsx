@@ -94,7 +94,7 @@ function PendingSubActionRow({ subAction, onRemove }: PendingSubActionRowProps) 
         <TableRow
             ref={setNodeRef}
             style={style}
-            className={cn("bg-blue-50/50", isDragging && "opacity-50")}
+            className={cn("bg-primary/10/50", isDragging && "opacity-50")}
         >
             <TableCell className="pl-12">
                 <div className="flex items-center gap-2">
@@ -143,7 +143,7 @@ function PendingSubActionRow({ subAction, onRemove }: PendingSubActionRowProps) 
 
 function DraftSubActionRow({ draft, onUpdate, onSave, onCancel }: DraftSubActionRowProps) {
     return (
-        <TableRow className="bg-blue-50/50">
+        <TableRow className="bg-primary/10/50">
             <TableCell className="pl-12">
                 <Input
                     value={draft.name}
@@ -1856,7 +1856,7 @@ export default function ServicesListPage() {
                                                                 e.stopPropagation()
                                                                 handleDuplicate(service)
                                                             }}
-                                                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                                                            className="h-8 w-8 p-0 text-primary hover:text-primary"
                                                             title="שכפל שירות"
                                                         >
                                                             <Copy className="h-4 w-4" />
@@ -2519,14 +2519,14 @@ function CategoryAutocomplete({
                                             key={category.id}
                                             className={cn(
                                                 "px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 flex items-center gap-2",
-                                                currentCategoryId === category.id && "bg-blue-50"
+                                                currentCategoryId === category.id && "bg-primary/10"
                                             )}
                                             onClick={() => handleSelect(category.id)}
                                         >
                                             <div className={cn("h-3 w-3 rounded-full", variant?.bg || "bg-gray-400")} />
                                             <span className="flex-1">{category.name}</span>
                                             {currentCategoryId === category.id && (
-                                                <Check className="h-4 w-4 text-blue-600" />
+                                                <Check className="h-4 w-4 text-primary" />
                                             )}
                                         </div>
                                     )

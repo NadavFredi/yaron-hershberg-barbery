@@ -336,7 +336,7 @@ export default function SubscriptionsListPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           {subscription.remaining_entries !== undefined ? (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                               {subscription.remaining_entries} / {subscription.total_entries}
                             </Badge>
                           ) : subscription.total_entries === null ? (

@@ -22,7 +22,8 @@
     "db:restore": "./scripts/restore-local-db.sh",
     "db:restore:from_local": "./scripts/restore-local-from-local-db.sh",
     "db:restore:remote": "./scripts/restore-remote-db.sh",
-    "db:restore:remote:from_local": "./scripts/restore-remote-from-local-db.sh"
+    "db:restore:remote:from_local": "./scripts/restore-remote-from-local-db.sh",
+    "generate:pwa-icons": "node scripts/generate-pwa-icons.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -65,6 +66,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
+    "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.3.0",
     "highcharts": "^12.4.0",
     "highcharts-react": "^0.0.3",
@@ -107,6 +109,7 @@
     "globals": "^15.9.0",
     "lovable-tagger": "^1.1.7",
     "postcss": "^8.4.47",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.11",
     "tsx": "^4.20.4",
     "typescript": "^5.5.3",

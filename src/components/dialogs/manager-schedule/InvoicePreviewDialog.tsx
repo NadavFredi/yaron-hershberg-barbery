@@ -166,7 +166,7 @@ export const InvoicePreviewDialog: React.FC<InvoicePreviewDialogProps> = ({
                             </div>
                         </div>
 
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-sm text-primary">
                             <div className="font-semibold mb-1">שימו לב:</div>
                             <div>לאחר יצירת החשבונית, לא ניתן יהיה לשנות את המחירים או הפריטים.</div>
                         </div>

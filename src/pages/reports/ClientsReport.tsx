@@ -431,7 +431,7 @@ export default function ClientsReport() {
                                 <CardDescription>סה"כ לקוחות</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-4xl font-bold text-blue-600">{clientsData.totalClients}</div>
+                                <div className="text-4xl font-bold text-primary">{clientsData.totalClients}</div>
                             </CardContent>
                         </Card>
                     </div>

@@ -33,7 +33,7 @@ const BusinessSettings = ({ onBack }: BusinessSettingsProps) => {
           <Button
             variant="ghost"
             onClick={onBack}
-            className="mb-4 text-blue-600 hover:text-blue-700"
+            className="mb-4 text-primary hover:text-primary"
           >
             <ArrowRight className="w-4 h-4 ml-2" />
             חזרה לדשבורד
@@ -115,7 +115,7 @@ const BusinessSettings = ({ onBack }: BusinessSettingsProps) => {
             </div>
 
             <div className="flex justify-end pt-4">
-              <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleSave} className="bg-primary hover:bg-primary/90">
                 שמור שינויים
               </Button>
             </div>
