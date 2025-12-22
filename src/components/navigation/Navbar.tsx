@@ -1016,7 +1016,7 @@ export function Navbar({ isManager }: NavbarProps) {
                         )}
 
                         {/* Desktop Header */}
-                        <div className="hidden xl:grid xl:grid-cols-[auto,1fr,auto] xl:items-center xl:gap-6 py-4">
+                        <div className="hidden xl:grid xl:grid-cols-[auto,1fr,auto] xl:items-center xl:gap-6 py-1">
                             <Link to={user ? "/setup-appointment" : "/"} className="flex items-center justify-center">
                                 <div className="h-12 w-auto shrink-0 max-w-[200px]">
                                     <img src={logoImage} alt="Yaron Hershberg Logo" className="h-full w-auto object-contain" style={{ verticalAlign: 'middle' }} />

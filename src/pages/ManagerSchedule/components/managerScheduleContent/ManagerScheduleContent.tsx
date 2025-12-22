@@ -102,7 +102,7 @@ export function ManagerScheduleContent() {
                 style={{
                   position: 'sticky',
                   top: 0,
-                  zIndex: 50,
+                  zIndex: 40,
                   backgroundColor: 'white',
                   width: '100%',
                   flexShrink: 0,
