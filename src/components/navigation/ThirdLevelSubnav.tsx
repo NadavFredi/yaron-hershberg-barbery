@@ -159,7 +159,7 @@ export function ThirdLevelSubnav() {
       ref={subnavRef}
       data-nav-level="3"
       className={cn(
-        "hidden xl:block xl:z-20 xl:-mt-px xl:bg-gradient-to-r xl:from-indigo-50 xl:to-purple-50 xl:border-b xl:border-indigo-200/50 xl:shadow-sm xl:border-t xl:border-indigo-200/30 transition-all duration-300",
+        "hidden xl:block xl:z-20 xl:-mt-px xl:bg-gradient-to-r xl:from-primary/10 xl:to-primary/5 xl:border-b xl:border-primary/20 xl:shadow-sm xl:border-t xl:border-primary/15 transition-all duration-300",
         isCollapsed && "xl:opacity-0 xl:max-h-0 xl:overflow-hidden"
       )}
       onMouseEnter={() => {
