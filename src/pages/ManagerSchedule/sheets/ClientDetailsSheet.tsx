@@ -837,9 +837,27 @@ export const ClientDetailsSheet = ({
                                         <h3 className="text-sm font-medium text-blue-900">הערות צוות פנימי</h3>
                                         <Textarea
                                             value={staffNotes || ""}
-                                            onChange={(e) => setStaffNotes(e.target.value)}
+                                            onChange={(e) => {
+                                                setStaffNotes(e.target.value)
+                                                // Auto-resize
+                                                e.target.style.height = 'auto'
+                                                e.target.style.height = `${e.target.scrollHeight}px`
+                                            }}
+                                            onInput={(e) => {
+                                                const target = e.target as HTMLTextAreaElement
+                                                target.style.height = 'auto'
+                                                target.style.height = `${target.scrollHeight}px`
+                                            }}
+                                            ref={(el) => {
+                                                if (el) {
+                                                    // Resize immediately when element is mounted
+                                                    el.style.height = 'auto'
+                                                    el.style.height = `${el.scrollHeight}px`
+                                                }
+                                            }}
                                             placeholder="הזן הערות צוות פנימיות..."
-                                            className="min-h-[100px] text-right bg-blue-50 border-blue-200"
+                                            className="text-xs text-right bg-blue-50 border-blue-200 resize-y overflow-hidden min-h-[60px]"
+                                            style={{ maxHeight: 'none' }}
                                             dir="rtl"
                                         />
                                         {(staffNotes !== originalStaffNotes) && (
