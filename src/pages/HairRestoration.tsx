@@ -11,7 +11,7 @@ export default function HairRestoration() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 {/* Breadcrumb */}
                 <nav className="mb-8">
-                    <ol className="flex items-center gap-2 text-sm text-gray-600">
+                    <ol className="flex items-center gap-2 text-sm text-foreground/80">
                         <li>
                             <Link to="/about" className="hover:text-primary transition-colors">
                                 אודות
@@ -20,7 +20,7 @@ export default function HairRestoration() {
                         <li>
                             <ChevronLeft className="h-4 w-4" />
                         </li>
-                        <li className="text-gray-900 font-medium">
+                        <li className="text-foreground font-medium">
                             שיקום וטיפולי שיער
                         </li>
                     </ol>
@@ -32,7 +32,7 @@ export default function HairRestoration() {
                         <div className="p-3 bg-primary/20 rounded-full">
                             <Sparkles className="h-8 w-8 text-primary" />
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-semibold text-gray-900">
+                        <h1 className="text-4xl md:text-5xl font-semibold text-foreground">
                             שיקום וטיפולי שיער
                         </h1>
                     </div>
@@ -40,31 +40,31 @@ export default function HairRestoration() {
 
                 {/* Main Information Section */}
                 <section className="mb-12">
-                    <Card className="bg-white shadow-xl border border-gray-200 rounded-3xl p-8 md:p-12">
+                    <Card className="bg-card shadow-xl border border-border rounded-3xl p-8 md:p-12">
                         <CardContent className="p-0">
                             <div className="space-y-8">
                                 {/* Who is it suitable for */}
                                 <div>
-                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
+                                    <h3 className="text-2xl font-semibold text-card-foreground mb-4">
                                         שיקום וטיפולי שיער למי מתאים?
                                     </h3>
                                     <div className="space-y-3">
                                         <div className="flex items-start gap-3">
                                             <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                                            <p className="text-base md:text-lg text-gray-800 leading-relaxed">
+                                            <p className="text-base md:text-lg text-card-foreground/90 leading-relaxed">
                                                 שיקום שיער מתאים לשיער יבש, פגום או חלש, במיוחד לאחר תהליכים כימיים.
                                             </p>
                                         </div>
                                         <div className="flex items-start gap-3">
                                             <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                                            <p className="text-base md:text-lg text-gray-800 leading-relaxed">
+                                            <p className="text-base md:text-lg text-card-foreground/90 leading-relaxed">
                                                 הטיפול אינו מתאים למי שסובלת מבעיות בקרקפת כגון גירויים, קשקשים או שומניות יתר,
                                                 ובמקרים אלו יש לטפל תחילה בקרקפת באמצעות טיפולים ייעודיים.
                                             </p>
                                         </div>
                                         <div className="flex items-start gap-3">
                                             <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                                            <p className="text-base md:text-lg text-gray-800 leading-relaxed">
+                                            <p className="text-base md:text-lg text-card-foreground/90 leading-relaxed">
                                                 לפני תחילת תהליך השיקום, חשוב לבצע אבחון מקצועי לשיער ולקרקפת,
                                                 על מנת להתאים את הטיפול המדויק ביותר לצרכים האישיים שלך.
                                             </p>
@@ -74,7 +74,7 @@ export default function HairRestoration() {
 
                                 {/* Difference from straightening treatments */}
                                 <div>
-                                    <h3 className="text-2xl font-semibold text-gray-900 mb-4">
+                                    <h3 className="text-2xl font-semibold text-card-foreground mb-4">
                                         מה ההבדל מטיפולי החלקה?
                                     </h3>
                                     <div className="space-y-3">
@@ -103,37 +103,37 @@ export default function HairRestoration() {
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                     {/* Treatment Components - Left Column */}
                                     <div>
-                                        <h3 className="text-2xl font-semibold text-gray-900 mb-4">
+                                        <h3 className="text-2xl font-semibold text-card-foreground mb-4">
                                             מה כולל הטיפול?
                                         </h3>
                                         <ul className="space-y-3">
                                             <li className="flex items-start gap-3">
                                                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                                <span className="text-base md:text-lg text-gray-800">
+                                                <span className="text-base md:text-lg text-card-foreground/90">
                                                     שימוש בפרוטאין טהור
                                                 </span>
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                                <span className="text-base md:text-lg text-gray-800">
+                                                <span className="text-base md:text-lg text-card-foreground/90">
                                                     חלבונים מן הצומח
                                                 </span>
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                                <span className="text-base md:text-lg text-gray-800">
+                                                <span className="text-base md:text-lg text-card-foreground/90">
                                                     קרטין צמחי
                                                 </span>
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                                <span className="text-base md:text-lg text-gray-800">
+                                                <span className="text-base md:text-lg text-card-foreground/90">
                                                     תמציות צמחים ושמנים אורגניים
                                                 </span>
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                                <span className="text-base md:text-lg text-gray-800">
+                                                <span className="text-base md:text-lg text-card-foreground/90">
                                                     מכשיר הספא מיסט שמחדיר לחות באמצעות כובע האדים הידוע
                                                 </span>
                                             </li>
@@ -142,31 +142,31 @@ export default function HairRestoration() {
 
                                     {/* Benefits - Right Column */}
                                     <div>
-                                        <h3 className="text-2xl font-semibold text-gray-900 mb-4">
+                                        <h3 className="text-2xl font-semibold text-card-foreground mb-4">
                                             באמצעות סדרת טיפולים ייעודיים, ניתן:
                                         </h3>
                                         <ul className="space-y-3">
                                             <li className="flex items-start gap-3">
                                                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                                <span className="text-base md:text-lg text-gray-800">
+                                                <span className="text-base md:text-lg text-card-foreground/90">
                                                     לחזק מבנה שיער חלש ופגום
                                                 </span>
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                                <span className="text-base md:text-lg text-gray-800">
+                                                <span className="text-base md:text-lg text-card-foreground/90">
                                                     לשפר את איכות ומרקם השיער
                                                 </span>
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                                <span className="text-base md:text-lg text-gray-800">
+                                                <span className="text-base md:text-lg text-card-foreground/90">
                                                     להשיב גמישות, חיוניות ומראה בריא
                                                 </span>
                                             </li>
                                             <li className="flex items-start gap-3">
                                                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                                                <span className="text-base md:text-lg text-gray-800">
+                                                <span className="text-base md:text-lg text-card-foreground/90">
                                                     להשיג תוצאות יציבות ועמידות לאורך זמן
                                                 </span>
                                             </li>
@@ -176,8 +176,8 @@ export default function HairRestoration() {
 
                                 {/* Important Note about Process */}
                                 <div className="my-8 py-6">
-                                    <div className="bg-gray-50 rounded-2xl p-6 border-r-4 border-purple-500">
-                                        <p className="text-lg md:text-xl text-gray-900 leading-relaxed text-center">
+                                    <div className="bg-muted rounded-2xl p-6 border-r-4 border-primary">
+                                        <p className="text-lg md:text-xl text-card-foreground leading-relaxed text-center">
                                             שיקום שיער מקצועי אינו "קסם של טיפול אחד",
                                             אלא תהליך שמאפשר לשיער להשתקם באמת – מבפנים החוצה.
                                         </p>

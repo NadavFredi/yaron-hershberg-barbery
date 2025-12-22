@@ -3,12 +3,7 @@ import React from "react"
 export function AppFooter() {
     return (
         <footer className="mt-10" dir="rtl">
-            <div
-                className="text-white"
-                style={{
-                    backgroundColor: "#4f60a8",
-                }}
-            >
+            <div className="bg-background text-foreground border-t border-border">
                 <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row">
                     <div className="flex items-center gap-3 md:flex-row">
                         <img
