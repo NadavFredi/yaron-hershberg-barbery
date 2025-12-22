@@ -73,11 +73,16 @@ const Index = () => {
   // Show loading state while checking auth and roles
   if (!hasInitialized || isManagerLoading || isCheckingRole) {
     return (
-      <div className="pt-4 px-4">
-        <div className="max-w-md mx-auto">
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="max-w-md w-full">
           <div className="text-center mb-8">
-            <div className="w-48 h-48 mx-auto mb-4">
-              <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
+            <div className="w-80 mx-auto mb-4">
+              <img 
+                src={logoImage} 
+                alt="Yaron Hershberg Logo" 
+                className="w-full h-auto object-contain mix-blend-multiply" 
+                style={{ filter: 'contrast(1.1)' }}
+              />
             </div>
             <div className="flex items-center justify-center gap-2 text-gray-500 mb-8">
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -95,11 +100,16 @@ const Index = () => {
   }
 
   return (
-    <div className="pt-4 px-4">
-      <div className="max-w-md mx-auto">
+    <div className="min-h-[60vh] flex items-center justify-center px-4">
+      <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="w-48 h-48 mx-auto mb-4">
-            <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
+          <div className="w-80 mx-auto mb-4">
+            <img 
+              src={logoImage} 
+              alt="Yaron Hershberg Logo" 
+              className="w-full h-auto object-contain mix-blend-multiply" 
+              style={{ filter: 'contrast(1.1)' }}
+            />
           </div>
           <p className="text-gray-500 mb-8">ברוכים הבאים למערכת הזימון תורים שלנו</p>
         </div>
