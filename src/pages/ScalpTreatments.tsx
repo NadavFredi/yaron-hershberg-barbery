@@ -4,7 +4,6 @@ import { Button } from "../components/ui/button.tsx"
 import { Heart, CheckCircle, ArrowRight, ChevronLeft } from "lucide-react"
 
 export default function ScalpTreatments() {
-    const primaryColor = "#4f60a8"
 
     return (
         <div className="min-h-screen  from-slate-50 via-primary/10 to-primary/10" dir="rtl">
@@ -47,7 +46,7 @@ export default function ScalpTreatments() {
                         <CardContent className="p-0">
                             <div className="space-y-8">
                                 {/* Introduction */}
-                                <div className="bg-gradient-to-r from-primary/20 to-indigo-100 rounded-2xl p-6 border-r-4 border-primary">
+                                <div className=" from-primary/20 to-indigo-100 rounded-2xl p-6 border-r-4 border-primary">
                                     <p className="text-lg md:text-xl text-card-foreground font-medium leading-relaxed">
                                         לפני התאמת טיפול מתחילים באבחון קרקפת מקצועי עם ירון-טריקולוג מוסמך
                                     </p>
@@ -70,7 +69,19 @@ export default function ScalpTreatments() {
                                             <li className="flex items-start gap-3">
                                                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
                                                 <span className="text-base md:text-lg text-card-foreground/90">
+                                                    זיהוי שורש הבעיה
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-card-foreground/90">
                                                     התאמת תכנית טיפול
+                                                </span>
+                                            </li>
+                                            <li className="flex items-start gap-3">
+                                                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                                <span className="text-base md:text-lg text-card-foreground/90">
+                                                    המלצה על מוצרים משלימים
                                                 </span>
                                             </li>
                                         </ul>
@@ -125,25 +136,25 @@ export default function ScalpTreatments() {
                             <div className="space-y-6">
                                 <ul className="space-y-3">
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
                                             אבחון + סדרת 6 טיפולי קרקפת – <span className="text-primary font-bold">2,700₪</span>
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
                                             אבחון + טיפול בודד <span className="text-primary font-bold">750₪</span>
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3 mt-4">
-                                        <CheckCircle className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800">
                                             <span className="font-semibold">מומלץ לאחר הסדרת טיפולים</span>
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
                                             אבחון ללא טיפול <span className="text-primary font-bold">250₪</span>
                                         </span>
@@ -155,8 +166,7 @@ export default function ScalpTreatments() {
                                     <Button
                                         asChild
                                         size="lg"
-                                        className="w-full text-white text-lg px-8 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all hover:opacity-90"
-                                        style={{ backgroundColor: primaryColor }}
+                                        className="w-full bg-primary hover:bg-primary/90 text-white text-lg px-8 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
                                     >
                                         <Link to="/setup-appointment" className="flex items-center justify-center gap-2">
                                             קבעו תור לאבחון וטיפול
@@ -183,25 +193,25 @@ export default function ScalpTreatments() {
                             <div className="space-y-6">
                                 <ul className="space-y-3">
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
                                             אבחון + סדרת 6 טיפולי קרקפת – <span className="text-primary font-bold">2,400₪</span>
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
                                             אבחון + טיפול בודד <span className="text-primary font-bold">700₪</span>
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3 mt-4">
-                                        <CheckCircle className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800">
                                             <span className="font-semibold">מומלץ לאחר הסדרת טיפולים</span>
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
                                             אבחון ללא טיפול <span className="text-primary font-bold">250₪</span>
                                         </span>
@@ -213,8 +223,7 @@ export default function ScalpTreatments() {
                                     <Button
                                         asChild
                                         size="lg"
-                                        className="w-full text-white text-lg px-8 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all hover:opacity-90"
-                                        style={{ backgroundColor: primaryColor }}
+                                        className="w-full bg-primary hover:bg-primary/90 text-white text-lg px-8 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
                                     >
                                         <Link to="/setup-appointment" className="flex items-center justify-center gap-2">
                                             קבעו תור לאבחון וטיפול

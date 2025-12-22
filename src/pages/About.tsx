@@ -44,8 +44,8 @@ export default function About() {
                         <Link to="/scalp-treatments" className="block h-full">
                             <Card className="bg-card/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer min-h-[200px] h-full">
                                 <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
-                                    <div className="p-3 bg-amber-100 rounded-full mb-4">
-                                        <Heart className="h-6 w-6 text-amber-600" />
+                                    <div className="p-3 bg-primary/20 rounded-full mb-4">
+                                        <Heart className="h-6 w-6 text-primary" />
                                     </div>
                                     <p className="text-lg font-semibold text-card-foreground mb-2">
                                         אבחון וטיפולי קרקפת
@@ -90,8 +90,8 @@ export default function About() {
                         {/* Video Card 1 (Bottom Middle) */}
                         <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
                             <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
-                                <div className="p-3 bg-red-100 rounded-full mb-4">
-                                    <Play className="h-6 w-6 text-red-600" />
+                                <div className="p-3 bg-primary/20 rounded-full mb-4">
+                                    <Play className="h-6 w-6 text-primary" />
                                 </div>
                                 <p className="text-lg font-semibold text-gray-900 mb-2">
                                     סרטון לפני ואחרי
@@ -106,8 +106,8 @@ export default function About() {
                         <Link to="/faq" className="block h-full md:col-span-2 lg:col-span-1">
                             <Card className="bg-card/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer min-h-[200px] h-full">
                                 <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
-                                    <div className="p-3 bg-green-100 rounded-full mb-4">
-                                        <HelpCircle className="h-6 w-6 text-green-600" />
+                                    <div className="p-3 bg-primary/20 rounded-full mb-4">
+                                        <HelpCircle className="h-6 w-6 text-primary" />
                                     </div>
                                     <h3 className="text-xl font-bold text-card-foreground mb-6">
                                         שאלות שחשוב לדעת
@@ -133,8 +133,8 @@ export default function About() {
                         {/* Video Card 2 (Bottom Right) */}
                         <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-shadow min-h-[200px]">
                             <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
-                                <div className="p-3 bg-red-100 rounded-full mb-4">
-                                    <Play className="h-6 w-6 text-red-600" />
+                                <div className="p-3 bg-primary/20 rounded-full mb-4">
+                                    <Play className="h-6 w-6 text-primary" />
                                 </div>
                                 <p className="text-lg font-semibold text-gray-900 mb-2">
                                     סרטון לפני ואחרי
@@ -153,8 +153,8 @@ export default function About() {
                     <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
                         <CardContent className="p-0">
                             <div className="flex items-center justify-center gap-3 mb-8">
-                                <div className="p-3 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full">
-                                    <Store className="h-8 w-8 text-amber-600" />
+                                <div className="p-3 bg-primary/20 rounded-full">
+                                    <Store className="h-8 w-8 text-primary" />
                                 </div>
                                 <h2 className="text-3xl md:text-4xl font-bold text-card-foreground">
                                     אודות ירון הרשברג
@@ -162,7 +162,7 @@ export default function About() {
                             </div>
 
                             <div className="space-y-6 text-right">
-                                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border-r-4 border-amber-400">
+                                <div className="bg-primary/10 rounded-2xl p-6 border-r-4 border-primary">
                                     <p className="text-xl md:text-2xl font-bold text-card-foreground mb-4">
                                         "מספרה יוצאת דופן" – בוטיק ייחודי ברמת גן לבריאות הקרקפת והשיער.
                                     </p>
@@ -183,7 +183,7 @@ export default function About() {
                     <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
                         <CardContent className="p-0">
                             <div className="flex items-center justify-center gap-3 mb-10">
-                                <div className="p-3 bg-gradient-to-br from-primary/20 to-primary/20 rounded-full">
+                                <div className="p-3 bg-primary/20 rounded-full">
                                     <Star className="h-8 w-8 text-primary" />
                                 </div>
                                 <h2 className="text-3xl md:text-4xl font-bold text-card-foreground">
@@ -193,7 +193,7 @@ export default function About() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Feature 1 */}
-                                <div className="flex gap-4 p-6 bg-gradient-to-br from-primary/10 to-indigo-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                <div className="flex gap-4 p-6 bg-primary/10 rounded-2xl hover:shadow-lg transition-shadow">
                                     <div className="flex-shrink-0">
                                         <div className="p-3 bg-primary/20 rounded-full">
                                             <Camera className="h-6 w-6 text-primary" />
@@ -227,10 +227,10 @@ export default function About() {
                                 </div>
 
                                 {/* Feature 3 */}
-                                <div className="flex gap-4 p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                <div className="flex gap-4 p-6 bg-primary/10 rounded-2xl hover:shadow-lg transition-shadow">
                                     <div className="flex-shrink-0">
-                                        <div className="p-3 bg-green-100 rounded-full">
-                                            <Leaf className="h-6 w-6 text-green-600" />
+                                        <div className="p-3 bg-primary/20 rounded-full">
+                                            <Leaf className="h-6 w-6 text-primary" />
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -244,10 +244,10 @@ export default function About() {
                                 </div>
 
                                 {/* Feature 4 */}
-                                <div className="flex gap-4 p-6 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                <div className="flex gap-4 p-6 bg-primary/10 rounded-2xl hover:shadow-lg transition-shadow">
                                     <div className="flex-shrink-0">
-                                        <div className="p-3 bg-orange-100 rounded-full">
-                                            <Clock className="h-6 w-6 text-orange-600" />
+                                        <div className="p-3 bg-primary/20 rounded-full">
+                                            <Clock className="h-6 w-6 text-primary" />
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -278,10 +278,10 @@ export default function About() {
                                 </div>
 
                                 {/* Feature 6 */}
-                                <div className="flex gap-4 p-6 bg-gradient-to-br from-rose-50 to-primary/10 rounded-2xl hover:shadow-lg transition-shadow">
+                                <div className="flex gap-4 p-6 bg-primary/10 rounded-2xl hover:shadow-lg transition-shadow">
                                     <div className="flex-shrink-0">
-                                        <div className="p-3 bg-rose-100 rounded-full">
-                                            <Heart className="h-6 w-6 text-rose-600" />
+                                        <div className="p-3 bg-primary/20 rounded-full">
+                                            <Heart className="h-6 w-6 text-primary" />
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -297,8 +297,8 @@ export default function About() {
 
                             {/* Closing Statement */}
                             <div className="mt-10 text-center">
-                                <div className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-100 to-orange-100 rounded-2xl px-8 py-4">
-                                    <Heart className="h-6 w-6 text-rose-500" />
+                                <div className="inline-flex items-center gap-3 bg-primary/20 rounded-2xl px-8 py-4">
+                                    <Heart className="h-6 w-6 text-primary" />
                                     <p className="text-lg font-semibold text-gray-800">
                                         אנחנו מאמינים שלשיער ולקרקפת שלכם מגיעה חוויה יוצאת דופן – ואם נפגשנו, זה בהחלט לא במקרה
                                     </p>
@@ -310,18 +310,18 @@ export default function About() {
 
                 {/* Call to Action */}
                 <section className="text-center">
-                    <Card className="bg-white shadow-2xl border-2 border-[#4f60a8] rounded-3xl p-8 md:p-12">
+                    <Card className="bg-card shadow-2xl border-2 border-primary rounded-3xl p-8 md:p-12">
                         <CardContent className="p-0">
-                            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
+                            <h2 className="text-2xl md:text-3xl font-bold text-card-foreground mb-6">
                                 מוכנים להתחיל?
                             </h2>
-                            <p className="text-lg text-gray-700 mb-8 max-w-2xl mx-auto">
+                            <p className="text-lg text-card-foreground/80 mb-8 max-w-2xl mx-auto">
                                 קבעו תור לאבחון וטיפול ראשון וקבלו ייעוץ מקצועי מותאם אישית
                             </p>
                             <Button
                                 asChild
                                 size="lg"
-                                className="bg-[#4f60a8] text-white hover:bg-[#445599] text-lg px-8 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                                className="bg-primary text-white hover:bg-primary/90 text-lg px-8 py-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
                             >
                                 <Link to="/setup-appointment">
                                     קבעו תור עכשיו
