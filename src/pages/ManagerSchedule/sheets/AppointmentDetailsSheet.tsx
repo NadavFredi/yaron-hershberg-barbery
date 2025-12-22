@@ -370,6 +370,8 @@ export const AppointmentDetailsSheet = ({
                 return
             }
 
+            // Always fetch fresh data when sheet opens
+
             // Extract the actual appointment ID
             const appointmentId = extractGroomingAppointmentId(
                 selectedAppointment.id,
@@ -1422,179 +1424,210 @@ export const AppointmentDetailsSheet = ({
         }
     }, [selectedAppointment, workers, dispatch, formattedDate, serviceFilter, toast])
 
+    // Compute appointment details using useMemo to avoid IIFE parsing issues
+    const appointmentContent = useMemo(() => {
+        if (!selectedAppointment) return null
+
+        const detailStart = new Date(selectedAppointment.startDateTime)
+        const detailEnd = new Date(selectedAppointment.endDateTime)
+        const detailDate = format(detailStart, "dd.MM.yyyy")
+        const detailTimeRange = `${format(detailStart, "HH:mm")} - ${format(detailEnd, "HH:mm")}`
+        const duration = selectedAppointment.durationMinutes ??
+            Math.max(1, differenceInMinutes(detailEnd, detailStart))
+        const serviceLabel = selectedAppointment.appointmentType === "private"
+            ? "תור פרטי"
+            : (selectedAppointment.serviceName ?? SERVICE_LABELS[selectedAppointment.serviceType])
+        const serviceStyle = selectedAppointment.appointmentType === "private"
+            ? { badge: "border-purple-200 bg-primary/20 text-purple-800" }
+            : SERVICE_STYLES[selectedAppointment.serviceType]
+        const statusStyle = getStatusStyle(selectedAppointment.status, selectedAppointment)
+        const primaryDog = selectedAppointment.dogs[0]
+        const clientName =
+            selectedAppointment.clientName ?? primaryDog?.clientName ?? "לא ידוע"
+        const classification =
+            selectedAppointment.clientClassification ?? primaryDog?.clientClassification ?? "לא ידוע"
+        const subscriptionName = selectedAppointment.subscriptionName
+        const clientEmail = selectedAppointment.clientEmail
+        const clientPhone = selectedAppointment.clientPhone
+
+        // Check if there are any unsaved changes
+        const hasUnsavedChanges =
+            (appointmentClientNotes !== null && appointmentClientNotes !== originalClientNotes) ||
+            (appointmentInternalNotes !== originalInternalNotes) ||
+            (selectedAppointment.serviceType === "grooming" && appointmentGroomingNotes !== originalGroomingNotes)
+
+        return {
+            detailStart,
+            detailEnd,
+            detailDate,
+            detailTimeRange,
+            duration,
+            serviceLabel,
+            serviceStyle,
+            statusStyle,
+            primaryDog,
+            clientName,
+            classification,
+            subscriptionName,
+            clientEmail,
+            clientPhone,
+            hasUnsavedChanges
+        }
+    }, [selectedAppointment, appointmentClientNotes, originalClientNotes, appointmentInternalNotes, originalInternalNotes, appointmentGroomingNotes, originalGroomingNotes])
+
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="w-full max-w-md overflow-y-auto" dir="rtl">
-                <SheetHeader>
-                    <SheetTitle className="text-right">פרטי תור</SheetTitle>
-                    <SheetDescription className="text-right">צפו בכל הפרטים על התור והלקוח.</SheetDescription>
-                </SheetHeader>
+        <>
+            <Sheet open={open} onOpenChange={onOpenChange}>
+                <SheetContent side="right" className="!w-full !max-w-lg sm:!max-w-lg overflow-y-auto flex flex-col" dir="rtl">
+                    <SheetHeader>
+                        <SheetTitle className="text-right">פרטי תור</SheetTitle>
+                        <SheetDescription className="text-right">צפו בכל הפרטים על התור והלקוח.</SheetDescription>
+                    </SheetHeader>
 
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-64">
-                        <div className="text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                            <p className="text-gray-600">טוען פרטי תור...</p>
-                        </div>
-                    </div>
-                ) : selectedAppointment ? (() => {
-                    const detailStart = new Date(selectedAppointment.startDateTime)
-                    const detailEnd = new Date(selectedAppointment.endDateTime)
-                    const detailDate = format(detailStart, "dd.MM.yyyy")
-                    const detailTimeRange = `${format(detailStart, "HH:mm")} - ${format(detailEnd, "HH:mm")}`
-                    const duration = selectedAppointment.durationMinutes ??
-                        Math.max(1, differenceInMinutes(detailEnd, detailStart))
-                    const serviceLabel = selectedAppointment.appointmentType === "private"
-                        ? "תור פרטי"
-                        : (selectedAppointment.serviceName ?? SERVICE_LABELS[selectedAppointment.serviceType])
-                    const serviceStyle = selectedAppointment.appointmentType === "private"
-                        ? { badge: "border-purple-200 bg-primary/20 text-purple-800" }
-                        : SERVICE_STYLES[selectedAppointment.serviceType]
-                    const statusStyle = getStatusStyle(selectedAppointment.status, selectedAppointment)
-                    const primaryDog = selectedAppointment.dogs[0]
-                    const clientName =
-                        selectedAppointment.clientName ?? primaryDog?.clientName ?? "לא ידוע"
-                    const classification =
-                        selectedAppointment.clientClassification ?? primaryDog?.clientClassification ?? "לא ידוע"
-                    const subscriptionName = selectedAppointment.subscriptionName
-                    const clientEmail = selectedAppointment.clientEmail
-                    const clientPhone = selectedAppointment.clientPhone
+                    <div className="flex-1 flex flex-col min-h-0">
+                        {(() => {
+                            if (isLoading) {
+                                return (
+                                    <div className="flex items-center justify-center h-64">
+                                        <div className="text-center">
+                                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                                            <p className="text-gray-600">טוען פרטי תור...</p>
+                                        </div>
+                                    </div>
+                                )
+                            }
 
-                    // Check if there are any unsaved changes
-                    const hasUnsavedChanges =
-                        (appointmentClientNotes !== null && appointmentClientNotes !== originalClientNotes) ||
-                        (appointmentInternalNotes !== originalInternalNotes) ||
-                        (selectedAppointment.serviceType === "grooming" && appointmentGroomingNotes !== originalGroomingNotes)
-
-                    return (
-                        <div className="mt-6 space-y-6 text-right">
-                            <div className="space-y-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <Badge variant="outline" className={cn("text-[11px] font-medium", serviceStyle.badge)}>
-                                            {serviceLabel}
-                                        </Badge>
-                                        <Badge variant="outline" className={cn("text-[11px] font-medium", statusStyle)}>
-                                            {selectedAppointment.status}
-                                        </Badge>
-                                        {selectedAppointment.seriesId && (
-                                            <Badge variant="outline" className="text-[11px] font-medium border-purple-200 bg-primary/20 text-purple-800">
-                                                תור בסדרה
-                                            </Badge>
+                            if (appointmentContent) {
+                                return (
+                                    <div className="mt-6 flex flex-col flex-1 text-right">
+                                        <div className="flex-1 space-y-6 min-h-0">
+                                        <div className="space-y-3">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <Badge variant="outline" className={cn("text-[11px] font-medium", appointmentContent.serviceStyle.badge)}>
+                                                        {appointmentContent.serviceLabel}
+                                                    </Badge>
+                                                    <Badge variant="outline" className={cn("text-[11px] font-medium", appointmentContent.statusStyle)}>
+                                                        {selectedAppointment.status}
+                                                    </Badge>
+                                                    {selectedAppointment.seriesId && (
+                                                        <Badge variant="outline" className="text-[11px] font-medium border-purple-200 bg-primary/20 text-purple-800">
+                                                            תור בסדרה
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                                                        >
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-48 p-1" align="end">
+                                                        <AppointmentActionsMenu
+                                                            appointment={selectedAppointment}
+                                                            clientName={appointmentContent.clientName}
+                                                            primaryDog={appointmentContent.primaryDog}
+                                                            hasOrder={hasOrder}
+                                                            pinnedAppointmentsHook={pinnedAppointmentsHook}
+                                                            onEdit={() => onEditAppointment(selectedAppointment)}
+                                                            onDuplicate={handleDuplicateAppointment}
+                                                            onCancel={() => onCancelAppointment(selectedAppointment)}
+                                                            onDelete={() => onDeleteAppointment(selectedAppointment)}
+                                                            onOpenClientCommunication={handleOpenClientCommunication}
+                                                            onRescheduleProposal={handleOpenRescheduleProposal}
+                                                            onPayment={handlePaymentClick}
+                                                            onShowOrder={() => setIsOrderDetailsModalOpen(true)}
+                                                        />
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+                                        <div className="space-y-2 text-sm text-gray-600">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    תאריך: <span className="font-medium text-gray-900">{appointmentContent.detailDate}</span>
+                                                </div>
+                                                <div>
+                                                    שעה: <span className="font-medium text-gray-900">{appointmentContent.detailTimeRange}</span>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    משך: <span className="font-medium text-gray-900">{formatDuration(appointmentContent.duration)}</span>
+                                                </div>
+                                                <div>
+                                                    עמדה: <span className="font-medium text-gray-900">{selectedAppointment.stationName || "לא משויך"}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="pt-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-gray-600 min-w-[80px]">עובד משויך:</span>
+                                                <Select
+                                                    value={selectedAppointment.workerId || "__unassigned__"}
+                                                    onValueChange={(value) => handleWorkerChange(value === "__unassigned__" ? null : value)}
+                                                    disabled={isUpdatingWorker || isLoadingWorkers}
+                                                >
+                                                    <SelectTrigger className="flex-1">
+                                                        <SelectValue placeholder={isLoadingWorkers ? "טוען..." : selectedAppointment.workerName || "לא משויך"} />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="__unassigned__">לא משויך</SelectItem>
+                                                        {workers.map((worker) => (
+                                                            <SelectItem key={worker.id} value={worker.id}>
+                                                                {worker.full_name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                {isUpdatingWorker && (
+                                                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                                )}
+                                            </div>
+                                        </div>
+                                        {showDevId && (
+                                    <div className="pt-2 border-t border-gray-100 space-y-2">
+                                        {(selectedAppointment as any).id && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-gray-500">מזהה:</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        try {
+                                                            await navigator.clipboard.writeText((selectedAppointment as any).id)
+                                                            toast({
+                                                                title: "הועתק",
+                                                                description: "מזהה התור הועתק ללוח",
+                                                            })
+                                                        } catch (err) {
+                                                            console.error("Failed to copy:", err)
+                                                        }
+                                                    }}
+                                                    className="text-xs text-gray-600 hover:text-gray-900 font-mono cursor-pointer hover:underline"
+                                                >
+                                                    {(selectedAppointment as any).id.slice(0, 8)}...
+                                                </button>
+                                            </div>
                                         )}
+                                        {(selectedAppointment as any).created_at || (selectedAppointment as any).updated_at ? (
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {(selectedAppointment as any).created_at && (
+                                                    <div className="text-xs text-gray-400">
+                                                        נוצר: {format(new Date((selectedAppointment as any).created_at), "dd.MM.yyyy HH:mm")}
+                                                    </div>
+                                                )}
+                                                {(selectedAppointment as any).updated_at && (
+                                                    <div className="text-xs text-gray-400">
+                                                        עודכן: {format(new Date((selectedAppointment as any).updated_at), "dd.MM.yyyy HH:mm")}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : null}
                                     </div>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                                            >
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-48 p-1" align="end">
-                                            <AppointmentActionsMenu
-                                                appointment={selectedAppointment}
-                                                clientName={clientName}
-                                                primaryDog={primaryDog}
-                                                hasOrder={hasOrder}
-                                                pinnedAppointmentsHook={pinnedAppointmentsHook}
-                                                onEdit={() => onEditAppointment(selectedAppointment)}
-                                                onDuplicate={handleDuplicateAppointment}
-                                                onCancel={() => onCancelAppointment(selectedAppointment)}
-                                                onDelete={() => onDeleteAppointment(selectedAppointment)}
-                                                onOpenClientCommunication={handleOpenClientCommunication}
-                                                onRescheduleProposal={handleOpenRescheduleProposal}
-                                                onPayment={handlePaymentClick}
-                                                onShowOrder={() => setIsOrderDetailsModalOpen(true)}
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                <div className="space-y-2 text-sm text-gray-600">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            תאריך: <span className="font-medium text-gray-900">{detailDate}</span>
-                                        </div>
-                                        <div>
-                                            שעה: <span className="font-medium text-gray-900">{detailTimeRange}</span>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            משך: <span className="font-medium text-gray-900">{formatDuration(duration)}</span>
-                                        </div>
-                                        <div>
-                                            עמדה: <span className="font-medium text-gray-900">{selectedAppointment.stationName || "לא משויך"}</span>
-                                        </div>
-                                    </div>
-                                    <div className="pt-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-gray-600 min-w-[80px]">עובד משויך:</span>
-                                            <Select
-                                                value={selectedAppointment.workerId || "__unassigned__"}
-                                                onValueChange={(value) => handleWorkerChange(value === "__unassigned__" ? null : value)}
-                                                disabled={isUpdatingWorker || isLoadingWorkers}
-                                            >
-                                                <SelectTrigger className="flex-1">
-                                                    <SelectValue placeholder={isLoadingWorkers ? "טוען..." : selectedAppointment.workerName || "לא משויך"} />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="__unassigned__">לא משויך</SelectItem>
-                                                    {workers.map((worker) => (
-                                                        <SelectItem key={worker.id} value={worker.id}>
-                                                            {worker.full_name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {isUpdatingWorker && (
-                                                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                                            )}
-                                        </div>
-                                    </div>
-                                    {showDevId && (
-                                        <div className="pt-2 border-t border-gray-100 space-y-2">
-                                            {(selectedAppointment as any).id && (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-gray-500">מזהה:</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={async () => {
-                                                            try {
-                                                                await navigator.clipboard.writeText((selectedAppointment as any).id)
-                                                                toast({
-                                                                    title: "הועתק",
-                                                                    description: "מזהה התור הועתק ללוח",
-                                                                })
-                                                            } catch (err) {
-                                                                console.error("Failed to copy:", err)
-                                                            }
-                                                        }}
-                                                        className="text-xs text-gray-600 hover:text-gray-900 font-mono cursor-pointer hover:underline"
-                                                    >
-                                                        {(selectedAppointment as any).id.slice(0, 8)}...
-                                                    </button>
-                                                </div>
-                                            )}
-                                            {(selectedAppointment as any).created_at || (selectedAppointment as any).updated_at ? (
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    {(selectedAppointment as any).created_at && (
-                                                        <div className="text-xs text-gray-400">
-                                                            נוצר: {format(new Date((selectedAppointment as any).created_at), "dd.MM.yyyy HH:mm")}
-                                                        </div>
-                                                    )}
-                                                    {(selectedAppointment as any).updated_at && (
-                                                        <div className="text-xs text-gray-400">
-                                                            עודכן: {format(new Date((selectedAppointment as any).updated_at), "dd.MM.yyyy HH:mm")}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                    )}
-                                </div>
+                                )}
                             </div>
 
                             {/* Series Info Banner */}
@@ -1654,8 +1687,8 @@ export const AppointmentDetailsSheet = ({
                                             <button
                                                 type="button"
                                                 onClick={() => onClientClick({
-                                                    name: clientName,
-                                                    classification: classification,
+                                                    name: appointmentContent.clientName,
+                                                    classification: appointmentContent.classification,
                                                     phone: selectedAppointment.clientPhone,
                                                     email: selectedAppointment.clientEmail,
                                                     recordId: selectedAppointment.recordId,
@@ -1665,11 +1698,11 @@ export const AppointmentDetailsSheet = ({
                                                 })}
                                                 className="text-sm font-medium text-primary hover:text-primary hover:underline cursor-pointer"
                                             >
-                                                {clientName}
+                                                {appointmentContent.clientName}
                                             </button>
-                                            {classification && classification !== "לא ידוע" && (
+                                            {appointmentContent.classification && appointmentContent.classification !== "לא ידוע" && (
                                                 <div className="mt-1 text-xs text-gray-600">
-                                                    סיווג: <span className="font-medium text-gray-700">{classification}</span>
+                                                    סיווג: <span className="font-medium text-gray-700">{appointmentContent.classification}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -1798,12 +1831,12 @@ export const AppointmentDetailsSheet = ({
                                 </div>
                             </div>
 
-                            {subscriptionName ? (
+                            {appointmentContent.subscriptionName ? (
                                 <>
                                     <Separator />
                                     <div className="space-y-2 text-sm text-gray-600">
                                         <h3 className="text-sm font-medium text-gray-900">כרטיסייה</h3>
-                                        <div className="font-medium text-gray-900">{subscriptionName}</div>
+                                        <div className="font-medium text-gray-900">{appointmentContent.subscriptionName}</div>
                                     </div>
                                 </>
                             ) : null}
@@ -1964,7 +1997,7 @@ export const AppointmentDetailsSheet = ({
                             </div>
 
                             {/* Save All Changes Button */}
-                            {hasUnsavedChanges && (
+                            {appointmentContent.hasUnsavedChanges && (
                                 <div className="mt-4">
                                     <Button
                                         onClick={handleSaveAllChanges}
@@ -1987,7 +2020,6 @@ export const AppointmentDetailsSheet = ({
                                 </div>
                             )}
 
-
                             {/* Record Information */}
                             {(selectedAppointment.recordId || selectedAppointment.recordNumber) && (
                                 <>
@@ -2006,17 +2038,27 @@ export const AppointmentDetailsSheet = ({
                                 </>
                             )}
 
-                            {/* Messaging Actions */}
-                            <MessagingActions
-                                phone={appointmentClientPhone || clientPhone}
-                                name={appointmentClientName || clientName}
-                                contacts={customerContacts}
-                                customerId={resolvedClientId || selectedAppointment.clientId}
-                            />
+                            {/* Messaging Actions - Sticky to bottom */}
+                            <div className="mt-auto pt-6">
+                                <MessagingActions
+                                    phone={appointmentClientPhone || appointmentContent.clientPhone}
+                                    name={appointmentClientName || appointmentContent.clientName}
+                                    contacts={customerContacts}
+                                    customerId={resolvedClientId || selectedAppointment.clientId}
+                                />
+                            </div>
                         </div>
+                        </div>
+                        )
+                    }
+
+                    return (
+                        <div className="py-12 text-center text-sm text-gray-500">לא נבחר תור</div>
                     )
-                })() : null}
-            </SheetContent>
+                })()}
+                    </div>
+                </SheetContent>
+            </Sheet>
 
             {/* Payment Modal */}
             {selectedAppointment && (
@@ -2182,6 +2224,6 @@ export const AppointmentDetailsSheet = ({
                     customerName={selectedAppointment.clientName}
                 />
             )}
-        </Sheet>
+        </>
     )
 }

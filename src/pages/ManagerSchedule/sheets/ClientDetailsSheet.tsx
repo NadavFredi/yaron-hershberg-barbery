@@ -5,8 +5,7 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { MoreHorizontal, Pencil, Phone, Calendar, CreditCard, Save, Loader2, X, Bell, Image as ImageIcon, Plus, CalendarDays, Ban } from "lucide-react"
+import { MoreHorizontal, Pencil, Phone, CreditCard, Save, Loader2, X, Bell, Image as ImageIcon, Plus, CalendarDays, Ban } from "lucide-react"
 import { EditCustomerDialog } from "@/components/EditCustomerDialog"
 import { CustomerPaymentsModal } from "@/components/dialogs/payments/CustomerPaymentsModal"
 import { CustomerRemindersModal } from "@/components/dialogs/reminders/CustomerRemindersModal"
@@ -21,7 +20,6 @@ import type { Database } from "@/integrations/supabase/types"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
 import { setSelectedDog, setIsDogDetailsOpen, setIsClientDetailsOpen, setSelectedClient, setSelectedAppointmentForPayment, setPaymentCartId, setShowPaymentModal } from "@/store/slices/managerScheduleSlice"
 import { useToast } from "@/components/ui/use-toast"
-import { DollarSign } from "lucide-react"
 import { useMemo } from "react"
 
 type CustomerContact = Database["public"]["Tables"]["customer_contacts"]["Row"]
@@ -91,16 +89,10 @@ export const ClientDetailsSheet = ({
         setIsEditCustomerDialogOpen(true)
     }
 
-    // Fetch full customer data if missing fields (like phone) when client is selected
+    // Always fetch fresh customer data when sheet opens
     useEffect(() => {
         const fetchFullCustomerData = async () => {
             if (!hasClientId || !open || !selectedClient) return
-
-            // Only fetch if we're missing important fields like phone
-            if (selectedClient.phone) {
-                // Already have phone, no need to fetch
-                return
-            }
 
             try {
                 const { data, error } = await supabase
@@ -124,7 +116,7 @@ export const ClientDetailsSheet = ({
                 if (error) throw error
 
                 if (data) {
-                    // Update Redux state with full customer data
+                    // Update Redux state with fresh customer data
                     const updatedClient: ClientDetails = {
                         name: data.full_name || selectedClient.name || "",
                         classification: data.classification || selectedClient.classification,
@@ -150,10 +142,10 @@ export const ClientDetailsSheet = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, hasClientId, clientId])
 
-    // Fetch staff notes and contacts when client is selected
+    // Fetch fresh staff notes, contacts, and additional data when sheet opens
     useEffect(() => {
         const fetchStaffNotes = async () => {
-            if (!hasClientId) return
+            if (!hasClientId || !open) return
 
             try {
                 const { data, error } = await supabase
@@ -173,7 +165,7 @@ export const ClientDetailsSheet = ({
         }
 
         const fetchContacts = async () => {
-            if (!hasClientId) return
+            if (!hasClientId || !open) return
 
             try {
                 const { data, error } = await supabase
@@ -192,7 +184,7 @@ export const ClientDetailsSheet = ({
         }
 
         const fetchUnpaidPayments = async () => {
-            if (!hasClientId) return
+            if (!hasClientId || !open) return
 
             try {
                 // Check for unpaid payments directly linked to customer
@@ -215,7 +207,7 @@ export const ClientDetailsSheet = ({
         }
 
         const fetchAnyPayments = async () => {
-            if (!hasClientId) return
+            if (!hasClientId || !open) return
 
             try {
                 // Check for any payments directly linked to customer
@@ -237,7 +229,7 @@ export const ClientDetailsSheet = ({
         }
 
         const fetchAdditionalData = async () => {
-            if (!hasClientId) return
+            if (!hasClientId || !open) return
 
             try {
                 const { data, error } = await supabase
@@ -562,7 +554,7 @@ export const ClientDetailsSheet = ({
     return (
         <>
             <Sheet open={open} onOpenChange={handleOpenChange}>
-                <SheetContent side="right" className="w-full max-w-md overflow-y-auto pt-12" dir="rtl">
+                <SheetContent side="right" className="!w-full !max-w-lg sm:!max-w-lg overflow-y-auto pt-12 flex flex-col" dir="rtl">
                     <SheetHeader>
                         <div className="flex items-start justify-between gap-4 mb-2">
                             <div className="flex-1">
@@ -585,7 +577,7 @@ export const ClientDetailsSheet = ({
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="w-full justify-start text-primary hover:text-primary hover:bg-primary/10"
+                                                className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                                 onClick={handleOpenEditCustomer}
                                             >
                                                 <Pencil className="h-4 w-4 ml-2" />
@@ -598,185 +590,218 @@ export const ClientDetailsSheet = ({
                         </div>
                     </SheetHeader>
 
+                    <div className="flex-1 flex flex-col min-h-0">
                     {selectedClient ? (
-                        <div className="mt-6 space-y-6 text-right">
-                            <div className="space-y-3">
-                                <div className="space-y-2 text-sm text-gray-600">
-                                    <div>
-                                        שם: <span className="font-medium text-gray-900">{selectedClient.name}</span>
+                        <div className="mt-6 flex flex-col flex-1 text-right">
+                            <div className="flex-1 space-y-6 min-h-0">
+                            {/* Action Buttons Section - Sticky */}
+                            <div className="sticky top-[-24px] z-10 bg-white pb-3 pt-2 -mx-6 px-6 border-b border-gray-200">
+                                <div className="flex items-center gap-2 flex-wrap mb-3">
+                                    {/* Payments Button */}
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                        onClick={() => selectedClient && hasClientId && setIsPaymentsModalOpen(true)}
+                                        disabled={!hasClientId}
+                                        title={`הצג תשלומים של ${selectedClient.name}`}
+                                    >
+                                        <CreditCard className="h-3.5 w-3.5" />
+                                        <span>תשלומים</span>
+                                    </Button>
+                                    {/* Reminders Button */}
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                        onClick={() => selectedClient && hasClientId && setIsRemindersModalOpen(true)}
+                                        disabled={!hasClientId}
+                                        title={`הצג תזכורות של ${selectedClient.name}`}
+                                    >
+                                        <Bell className="h-3.5 w-3.5" />
+                                        <span>תזכורות</span>
+                                    </Button>
+                                    {/* Images Button */}
+                                    {hasClientId && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                            onClick={() => setIsCustomerImagesModalOpen(true)}
+                                        >
+                                            <ImageIcon className="h-3.5 w-3.5" />
+                                            <span>תמונות</span>
+                                        </Button>
+                                    )}
+                                    {/* Appointments Button */}
+                                    {hasClientId && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                            onClick={() => setIsCustomerAppointmentsModalOpen(true)}
+                                        >
+                                            <CalendarDays className="h-3.5 w-3.5" />
+                                            <span>תורים</span>
+                                        </Button>
+                                    )}
+                                    {/* Additional Contacts Button */}
+                                    {hasClientId && (
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                >
+                                                    <Phone className="h-3.5 w-3.5" />
+                                                    <span>אנשי קשר</span>
+                                                    {contacts.length > 0 && (
+                                                        <span className="text-[10px] bg-gray-200 text-gray-700 rounded-full px-1.5 py-0.5">
+                                                            {contacts.length}
+                                                        </span>
+                                                    )}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-80 p-3" dir="rtl" align="start">
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <h4 className="text-sm font-medium">אנשי קשר נוספים</h4>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => setIsAddContactDialogOpen(true)}
+                                                            className="text-xs h-6"
+                                                        >
+                                                            <Plus className="h-3 w-3 ml-1" />
+                                                            הוסף
+                                                        </Button>
+                                                    </div>
+                                                    {contacts.length === 0 ? (
+                                                        <p className="text-sm text-gray-500">אין אנשי קשר נוספים</p>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {contacts.map((contact) => (
+                                                                <div
+                                                                    key={contact.id}
+                                                                    className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
+                                                                >
+                                                                    <div className="flex items-center justify-between text-sm">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Phone className="h-4 w-4 text-gray-400" />
+                                                                            <span className="font-medium text-gray-900">{contact.name}</span>
+                                                                        </div>
+                                                                        <a
+                                                                            href={`tel:${contact.phone}`}
+                                                                            className="text-blue-600 hover:text-blue-800 hover:underline"
+                                                                        >
+                                                                            {contact.phone}
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
+                                    )}
+                                </div>
+                            </div>
+                            {/* Client Info Section */}
+                            <div className="pb-3 pt-2">
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-600">
+                                    <div
+                                        className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors"
+                                        onClick={handleOpenEditCustomer}
+                                    >
+                                        <span className="text-sm text-gray-600">שם: </span>
+                                        <span className="text-sm font-medium text-gray-900">{selectedClient.name}</span>
+                                        <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
                                     </div>
-                                    <div>
+                                    <div
+                                        className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors text-sm text-gray-600"
+                                        onClick={handleOpenEditCustomer}
+                                    >
                                         סיווג: <span className="font-medium text-gray-900">{selectedClient.classification || 'לא ידוע'}</span>
+                                        <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
                                     </div>
-                                    <div>
+                                    <div
+                                        className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors text-sm text-gray-600"
+                                        onClick={handleOpenEditCustomer}
+                                    >
                                         סוג מותאם: <span className="font-medium text-gray-900">{selectedClient.customerTypeName || 'ללא סוג'}</span>
+                                        <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
                                     </div>
                                     {selectedClient.phone && (
-                                        <div>
+                                        <div
+                                            className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors text-sm text-gray-600"
+                                            onClick={handleOpenEditCustomer}
+                                        >
                                             טלפון: <span className="font-medium text-gray-900">{selectedClient.phone}</span>
+                                            <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
                                         </div>
                                     )}
                                     {selectedClient.email && (
-                                        <div>
+                                        <div
+                                            className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors text-sm text-gray-600"
+                                            onClick={handleOpenEditCustomer}
+                                        >
                                             דוא"ל: <span className="font-medium text-gray-900">{selectedClient.email}</span>
+                                            <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
                                         </div>
                                     )}
                                     {selectedClient.address && (
-                                        <div>
+                                        <div
+                                            className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors text-sm text-gray-600"
+                                            onClick={handleOpenEditCustomer}
+                                        >
                                             כתובת: <span className="font-medium text-gray-900">{selectedClient.address}</span>
-                                        </div>
-                                    )}
-                                    {hasClientId && showDevId && (
-                                        <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                                            <span className="text-xs text-gray-500">מזהה:</span>
-                                            <button
-                                                type="button"
-                                                onClick={async () => {
-                                                    try {
-                                                        await navigator.clipboard.writeText(clientId)
-                                                        toast({
-                                                            title: "הועתק",
-                                                            description: "מזהה הלקוח הועתק ללוח",
-                                                        })
-                                                    } catch (err) {
-                                                        console.error("Failed to copy:", err)
-                                                    }
-                                                }}
-                                                className="text-xs text-gray-600 hover:text-gray-900 font-mono cursor-pointer hover:underline"
-                                            >
-                                                {clientId.slice(0, 8)}...
-                                            </button>
+                                            <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
                                         </div>
                                     )}
                                     {additionalCustomerData?.is_banned && (
-                                        <div className="flex items-center gap-2 pt-2 border-t border-red-200 bg-red-50 rounded-md px-2 py-1.5">
+                                        <div className="col-span-2 flex items-center gap-2 pt-2 border-t border-red-200 bg-red-50 rounded-md px-2 py-1.5">
                                             <Ban className="h-4 w-4 text-red-600" />
                                             <span className="text-sm font-medium text-red-700">לקוח חסום</span>
                                         </div>
                                     )}
                                 </div>
                             </div>
-
-                            {/* Additional Customer Data Accordion */}
-                            {hasClientId && additionalCustomerData && (
-                                <>
-                                    <Separator />
-                                    <Accordion type="single" collapsible className="w-full">
-                                        <AccordionItem value="additional-data">
-                                            <AccordionTrigger className="text-sm font-medium text-gray-700">
-                                                פרטים נוספים
-                                            </AccordionTrigger>
-                                            <AccordionContent>
-                                                <div className="space-y-2 text-sm text-gray-600">
-                                                    {additionalCustomerData.gender && (
-                                                        <div>
-                                                            מין: <span className="font-medium text-gray-900">
-                                                                {additionalCustomerData.gender === 'male' ? 'זכר' :
-                                                                    additionalCustomerData.gender === 'female' ? 'נקבה' :
-                                                                        additionalCustomerData.gender === 'other' ? 'אחר' :
-                                                                            additionalCustomerData.gender}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {additionalCustomerData.date_of_birth && (
-                                                        <div>
-                                                            תאריך לידה: <span className="font-medium text-gray-900">
-                                                                {new Date(additionalCustomerData.date_of_birth).toLocaleDateString('he-IL')}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {additionalCustomerData.external_id && (
-                                                        <div>
-                                                            מזהה חיצוני: <span className="font-medium text-gray-900 font-mono">{additionalCustomerData.external_id}</span>
-                                                        </div>
-                                                    )}
-                                                    {additionalCustomerData.city && (
-                                                        <div>
-                                                            עיר: <span className="font-medium text-gray-900">{additionalCustomerData.city}</span>
-                                                        </div>
-                                                    )}
-                                                    {!additionalCustomerData.gender && !additionalCustomerData.date_of_birth && !additionalCustomerData.external_id && !additionalCustomerData.city && (
-                                                        <p className="text-sm text-gray-500">אין פרטים נוספים</p>
-                                                    )}
-                                                </div>
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    </Accordion>
-                                </>
-                            )}
-
-                            {/* Customer Images and Appointments Buttons */}
-                            {hasClientId && (
-                                <>
-                                    <Separator />
-                                    <div className="space-y-3">
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <Button
-                                                variant="outline"
-                                                className="w-full justify-center gap-2"
-                                                onClick={() => setIsCustomerImagesModalOpen(true)}
-                                            >
-                                                <ImageIcon className="h-4 w-4" />
-                                                תמונות
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="w-full justify-center gap-2"
-                                                onClick={() => setIsCustomerAppointmentsModalOpen(true)}
-                                            >
-                                                <CalendarDays className="h-4 w-4" />
-                                                תורים
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-
-                            {/* Additional Contacts Section */}
-                            {hasClientId && (
-                                <>
-                                    <Separator />
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="text-sm font-medium text-gray-900">אנשי קשר נוספים</h3>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setIsAddContactDialogOpen(true)}
-                                                className="text-xs"
-                                            >
-                                                <Plus className="h-3 w-3 ml-1" />
-                                                הוסף איש קשר
-                                            </Button>
-                                        </div>
-                                        {contacts.length === 0 ? (
-                                            <p className="text-sm text-gray-500">אין אנשי קשר נוספים</p>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {contacts.map((contact) => (
-                                                    <div
-                                                        key={contact.id}
-                                                        className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
-                                                    >
-                                                        <div className="flex items-center justify-between text-sm">
-                                                            <div className="flex items-center gap-2">
-                                                                <Phone className="h-4 w-4 text-gray-400" />
-                                                                <span className="font-medium text-gray-900">{contact.name}</span>
-                                                            </div>
-                                                            <a
-                                                                href={`tel:${contact.phone}`}
-                                                                className="text-primary hover:text-primary hover:underline"
-                                                            >
-                                                                {contact.phone}
-                                                            </a>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                            <div className="space-y-3">
+                                <div className="space-y-2 text-sm text-gray-600">
+                                    {showDevId && hasClientId && (
+                                        <div className="pt-2 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-gray-500">מזהה:</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        try {
+                                                            await navigator.clipboard.writeText(clientId)
+                                                            toast({
+                                                                title: "הועתק",
+                                                                description: "מזהה הלקוח הועתק ללוח",
+                                                            })
+                                                        } catch (err) {
+                                                            console.error("Failed to copy:", err)
+                                                        }
+                                                    }}
+                                                    className="text-xs text-gray-600 hover:text-gray-900 font-mono cursor-pointer hover:underline"
+                                                >
+                                                    {clientId.slice(0, 8)}...
+                                                </button>
                                             </div>
-                                        )}
-                                    </div>
-                                </>
-                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
 
                             {selectedClient.preferences && (
                                 <>
@@ -788,18 +813,25 @@ export const ClientDetailsSheet = ({
                                 </>
                             )}
 
+                            {/* Customer Debts Section */}
+                            {hasClientId && (
+                                <>
+                                    <Separator />
+                                    <CustomerDebtsSection customerId={clientId} customerName={selectedClient.name} />
+                                </>
+                            )}
 
                             {/* Staff Notes Section */}
                             {hasClientId && (
                                 <>
                                     <Separator />
                                     <div className="space-y-2">
-                                        <h3 className="text-sm font-medium text-primary">הערות צוות פנימי</h3>
+                                        <h3 className="text-sm font-medium text-blue-900">הערות צוות פנימי</h3>
                                         <Textarea
                                             value={staffNotes || ""}
                                             onChange={(e) => setStaffNotes(e.target.value)}
                                             placeholder="הזן הערות צוות פנימיות..."
-                                            className="min-h-[100px] text-right bg-primary/10 border-primary/20"
+                                            className="min-h-[100px] text-right bg-blue-50 border-blue-200"
                                             dir="rtl"
                                         />
                                         {(staffNotes !== originalStaffNotes) && (
@@ -838,62 +870,27 @@ export const ClientDetailsSheet = ({
                                     </div>
                                 </>
                             )}
-
-
-                            <Separator />
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-medium text-gray-900">תשלומים</h3>
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-center gap-2"
-                                    onClick={() => selectedClient && hasClientId && setIsPaymentsModalOpen(true)}
-                                    disabled={!hasClientId}
-                                >
-                                    <CreditCard className="h-4 w-4" />
-                                    הצג תשלומים של {selectedClient.name}
-                                </Button>
-                                {hasClientId && !hasAnyPayments && (
-                                    <p className="text-xs text-gray-500 text-right">
-                                        אין תשלומים עבור לקוח זה
+                            </div>
+                            
+                            {/* Messaging Actions - Sticky to bottom */}
+                            <div className="mt-auto pt-6">
+                                <MessagingActions
+                                    phone={selectedClient.phone}
+                                    name={selectedClient.name}
+                                    contacts={contacts}
+                                    customerId={clientId}
+                                />
+                                {hasUnpaidPayments && (
+                                    <p className="text-xs text-amber-600 text-right mt-2">
+                                        ⚠️ ללקוח זה יש תשלומים שלא שולמו
                                     </p>
                                 )}
                             </div>
-
-                            {/* Customer Debts Section */}
-                            {hasClientId && (
-                                <CustomerDebtsSection customerId={clientId} customerName={selectedClient.name} />
-                            )}
-
-                            <Separator />
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-medium text-gray-900">תזכורות</h3>
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-center gap-2"
-                                    onClick={() => selectedClient && hasClientId && setIsRemindersModalOpen(true)}
-                                    disabled={!hasClientId}
-                                >
-                                    <Bell className="h-4 w-4" />
-                                    הצג תזכורות של {selectedClient.name}
-                                </Button>
-                            </div>
-
-                            {/* Messaging Actions */}
-                            <MessagingActions
-                                phone={selectedClient.phone}
-                                name={selectedClient.name}
-                                contacts={contacts}
-                                customerId={clientId}
-                            />
-                            {hasUnpaidPayments && (
-                                <p className="text-xs text-amber-600 text-right">
-                                    ⚠️ ללקוח זה יש תשלומים שלא שולמו
-                                </p>
-                            )}
                         </div>
                     ) : (
                         <div className="py-12 text-center text-sm text-gray-500">לא נבחר לקוח</div>
                     )}
+                    </div>
                 </SheetContent>
             </Sheet>
 

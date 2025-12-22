@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type MouseEvent } from "react"
 import { useSearchParams } from "react-router-dom"
 import { addDays, endOfDay, format, startOfDay, subDays } from "date-fns"
-import { Loader2, RefreshCw, Search, MoreHorizontal, CalendarClock, CheckCircle2, XCircle, X } from "lucide-react"
+import { Loader2, Search, MoreHorizontal, CalendarClock, CheckCircle2, XCircle, X } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import type { ManagerAppointment } from "./ManagerSchedule/types"
 import { useToast } from "@/hooks/use-toast"
@@ -669,222 +669,196 @@ export default function AppointmentsSection() {
 
     return (
         <div className="min-h-screen bg-background" dir="rtl">
-            <div className="mx-auto w-full max-w-7xl px-2 sm:px-4 lg:px-8 py-6 space-y-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2 flex items-center gap-2">
-                        <CalendarClock className="h-7 w-7 text-primary" />
-                        תורים
-                    </h1>
-                    <p className="text-slate-600">
-                        ניהול מרוכז של כל התורים במספרה – חיפוש, סינון וביצוע פעולות מהירות.
-                    </p>
-                </div>
+            <div className="space-y-4 sm:space-y-6 p-3 sm:p-6">
 
-                <Card className="border border-slate-200 shadow-sm">
-                    <CardHeader className="pb-2">
-                        <div className="flex flex-col gap-3">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="space-y-1">
-                                    <CardTitle className="text-xl">סינון מהיר</CardTitle>
-                                    <CardDescription>סננו לפי טווח תאריכים, שירות, קטגוריות או חיפוש חופשי.</CardDescription>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 flex-row-reverse">
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={handleRefresh}
-                                        disabled={isLoading}
-                                        className="gap-2 shadow-sm"
-                                    >
-                                        {isLoading ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <RefreshCw className="h-4 w-4" />
-                                        )}
-                                        רענון נתונים
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={handleClearAllFilters}
-                                        className="text-slate-600 hover:text-slate-900"
-                                    >
-                                        נקה את כל המסננים
-                                    </Button>
-                                </div>
+
+                <Card>
+                    <CardHeader className="p-4 sm:p-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                            <div>
+                                <CardTitle className="text-lg sm:text-xl">תורים</CardTitle>
+                                <CardDescription className="text-xs sm:text-sm">
+                                    {filteredAppointments.length > 0
+                                        ? `נמצאו ${filteredAppointments.length} תורים${showOnlyFuture ? " (כולל עתידיים בלבד)" : ""}`
+                                        : "לא נמצאו תורים התואמים לסינונים"}
+                                </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleClearAllFilters}
+                                    className="text-slate-600 hover:text-slate-900 text-xs sm:text-sm"
+                                >
+                                    נקה מסננים
+                                </Button>
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="service-filter">סוג שירות</Label>
-                                <Select value={serviceFilter} onValueChange={(value) => setServiceFilter(value as ServiceFilter)}>
-                                    <SelectTrigger id="service-filter">
-                                        <SelectValue placeholder="בחר שירות" />
-                                    </SelectTrigger>
-                                    <SelectContent dir="rtl">
-                                        {SERVICE_OPTIONS.map((option) => (
-                                            <SelectItem key={option.value} value={option.value}>
-                                                {option.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="status-filter">סטטוס</Label>
-                                <Select
-                                    value={statusFilter}
-                                    onValueChange={(value) => setStatusFilter(value as AppointmentStatus | "all")}
-                                >
-                                    <SelectTrigger id="status-filter">
-                                        <SelectValue placeholder="בחר סטטוס" />
-                                    </SelectTrigger>
-                                    <SelectContent dir="rtl">
-                                        {STATUS_OPTIONS.map((option) => (
-                                            <SelectItem key={option.value} value={option.value}>
-                                                {option.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="date-from">מתאריך</Label>
-                                <DatePickerInput
-                                    value={startDate}
-                                    onChange={(date) => {
-                                        if (date) {
-                                            setStartDate(date)
-                                            // Ensure to date is after from date
-                                            if (endDate && date > endDate) {
-                                                setEndDate(addDays(date, 1))
-                                            }
-                                        } else {
-                                            setStartDate(null)
-                                        }
-                                    }}
-                                    placeholder="בחר תאריך התחלה"
-                                    wrapperClassName="w-full"
-                                    displayFormat="dd/MM/yyyy"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="date-to">עד תאריך</Label>
-                                <DatePickerInput
-                                    value={endDate}
-                                    onChange={(date) => {
-                                        if (date) {
-                                            // Ensure to date is after from date
-                                            if (startDate && date < startDate) {
-                                                setEndDate(addDays(startDate, 1))
+                    <CardContent className="p-4 sm:p-6">
+                        {/* Filters */}
+                        <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-4">
+                            {/* First Row - 5 filters */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+                                <div>
+                                    <Label className="text-sm mb-2 block">סוג שירות</Label>
+                                    <Select value={serviceFilter} onValueChange={(value) => setServiceFilter(value as ServiceFilter)}>
+                                        <SelectTrigger dir="rtl">
+                                            <SelectValue placeholder="בחר שירות" />
+                                        </SelectTrigger>
+                                        <SelectContent dir="rtl">
+                                            {SERVICE_OPTIONS.map((option) => (
+                                                <SelectItem key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label className="text-sm mb-2 block">מתאריך</Label>
+                                    <DatePickerInput
+                                        value={startDate}
+                                        onChange={(date) => {
+                                            if (date) {
+                                                setStartDate(date)
+                                                // Ensure to date is after from date
+                                                if (endDate && date > endDate) {
+                                                    setEndDate(addDays(date, 1))
+                                                }
                                             } else {
-                                                setEndDate(date)
+                                                setStartDate(null)
                                             }
-                                        } else {
-                                            setEndDate(null)
-                                        }
-                                    }}
-                                    placeholder="בחר תאריך סיום"
-                                    wrapperClassName="w-full"
-                                    displayFormat="dd/MM/yyyy"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-[1fr,auto] items-end">
-                            <div className="space-y-2">
-                                <Label htmlFor="search">חיפוש</Label>
-                                <div className="flex items-center gap-2">
-                                    <div className="relative flex-1">
-                                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                                        <Input
-                                            id="search"
-                                            value={searchTerm}
-                                            onChange={(event) => setSearchTerm(event.target.value)}
-                                            onKeyDown={handleSearchKeyDown}
-                                            placeholder="חיפוש לפי לקוח, תחנה או הערות"
-                                            className="pl-10"
-                                        />
-                                    </div>
-                                    {searchTerm && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-10 w-10"
-                                            onClick={() => {
-                                                setSearchTerm("")
-                                                setActiveSearchTerm("")
-                                            }}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    )}
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-10 w-10"
-                                        onClick={triggerSearch}
+                                        }}
+                                        displayFormat="dd/MM/yyyy"
+                                        className="w-full text-right"
+                                    />
+                                </div>
+                                <div>
+                                    <Label className="text-sm mb-2 block">עד תאריך</Label>
+                                    <DatePickerInput
+                                        value={endDate}
+                                        onChange={(date) => {
+                                            if (date) {
+                                                // Ensure to date is after from date
+                                                if (startDate && date < startDate) {
+                                                    setEndDate(addDays(startDate, 1))
+                                                } else {
+                                                    setEndDate(date)
+                                                }
+                                            } else {
+                                                setEndDate(null)
+                                            }
+                                        }}
+                                        displayFormat="dd/MM/yyyy"
+                                        className="w-full text-right"
+                                    />
+                                </div>
+                                <div>
+                                    <Label className="text-sm mb-2 block">קטגוריית לקוח</Label>
+                                    <Select
+                                        value={customerCategoryFilter}
+                                        onValueChange={(value) => setCustomerCategoryFilter(value)}
                                     >
-                                        <Search className="h-4 w-4" />
-                                    </Button>
+                                        <SelectTrigger dir="rtl">
+                                            <SelectValue placeholder="כל הקטגוריות" />
+                                        </SelectTrigger>
+                                        <SelectContent dir="rtl">
+                                            <SelectItem value="all">כל הקטגוריות</SelectItem>
+                                            {customerTypes.map((type) => (
+                                                <SelectItem key={type.id} value={type.id}>
+                                                    {type.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label className="text-sm mb-2 block">תחנות</Label>
+                                    {isLoadingStations ? (
+                                        <div className="flex items-center justify-center h-10 text-sm text-slate-500">
+                                            טוען תחנות...
+                                        </div>
+                                    ) : (
+                                        <MultiSelectDropdown
+                                            options={stations.map(s => ({ id: s.id, name: s.name }))}
+                                            selectedIds={selectedStationIds}
+                                            onSelectionChange={setSelectedStationIds}
+                                            placeholder="בחר תחנות..."
+                                        />
+                                    )}
                                 </div>
                             </div>
-
-                            <div className="flex items-center justify-start">
-                                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
-                                    <Checkbox
-                                        id="future-only"
-                                        checked={showOnlyFuture}
-                                        onCheckedChange={(value) => setShowOnlyFuture(value === true)}
-                                        className="h-5 w-5 border-2 border-slate-400 transition-all duration-150 data-[state=checked]:border-emerald-500 data-[state=checked]:bg-emerald-500 data-[state=checked]:shadow-[0_0_0_3px_rgba(16,185,129,0.25)]"
-                                    />
-                                    <Label htmlFor="future-only" className="cursor-pointer text-sm font-semibold text-slate-700">
-                                        הצג רק תורים עתידיים
-                                    </Label>
+                            {/* Second Row - 6 filters */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+                                <div>
+                                    <Label className="text-sm mb-2 block">סטטוס</Label>
+                                    <Select
+                                        value={statusFilter}
+                                        onValueChange={(value) => setStatusFilter(value as AppointmentStatus | "all")}
+                                    >
+                                        <SelectTrigger dir="rtl">
+                                            <SelectValue placeholder="בחר סטטוס" />
+                                        </SelectTrigger>
+                                        <SelectContent dir="rtl">
+                                            {STATUS_OPTIONS.map((option) => (
+                                                <SelectItem key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                            </div>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label htmlFor="customer-category">קטגוריית לקוח</Label>
-                                <Select
-                                    value={customerCategoryFilter}
-                                    onValueChange={(value) => setCustomerCategoryFilter(value)}
-                                >
-                                    <SelectTrigger id="customer-category">
-                                        <SelectValue placeholder="כל הקטגוריות" />
-                                    </SelectTrigger>
-                                    <SelectContent dir="rtl">
-                                        <SelectItem value="all">כל הקטגוריות</SelectItem>
-                                        {customerTypes.map((type) => (
-                                            <SelectItem key={type.id} value={type.id}>
-                                                {type.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="station-filter">תחנות</Label>
-                                {isLoadingStations ? (
-                                    <div className="flex items-center justify-center h-10 text-sm text-slate-500">
-                                        טוען תחנות...
+                                <div className="sm:col-span-2 xl:col-span-1">
+                                    <Label className="text-sm mb-2 block">חיפוש</Label>
+                                    <div className="flex items-center gap-2">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                            <Input
+                                                placeholder="חפש תורים..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                onKeyDown={handleSearchKeyDown}
+                                                className="pr-10 w-full text-sm"
+                                                dir="rtl"
+                                            />
+                                        </div>
+                                        {searchTerm && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-10 w-10 shrink-0"
+                                                onClick={() => {
+                                                    setSearchTerm("")
+                                                    setActiveSearchTerm("")
+                                                }}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-10 w-10 shrink-0"
+                                            onClick={() => triggerSearch()}
+                                        >
+                                            <Search className="h-4 w-4" />
+                                        </Button>
                                     </div>
-                                ) : (
-                                    <MultiSelectDropdown
-                                        options={stations.map(s => ({ id: s.id, name: s.name }))}
-                                        selectedIds={selectedStationIds}
-                                        onSelectionChange={setSelectedStationIds}
-                                        placeholder="בחר תחנות..."
-                                    />
-                                )}
+                                </div>
+                                <div className="flex items-end sm:col-span-2 xl:col-span-1">
+                                    <div className="flex items-center gap-2 sm:gap-3 w-full">
+                                        <Checkbox
+                                            id="future-only"
+                                            checked={showOnlyFuture}
+                                            onCheckedChange={(value) => setShowOnlyFuture(value === true)}
+                                            className="h-5 w-5 sm:h-6 sm:w-6"
+                                        />
+                                        <Label htmlFor="future-only" className="cursor-pointer text-sm sm:text-base font-medium">
+                                            הצג רק תורים עתידיים
+                                        </Label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </CardContent>
@@ -975,22 +949,15 @@ export default function AppointmentsSection() {
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="px-6 py-5 border-b border-slate-100 space-y-1">
-                        <h2 className="text-lg font-semibold text-slate-900">רשימת תורים</h2>
-                        <p className="text-sm text-slate-500">לחץ על שורה כדי לפתוח את גיליון פרטי התור.</p>
-                        <p className="text-xs text-slate-500">
-                            נמצאו {filteredAppointments.length} תורים {showOnlyFuture && "(כולל עתידיים בלבד)"}
-                        </p>
-                    </div>
-                    <div className="overflow-x-auto overflow-y-auto max-h-[65vh] custom-scrollbar [direction:ltr] relative">
+                <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="overflow-x-auto overflow-y-auto max-h-[60vh] sm:max-h-[65vh] custom-scrollbar [direction:rtl] relative">
                         {isLoading ? (
-                            <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-                                <Loader2 className="h-8 w-8 animate-spin mb-3" />
-                                טוען תורים...
+                            <div className="flex flex-col items-center justify-center py-12 sm:py-20 text-slate-500">
+                                <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin mb-2 sm:mb-3" />
+                                <span className="text-sm sm:text-base">טוען תורים...</span>
                             </div>
                         ) : filteredAppointments.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+                            <div className="flex flex-col items-center justify-center py-12 sm:py-20 text-slate-500">
                                 <FilterEmptyState />
                             </div>
                         ) : (

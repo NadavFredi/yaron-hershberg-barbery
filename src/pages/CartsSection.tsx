@@ -50,10 +50,7 @@ interface Cart {
     grooming_appointments?: {
         id: string
         start_at: string
-        dogs?: {
-            id: string
-            name: string
-        }[] | {
+        treatments?: {
             id: string
             name: string
         } | null
@@ -61,10 +58,7 @@ interface Cart {
     daycare_appointments?: {
         id: string
         start_at: string
-        dogs?: {
-            id: string
-            name: string
-        }[] | {
+        treatments?: {
             id: string
             name: string
         } | null
@@ -124,7 +118,7 @@ export default function CartsSection() {
                         grooming_appointments (
                             id,
                             start_at,
-                            dogs (
+                            treatments (
                                 id,
                                 name
                             )
@@ -132,7 +126,7 @@ export default function CartsSection() {
                         daycare_appointments (
                             id,
                             start_at,
-                            dogs (
+                            treatments (
                                 id,
                                 name
                             )
@@ -161,8 +155,8 @@ export default function CartsSection() {
                     grooming_appointment_id?: string | null
                     daycare_appointment_id?: string | null
                     appointment_price?: number
-                    grooming_appointments?: { id: string; start_at: string; dogs?: Array<{ id: string; name: string }> | { id: string; name: string } | null }
-                    daycare_appointments?: { id: string; start_at: string; dogs?: Array<{ id: string; name: string }> | { id: string; name: string } | null }
+                    grooming_appointments?: { id: string; start_at: string; treatments?: { id: string; name: string } | null }
+                    daycare_appointments?: { id: string; start_at: string; treatments?: { id: string; name: string } | null }
                 }>
             }
 
@@ -215,33 +209,27 @@ export default function CartsSection() {
         return null
     }
 
-    // Helper function to safely extract dog names from appointments
+    // Helper function to safely extract treatment names from appointments
     const getDogNames = (cart: Cart): string[] => {
-        const dogNames: string[] = []
+        const treatmentNames: string[] = []
 
         // Handle grooming appointments
-        if (cart.grooming_appointments) {
-            const dogs = cart.grooming_appointments.dogs
-            if (Array.isArray(dogs)) {
-                dogNames.push(...dogs.map(d => d.name).filter(Boolean))
-            } else if (dogs && typeof dogs === 'object' && 'name' in dogs) {
-                // Handle single dog object
-                dogNames.push(dogs.name)
+        if (cart.grooming_appointments?.treatments) {
+            const treatment = cart.grooming_appointments.treatments
+            if (treatment && typeof treatment === 'object' && 'name' in treatment) {
+                treatmentNames.push(treatment.name)
             }
         }
 
         // Handle daycare appointments
-        if (cart.daycare_appointments) {
-            const dogs = cart.daycare_appointments.dogs
-            if (Array.isArray(dogs)) {
-                dogNames.push(...dogs.map(d => d.name).filter(Boolean))
-            } else if (dogs && typeof dogs === 'object' && 'name' in dogs) {
-                // Handle single dog object
-                dogNames.push(dogs.name)
+        if (cart.daycare_appointments?.treatments) {
+            const treatment = cart.daycare_appointments.treatments
+            if (treatment && typeof treatment === 'object' && 'name' in treatment) {
+                treatmentNames.push(treatment.name)
             }
         }
 
-        return dogNames
+        return treatmentNames
     }
 
     const filteredCarts = useMemo(() => {
@@ -438,7 +426,7 @@ export default function CartsSection() {
         setIsSelectCustomerDialogOpen(true)
     }
 
-    const handleCustomerSelected = async (customer: Customer, dog: Dog | null) => {
+    const handleCustomerSelected = async (customer: Customer) => {
         try {
             // Create a new cart with the selected customer
             const { data: newCart, error } = await supabase
