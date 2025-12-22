@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PhoneInput } from "@/components/ui/phone-input"
+import { Button } from "@/components/ui/button"
+import { Loader2, ArrowRight } from "lucide-react"
 import { User, Mail, Phone } from "lucide-react"
 
 export interface PaymentFormData {
@@ -18,6 +20,8 @@ interface PaymentFormProps {
     showChildName?: boolean
     childName?: string
     onChildNameChange?: (name: string) => void
+    showSubmitButton?: boolean
+    isSubmitting?: boolean
 }
 
 export const PaymentForm: React.FC<PaymentFormProps> = ({
@@ -28,6 +32,8 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     showChildName = false,
     childName = "",
     onChildNameChange,
+    showSubmitButton = false,
+    isSubmitting = false,
 }) => {
     const [fullName, setFullName] = useState(initialData?.fullName || "")
     const [phone, setPhone] = useState(initialData?.phone || "")
@@ -157,6 +163,24 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
                 />
                 {errors.email && <p className="text-xs text-red-500 text-right">{errors.email}</p>}
             </div>
+            {showSubmitButton && (
+                <Button
+                    type="submit"
+                    disabled={disabled || isSubmitting}
+                    className="w-full"
+                >
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                            מעבד...
+                        </>
+                    ) : (
+                        <>
+                            המשך לתשלום
+                        </>
+                    )}
+                </Button>
+            )}
         </form>
     )
 }

@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast"
 import { PaymentForm, type PaymentFormData } from "./PaymentForm"
 import { PaymentIframe } from "./PaymentIframe"
 import { TokenPaymentApproval } from "./TokenPaymentApproval"
+import { CreditCardSetupModal } from "@/components/dialogs/billing/CreditCardSetupModal"
 import type { Database } from "@/integrations/supabase/types"
 import { MOCK_HANDSHAKE_TOKEN, TRANZILA_SUPPLIER } from "@/utils/payment"
 
@@ -56,6 +57,7 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
     const [iframeUrl, setIframeUrl] = useState<string>("")
     const [postData, setPostData] = useState<Record<string, string | number> | undefined>(undefined)
     const [isProcessing, setIsProcessing] = useState(false)
+    const [billingModalOpen, setBillingModalOpen] = useState(false)
     const pollingIntervalRef = useRef<number | null>(null)
     const iframeShownAtRef = useRef<Date | null>(null)
 
@@ -646,6 +648,8 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
                             initialData={formData || undefined}
                             onSubmit={handleFormSubmit}
                             disabled={isProcessing}
+                            showSubmitButton={true}
+                            isSubmitting={isProcessing}
                         />
                         <div className="flex gap-3 justify-start">
                             <Button variant="outline" onClick={() => setStep("method")} disabled={isProcessing}>
@@ -678,12 +682,8 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
                                                 if (creditToken) {
                                                     setStep("token-approval")
                                                 } else {
-                                                    // Navigate to billing settings
-                                                    navigate("/profile?mode=billing")
-                                                    toast({
-                                                        title: "הגדרת כרטיס אשראי",
-                                                        description: "אנא הגדר כרטיס אשראי בהגדרות הפרופיל",
-                                                    })
+                                                    // Open billing modal instead of navigating
+                                                    setBillingModalOpen(true)
                                                 }
                                             }}
                                             className="w-full h-auto p-4 flex items-center justify-start gap-3 text-right"
@@ -692,11 +692,11 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div
-                                                    className={`flex items-center justify-center w-10 h-10 rounded-lg ${creditToken ? "bg-primary/20" : "bg-gray-200"
+                                                    className={`flex items-center justify-center w-10 h-10 rounded-lg ${creditToken ? "bg-blue-100" : "bg-gray-200"
                                                         }`}
                                                 >
                                                     <Wallet
-                                                        className={`h-5 w-5 ${creditToken ? "text-primary" : "text-gray-600"
+                                                        className={`h-5 w-5 ${creditToken ? "text-blue-600" : "text-gray-600"
                                                             }`}
                                                     />
                                                 </div>
@@ -720,8 +720,8 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
                                             disabled={isProcessing}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/20">
-                                                    <CreditCard className="h-5 w-5 text-primary" />
+                                                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100">
+                                                    <CreditCard className="h-5 w-5 text-purple-600" />
                                                 </div>
                                                 <div className="text-right flex-1">
                                                     <div className="font-semibold">כרטיס אשראי אחר</div>
@@ -736,6 +736,18 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
                     </div>
                 )}
             </DialogContent>
+
+            {/* Credit Card Setup Modal */}
+            <CreditCardSetupModal
+                open={billingModalOpen}
+                onOpenChange={setBillingModalOpen}
+                customerId={config.customerId}
+                onSuccess={() => {
+                    // Reload credit token after successful setup
+                    loadCreditToken()
+                    setBillingModalOpen(false)
+                }}
+            />
         </Dialog>
     )
 }
