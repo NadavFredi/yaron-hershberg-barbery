@@ -30,11 +30,16 @@ const SignUpPage = () => {
     }, [user, hasInitialized, isManager, isManagerLoading, navigate]);
 
     return (
-        <div className="pt-4 px-4">
-            <div className="max-w-md mx-auto">
-                <div className="text-center mb-4">
-                    <div className="w-48 h-48 mx-auto mb-3">
-                        <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
+        <div className="min-h-screen flex items-center justify-center px-4 py-4">
+            <div className="max-w-md w-full">
+                <div className="text-center mb-1">
+                    <div className="w-80 mx-auto mb-2">
+                        <img 
+                            src={logoImage} 
+                            alt="Yaron Hershberg Logo" 
+                            className="w-full h-auto object-contain mix-blend-multiply" 
+                            style={{ filter: 'contrast(1.1)' }}
+                        />
                     </div>
                 </div>
                 <SignUp
