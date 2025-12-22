@@ -1576,6 +1576,37 @@ export const AppointmentDetailsSheet = ({
                                 <SheetTitle className="text-right">פרטי תור</SheetTitle>
                                 <SheetDescription className="text-right">צפו בכל הפרטים על התור והלקוח.</SheetDescription>
                             </div>
+                            {/* More Actions Menu */}
+                            {selectedAppointment && (
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 px-2 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                                        >
+                                            <MoreHorizontal className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-48 p-1" align="end">
+                                        <AppointmentActionsMenu
+                                            appointment={selectedAppointment}
+                                            clientName={appointmentContent?.clientName}
+                                            primaryDog={appointmentContent?.primaryDog}
+                                            hasOrder={hasOrder}
+                                            pinnedAppointmentsHook={pinnedAppointmentsHook}
+                                            onEdit={() => onEditAppointment(selectedAppointment)}
+                                            onDuplicate={handleDuplicateAppointment}
+                                            onCancel={() => onCancelAppointment(selectedAppointment)}
+                                            onDelete={() => onDeleteAppointment(selectedAppointment)}
+                                            onOpenClientCommunication={handleOpenClientCommunication}
+                                            onRescheduleProposal={handleOpenRescheduleProposal}
+                                            onPayment={handlePaymentClick}
+                                            onShowOrder={() => setIsOrderDetailsModalOpen(true)}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            )}
                         </div>
                     </SheetHeader>
 
@@ -1695,35 +1726,6 @@ export const AppointmentDetailsSheet = ({
                                                             </PopoverContent>
                                                         </Popover>
                                                     )}
-                                                    {/* More Actions Menu */}
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="h-7 px-2 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                                                            >
-                                                                <MoreHorizontal className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-48 p-1" align="end">
-                                                            <AppointmentActionsMenu
-                                                                appointment={selectedAppointment}
-                                                                clientName={appointmentContent.clientName}
-                                                                primaryDog={appointmentContent.primaryDog}
-                                                                hasOrder={hasOrder}
-                                                                pinnedAppointmentsHook={pinnedAppointmentsHook}
-                                                                onEdit={() => onEditAppointment(selectedAppointment)}
-                                                                onDuplicate={handleDuplicateAppointment}
-                                                                onCancel={() => onCancelAppointment(selectedAppointment)}
-                                                                onDelete={() => onDeleteAppointment(selectedAppointment)}
-                                                                onOpenClientCommunication={handleOpenClientCommunication}
-                                                                onRescheduleProposal={handleOpenRescheduleProposal}
-                                                                onPayment={handlePaymentClick}
-                                                                onShowOrder={() => setIsOrderDetailsModalOpen(true)}
-                                                            />
-                                                        </PopoverContent>
-                                                    </Popover>
                                                 </div>
                                             </div>
 
