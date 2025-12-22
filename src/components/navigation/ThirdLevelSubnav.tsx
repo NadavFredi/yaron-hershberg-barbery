@@ -201,7 +201,7 @@ export function ThirdLevelSubnav() {
                 type="button"
                 onClick={() => handleSectionChange(section.id)}
                 className={cn(
-                  "flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200",
                   isActive
                     ? "bg-primary text-white shadow-md"
                     : "text-gray-700 hover:text-primary hover:bg-white/80 hover:shadow-sm"

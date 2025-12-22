@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,7 @@ export type PaymentConfig = {
     customData?: Record<string, any>
     onSuccess?: (data?: any) => void
     onError?: (error: string) => void
+    onBack?: () => void // Callback for going back to previous step
 }
 
 interface PaymentFlowProps {
@@ -55,11 +56,14 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
     const [iframeUrl, setIframeUrl] = useState<string>("")
     const [postData, setPostData] = useState<Record<string, string | number> | undefined>(undefined)
     const [isProcessing, setIsProcessing] = useState(false)
+    const pollingIntervalRef = useRef<number | null>(null)
+    const iframeShownAtRef = useRef<Date | null>(null)
 
-    // Load credit token when modal opens
+    // Load credit token and customer data when modal opens
     useEffect(() => {
         if (open && config.customerId) {
             loadCreditToken()
+            loadCustomerData()
         } else {
             setStep("method")
             setCreditToken(null)
@@ -68,6 +72,42 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
             setPostData(undefined)
         }
     }, [open, config.customerId])
+
+    const loadCustomerData = async () => {
+        if (!config.customerId) return
+
+        try {
+            console.log("📋 [PaymentFlow] Loading customer data for form pre-fill:", config.customerId)
+            const { data: customerData, error: customerError } = await supabase
+                .from("customers")
+                .select("full_name, phone, email")
+                .eq("id", config.customerId)
+                .single()
+
+            if (customerError) {
+                console.warn("⚠️ [PaymentFlow] Could not load customer data:", customerError)
+                return
+            }
+
+            if (customerData && customerData.full_name && customerData.phone && customerData.email) {
+                const formData: PaymentFormData = {
+                    fullName: customerData.full_name,
+                    phone: customerData.phone,
+                    email: customerData.email,
+                }
+                setFormData(formData)
+                console.log("✅ [PaymentFlow] Customer data loaded for form pre-fill:", {
+                    fullName: formData.fullName,
+                    phone: formData.phone,
+                    email: formData.email,
+                })
+            } else {
+                console.warn("⚠️ [PaymentFlow] Customer data incomplete, form will be empty")
+            }
+        } catch (error) {
+            console.error("❌ [PaymentFlow] Error loading customer data:", error)
+        }
+    }
 
     const loadCreditToken = async () => {
         if (!config.customerId) return
@@ -248,9 +288,16 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
                 addParam("json_purchase_data", JSON.stringify(productList))
                 addParam("u71", 1)
 
-                // Add notify_url_address
+                // Add notify_url_address for callback
                 if (config.notifyUrlAddress) {
                     addParam("notify_url_address", config.notifyUrlAddress)
+                } else {
+                    // Default callback URL if not provided
+                    const supabaseUrl = import.meta.env.VITE_PROD_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL
+                    if (supabaseUrl) {
+                        const notifyUrl = `${supabaseUrl}/functions/v1/payment-received-callback`
+                        addParam("notify_url_address", notifyUrl)
+                    }
                 }
 
                 // Add payment details for recurring payments
@@ -307,13 +354,86 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
         }
     }
 
-    const handleIframeSuccess = (data?: any) => {
+    const handleIframeSuccess = async (data?: any) => {
         console.log("✅ [PaymentFlow] Payment successful:", data)
+        
+        // Save credit card token if provided in callback data
+        if (data?.Token && config.customerId) {
+            try {
+                console.log("💳 [PaymentFlow] Saving credit card token...")
+                
+                // Extract card information
+                const last4 = data.CardNo ? data.CardNo.slice(-4) : null
+                let expmonth: string | null = null
+                let expyear: string | null = null
+                if (data.CardExp) {
+                    const expStr = data.CardExp.replace(/\//g, "")
+                    if (expStr.length >= 4) {
+                        expmonth = expStr.slice(0, 2)
+                        expyear = "20" + expStr.slice(2, 4)
+                    }
+                }
+
+                // Check if customer already has a saved token
+                const { data: existingToken } = await supabase
+                    .from("credit_tokens")
+                    .select("id")
+                    .eq("customer_id", config.customerId)
+                    .maybeSingle()
+
+                if (existingToken) {
+                    // Update existing token
+                    await supabase
+                        .from("credit_tokens")
+                        .update({
+                            token: data.Token,
+                            provider: data.CardType || "Tranzila",
+                            last4: last4,
+                            expmonth: expmonth,
+                            expyear: expyear,
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq("id", existingToken.id)
+                    
+                    console.log("✅ [PaymentFlow] Updated existing credit token")
+                } else {
+                    // Create new token
+                    await supabase
+                        .from("credit_tokens")
+                        .insert({
+                            customer_id: config.customerId,
+                            token: data.Token,
+                            provider: data.CardType || "Tranzila",
+                            last4: last4,
+                            expmonth: expmonth,
+                            expyear: expyear,
+                        })
+                    
+                    console.log("✅ [PaymentFlow] Created new credit token")
+                }
+            } catch (tokenError) {
+                console.warn("⚠️ [PaymentFlow] Failed to save credit token (non-critical):", tokenError)
+                // Don't fail the payment if token saving fails
+            }
+        }
+
         toast({
             title: "תשלום התקבל",
             description: "התשלום מתעבד, אנא המתן...",
         })
-        config.onSuccess?.(data)
+        
+        // Call onSuccess callback - it may return a Promise if it's async
+        const onSuccessResult = config.onSuccess?.(data)
+        
+        // If onSuccess returns a promise (async function), await it to catch any errors
+        if (onSuccessResult && typeof onSuccessResult === "object" && "then" in onSuccessResult) {
+            try {
+                await (onSuccessResult as Promise<void>)
+            } catch (error) {
+                console.error("❌ [PaymentFlow] Error in onSuccess callback:", error)
+            }
+        }
+        
         setTimeout(() => {
             handleClose()
         }, 2000)
@@ -331,6 +451,13 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
 
     const handleClose = () => {
         if (!isProcessing) {
+            // Stop polling when closing
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current)
+                pollingIntervalRef.current = null
+            }
+            iframeShownAtRef.current = null
+
             setStep("method")
             setFormData(null)
             setIframeUrl("")
@@ -339,6 +466,121 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
             onOpenChange(false)
         }
     }
+
+    // Poll for payment status after iframe is shown (callback creates payment server-side)
+    useEffect(() => {
+        const cartId = config.customData?.cart_id as string | undefined
+
+        console.log("🔍 [PaymentFlow] Polling useEffect triggered:", {
+            step,
+            open,
+            cartId,
+            customerId: config.customerId,
+            hasInterval: !!pollingIntervalRef.current,
+            iframeShownAt: iframeShownAtRef.current?.toISOString()
+        })
+
+        // Only poll when modal is open, on iframe step, and we have cart ID
+        if (open && step === "iframe" && cartId && config.customerId && !pollingIntervalRef.current) {
+            // Record when iframe was shown to only check for payments created after this time
+            if (!iframeShownAtRef.current) {
+                iframeShownAtRef.current = new Date()
+                console.log("📅 [PaymentFlow] Recording iframe shown timestamp:", iframeShownAtRef.current.toISOString())
+            }
+
+            console.log("🚀 [PaymentFlow] Starting payment polling...")
+            let pollCount = 0
+            const maxPolls = 60 // Poll for up to 60 seconds (60 * 3 second intervals)
+
+            pollingIntervalRef.current = window.setInterval(async () => {
+                pollCount++
+                console.log(`🔄 [PaymentFlow] Polling attempt ${pollCount}/${maxPolls}`, {
+                    customerId: config.customerId,
+                    cartId,
+                    iframeShownAt: iframeShownAtRef.current?.toISOString()
+                })
+
+                try {
+                    const iframeShownAt = iframeShownAtRef.current
+                    const timestampFilter = iframeShownAt?.toISOString() || new Date().toISOString()
+
+                    // Check for new payment or order created after iframe was shown
+                    const { data: paymentData, error: paymentError } = await supabase
+                        .from("payments")
+                        .select("id, status, created_at, external_id")
+                        .eq("customer_id", config.customerId)
+                        .gte("created_at", timestampFilter)
+                        .eq("status", "paid")
+                        .order("created_at", { ascending: false })
+                        .limit(1)
+                        .maybeSingle()
+
+                    console.log("📊 [PaymentFlow] Payment poll result:", {
+                        hasData: !!paymentData,
+                        hasError: !!paymentError,
+                        data: paymentData ? { id: paymentData.id, status: paymentData.status, external_id: paymentData.external_id } : null,
+                        error: paymentError ? { message: paymentError.message } : null
+                    })
+
+                    if (!paymentError && paymentData) {
+                        // Payment found! Stop polling and trigger success
+                        console.log("✅ [PaymentFlow] New payment detected:", {
+                            paymentId: paymentData.id,
+                            status: paymentData.status,
+                            externalId: paymentData.external_id
+                        })
+
+                        if (pollingIntervalRef.current) {
+                            clearInterval(pollingIntervalRef.current)
+                            pollingIntervalRef.current = null
+                        }
+                        iframeShownAtRef.current = null
+
+                        toast({
+                            title: "תשלום התקבל בהצלחה",
+                            description: "התשלום נרשם במערכת",
+                        })
+
+                        config.onSuccess?.()
+                        handleClose()
+                    } else if (pollCount >= maxPolls) {
+                        console.log("⏱️ [PaymentFlow] Polling timeout reached after", pollCount, "attempts")
+                        if (pollingIntervalRef.current) {
+                            clearInterval(pollingIntervalRef.current)
+                            pollingIntervalRef.current = null
+                        }
+                        iframeShownAtRef.current = null
+                    }
+                } catch (error) {
+                    console.error("❌ [PaymentFlow] Error polling for payment:", error)
+                    if (pollCount >= maxPolls) {
+                        if (pollingIntervalRef.current) {
+                            clearInterval(pollingIntervalRef.current)
+                            pollingIntervalRef.current = null
+                        }
+                        iframeShownAtRef.current = null
+                    }
+                }
+            }, 3000) // Poll every 3 seconds
+        } else {
+            console.log("⏸️ [PaymentFlow] Polling conditions not met:", {
+                open,
+                step,
+                hasCartId: !!cartId,
+                hasCustomerId: !!config.customerId,
+                hasInterval: !!pollingIntervalRef.current
+            })
+        }
+
+        return () => {
+            console.log("🧹 [PaymentFlow] Cleaning up polling interval")
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current)
+                pollingIntervalRef.current = null
+            }
+            iframeShownAtRef.current = null
+        }
+    }, [open, step, config.customerId, config.customData, config.onSuccess, toast, onOpenChange])
 
     if (step === "iframe") {
         return (
