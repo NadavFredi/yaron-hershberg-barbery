@@ -222,17 +222,22 @@ export function CustomerAppointmentsModal({
 
   const handleSeeOnCalendar = (appointment: AppointmentWithDetails, event: ReactMouseEvent) => {
     event.stopPropagation()
+    // Close the sheet if it's open
+    dispatch(setIsDetailsOpen(false))
     // Set the selected date to the appointment date
     const appointmentDate = new Date(appointment.start_at)
     dispatch(setSelectedDate(appointmentDate.toISOString()))
+    // Close the modal first
+    onOpenChange(false)
     // Navigate to manager schedule
     navigate("/manager")
-    // Close the modal
-    onOpenChange(false)
   }
 
   const handleOpenAppointmentSheet = async (appointment: AppointmentWithDetails, event: ReactMouseEvent) => {
     event.stopPropagation()
+    // Close the modal first to prevent any conflicts
+    onOpenChange(false)
+    
     try {
       // Fetch fresh appointment data from API
       const result = await fetchManagerAppointment({
@@ -244,8 +249,6 @@ export function CustomerAppointmentsModal({
         // Set the appointment and open the details sheet
         dispatch(setSelectedAppointment(result.appointment))
         dispatch(setIsDetailsOpen(true))
-        // Close the modal
-        onOpenChange(false)
       }
     } catch (error) {
       console.error("❌ [CustomerAppointmentsModal] Error fetching appointment:", error)

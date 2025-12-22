@@ -623,9 +623,9 @@ export default function AppointmentsSection() {
                     </CardHeader>
                     <CardContent className="p-4 sm:p-6">
                         {/* Filters */}
-                        <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-4">
-                            {/* First Row - 4 filters */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        <div className="space-y-3 sm:space-y-4">
+                            {/* Single Row - 5 columns */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                                 <div>
                                     <Label className="text-sm mb-2 block">קטגוריית שירות</Label>
                                     {isLoadingServiceCategories ? (
@@ -741,71 +741,48 @@ export default function AppointmentsSection() {
                                         </>
                                     )}
                                 </div>
+                                <div>
+                                    {dateFilterType === "range" ? (
+                                        <>
+                                            <Label className="text-sm mb-2 block">עד תאריך</Label>
+                                            <DatePickerInput
+                                                value={endDate}
+                                                onChange={(date) => {
+                                                    setEndDate(date)
+                                                    setCurrentPage(1)
+                                                }}
+                                                displayFormat="dd/MM/yyyy"
+                                                className="w-full text-right"
+                                            />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Label className="text-sm mb-2 block">קטגוריית לקוח</Label>
+                                            <Select
+                                                value={customerCategoryFilter}
+                                                onValueChange={(value) => {
+                                                    setCustomerCategoryFilter(value)
+                                                    setCurrentPage(1)
+                                                }}
+                                            >
+                                                <SelectTrigger dir="rtl" className="w-full">
+                                                    <SelectValue placeholder="כל הקטגוריות" />
+                                                </SelectTrigger>
+                                                <SelectContent dir="rtl">
+                                                    <SelectItem value="all">כל הקטגוריות</SelectItem>
+                                                    {customerTypes.map((type) => (
+                                                        <SelectItem key={type.id} value={type.id}>
+                                                            {type.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </>
+                                    )}
+                                </div>
                             </div>
-                            {/* Second Row - 4 filters */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                                {dateFilterType === "range" && (
-                                    <div>
-                                        <Label className="text-sm mb-2 block">עד תאריך</Label>
-                                        <DatePickerInput
-                                            value={endDate}
-                                            onChange={(date) => {
-                                                setEndDate(date)
-                                                setCurrentPage(1)
-                                            }}
-                                            displayFormat="dd/MM/yyyy"
-                                            className="w-full text-right"
-                                        />
-                                    </div>
-                                )}
-                                {dateFilterType !== "range" && (
-                                    <div>
-                                        <Label className="text-sm mb-2 block">קטגוריית לקוח</Label>
-                                        <Select
-                                            value={customerCategoryFilter}
-                                            onValueChange={(value) => {
-                                                setCustomerCategoryFilter(value)
-                                                setCurrentPage(1)
-                                            }}
-                                        >
-                                            <SelectTrigger dir="rtl" className="w-full">
-                                                <SelectValue placeholder="כל הקטגוריות" />
-                                            </SelectTrigger>
-                                            <SelectContent dir="rtl">
-                                                <SelectItem value="all">כל הקטגוריות</SelectItem>
-                                                {customerTypes.map((type) => (
-                                                    <SelectItem key={type.id} value={type.id}>
-                                                        {type.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                )}
-                                {dateFilterType === "range" && (
-                                    <div>
-                                        <Label className="text-sm mb-2 block">קטגוריית לקוח</Label>
-                                        <Select
-                                            value={customerCategoryFilter}
-                                            onValueChange={(value) => {
-                                                setCustomerCategoryFilter(value)
-                                                setCurrentPage(1)
-                                            }}
-                                        >
-                                            <SelectTrigger dir="rtl" className="w-full">
-                                                <SelectValue placeholder="כל הקטגוריות" />
-                                            </SelectTrigger>
-                                            <SelectContent dir="rtl">
-                                                <SelectItem value="all">כל הקטגוריות</SelectItem>
-                                                {customerTypes.map((type) => (
-                                                    <SelectItem key={type.id} value={type.id}>
-                                                        {type.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                )}
+                            {/* Second Row - 5 columns */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                                 <div>
                                     <Label className="text-sm mb-2 block">תחנות</Label>
                                     {isLoadingStations ? (
@@ -839,7 +816,7 @@ export default function AppointmentsSection() {
                                         placeholder="בחר סטטוסים..."
                                     />
                                 </div>
-                                <div>
+                                <div className="sm:col-span-3">
                                     <Label className="text-sm mb-2 block">חיפוש</Label>
                                     <div className="flex items-center gap-2">
                                         <div className="relative flex-1">
@@ -866,20 +843,6 @@ export default function AppointmentsSection() {
                                                 <X className="h-4 w-4" />
                                             </Button>
                                         )}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <Checkbox
-                                            id="future-only"
-                                            checked={showOnlyFuture}
-                                            onCheckedChange={(value) => {
-                                                setShowOnlyFuture(value === true)
-                                                setCurrentPage(1)
-                                            }}
-                                            className="h-4 w-4"
-                                        />
-                                        <Label htmlFor="future-only" className="cursor-pointer text-xs font-medium">
-                                            הצג רק תורים עתידיים
-                                        </Label>
                                     </div>
                                 </div>
                             </div>

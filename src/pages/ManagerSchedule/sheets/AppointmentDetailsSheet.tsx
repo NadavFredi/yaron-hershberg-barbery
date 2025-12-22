@@ -1,5 +1,5 @@
 import { format, differenceInMinutes } from "date-fns"
-import { MoreHorizontal, Calendar, Save, Loader2, X, CreditCard, Receipt, Info, Link2Off, Image as ImageIcon, Clock, MapPin, User, CalendarDays, FileText, Edit, Pencil, Plus, Users, DollarSign } from "lucide-react"
+import { MoreHorizontal, Calendar, Save, Loader2, X, CreditCard, Receipt, Info, Link2Off, Image as ImageIcon, Clock, MapPin, User, CalendarDays, FileText, Edit, Pencil, Plus, Users, DollarSign, Upload } from "lucide-react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 
@@ -175,6 +175,7 @@ export const AppointmentDetailsSheet = ({
     const [isDesiredGoalImagesModalOpen, setIsDesiredGoalImagesModalOpen] = useState(false)
     const [isSessionImagesModalOpen, setIsSessionImagesModalOpen] = useState(false)
     const [isCustomerImagesModalOpen, setIsCustomerImagesModalOpen] = useState(false)
+    const [isTreatmentImagesModalOpen, setIsTreatmentImagesModalOpen] = useState(false)
     const [desiredGoalImagesCount, setDesiredGoalImagesCount] = useState<number | null>(null)
     const [sessionImagesCount, setSessionImagesCount] = useState<number | null>(null)
     const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -1961,7 +1962,7 @@ export const AppointmentDetailsSheet = ({
                                                     {selectedAppointment.serviceType === "grooming" && (
                                                         <AccordionItem value="grooming-notes" className="border-none">
                                                             <AccordionTrigger className="py-2 hover:no-underline">
-                                                                <div className="flex items-center justify-between w-full pr-2">
+                                                                <div className="flex items-center justify-between w-full pr-2 ml-2">
                                                                     <div className="flex items-center gap-2">
                                                                         <h4 className="text-xs font-medium text-purple-900 flex items-center gap-1.5">
                                                                             <FileText className="h-3.5 w-3.5" />
@@ -1971,32 +1972,88 @@ export const AppointmentDetailsSheet = ({
                                                                             <>
                                                                                 <Button
                                                                                     type="button"
-                                                                                    variant="ghost"
+                                                                                    variant="outline"
                                                                                     size="sm"
-                                                                                    className="h-6 px-2 gap-1 text-xs text-purple-700 hover:text-purple-900 hover:bg-purple-50"
+                                                                                    className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
                                                                                     onClick={(e) => {
                                                                                         e.stopPropagation()
                                                                                         setIsDesiredGoalImagesModalOpen(true)
                                                                                     }}
                                                                                     title="תמונות מטרה"
                                                                                 >
-                                                                                    <ImageIcon className="h-3 w-3" />
+                                                                                    <ImageIcon className="h-3.5 w-3.5" />
+                                                                                    <span>תמונות מטרה</span>
                                                                                 </Button>
                                                                                 <Button
                                                                                     type="button"
-                                                                                    variant="ghost"
+                                                                                    variant="outline"
                                                                                     size="sm"
-                                                                                    className="h-6 px-2 gap-1 text-xs text-purple-700 hover:text-purple-900 hover:bg-purple-50"
+                                                                                    className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
                                                                                     onClick={(e) => {
                                                                                         e.stopPropagation()
                                                                                         setIsSessionImagesModalOpen(true)
                                                                                     }}
                                                                                     title="תמונות מהתור"
                                                                                 >
-                                                                                    <Plus className="h-3 w-3" />
+                                                                                    <ImageIcon className="h-3.5 w-3.5" />
+                                                                                    <span>תמונות מהתור</span>
+                                                                                </Button>
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation()
+                                                                                        setIsTreatmentImagesModalOpen(true)
+                                                                                    }}
+                                                                                    title="העלה תמונות טיפול מהיום"
+                                                                                >
+                                                                                    <Upload className="h-3.5 w-3.5" />
+                                                                                    <span>תמונות טיפול</span>
                                                                                 </Button>
                                                                             </>
                                                                         )}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {selectedAppointment.clientId && (
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation()
+                                                                                    setIsCustomerImagesModalOpen(true)
+                                                                                }}
+                                                                                title="תמונות מכל הטיפולים של הלקוח"
+                                                                            >
+                                                                                <ImageIcon className="h-3.5 w-3.5" />
+                                                                                <span>תמונות לקוח</span>
+                                                                            </Button>
+                                                                        )}
+                                                                        {(() => {
+                                                                            const appointmentId = extractGroomingAppointmentId(
+                                                                                selectedAppointment.id,
+                                                                                selectedAppointment.groomingAppointmentId
+                                                                            )
+                                                                            return appointmentId ? (
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation()
+                                                                                        setIsTreatmentImagesModalOpen(true)
+                                                                                    }}
+                                                                                    title="העלה תמונות מטיפול היום"
+                                                                                >
+                                                                                    <Upload className="h-3.5 w-3.5" />
+                                                                                    <span>העלה תמונות</span>
+                                                                                </Button>
+                                                                            ) : null
+                                                                        })()}
                                                                     </div>
                                                                     {(appointmentGroomingNotes !== originalGroomingNotes) && (
                                                                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -2444,36 +2501,68 @@ export const AppointmentDetailsSheet = ({
                 if (!appointmentId) return null
 
                 return (
-                    <ImageGalleryModal
-                        open={isSessionImagesModalOpen}
-                        onOpenChange={(open) => {
-                            setIsSessionImagesModalOpen(open)
-                            // Refresh count when modal closes
-                            if (!open && selectedAppointment) {
-                                let refreshAppointmentId: string | null = null
-                                if (selectedAppointment.serviceType === "grooming") {
-                                    refreshAppointmentId = extractGroomingAppointmentId(
-                                        selectedAppointment.id,
-                                        selectedAppointment.groomingAppointmentId
-                                    )
-                                }
+                    <>
+                        <ImageGalleryModal
+                            open={isSessionImagesModalOpen}
+                            onOpenChange={(open) => {
+                                setIsSessionImagesModalOpen(open)
+                                // Refresh count when modal closes
+                                if (!open && selectedAppointment) {
+                                    let refreshAppointmentId: string | null = null
+                                    if (selectedAppointment.serviceType === "grooming") {
+                                        refreshAppointmentId = extractGroomingAppointmentId(
+                                            selectedAppointment.id,
+                                            selectedAppointment.groomingAppointmentId
+                                        )
+                                    }
 
-                                if (refreshAppointmentId) {
-                                    supabase
-                                        .from("appointment_session_images")
-                                        .select("*", { count: "exact", head: true })
-                                        .eq("grooming_appointment_id", refreshAppointmentId)
-                                        .then(({ count }) => {
-                                            setSessionImagesCount(count ?? 0)
-                                        })
+                                    if (refreshAppointmentId) {
+                                        supabase
+                                            .from("appointment_session_images")
+                                            .select("*", { count: "exact", head: true })
+                                            .eq("grooming_appointment_id", refreshAppointmentId)
+                                            .then(({ count }) => {
+                                                setSessionImagesCount(count ?? 0)
+                                            })
+                                    }
                                 }
-                            }
-                        }}
-                        title="תמונות מהשירות הנוכחי"
-                        imageType="appointment-session"
-                        entityId={appointmentId}
-                        userId={currentUserId}
-                    />
+                            }}
+                            title="תמונות מהשירות הנוכחי"
+                            imageType="appointment-session"
+                            entityId={appointmentId}
+                            userId={currentUserId}
+                        />
+                        <ImageGalleryModal
+                            open={isTreatmentImagesModalOpen}
+                            onOpenChange={(open) => {
+                                setIsTreatmentImagesModalOpen(open)
+                                // Refresh count when modal closes
+                                if (!open && selectedAppointment) {
+                                    let refreshAppointmentId: string | null = null
+                                    if (selectedAppointment.serviceType === "grooming") {
+                                        refreshAppointmentId = extractGroomingAppointmentId(
+                                            selectedAppointment.id,
+                                            selectedAppointment.groomingAppointmentId
+                                        )
+                                    }
+
+                                    if (refreshAppointmentId) {
+                                        supabase
+                                            .from("appointment_session_images")
+                                            .select("*", { count: "exact", head: true })
+                                            .eq("grooming_appointment_id", refreshAppointmentId)
+                                            .then(({ count }) => {
+                                                setSessionImagesCount(count ?? 0)
+                                            })
+                                    }
+                                }
+                            }}
+                            title="תמונות טיפול מהיום"
+                            imageType="appointment-session"
+                            entityId={appointmentId}
+                            userId={currentUserId}
+                        />
+                    </>
                 )
             })()}
 
