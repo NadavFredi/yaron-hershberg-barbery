@@ -1,8 +1,184 @@
 import { Link } from "react-router-dom"
 import { Button } from "../components/ui/button.tsx"
 import { Card, CardContent } from "../components/ui/card.tsx"
-import { Play, Scissors, Sparkles, Heart, HelpCircle, Store, Camera, UserCheck, Leaf, Clock, GraduationCap, Star } from "lucide-react"
+import { Dialog, DialogContent } from "../components/ui/dialog.tsx"
+import { Play, Scissors, Sparkles, Heart, HelpCircle, Store, Camera, UserCheck, Leaf, Clock, GraduationCap, Star, ChevronRight, ChevronLeft } from "lucide-react"
 import heroImage from "../assets/images/hairs_preview.jpeg"
+import recommendation1 from "../assets/images/recommendations/1.jpeg"
+import recommendation2 from "../assets/images/recommendations/2.jpeg"
+import recommendation3 from "../assets/images/recommendations/3.jpeg"
+import recommendation4 from "../assets/images/recommendations/4.jpeg"
+import recommendation5 from "../assets/images/recommendations/5.jpeg"
+import recommendation6 from "../assets/images/recommendations/6.jpeg"
+import recommendation7 from "../assets/images/recommendations/7.jpeg"
+import recommendation8 from "../assets/images/recommendations/8.jpeg"
+import recommendation9 from "../assets/images/recommendations/9.jpeg"
+import recommendation10 from "../assets/images/recommendations/10.jpeg"
+import useEmblaCarousel from 'embla-carousel-react'
+import { useCallback, useEffect, useState, useRef } from "react"
+
+// Image Carousel Component
+function ImageCarousel() {
+    const images = [
+        recommendation1,
+        recommendation2,
+        recommendation3,
+        recommendation4,
+        recommendation5,
+        recommendation6,
+        recommendation7,
+        recommendation8,
+        recommendation9,
+        recommendation10,
+    ]
+
+    const [emblaRef, emblaApi] = useEmblaCarousel({
+        loop: true,
+        align: 'start',
+        slidesToScroll: 1,
+        dragFree: false,
+    })
+
+    const [isPlaying, setIsPlaying] = useState(true)
+    const [prevBtnDisabled, setPrevBtnDisabled] = useState(true)
+    const [nextBtnDisabled, setNextBtnDisabled] = useState(true)
+    const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null)
+    const autoplayIntervalRef = useRef<number | null>(null)
+
+    const scrollPrev = useCallback(() => {
+        if (emblaApi) emblaApi.scrollPrev()
+    }, [emblaApi])
+
+    const scrollNext = useCallback(() => {
+        if (emblaApi) emblaApi.scrollNext()
+    }, [emblaApi])
+
+    const onSelect = useCallback(() => {
+        if (!emblaApi) return
+        setPrevBtnDisabled(!emblaApi.canScrollPrev())
+        setNextBtnDisabled(!emblaApi.canScrollNext())
+    }, [emblaApi])
+
+    useEffect(() => {
+        if (!emblaApi) return
+        onSelect()
+        emblaApi.on('select', onSelect)
+        emblaApi.on('reInit', onSelect)
+    }, [emblaApi, onSelect])
+
+    // Custom autoplay implementation
+    useEffect(() => {
+        if (!emblaApi || !isPlaying) {
+            if (autoplayIntervalRef.current) {
+                clearInterval(autoplayIntervalRef.current)
+                autoplayIntervalRef.current = null
+            }
+            return
+        }
+
+        autoplayIntervalRef.current = setInterval(() => {
+            if (emblaApi) {
+                emblaApi.scrollNext()
+            }
+        }, 3000)
+
+        return () => {
+            if (autoplayIntervalRef.current) {
+                clearInterval(autoplayIntervalRef.current)
+            }
+        }
+    }, [emblaApi, isPlaying])
+
+    const handleImageClick = useCallback((index: number) => {
+        setSelectedImageIndex(index)
+        setIsPlaying(false)
+    }, [])
+
+    // Stop autoplay on user interaction
+    useEffect(() => {
+        if (!emblaApi) return
+
+        const onPointerDown = () => {
+            if (isPlaying) {
+                setIsPlaying(false)
+            }
+        }
+
+        emblaApi.on('pointerDown', onPointerDown)
+        return () => {
+            emblaApi.off('pointerDown', onPointerDown)
+        }
+    }, [emblaApi, isPlaying])
+
+    return (
+        <div className="relative w-full" dir="ltr">
+            <div className="overflow-hidden rounded-2xl" ref={emblaRef}>
+                <div className="flex">
+                    {images.map((img, index) => (
+                        <div
+                            key={index}
+                            className="flex-[0_0_100%] sm:flex-[0_0_50%] lg:flex-[0_0_33.333%] xl:flex-[0_0_25%] min-w-0 pl-4 first:pl-0"
+                        >
+                            <div
+                                className="relative h-[300px] md:h-[400px] lg:h-[450px] rounded-xl overflow-hidden cursor-pointer group"
+                                onClick={() => handleImageClick(index)}
+                            >
+                                <img
+                                    src={img}
+                                    alt={`תמונות המלצות ${index + 1}`}
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+                                {!isPlaying && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                        <div className="bg-white/90 rounded-full p-3">
+                                            <Play className="h-6 w-6 text-primary" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Navigation buttons */}
+            <button
+                type="button"
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={scrollPrev}
+                disabled={prevBtnDisabled}
+                aria-label="Previous image"
+            >
+                <ChevronRight className="h-5 w-5 text-foreground" />
+            </button>
+            <button
+                type="button"
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={scrollNext}
+                disabled={nextBtnDisabled}
+                aria-label="Next image"
+            >
+                <ChevronLeft className="h-5 w-5 text-foreground" />
+            </button>
+
+            {/* Image Preview Modal */}
+            <Dialog open={selectedImageIndex !== null} onOpenChange={(open) => !open && setSelectedImageIndex(null)}>
+                <DialogContent className="max-w-7xl w-[95vw] p-0 bg-background/95 backdrop-blur-sm border-0">
+                    {selectedImageIndex !== null && (
+                        <div className="relative w-full h-[85vh] max-h-[900px] flex items-center justify-center p-4 md:p-8">
+                            <img
+                                src={images[selectedImageIndex]}
+                                alt={`תמונות המלצות ${selectedImageIndex + 1}`}
+                                className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg"
+                            />
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+        </div>
+    )
+}
 
 export default function About() {
     return (
@@ -175,6 +351,13 @@ export default function About() {
                                     הבוטיק מציע עיצוב שיער מוקפד לצד טיפולי קרקפת מקצועיים ומתקדמים – שילוב נדיר שנותן מענה אמיתי מהשורש ועד הקצוות, מעטפת הכרחית לשיער בריא ומראה מושלם.
                                 </p>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Recommendations Carousel Card */}
+                    <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-0 md:p-0 overflow-hidden">
+                        <CardContent className="p-0">
+                            <ImageCarousel />
                         </CardContent>
                     </Card>
 
