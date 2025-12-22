@@ -555,8 +555,8 @@ export default function AppointmentsSection() {
                     <CardContent className="p-4 sm:p-6">
                         {/* Filters */}
                         <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-4">
-                            {/* First Row - 5 filters */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+                            {/* First Row - 4 filters */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                                 <div>
                                     <Label className="text-sm mb-2 block">קטגוריית שירות</Label>
                                     {isLoadingServiceCategories ? (
@@ -626,6 +626,9 @@ export default function AppointmentsSection() {
                                         className="w-full text-right"
                                     />
                                 </div>
+                            </div>
+                            {/* Second Row - 4 filters */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                                 <div>
                                     <Label className="text-sm mb-2 block">קטגוריית לקוח</Label>
                                     <Select
@@ -645,9 +648,6 @@ export default function AppointmentsSection() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            </div>
-                            {/* Second Row - 6 filters */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
                                 <div>
                                     <Label className="text-sm mb-2 block">תחנות</Label>
                                     {isLoadingStations ? (
@@ -675,7 +675,7 @@ export default function AppointmentsSection() {
                                         placeholder="בחר סטטוסים..."
                                     />
                                 </div>
-                                <div className="sm:col-span-2 xl:col-span-1">
+                                <div>
                                     <Label className="text-sm mb-2 block">חיפוש</Label>
                                     <div className="flex items-center gap-2">
                                         <div className="relative flex-1">
@@ -711,16 +711,14 @@ export default function AppointmentsSection() {
                                             <Search className="h-4 w-4" />
                                         </Button>
                                     </div>
-                                </div>
-                                <div className="flex items-end sm:col-span-2 xl:col-span-1">
-                                    <div className="flex items-center gap-2 sm:gap-3 w-full">
+                                    <div className="flex items-center gap-2 mt-2">
                                         <Checkbox
                                             id="future-only"
                                             checked={showOnlyFuture}
                                             onCheckedChange={(value) => setShowOnlyFuture(value === true)}
-                                            className="h-5 w-5 sm:h-6 sm:w-6"
+                                            className="h-4 w-4"
                                         />
-                                        <Label htmlFor="future-only" className="cursor-pointer text-sm sm:text-base font-medium">
+                                        <Label htmlFor="future-only" className="cursor-pointer text-xs font-medium">
                                             הצג רק תורים עתידיים
                                         </Label>
                                     </div>
