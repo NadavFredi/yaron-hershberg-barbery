@@ -17,7 +17,7 @@ export const TotalSummarySection: React.FC<TotalSummarySectionProps> = ({
             <div className="flex items-center justify-center gap-2 flex-wrap">
                 {/* Appointment Price */}
                 <div className="flex flex-col items-center min-w-[100px]">
-                    <div className="text-2xl font-bold text-blue-900">₪{appointmentPriceValue.toFixed(2)}</div>
+                    <div className="text-2xl font-bold text-primary">₪{appointmentPriceValue.toFixed(2)}</div>
                     <div className="text-xs text-gray-600 mt-1">מחיר תור</div>
                 </div>
 

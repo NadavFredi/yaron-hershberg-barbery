@@ -106,7 +106,7 @@ export function DailyNotes() {
                 <FileText className="h-4 w-4 text-gray-500" />
                 <span className="text-sm font-semibold text-gray-900">הערות יומיות</span>
                 {hasNotes && (
-                  <Circle className="h-2 w-2 fill-blue-600 text-blue-600" />
+                  <Circle className="h-2 w-2 fill-primary text-primary" />
                 )}
               </div>
               {hasNotes && (

@@ -313,10 +313,10 @@ export function SettingsProtectedScreensSection() {
       </div>
 
       {/* Password Section - Modern Card */}
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50 rounded-lg p-4 shadow-sm">
+      <div className="bg-gradient-to-br from-primary/10 to-indigo-50 border border-primary/20/50 rounded-lg p-4 shadow-sm">
         <div className="flex items-center gap-2 mb-2">
           {hasPassword ? (
-            <Lock className="h-4 w-4 text-blue-600" />
+            <Lock className="h-4 w-4 text-primary" />
           ) : (
             <LockOpen className="h-4 w-4 text-gray-400" />
           )}
@@ -342,7 +342,7 @@ export function SettingsProtectedScreensSection() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="הזן סיסמה (לפחות 4 תווים)"
-                className="pr-9 h-9 bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500/20"
+                className="pr-9 h-9 bg-white border-gray-300 focus:border-primary focus:ring-primary/20"
               />
               <button
                 type="button"
@@ -363,7 +363,7 @@ export function SettingsProtectedScreensSection() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="הזן שוב את הסיסמה"
-              className="h-9 bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500/20"
+              className="h-9 bg-white border-gray-300 focus:border-primary focus:ring-primary/20"
             />
           </div>
         </div>

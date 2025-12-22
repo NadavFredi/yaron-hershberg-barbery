@@ -147,7 +147,7 @@ export function DroppableStationColumn({
         data-testid={`station-${station.id}`}
         className={cn(
           "relative overflow-hidden rounded-lg border bg-white transition-colors",
-          isOver ? "border-blue-400 bg-blue-50" : "border-slate-200",
+          isOver ? "border-primary/40 bg-primary/10" : "border-slate-200",
           station.serviceType === "grooming" ? "cursor-crosshair hover:bg-slate-50" : "cursor-default"
         )}
         style={{ height: timeline.height }}
@@ -231,9 +231,9 @@ export function DroppableStationColumn({
               <div
                 key={`${station.id}-slot-${slot.offset}`}
                 className={cn("absolute left-0 right-0 border-b border-slate-100 transition-colors", {
-                  "bg-blue-200 border-blue-300":
+                  "bg-primary/20 border-primary/30":
                     highlightedSlots?.stationId === station.id && highlightedSlots?.allTimeSlots.includes(index),
-                  "bg-blue-300 border-blue-400":
+                  "bg-primary/30 border-primary/40":
                     highlightedSlots?.stationId === station.id &&
                     (highlightedSlots?.startTimeSlot === index || highlightedSlots?.endTimeSlot === index),
                   "bg-fuchsia-50/90 border-fuchsia-200":
@@ -259,7 +259,7 @@ export function DroppableStationColumn({
                     !highlightedSlots?.allTimeSlots.includes(index) &&
                     !isHovered,
                   // Hovered state - fill the entire slot
-                  "bg-blue-100 border-blue-300":
+                  "bg-primary/20 border-primary/30":
                     isHovered,
                 })}
                 style={{ top: slot.offset, height: slot.height }}

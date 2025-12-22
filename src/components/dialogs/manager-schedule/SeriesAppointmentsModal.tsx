@@ -624,7 +624,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                                                     size="sm"
                                                     onClick={() => setBulkEditOpen(true)}
                                                     disabled={isProcessing}
-                                                    className="border-blue-300 text-blue-600 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                                                    className="border-primary/30 text-primary hover:text-primary hover:bg-primary/10 hover:border-primary/40"
                                                 >
                                                     <Pencil className="h-4 w-4 ml-2" />
                                                     ערוך נבחרים ({selectedAppointmentIds.size})
@@ -688,8 +688,8 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                                                         key={appointment.id}
                                                         className={cn(
                                                             "border-b border-gray-100",
-                                                            isCurrentAppointment && "bg-blue-50",
-                                                            isSelected && "bg-blue-50",
+                                                            isCurrentAppointment && "bg-primary/10",
+                                                            isSelected && "bg-primary/10",
                                                             "hover:bg-gray-50 transition-colors"
                                                         )}
                                                     >
@@ -733,7 +733,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                                                                     </div>
                                                                 </div>
                                                                 {isCurrentAppointment && (
-                                                                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-300 whitespace-nowrap">
+                                                                    <Badge variant="outline" className="text-xs bg-primary/20 text-primary border-primary/30 whitespace-nowrap">
                                                                         התור הנוכחי
                                                                     </Badge>
                                                                 )}
@@ -746,7 +746,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                                                             <Badge variant="outline" className={cn(
                                                                 "text-xs",
                                                                 appointment.serviceType === "grooming"
-                                                                    ? "border-blue-200 bg-blue-100 text-blue-800"
+                                                                    ? "border-primary/20 bg-primary/20 text-primary"
                                                                     : "border-emerald-200 bg-emerald-100 text-emerald-800"
                                                             )}>
                                                                 {getServiceLabel(appointment.serviceType)}
@@ -762,7 +762,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="sm"
-                                                                    className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                    className="h-7 px-2 text-primary hover:text-primary hover:bg-primary/10"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation()
                                                                         handleOpenAppointment(appointment)
@@ -835,7 +835,7 @@ export const SeriesAppointmentsModal: React.FC<SeriesAppointmentsModalProps> = (
                                                                             <Button
                                                                                 variant="ghost"
                                                                                 size="sm"
-                                                                                className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                                className="w-full justify-start text-primary hover:text-primary hover:bg-primary/10"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation()
                                                                                     setPendingEditFromHereAppointment(appointment)

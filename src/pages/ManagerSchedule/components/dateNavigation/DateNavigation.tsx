@@ -53,7 +53,7 @@ export function DateNavigation() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-6 rounded border-blue-200 bg-blue-50/80 px-2 text-[12px] font-semibold text-blue-700 hover:bg-blue-100"
+                    className="h-6 rounded border-primary/20 bg-primary/10/80 px-2 text-[12px] font-semibold text-primary hover:bg-primary/20"
                     onClick={() => dispatch(setSelectedDate(new Date()))}
                     title="חזרה להיום"
                     aria-label="חזרה להיום"

@@ -43,17 +43,17 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
         }
     }
     return (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 relative">
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 space-y-2 relative">
             {/* Loading Overlay */}
             {isLoadingBreedPrices && (
-                <div className="absolute inset-0 bg-blue-50/80 flex items-center justify-center rounded-lg">
-                    <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                <div className="absolute inset-0 bg-primary/10/80 flex items-center justify-center rounded-lg">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 </div>
             )}
 
             {/* Appointment Time and Duration Info - Compact */}
             {appointment?.startDateTime && appointment?.endDateTime && (
-                <div className="flex items-center gap-3 text-xs text-gray-600 pb-2 border-b border-blue-200">
+                <div className="flex items-center gap-3 text-xs text-gray-600 pb-2 border-b border-primary/20">
                     <Info className="h-3 w-3 flex-shrink-0" />
                     <span className="text-gray-500">פרטי התור:</span>
                     <span className="font-medium text-gray-700">
@@ -136,7 +136,7 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
 
                     {/* Loading indicator inside input */}
                     {isSavingPrice && (
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-600 z-10">
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary z-10">
                             <Loader2 className="h-5 w-5 animate-spin" />
                         </div>
                     )}
@@ -190,7 +190,7 @@ export const AppointmentDetailsSection: React.FC<AppointmentDetailsSectionProps>
                                 e.target.select()
                             }
                         }}
-                        className={`text-right text-xl font-bold text-blue-900 pr-8 h-10 ${(isPriceDirty || isSavingPrice || priceSaved) ? 'pl-16' : ''
+                        className={`text-right text-xl font-bold text-primary pr-8 h-10 ${(isPriceDirty || isSavingPrice || priceSaved) ? 'pl-16' : ''
                             }`}
                         dir="rtl"
                         disabled={isSavingPrice}

@@ -461,7 +461,7 @@ export const DatePickerInput = forwardRef<HTMLInputElement, DatePickerInputProps
                     </button>
                     <button
                       type="button"
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-xs font-semibold shadow-sm transition-all duration-200 hover:shadow-md"
+                      className="bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-md text-xs font-semibold shadow-sm transition-all duration-200 hover:shadow-md"
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => {
                         const today = new Date()
@@ -522,7 +522,7 @@ export const DatePickerInput = forwardRef<HTMLInputElement, DatePickerInputProps
                           type="button"
                           className={cn(
                             "px-3 py-2 text-sm rounded hover:bg-gray-100 text-right",
-                            isSelected && "bg-blue-100 font-medium text-blue-900",
+                            isSelected && "bg-primary/20 font-medium text-primary",
                             isCurrentMonth && !isSelected && "bg-gray-50"
                           )}
                           onMouseDown={(event) => event.preventDefault()}
@@ -598,7 +598,7 @@ export const DatePickerInput = forwardRef<HTMLInputElement, DatePickerInputProps
                     <>
                       <button
                         type="button"
-                        className="text-sm font-medium text-gray-900 hover:text-blue-600 cursor-pointer"
+                        className="text-sm font-medium text-gray-900 hover:text-primary cursor-pointer"
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => {
                           setIsYearInputMode(true)
@@ -633,7 +633,7 @@ export const DatePickerInput = forwardRef<HTMLInputElement, DatePickerInputProps
                           type="button"
                           className={cn(
                             "px-3 py-2 text-sm rounded hover:bg-gray-100 text-right",
-                            isSelected && "bg-blue-100 font-medium text-blue-900",
+                            isSelected && "bg-primary/20 font-medium text-primary",
                             isCurrentYear && !isSelected && "bg-gray-50"
                           )}
                           onMouseDown={(event) => event.preventDefault()}

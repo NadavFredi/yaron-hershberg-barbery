@@ -101,7 +101,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
       case 'הושלם':
         return 'bg-green-100 text-green-800';
       case 'עתידי':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-primary/20 text-primary';
       case 'בוטל':
         return 'bg-red-100 text-red-800';
       default:
@@ -219,7 +219,7 @@ const ClientCard = ({ client, onBack, onStatusChange }: ClientCardProps) => {
                 <Card key={dog.id}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <PawPrint className="w-5 h-5 text-blue-600" />
+                      <PawPrint className="w-5 h-5 text-primary" />
                       שם הלקוח: {dog.name}
                     </CardTitle>
                   </CardHeader>

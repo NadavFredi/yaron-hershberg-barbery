@@ -282,11 +282,11 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
         shadow: "rgba(168, 85, 247, 0.5)", // purple-500 with opacity
       }
     }
-    // Grooming appointments use blue
+    // Grooming appointments use primary
     return {
-      ring: "ring-blue-400",
-      border: "border-blue-500",
-      shadow: "rgba(59, 130, 246, 0.5)", // blue-500 with opacity
+      ring: "ring-primary/40",
+      border: "border-primary",
+      shadow: "rgba(84, 95, 133, 0.5)", // primary color with opacity
     }
   }
 
@@ -834,10 +834,10 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
       className={cn(
         "w-full flex flex-col rounded-lg border px-3 py-2 text-right shadow-sm transition relative",
         !isPopoverOpen && "hover:-translate-y-[1px] hover:shadow-md",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         cardStyle,
         "cursor-pointer",
-        isResizing && "ring-2 ring-blue-400/70 shadow-md",
+        isResizing && "ring-2 ring-primary/40 shadow-md",
         // Visual indicator for overlapping appointments - red dashed border only
         hasOverlaps && !isHighlighted && "border-red-400 border-2 border-dashed",
         // Extreme highlighting for highlighted appointment - use colors matching card style
@@ -864,7 +864,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
             <span className={cn(
               "text-gray-600",
               isDragging && highlightedSlots && draggedAppointment.appointment && draggedAppointment.appointment.id === appointment.id && "font-medium",
-              isResizing && "font-medium text-blue-700"
+              isResizing && "font-medium text-primary"
             )}>
               {timeRangeLabel}
             </span>
@@ -881,7 +881,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                 {appointment.proposedLinkedAppointmentId && (
                   <Badge
                     variant="outline"
-                    className="text-[11px] font-medium border-blue-200 bg-blue-50 text-blue-700"
+                    className="text-[11px] font-medium border-primary/20 bg-primary/10 text-primary"
                   >
                     תיאום מחדש
                   </Badge>
@@ -928,7 +928,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              className="w-full justify-start text-primary hover:text-primary hover:bg-primary/10"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleSendCompletionMessage()
@@ -1011,7 +1011,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              className="w-full justify-start text-primary hover:text-primary hover:bg-primary/10"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleSendReminder()
@@ -1088,7 +1088,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          className="w-full justify-start text-primary hover:text-primary hover:bg-primary/10"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleApproveWithChange()
@@ -1325,7 +1325,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                 </span>
               </div>
               {appointment.proposedLinkedAppointmentId && appointment.proposedOriginalStart && appointment.proposedOriginalEnd && (
-                <div className="text-xs text-blue-700 bg-blue-50/70 border border-blue-100 rounded px-2 py-1" title="התור המקורי יוזז לזמן החדש לאחר אישור הלקוח">
+                <div className="text-xs text-primary bg-primary/10/70 border border-primary/20 rounded px-2 py-1" title="התור המקורי יוזז לזמן החדש לאחר אישור הלקוח">
                   תור מקורי: {format(new Date(appointment.proposedOriginalStart), "dd.MM.yyyy HH:mm")} - {format(new Date(appointment.proposedOriginalEnd), "HH:mm")}
                 </div>
               )}
@@ -1382,7 +1382,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                       "font-medium hover:underline cursor-pointer",
                       isFirstAppointment
                         ? "text-green-600 hover:text-green-800"
-                        : "text-blue-600 hover:text-blue-800"
+                        : "text-primary hover:text-primary"
                     )}
                   >
                     {clientName}
@@ -1440,9 +1440,9 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
         >
           <span
             className={cn(
-              "h-1.5 w-12 rounded-full bg-blue-400 transition-colors",
-              "hover:bg-blue-500",
-              isResizing && "bg-blue-500"
+              "h-1.5 w-12 rounded-full bg-primary/40 transition-colors",
+              "hover:bg-primary/100",
+              isResizing && "bg-primary/100"
             )}
           />
         </button>

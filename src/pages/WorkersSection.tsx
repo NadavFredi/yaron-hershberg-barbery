@@ -175,7 +175,7 @@ const WorkerStatusBadge = ({ worker }: { worker: WorkerSummary }) => (
         className={cn(
             "px-3 text-sm font-semibold",
             worker.isActive
-                ? "border-blue-200 bg-blue-50 text-blue-700"
+                ? "border-primary/20 bg-primary/10 text-primary"
                 : "border-gray-200 bg-gray-50 text-gray-600",
         )}
     >
@@ -627,7 +627,7 @@ const WorkerRow = ({
                                 }}
                             >
                                 <span>איפוס סיסמה</span>
-                                <Key className="h-4 w-4 text-blue-600" />
+                                <Key className="h-4 w-4 text-primary" />
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -669,7 +669,7 @@ const WorkerRow = ({
                                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                                     <div className="flex items-center justify-between gap-2 text-right">
                                         <div className="flex items-center gap-2 text-slate-700">
-                                            <Info className="h-4 w-4 text-blue-600" />
+                                            <Info className="h-4 w-4 text-primary" />
                                             <span className="text-sm font-semibold">פרטי העובד</span>
                                         </div>
                                         <Badge
@@ -761,7 +761,7 @@ const WorkerRow = ({
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                                            className="text-primary hover:bg-primary/10 hover:text-primary"
                                             onClick={onShowAttendance}
                                         >
                                             היסטוריה מלאה
@@ -1005,7 +1005,7 @@ export default function WorkersSection() {
                 <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 text-right sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-                            <UserRoundCog className="h-6 w-6 text-blue-600" />
+                            <UserRoundCog className="h-6 w-6 text-primary" />
                             ניהול עובדים ומשמרות
                         </h1>
                         <p className="text-sm text-slate-600">
@@ -1060,7 +1060,7 @@ export default function WorkersSection() {
                         <Card>
                             <CardHeader className="pb-2 text-right">
                                 <CardDescription className="text-slate-500">סה״כ שעות בטווח שנבחר</CardDescription>
-                                <CardTitle className="text-2xl font-bold text-blue-600">{formatMinutesAsHours(totals.totalRangeMinutes)}</CardTitle>
+                                <CardTitle className="text-2xl font-bold text-primary">{formatMinutesAsHours(totals.totalRangeMinutes)}</CardTitle>
                             </CardHeader>
                             <CardContent className="text-xs text-slate-500">
                                 חיבור של כל המשמרות שנפתחו בתוך הטווח שנבחר.

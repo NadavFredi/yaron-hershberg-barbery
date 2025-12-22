@@ -7,8 +7,8 @@ export const SERVICE_LABELS: Record<ManagerServiceFilter, string> = {
 
 export const SERVICE_STYLES: Record<ManagerServiceFilter, { card: string; badge: string }> = {
   grooming: {
-    card: "bg-blue-50 border-blue-200",
-    badge: "border-blue-200 bg-blue-100 text-blue-800",
+    card: "bg-primary/10 border-primary/20",
+    badge: "border-primary/20 bg-primary/20 text-primary",
   },
 }
 
@@ -93,6 +93,6 @@ export const UNCLASSIFIED_CUSTOMER_TYPE_ID = "uncategorized-customer-type"
 export const WAITLIST_SCOPE_META: Record<WaitlistServiceScope, { label: string; badgeClass: string }> = {
   grooming: {
     label: "מספרה",
-    badgeClass: "bg-blue-50 text-blue-700 border-blue-100",
+    badgeClass: "bg-primary/10 text-primary border-primary/20",
   },
 }

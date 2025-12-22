@@ -108,7 +108,7 @@ const SERVICE_LABELS: Record<"grooming", string> = {
 }
 
 const SERVICE_BADGES: Record<"grooming", string> = {
-    grooming: "bg-blue-50 text-blue-700 border border-blue-200",
+    grooming: "bg-primary/10 text-primary border border-primary/20",
 }
 
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
@@ -540,10 +540,10 @@ export default function AppointmentsSection() {
             id: "grooming-count",
             label: "מספרה - כמות",
             value: stats.grooming.count,
-            accent: "text-blue-600",
-            border: "border-blue-300",
-            hoverBg: "hover:bg-blue-50",
-            activeContainer: "bg-blue-500 border-blue-500 shadow-lg",
+            accent: "text-primary",
+            border: "border-primary/30",
+            hoverBg: "hover:bg-primary/10",
+            activeContainer: "bg-primary/100 border-primary shadow-lg",
             activeText: "text-white",
             isActive: serviceFilter === "grooming",
             onClick: () => handleToggleServiceCard("grooming"),
@@ -552,10 +552,10 @@ export default function AppointmentsSection() {
             id: "grooming-hours",
             label: "מספרה - שעות",
             value: formatDurationFromMinutes(stats.grooming.durationMinutes),
-            accent: "text-blue-600",
-            border: "border-blue-300",
-            hoverBg: "hover:bg-blue-50",
-            activeContainer: "bg-blue-500 border-blue-500 shadow-lg",
+            accent: "text-primary",
+            border: "border-primary/30",
+            hoverBg: "hover:bg-primary/10",
+            activeContainer: "bg-primary/100 border-primary shadow-lg",
             activeText: "text-white",
             isActive: false,
             onClick: () => { },
@@ -564,10 +564,10 @@ export default function AppointmentsSection() {
             id: "grooming-payments",
             label: "מספרה - תשלומים",
             value: `₪${stats.grooming.payments.toLocaleString("he-IL")}`,
-            accent: "text-blue-600",
-            border: "border-blue-300",
-            hoverBg: "hover:bg-blue-50",
-            activeContainer: "bg-blue-500 border-blue-500 shadow-lg",
+            accent: "text-primary",
+            border: "border-primary/30",
+            hoverBg: "hover:bg-primary/10",
+            activeContainer: "bg-primary/100 border-primary shadow-lg",
             activeText: "text-white",
             isActive: false,
             onClick: () => { },
@@ -1036,7 +1036,7 @@ export default function AppointmentsSection() {
                                                     <button
                                                         type="button"
                                                         onClick={(event) => handleCustomerCellClick(event, appointment)}
-                                                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                                                        className="font-medium text-primary hover:text-primary hover:underline"
                                                     >
                                                         {appointment.clientName || "—"}
                                                     </button>

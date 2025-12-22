@@ -1128,7 +1128,7 @@ function CategoryServicesModal({ category, isOpen, isEditing, onClose }: Categor
                           key={service.id}
                           className={cn(
                             "flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-gray-50 transition-colors",
-                            isSelected && "bg-blue-50 border-blue-200"
+                            isSelected && "bg-primary/10 border-primary/20"
                           )}
                           onClick={() => handleToggleService(service.id)}
                         >

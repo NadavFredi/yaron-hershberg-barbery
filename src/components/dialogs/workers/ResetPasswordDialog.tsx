@@ -115,8 +115,8 @@ export const ResetPasswordDialog = ({
                             variant="outline"
                         >
                             <div className="flex items-center gap-3">
-                                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100">
-                                    <Key className="h-5 w-5 text-blue-600" />
+                                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/20">
+                                    <Key className="h-5 w-5 text-primary" />
                                 </div>
                                 <div className="text-right flex-1">
                                     <div className="font-semibold">הגדר סיסמה חדשה</div>
@@ -269,8 +269,8 @@ export const ResetPasswordDialog = ({
                                 )}
                             </div>
                         </div>
-                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-right">
-                            <p className="text-sm text-blue-800">
+                        <div className="rounded-lg border border-primary/20 bg-primary/10 p-3 text-right">
+                            <p className="text-sm text-primary">
                                 הקישור יועתק אוטומטית ללוח לאחר יצירתו. העבר את הקישור לעובד.
                             </p>
                         </div>

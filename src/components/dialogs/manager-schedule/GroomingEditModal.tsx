@@ -270,7 +270,7 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                                         }))
                                     }
                                     wrapperClassName="w-full"
-                                    className="px-3 py-2 border border-gray-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
+                                    className="px-3 py-2 border border-gray-300 focus-visible:ring-primary focus-visible:border-primary"
                                 />
                             </div>
 
@@ -335,7 +335,7 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                                         }))}
                                         intervalMinutes={15}
                                         wrapperClassName="w-full"
-                                        className="px-3 py-2 border border-gray-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
+                                        className="px-3 py-2 border border-gray-300 focus-visible:ring-primary focus-visible:border-primary"
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -478,7 +478,7 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                             <AccordionItem value="internal-notes" className="border-b">
                                 <AccordionTrigger className="text-right hover:no-underline py-3">
                                     <div className="flex items-center gap-2 flex-1">
-                                        <FileText className="h-4 w-4 text-blue-400" />
+                                        <FileText className="h-4 w-4 text-primary/60" />
                                         <span className="font-medium">הערות פנימיות</span>
                                         {groomingEditForm.internalNotes ? (
                                             <span className="text-xs text-gray-500 line-clamp-1">
@@ -502,7 +502,7 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                                             placeholder="הערות פנימיות לצוות..."
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-right resize-none min-h-[100px]"
                                         />
-                                        <p className="text-xs text-blue-600 text-right">
+                                        <p className="text-xs text-primary text-right">
                                             הערות אלו נראות רק לצוות ולא ללקוח
                                         </p>
                                     </div>
@@ -548,8 +548,8 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
 
                 {/* Update Customer Checkbox */}
                 <div className="py-4 border-t border-gray-200" dir="rtl">
-                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-md p-3">
-                        <label htmlFor="updateCustomerGrooming" className="text-sm text-blue-800 font-medium text-right cursor-pointer flex-1">
+                    <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-md p-3">
+                        <label htmlFor="updateCustomerGrooming" className="text-sm text-primary font-medium text-right cursor-pointer flex-1">
                             עדכן את הלקוח על השינויים בתור
                         </label>
                         <input
@@ -559,14 +559,14 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                             onChange={(e) => setUpdateCustomerGrooming(e.target.checked)}
                             className="rounded border-gray-300"
                         />
-                        <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                        <Info className="h-4 w-4 text-primary flex-shrink-0" />
                     </div>
                 </div>
 
                 <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-start sm:space-x-2 sm:space-x-reverse">
                     <Button
                         onClick={onConfirm}
-                        className="bg-blue-600 hover:bg-blue-700"
+                        className="bg-primary hover:bg-primary/90"
                         disabled={groomingEditLoading}
                     >
                         {groomingEditLoading ? (

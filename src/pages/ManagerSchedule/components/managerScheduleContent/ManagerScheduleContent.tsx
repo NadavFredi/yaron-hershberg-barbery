@@ -204,7 +204,7 @@ export function ManagerScheduleContent() {
                 : (appointment.dogs[0]?.name || 'תור')
 
               // Determine background color based on appointment type
-              let bgColor = "bg-blue-500" // Default for business appointments
+              let bgColor = "bg-primary/100" // Default for business appointments
               if (appointment.isProposedMeeting) {
                 bgColor = "bg-lime-500"
               } else if (appointment.isPersonalAppointment || appointment.appointmentType === "private") {

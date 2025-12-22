@@ -163,7 +163,7 @@ const ClientsManagement = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Dogs */}
                       <div className="flex items-center gap-2">
-                        <PawPrint className="w-4 h-4 text-blue-600" />
+                        <PawPrint className="w-4 h-4 text-primary" />
                         <span className="text-gray-700">
                           שמות הלקוחות: {client.dogs.map(dog => `[${dog.name}]`).join(', ')}
                         </span>

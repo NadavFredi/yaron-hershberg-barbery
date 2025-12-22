@@ -513,8 +513,8 @@ const AvailabilityManagement = () => {
                   {getBlockedDatesForCurrentView().length > 0 && <div className="mt-6">
                       <h3 className="font-medium mb-3 text-right">תאריכים חסומים:</h3>
                       <div className="space-y-2">
-                        {getBlockedDatesForCurrentView().map((blocked, index) => <div key={index} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                            <Button variant="ghost" size="sm" onClick={() => removeBlockedDate(index, false)} className="text-blue-600 hover:text-blue-800">
+                        {getBlockedDatesForCurrentView().map((blocked, index) => <div key={index} className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
+                            <Button variant="ghost" size="sm" onClick={() => removeBlockedDate(index, false)} className="text-primary hover:text-primary">
                               <Trash2 className="w-4 h-4" />
                             </Button>
                             <div className="text-right">

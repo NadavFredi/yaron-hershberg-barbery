@@ -465,7 +465,7 @@ export default function EmployeeShiftsReport() {
                                 <CardDescription>סה"כ משמרות</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-3xl font-bold text-blue-600">{shiftsData.totalShifts}</div>
+                                <div className="text-3xl font-bold text-primary">{shiftsData.totalShifts}</div>
                             </CardContent>
                         </Card>
 

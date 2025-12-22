@@ -7,13 +7,13 @@ export default function ScalpTreatments() {
     const primaryColor = "#4f60a8"
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50" dir="rtl">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-purple-50" dir="rtl">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 {/* Breadcrumb */}
                 <nav className="mb-8">
                     <ol className="flex items-center gap-2 text-sm text-gray-600">
                         <li>
-                            <Link to="/about" className="hover:text-blue-600 transition-colors">
+                            <Link to="/about" className="hover:text-primary transition-colors">
                                 אודות
                             </Link>
                         </li>
@@ -47,7 +47,7 @@ export default function ScalpTreatments() {
                         <CardContent className="p-0">
                             <div className="space-y-8">
                                 {/* Introduction */}
-                                <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-2xl p-6 border-r-4 border-blue-600">
+                                <div className="bg-gradient-to-r from-primary/20 to-indigo-100 rounded-2xl p-6 border-r-4 border-primary">
                                     <p className="text-lg md:text-xl text-gray-900 font-medium leading-relaxed">
                                         לפני התאמת טיפול מתחילים באבחון קרקפת מקצועי עם ירון-טריקולוג מוסמך
                                     </p>
@@ -152,15 +152,15 @@ export default function ScalpTreatments() {
                             <div className="space-y-6">
                                 <ul className="space-y-3">
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
-                                            אבחון + סדרת 6 טיפולי קרקפת – <span className="text-blue-700 font-bold">2,700₪</span>
+                                            אבחון + סדרת 6 טיפולי קרקפת – <span className="text-primary font-bold">2,700₪</span>
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
-                                            אבחון + טיפול בודד <span className="text-blue-700 font-bold">750₪</span>
+                                            אבחון + טיפול בודד <span className="text-primary font-bold">750₪</span>
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3 mt-4">
@@ -170,9 +170,9 @@ export default function ScalpTreatments() {
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
-                                            אבחון ללא טיפול <span className="text-blue-700 font-bold">250₪</span>
+                                            אבחון ללא טיפול <span className="text-primary font-bold">250₪</span>
                                         </span>
                                     </li>
                                 </ul>
@@ -199,8 +199,8 @@ export default function ScalpTreatments() {
                     <Card className="bg-white shadow-xl border border-gray-200 rounded-3xl p-8 md:p-12">
                         <CardContent className="p-0">
                             <div className="flex items-center gap-4 mb-8">
-                                <div className="p-3 bg-blue-100 rounded-full">
-                                    <Heart className="h-6 w-6 text-blue-600" />
+                                <div className="p-3 bg-primary/20 rounded-full">
+                                    <Heart className="h-6 w-6 text-primary" />
                                 </div>
                                 <h2 className="text-3xl md:text-4xl font-semibold text-gray-900">
                                     עלויות לגברים
@@ -210,15 +210,15 @@ export default function ScalpTreatments() {
                             <div className="space-y-6">
                                 <ul className="space-y-3">
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
-                                            אבחון + סדרת 6 טיפולי קרקפת – <span className="text-blue-700 font-bold">2,400₪</span>
+                                            אבחון + סדרת 6 טיפולי קרקפת – <span className="text-primary font-bold">2,400₪</span>
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
-                                            אבחון + טיפול בודד <span className="text-blue-700 font-bold">700₪</span>
+                                            אבחון + טיפול בודד <span className="text-primary font-bold">700₪</span>
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3 mt-4">
@@ -228,9 +228,9 @@ export default function ScalpTreatments() {
                                         </span>
                                     </li>
                                     <li className="flex items-start gap-3">
-                                        <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                        <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                                         <span className="text-base md:text-lg text-gray-800 font-medium">
-                                            אבחון ללא טיפול <span className="text-blue-700 font-bold">250₪</span>
+                                            אבחון ללא טיפול <span className="text-primary font-bold">250₪</span>
                                         </span>
                                     </li>
                                 </ul>

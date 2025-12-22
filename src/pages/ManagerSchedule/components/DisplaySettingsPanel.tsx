@@ -30,7 +30,7 @@ export function DisplaySettingsPanel() {
             <button
               type="button"
               onClick={() => dispatch(setSelectedDate(new Date()))}
-              className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50/80 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+              className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10/80 px-3 py-1 text-xs font-semibold text-primary transition hover:bg-primary/20"
             >
               היום
             </button>

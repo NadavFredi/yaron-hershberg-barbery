@@ -81,7 +81,7 @@ function SubscriptionTypeRow({ type, onEdit, onDelete, onDuplicate, onViewSubscr
       </TableCell>
       <TableCell className="text-right">
         <div className="flex flex-col gap-1">
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
             {type.expiration_days} ימים
           </Badge>
           <Badge variant="outline" className="text-xs border-gray-300">

@@ -148,7 +148,7 @@ export default function Subscriptions() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
+                        <Button asChild className="w-full bg-primary hover:bg-primary/90">
                             <a href="/login">כניסה לחשבון</a>
                         </Button>
                     </CardContent>
@@ -161,7 +161,7 @@ export default function Subscriptions() {
         <div className="min-h-screen py-8" dir="rtl">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
                 <header className="space-y-3">
-                    <Badge variant="outline" className="px-3 py-1 text-sm bg-blue-50 text-blue-700 border-blue-200 w-fit">
+                    <Badge variant="outline" className="px-3 py-1 text-sm bg-primary/10 text-primary border-primary/20 w-fit">
                         הכרטיסיות שלי
                     </Badge>
                     <h1 className="text-3xl font-bold text-gray-900">ניהול מנויים וכרטיסיות</h1>
@@ -231,7 +231,7 @@ export default function Subscriptions() {
                                                     <div className="text-2xl font-bold text-gray-900 mb-4">₪{subscriptionType.price}</div>
                                                     <Button
                                                         type="button"
-                                                        className="w-full bg-blue-600 hover:bg-blue-700"
+                                                        className="w-full bg-primary hover:bg-primary/90"
                                                         onClick={() => {
                                                             setSelectedSubscriptionType(subscriptionType)
                                                             setPurchaseModalOpen(true)
@@ -253,7 +253,7 @@ export default function Subscriptions() {
                     <Card className="shadow-sm">
                         <CardHeader>
                             <div className="flex items-center gap-3">
-                                <CreditCard className="h-5 w-5 text-blue-500" />
+                                <CreditCard className="h-5 w-5 text-primary" />
                                 <div>
                                     <CardTitle className="text-xl">הכרטיסיות שלי</CardTitle>
                                     <CardDescription>מעקב אחר כל החבילות והכרטיסיות שרכשתם</CardDescription>
@@ -308,7 +308,7 @@ export default function Subscriptions() {
                                                             </span>
                                                             <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                                                                 <span>נוצר בתאריך: {formatDate(subscription.purchasedAt)}</span>
-                                                                <span>יתרה: <span className="font-semibold text-blue-600">{subscription.remainingUses ?? "—"}</span></span>
+                                                                <span>יתרה: <span className="font-semibold text-primary">{subscription.remainingUses ?? "—"}</span></span>
                                                                 <span>סה"כ: {subscription.totalUses ?? "—"}</span>
                                                             </div>
                                                         </div>

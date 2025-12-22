@@ -255,7 +255,7 @@ export const MessageToContactsDialog = ({
                                         className={cn(
                                             "w-full text-right px-3 py-2 rounded-md border transition-colors",
                                             selectedContactId === contact.id
-                                                ? "bg-blue-50 border-blue-300 text-blue-900"
+                                                ? "bg-primary/10 border-primary/30 text-primary"
                                                 : "bg-white border-gray-200 hover:bg-gray-50 text-gray-900"
                                         )}
                                     >

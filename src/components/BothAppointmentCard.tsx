@@ -202,7 +202,7 @@ export function BothAppointmentCard({
             "border",
             size === "xs" ? "text-xs" : "text-sm",
             appointment.latePickupRequested
-                ? "bg-blue-100 text-blue-800 border-blue-200"
+                ? "bg-primary/20 text-primary border-primary/20"
                 : "bg-slate-100 text-slate-600 border-slate-200"
         )
 
@@ -249,8 +249,8 @@ export function BothAppointmentCard({
         return {
             id,
             label: "תספורת",
-            icon: <Scissors className="h-4 w-4 text-blue-600" />,
-            iconBg: "bg-blue-100",
+            icon: <Scissors className="h-4 w-4 text-primary" />,
+            iconBg: "bg-primary/20",
             context,
             service: "grooming",
             canCancel: canCancelAppointment(context),
@@ -410,7 +410,7 @@ export function BothAppointmentCard({
                     <Button
                         size="sm"
                         variant="outline"
-                        className="text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50 flex e items-center gap-1"
+                        className="text-primary hover:text-primary border-primary/20 hover:bg-primary/10 flex e items-center gap-1"
                         onClick={() => openNotesDialog(details.context, getServiceNotes(service))}
                     >
                         <Edit3 className="h-4 w-4" />
@@ -424,11 +424,11 @@ export function BothAppointmentCard({
                     <Button
                         size="sm"
                         variant="outline"
-                        className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 flex flex-row-reverse items-center gap-1"
+                        className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary flex flex-row-reverse items-center gap-1"
                         onClick={() => onManageLatePickup(appointment)}
                         disabled={isSavingLatePickup && latePickupDialogTargetId === appointment.id}
                     >
-                        <Clock className="h-4 w-4 text-blue-600" />
+                        <Clock className="h-4 w-4 text-primary" />
                         עדכן איסוף מאוחר
                     </Button>
                 )}
@@ -484,8 +484,8 @@ export function BothAppointmentCard({
                                     </div>
                                 )}
                                 {getServiceNotes(service).trim() && (
-                                    <div className="bg-blue-50 border border-blue-100 rounded-md p-3 text-sm text-gray-700 text-right whitespace-pre-wrap">
-                                        <div className="flex items-center  gap-1  text-blue-700 text-xs font-semibold mb-1">
+                                    <div className="bg-primary/10 border border-primary/20 rounded-md p-3 text-sm text-gray-700 text-right whitespace-pre-wrap">
+                                        <div className="flex items-center  gap-1  text-primary text-xs font-semibold mb-1">
                                             <MessageSquareText className="h-3 w-3" />
                                             <span>הערות לתור</span>
                                         </div>
@@ -493,7 +493,7 @@ export function BothAppointmentCard({
                                     </div>
                                 )}
                                 {service === "garden" && appointment.latePickupRequested && latePickupDetails && (
-                                    <div className="bg-blue-50 border border-blue-100 rounded-md p-3 text-xs text-blue-800 text-right whitespace-pre-wrap">
+                                    <div className="bg-primary/10 border border-primary/20 rounded-md p-3 text-xs text-primary text-right whitespace-pre-wrap">
                                         <div className="font-semibold mb-1">פרטי איסוף מאוחר</div>
                                         {latePickupDetails}
                                     </div>
@@ -531,7 +531,7 @@ export function BothAppointmentCard({
                                     <div className="flex items-center gap-2 flex-1">
                                         <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                                             <div className="flex items-center gap-1">
-                                                <Scissors className="h-4 w-4 text-blue-600" />
+                                                <Scissors className="h-4 w-4 text-primary" />
                                                 <Bone className="h-4 w-4 text-amber-600" />
                                             </div>
                                         </div>

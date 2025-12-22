@@ -415,7 +415,7 @@ export const AddWaitlistEntryModal: React.FC<AddWaitlistEntryModalProps> = ({
                                     type="button"
                                     variant="outline"
                                     onClick={addDateEntry}
-                                    className="w-full border-dashed border-blue-300 text-blue-700 hover:bg-blue-50"
+                                    className="w-full border-dashed border-primary/30 text-primary hover:bg-primary/10"
                                 >
                                     <Plus className="h-4 w-4 ml-2" />
                                     הוסף בחירת תאריכים {dateSelectionMode === 'single' ? "בבודדים" : "כטווח"}
@@ -486,8 +486,8 @@ const DateEntryCard: React.FC<DateEntryCardProps> = ({
     canRemove
 }) => {
     return (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-2.5 space-y-2 shadow-sm">
-            <div className="flex items-center justify-between text-blue-900">
+        <div className="rounded-2xl border border-primary/20 bg-primary/10/40 p-2.5 space-y-2 shadow-sm">
+            <div className="flex items-center justify-between text-primary">
                 {canRemove && (
                     <Button
                         variant="ghost"
@@ -516,7 +516,7 @@ const DateEntryCard: React.FC<DateEntryCardProps> = ({
                                 "text-sm font-semibold",
                                 active
                                     ? "bg-primary text-white hover:bg-primary"
-                                    : "border-blue-200 bg-white text-blue-900 hover:bg-blue-50"
+                                    : "border-primary/20 bg-white text-primary hover:bg-primary/10"
                             )}
                         >
                             {label}
@@ -578,7 +578,7 @@ const SingleDatesPicker: React.FC<SingleDatesPickerProps> = ({ dates, onChange }
                             type="button"
                             size="sm"
                             variant="ghost"
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-primary hover:text-primary"
                             onClick={() => setOpen(false)}
                         >
                             סגור
@@ -593,13 +593,13 @@ const SingleDatesPicker: React.FC<SingleDatesPickerProps> = ({ dates, onChange }
                         <Badge
                             key={date.toISOString()}
                             variant="secondary"
-                            className="flex items-center gap-1 bg-blue-100 text-blue-900 hover:bg-blue-100"
+                            className="flex items-center gap-1 bg-primary/20 text-primary hover:bg-primary/20"
                         >
                             {format(date, 'dd/MM/yyyy')}
                             <button
                                 type="button"
                                 onClick={() => removeDate(date)}
-                                className="text-blue-500 hover:text-red-500"
+                                className="text-primary hover:text-red-500"
                                 aria-label="הסר תאריך"
                             >
                                 <X className="h-3 w-3" />
@@ -662,7 +662,7 @@ const RangePickerInput: React.FC<{ range: DateRange; onChange: (value: DateRange
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-primary hover:text-primary"
                         onClick={() => setOpen(false)}
                     >
                         סגור

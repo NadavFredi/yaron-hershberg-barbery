@@ -585,7 +585,7 @@ export const ClientDetailsSheet = ({
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                className="w-full justify-start text-primary hover:text-primary hover:bg-primary/10"
                                                 onClick={handleOpenEditCustomer}
                                             >
                                                 <Pencil className="h-4 w-4 ml-2" />
@@ -765,7 +765,7 @@ export const ClientDetailsSheet = ({
                                                             </div>
                                                             <a
                                                                 href={`tel:${contact.phone}`}
-                                                                className="text-blue-600 hover:text-blue-800 hover:underline"
+                                                                className="text-primary hover:text-primary hover:underline"
                                                             >
                                                                 {contact.phone}
                                                             </a>
@@ -794,12 +794,12 @@ export const ClientDetailsSheet = ({
                                 <>
                                     <Separator />
                                     <div className="space-y-2">
-                                        <h3 className="text-sm font-medium text-blue-900">הערות צוות פנימי</h3>
+                                        <h3 className="text-sm font-medium text-primary">הערות צוות פנימי</h3>
                                         <Textarea
                                             value={staffNotes || ""}
                                             onChange={(e) => setStaffNotes(e.target.value)}
                                             placeholder="הזן הערות צוות פנימיות..."
-                                            className="min-h-[100px] text-right bg-blue-50 border-blue-200"
+                                            className="min-h-[100px] text-right bg-primary/10 border-primary/20"
                                             dir="rtl"
                                         />
                                         {(staffNotes !== originalStaffNotes) && (

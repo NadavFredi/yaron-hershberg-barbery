@@ -395,8 +395,8 @@ export const CreditCardSetupModal: React.FC<CreditCardSetupModalProps> = ({
                 <DialogHeader className="p-6 pb-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-100 rounded-lg">
-                                <CreditCard className="h-5 w-5 text-blue-600" />
+                            <div className="p-2 bg-primary/20 rounded-lg">
+                                <CreditCard className="h-5 w-5 text-primary" />
                             </div>
                             <div>
                                 <DialogTitle className="text-xl font-bold text-right">
@@ -420,11 +420,11 @@ export const CreditCardSetupModal: React.FC<CreditCardSetupModalProps> = ({
                                 <span>תשלום מאובטח</span>
                             </div>
                             <div className="flex items-center gap-1">
-                                <Shield className="w-4 h-4 text-blue-600" />
+                                <Shield className="w-4 h-4 text-primary" />
                                 <span>מוגן SSL</span>
                             </div>
                             <div className="flex items-center gap-1">
-                                <CreditCard className="w-4 h-4 text-blue-600" />
+                                <CreditCard className="w-4 h-4 text-primary" />
                                 <span>Tranzila</span>
                             </div>
                         </div>
@@ -481,11 +481,11 @@ export const CreditCardSetupModal: React.FC<CreditCardSetupModalProps> = ({
                         </div>
 
                         {/* Info Message */}
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-right">
-                            <p className="text-sm text-blue-900 font-medium mb-2">
+                        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 text-right">
+                            <p className="text-sm text-primary font-medium mb-2">
                                 אימות כרטיס אשראי
                             </p>
-                            <p className="text-xs text-blue-700">
+                            <p className="text-xs text-primary">
                                 אנו נאמת את כרטיס האשראי שלך באמצעות תשלום סמלי של 1 ₪ בלבד.
                                 הכרטיס יישמר במערכת לצורך תשלומים עתידיים.
                             </p>

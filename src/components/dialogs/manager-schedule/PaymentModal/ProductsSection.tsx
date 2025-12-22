@@ -150,7 +150,7 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({
                                             e.stopPropagation()
                                             onOpenCreateProductDialog()
                                         }}
-                                        className="w-full text-right px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded transition-colors flex items-center gap-2 text-sm font-medium text-blue-900"
+                                        className="w-full text-right px-3 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded transition-colors flex items-center gap-2 text-sm font-medium text-primary"
                                         dir="rtl"
                                     >
                                         <span>צור מוצר חדש</span>
@@ -354,7 +354,7 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({
 
             {isLoadingCart && (
                 <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-blue-600 ml-2" />
+                    <Loader2 className="h-5 w-5 animate-spin text-primary ml-2" />
                     <span className="text-sm text-gray-600">טוען עגלה...</span>
                 </div>
             )}
@@ -365,10 +365,10 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({
                         <button
                             type="button"
                             onClick={onStartAddingItem}
-                            className="w-full border-2 border-dashed border-blue-300 rounded-lg p-2 bg-blue-50 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+                            className="w-full border-2 border-dashed border-primary/30 rounded-lg p-2 bg-primary/10 hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"
                         >
-                            <Plus className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium text-blue-900">הוסף מוצר</span>
+                            <Plus className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-medium text-primary">הוסף מוצר</span>
                         </button>
                     )}
 
@@ -507,7 +507,7 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({
                                                                         onClick={() => onUpdateGardenAppointmentPrice?.(cartAppt.id, originalPrice)}
                                                                         title="איפוס למחיר המקורי"
                                                                     >
-                                                                        <RotateCcw className="h-3 w-3 text-blue-600" />
+                                                                        <RotateCcw className="h-3 w-3 text-primary" />
                                                                     </Button>
                                                                 )
                                                             }
@@ -607,7 +607,7 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({
                                                                     onClick={() => onUpdateItemPrice(item.id, originalPrice)}
                                                                     title="איפוס למחיר המקורי"
                                                                 >
-                                                                    <RotateCcw className="h-3 w-3 text-blue-600" />
+                                                                    <RotateCcw className="h-3 w-3 text-primary" />
                                                                 </Button>
                                                             )
                                                         }
@@ -632,10 +632,10 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({
                                                 <button
                                                     type="button"
                                                     onClick={onStartAddingItem}
-                                                    className="w-full border-2 border-dashed border-blue-300 rounded-lg p-2 bg-blue-50 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+                                                    className="w-full border-2 border-dashed border-primary/30 rounded-lg p-2 bg-primary/10 hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"
                                                 >
-                                                    <Plus className="h-4 w-4 text-blue-600" />
-                                                    <span className="text-sm font-medium text-blue-900">הוסף מוצר נוסף</span>
+                                                    <Plus className="h-4 w-4 text-primary" />
+                                                    <span className="text-sm font-medium text-primary">הוסף מוצר נוסף</span>
                                                 </button>
                                             </td>
                                         </tr>

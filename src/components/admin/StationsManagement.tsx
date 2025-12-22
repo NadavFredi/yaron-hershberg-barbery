@@ -309,7 +309,7 @@ const StationsManagement = () => {
           <div className="mt-6 pt-6 border-t">
             <Dialog open={isAddingStation} onOpenChange={setIsAddingStation}>
               <DialogTrigger asChild>
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                <Button className="w-full bg-primary hover:bg-primary/90">
                   <Plus className="w-4 h-4 ml-2" />
                   צור עמדה חדשה
                 </Button>

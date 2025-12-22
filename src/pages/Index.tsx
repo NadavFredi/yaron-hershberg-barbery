@@ -19,7 +19,7 @@ const Index = () => {
         <div className="space-y-4">
           <Button
             asChild
-            className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700"
+            className="w-full h-12 text-lg bg-primary hover:bg-primary/90"
           >
             <a href="/login">
               <User className="w-5 h-5 ml-2" />
@@ -30,7 +30,7 @@ const Index = () => {
           <Button
             asChild
             variant="outline"
-            className="w-full h-12 text-lg border-2 border-blue-600 text-blue-600 hover:bg-blue-50"
+            className="w-full h-12 text-lg border-2 border-primary text-primary hover:bg-primary/10"
           >
             <a href="/signup">
               <UserPlus className="w-5 h-5 ml-2" />

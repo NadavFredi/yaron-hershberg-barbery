@@ -412,7 +412,7 @@ export default function WaitingListPage() {
 
     const getServiceBadge = (service: string) => {
         const badges = {
-            grooming: { label: "מספרה", icon: Scissors, color: "bg-blue-100 text-blue-800 border-blue-200" }
+            grooming: { label: "מספרה", icon: Scissors, color: "bg-primary/20 text-primary border-primary/20" }
         }
         const badge = badges[service as keyof typeof badges] || badges.grooming
         const Icon = badge.icon
@@ -601,7 +601,7 @@ export default function WaitingListPage() {
                         <CardDescription>פעיל</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-blue-600">
+                        <div className="text-2xl font-bold text-primary">
                             {waitlistEntries.filter(e => e.status === 'active').length}
                         </div>
                     </CardContent>
@@ -864,7 +864,7 @@ function WaitlistEntryRow({
     onViewInCalendar
 }: WaitlistEntryRowProps) {
     const statusBadges = {
-        active: { label: "פעיל", color: "bg-blue-100 text-blue-800 border-blue-200" },
+        active: { label: "פעיל", color: "bg-primary/20 text-primary border-primary/20" },
         fulfilled: { label: "מבוצע", color: "bg-green-100 text-green-800 border-green-200" },
         cancelled: { label: "בוטל", color: "bg-gray-100 text-gray-800 border-gray-200" }
     }
@@ -942,7 +942,7 @@ function WaitlistEntryRow({
                                 <>
                                     <DropdownMenuItem onClick={onApprove} className="flex items-center justify-between gap-2">
                                         <span>אשר</span>
-                                        <CheckCircle className="h-4 w-4 text-blue-600" />
+                                        <CheckCircle className="h-4 w-4 text-primary" />
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={onSuggest} className="flex items-center justify-between gap-2">
                                         <span>הצע זמן חלופי</span>
@@ -990,7 +990,7 @@ function WaitlistEntryRow({
                                 />
                             </div>
                             {entry.notes && (
-                                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-6 py-4 text-sm text-gray-700">
+                                <div className="rounded-2xl border border-primary/20 bg-primary/10 px-6 py-4 text-sm text-gray-700">
                                     <span className="font-semibold text-gray-900">הערות:</span> {entry.notes}
                                 </div>
                             )}
@@ -1026,7 +1026,7 @@ const InfoSection = ({ icon, title, rows }: InfoSectionProps) => (
             {icon}
             {title}
         </h4>
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-4 shadow-sm">
+        <div className="rounded-2xl border border-primary/20 bg-white px-4 py-4 shadow-sm">
             <dl className="space-y-3 text-sm text-gray-700">
                 {rows.map((row, index) => (
                     <DetailRow key={`${title}-${row.label}-${index}`} label={row.label} value={row.value} />

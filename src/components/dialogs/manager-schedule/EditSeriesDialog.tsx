@@ -58,9 +58,9 @@ export function EditSeriesDialog({
                             </Label>
                         </div>
                     </RadioGroup>
-                    <div className="flex items-center gap-2 space-x-2 rtl:space-x-reverse bg-blue-50 border border-blue-200 rounded-md p-3">
-                        <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                        <div className="text-sm text-blue-800">
+                    <div className="flex items-center gap-2 space-x-2 rtl:space-x-reverse bg-primary/10 border border-primary/20 rounded-md p-3">
+                        <Info className="h-5 w-5 text-primary flex-shrink-0" />
+                        <div className="text-sm text-primary">
                             {modifyAll ? (
                                 <p>כל התורים בסדרה יעודכנו עם השינויים שביצעת.</p>
                             ) : (

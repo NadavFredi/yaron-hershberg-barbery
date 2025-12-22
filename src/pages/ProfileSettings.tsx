@@ -856,7 +856,7 @@ export default function ProfileSettings() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
+                        <Button asChild className="w-full bg-primary hover:bg-primary/90">
                             <a href="/login">עבור למסך ההתחברות</a>
                         </Button>
                     </CardContent>
@@ -880,21 +880,21 @@ export default function ProfileSettings() {
                     <TabsList className="grid w-full grid-cols-3 rounded-xl bg-white/80 border border-gray-200 shadow-sm overflow-hidden">
                         <TabsTrigger
                             value="general"
-                            className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-blue-100/90 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm data-[state=inactive]:hover:bg-gray-50 data-[state=inactive]:hover:text-gray-700 transition-colors"
+                            className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-primary/20/90 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=inactive]:hover:bg-gray-50 data-[state=inactive]:hover:text-gray-700 transition-colors"
                         >
                             <Settings className="h-4 w-4" />
                             <span>כללי</span>
                         </TabsTrigger>
                         <TabsTrigger
                             value="payment"
-                            className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-blue-100/90 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm data-[state=inactive]:hover:bg-gray-50 data-[state=inactive]:hover:text-gray-700 transition-colors"
+                            className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-primary/20/90 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=inactive]:hover:bg-gray-50 data-[state=inactive]:hover:text-gray-700 transition-colors"
                         >
                             <CreditCard className="h-4 w-4" />
                             <span>תשלום</span>
                         </TabsTrigger>
                         <TabsTrigger
                             value="security"
-                            className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-blue-100/90 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm data-[state=inactive]:hover:bg-gray-50 data-[state=inactive]:hover:text-gray-700 transition-colors"
+                            className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-primary/20/90 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=inactive]:hover:bg-gray-50 data-[state=inactive]:hover:text-gray-700 transition-colors"
                         >
                             <Lock className="h-4 w-4" />
                             <span>אבטחה</span>
@@ -906,7 +906,7 @@ export default function ProfileSettings() {
                         <Card className="shadow-sm">
                             <CardHeader className="text-right">
                                 <CardTitle className="flex items-center justify-start gap-2">
-                                    <UserIcon className="h-5 w-5 text-blue-600" />
+                                    <UserIcon className="h-5 w-5 text-primary" />
                                     <span>פרטים אישיים</span>
                                 </CardTitle>
                                 <CardDescription>
@@ -1001,7 +1001,7 @@ export default function ProfileSettings() {
                                                 <Button
                                                     type="submit"
                                                     disabled={isLoadingProfile || isUpdatingProfile || !isDirty}
-                                                    className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+                                                    className="bg-primary hover:bg-primary/90 flex items-center gap-2"
                                                 >
                                                     {isUpdatingProfile && <Loader2 className="h-4 w-4 animate-spin" />}
                                                     שמור פרטים
@@ -1152,7 +1152,7 @@ export default function ProfileSettings() {
                         <Card className="shadow-sm">
                             <CardHeader className="text-right">
                                 <CardTitle className="flex items-center justify-start gap-2">
-                                    <CreditCard className="h-5 w-5 text-blue-600" />
+                                    <CreditCard className="h-5 w-5 text-primary" />
                                     <span>פרטי אשראי</span>
                                 </CardTitle>
                                 <CardDescription>
@@ -1232,7 +1232,7 @@ export default function ProfileSettings() {
                                         </div>
                                         <Button
                                             onClick={() => setShowCreditCardModal(true)}
-                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                                            className="w-full bg-primary hover:bg-primary/90 text-white"
                                         >
                                             <CreditCard className="h-4 w-4 ml-2" />
                                             הגדר פרטי אשראי
@@ -1248,7 +1248,7 @@ export default function ProfileSettings() {
                         <Card className="shadow-sm">
                             <CardHeader className="text-right">
                                 <CardTitle className="flex items-center justify-start gap-2">
-                                    <Lock className="h-5 w-5 text-blue-600" />
+                                    <Lock className="h-5 w-5 text-primary" />
                                     <span>אבטחה וסיסמה</span>
                                 </CardTitle>
                                 <CardDescription>
@@ -1342,7 +1342,7 @@ export default function ProfileSettings() {
                                     <Button
                                         type="submit"
                                         disabled={isUpdatingPassword || !newPassword || !confirmPassword}
-                                        className="w-full bg-blue-600 hover:bg-blue-700"
+                                        className="w-full bg-primary hover:bg-primary/90"
                                     >
                                         {isUpdatingPassword ? (
                                             <>

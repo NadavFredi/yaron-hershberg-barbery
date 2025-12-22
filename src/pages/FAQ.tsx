@@ -25,13 +25,13 @@ export default function FAQ() {
     }, [searchQuery, faqs])
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50" dir="rtl">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-purple-50" dir="rtl">
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 {/* Breadcrumb */}
                 <nav className="mb-8">
                     <ol className="flex items-center gap-2 text-sm text-gray-600">
                         <li>
-                            <Link to="/about" className="hover:text-blue-600 transition-colors">
+                            <Link to="/about" className="hover:text-primary transition-colors">
                                 אודות
                             </Link>
                         </li>
@@ -65,7 +65,7 @@ export default function FAQ() {
                             placeholder="חפשו שאלות ותשובות..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pr-12 pl-10 py-6 text-base border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full pr-12 pl-10 py-6 text-base border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary"
                             dir="rtl"
                         />
                         {searchQuery && (
@@ -85,7 +85,7 @@ export default function FAQ() {
                     <Card className="bg-white shadow-lg border border-gray-200 rounded-3xl p-8">
                         <CardContent className="p-0">
                             <div className="text-center py-12">
-                                <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+                                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
                                 <p className="text-lg text-gray-600">טוען שאלות ותשובות...</p>
                             </div>
                         </CardContent>

@@ -404,10 +404,10 @@ export function MoveConfirmationDialog() {
                         {/* New Details */}
                         <div className={moveDetails.appointment.isPersonalAppointment || moveDetails.appointment.appointmentType === "private"
                             ? "rounded-lg border border-purple-200 bg-purple-50 p-4"
-                            : "rounded-lg border border-blue-200 bg-blue-50 p-4"}>
+                            : "rounded-lg border border-primary/20 bg-primary/10 p-4"}>
                             <h3 className={moveDetails.appointment.isPersonalAppointment || moveDetails.appointment.appointmentType === "private"
                                 ? "text-lg font-semibold text-purple-900 mb-3"
-                                : "text-lg font-semibold text-blue-900 mb-3"}>פרטי התור החדשים</h3>
+                                : "text-lg font-semibold text-primary mb-3"}>פרטי התור החדשים</h3>
                             <div className="space-y-2 text-sm">
                                 <div><span className="font-medium">לקוח:</span> {moveDetails.appointment.isPersonalAppointment || moveDetails.appointment.appointmentType === "private"
                                     ? (moveDetails.appointment.personalAppointmentDescription || 'תור אישי')
@@ -508,10 +508,10 @@ export function MoveConfirmationDialog() {
                         <div className="py-4 border-t border-gray-200">
                             <div className={moveDetails.appointment.isPersonalAppointment || moveDetails.appointment.appointmentType === "private"
                                 ? "flex items-center  gap-2 space-x-2 rtl:space-x-reverse bg-purple-50 border border-purple-200 rounded-md p-3"
-                                : "flex items-center  gap-2 space-x-2 rtl:space-x-reverse bg-blue-50 border border-blue-200 rounded-md p-3"}>
+                                : "flex items-center  gap-2 space-x-2 rtl:space-x-reverse bg-primary/10 border border-primary/20 rounded-md p-3"}>
                                 <Info className={moveDetails.appointment.isPersonalAppointment || moveDetails.appointment.appointmentType === "private"
                                     ? "h-4 w-4 text-purple-600"
-                                    : "h-4 w-4 text-blue-600"} />
+                                    : "h-4 w-4 text-primary"} />
                                 <input
                                     type="checkbox"
                                     id="updateCustomerMove"
@@ -521,7 +521,7 @@ export function MoveConfirmationDialog() {
                                 />
                                 <label htmlFor="updateCustomerMove" className={moveDetails.appointment.isPersonalAppointment || moveDetails.appointment.appointmentType === "private"
                                     ? "text-sm text-purple-800 font-medium"
-                                    : "text-sm text-blue-800 font-medium"}>
+                                    : "text-sm text-primary font-medium"}>
                                     עדכן את הלקוח על השינויים בתור
                                 </label>
                             </div>
@@ -532,7 +532,7 @@ export function MoveConfirmationDialog() {
                             </Button>
                             <Button onClick={handleConfirm} className={moveDetails.appointment.isPersonalAppointment || moveDetails.appointment.appointmentType === "private"
                                 ? "bg-purple-600 hover:bg-purple-700"
-                                : "bg-blue-600 hover:bg-blue-700"} disabled={moveLoading}>
+                                : "bg-primary hover:bg-primary/90"} disabled={moveLoading}>
                                 {moveLoading ? 'מעביר...' : 'אישור העברה'}
                             </Button>
                         </DialogFooter>

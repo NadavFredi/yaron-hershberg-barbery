@@ -189,7 +189,7 @@ function SortableStationRow({
                         <Pencil className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => onDuplicate(station)} title="שכפל">
-                        <Copy className="h-4 w-4 text-blue-600" />
+                        <Copy className="h-4 w-4 text-primary" />
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => onDelete(station)} title="מחק">
                         <Trash2 className="h-4 w-4 text-red-600" />

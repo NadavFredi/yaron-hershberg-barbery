@@ -35,7 +35,7 @@ const EmptyStateCard = ({
         </div>
         <Button 
           onClick={onAction}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 animate-pulse"
+          className="bg-primary hover:bg-primary/90 text-white px-6 py-2 animate-pulse"
         >
           {actionLabel}
         </Button>

@@ -272,7 +272,7 @@ export function DraggableConstraintCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  className="w-full justify-start text-primary hover:text-primary hover:bg-primary/10"
                   onClick={(e) => {
                     e.stopPropagation()
                     onEdit(constraint)

@@ -202,7 +202,7 @@ export default function PresenceReportingTab() {
             <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 text-right sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-                        <Clock className="h-6 w-6 text-blue-600" />
+                        <Clock className="h-6 w-6 text-primary" />
                         דיווח נוכחות
                     </h1>
                     <p className="text-sm text-slate-600">
@@ -338,7 +338,7 @@ export default function PresenceReportingTab() {
                                                         onClick={() => handleStartStopClick(worker)}
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-9 w-9 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                                                        className="h-9 w-9 text-primary hover:bg-primary/10 hover:text-primary"
                                                         disabled={isWorkerProcessing || isStoppingAll}
                                                         title="התחל משמרת"
                                                     >

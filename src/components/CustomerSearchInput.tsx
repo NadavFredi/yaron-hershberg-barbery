@@ -355,7 +355,7 @@ export function CustomerSearchInput({
                                     className={cn(
                                         "p-3 rounded-md cursor-pointer transition-colors",
                                         "hover:bg-gray-50 border-b border-gray-100 last:border-b-0",
-                                        highlightedIndex === index && "bg-blue-100 hover:bg-blue-100"
+                                        highlightedIndex === index && "bg-primary/20 hover:bg-primary/20"
                                     )}
                                 >
                                     <div className="flex items-start gap-3">
@@ -412,7 +412,7 @@ export function CustomerSearchInput({
                         }}
                         className={cn(
                             "mt-2",
-                            highlightedIndex >= 0 && "bg-blue-100 border-blue-300 hover:bg-blue-200"
+                            highlightedIndex >= 0 && "bg-primary/20 border-primary/30 hover:bg-primary/30"
                         )}
                     >
                         הוסף לקוח חדש

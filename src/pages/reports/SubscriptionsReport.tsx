@@ -1005,7 +1005,7 @@ export default function SubscriptionsReport() {
                                 <CardDescription>סה"כ מנויים</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-4xl font-bold text-blue-600">{subscriptionsData.total}</div>
+                                <div className="text-4xl font-bold text-primary">{subscriptionsData.total}</div>
                             </CardContent>
                         </Card>
 

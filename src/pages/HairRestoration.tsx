@@ -7,13 +7,13 @@ export default function HairRestoration() {
     const primaryColor = "#4f60a8"
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50" dir="rtl">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-purple-50" dir="rtl">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 {/* Breadcrumb */}
                 <nav className="mb-8">
                     <ol className="flex items-center gap-2 text-sm text-gray-600">
                         <li>
-                            <Link to="/about" className="hover:text-blue-600 transition-colors">
+                            <Link to="/about" className="hover:text-primary transition-colors">
                                 אודות
                             </Link>
                         </li>
@@ -50,20 +50,20 @@ export default function HairRestoration() {
                                     </h3>
                                     <div className="space-y-3">
                                         <div className="flex items-start gap-3">
-                                            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                                             <p className="text-base md:text-lg text-gray-800 leading-relaxed">
                                                 שיקום שיער מתאים לשיער יבש, פגום או חלש, במיוחד לאחר תהליכים כימיים.
                                             </p>
                                         </div>
                                         <div className="flex items-start gap-3">
-                                            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                                             <p className="text-base md:text-lg text-gray-800 leading-relaxed">
                                                 הטיפול אינו מתאים למי שסובלת מבעיות בקרקפת כגון גירויים, קשקשים או שומניות יתר, 
                                                 ובמקרים אלו יש לטפל תחילה בקרקפת באמצעות טיפולים ייעודיים.
                                             </p>
                                         </div>
                                         <div className="flex items-start gap-3">
-                                            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                                             <p className="text-base md:text-lg text-gray-800 leading-relaxed">
                                                 לפני תחילת תהליך השיקום, חשוב לבצע אבחון מקצועי לשיער ולקרקפת, 
                                                 על מנת להתאים את הטיפול המדויק ביותר לצרכים האישיים שלך.
@@ -145,25 +145,25 @@ export default function HairRestoration() {
                                     </h3>
                                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                                             <span className="text-base md:text-lg text-gray-800">
                                                 לחזק מבנה שיער חלש ופגום
                                             </span>
                                         </li>
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                                             <span className="text-base md:text-lg text-gray-800">
                                                 לשפר את איכות ומרקם השיער
                                             </span>
                                         </li>
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                                             <span className="text-base md:text-lg text-gray-800">
                                                 להשיב גמישות, חיוניות ומראה בריא
                                             </span>
                                         </li>
                                         <li className="flex items-start gap-3">
-                                            <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                                             <span className="text-base md:text-lg text-gray-800">
                                                 להשיג תוצאות יציבות ועמידות לאורך זמן
                                             </span>

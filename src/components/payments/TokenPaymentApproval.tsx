@@ -58,7 +58,7 @@ export const TokenPaymentApproval: React.FC<TokenPaymentApprovalProps> = ({
             <Card>
                 <CardHeader>
                     <CardTitle className="text-right flex items-center gap-2">
-                        <Wallet className="h-5 w-5 text-blue-600" />
+                        <Wallet className="h-5 w-5 text-primary" />
                         <span>כרטיס אשראי שמור</span>
                     </CardTitle>
                     <CardDescription className="text-right">
@@ -66,7 +66,7 @@ export const TokenPaymentApproval: React.FC<TokenPaymentApprovalProps> = ({
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
                         <div className="flex items-center justify-between">
                             <span className="text-gray-600">מספר כרטיס:</span>
                             <span className="font-semibold text-gray-900">
@@ -125,7 +125,7 @@ export const TokenPaymentApproval: React.FC<TokenPaymentApprovalProps> = ({
                                 </div>
                                 <div className="flex items-center justify-between pt-2 border-t border-gray-300">
                                     <span className="text-gray-600">סכום לכל תשלום:</span>
-                                    <span className="text-lg font-bold text-blue-600">
+                                    <span className="text-lg font-bold text-primary">
                                         ₪{singlePaymentAmount.toFixed(2)}
                                     </span>
                                 </div>

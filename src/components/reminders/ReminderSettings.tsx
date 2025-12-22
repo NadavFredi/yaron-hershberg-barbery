@@ -699,7 +699,7 @@ export default function ReminderSettings() {
                         <div className="text-right">
                             <div className={cn(
                                 "text-lg font-semibold mb-1",
-                                dayType === "regular" ? "text-blue-700" : "text-green-700"
+                                dayType === "regular" ? "text-primary" : "text-green-700"
                             )}>{title}</div>
                             <div className="text-sm text-muted-foreground">{description}</div>
                         </div>
@@ -729,37 +729,37 @@ export default function ReminderSettings() {
                             <Table>
                                 <TableHeader>
                                     <TableRow className={cn(
-                                        dayType === "regular" ? "bg-blue-50" : "bg-green-50"
+                                        dayType === "regular" ? "bg-primary/10" : "bg-green-50"
                                     )}>
                                         <TableHead className={cn(
                                             "w-20 text-center",
-                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                            dayType === "regular" ? "text-primary" : "text-green-900"
                                         )}>פעיל</TableHead>
                                         <TableHead className={cn(
                                             "w-[140px]",
-                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                            dayType === "regular" ? "text-primary" : "text-green-900"
                                         )}>סוג יחידה</TableHead>
                                         <TableHead className={cn(
                                             "w-[140px]",
-                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                            dayType === "regular" ? "text-primary" : "text-green-900"
                                         )}>זמן לפני התור</TableHead>
                                         <TableHead className={cn(
                                             "w-[140px]",
-                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                            dayType === "regular" ? "text-primary" : "text-green-900"
                                         )}>שעה ספציפית</TableHead>
                                         <TableHead className={cn(
-                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                            dayType === "regular" ? "text-primary" : "text-green-900"
                                         )}>מזהה זרימה (Flow ID)</TableHead>
                                         <TableHead className={cn(
-                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                            dayType === "regular" ? "text-primary" : "text-green-900"
                                         )}>תיאור (אופציונלי)</TableHead>
                                         <TableHead className={cn(
                                             "w-[180px]",
-                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                            dayType === "regular" ? "text-primary" : "text-green-900"
                                         )}>תנאי שליחה</TableHead>
                                         <TableHead className={cn(
                                             "w-32 text-center",
-                                            dayType === "regular" ? "text-blue-900" : "text-green-900"
+                                            dayType === "regular" ? "text-primary" : "text-green-900"
                                         )}>פעולות</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -779,7 +779,7 @@ export default function ReminderSettings() {
                                             const rowOtherTitle = rowOtherDayType === "regular" ? "ימים רגילים" : "יום ראשון"
 
                                             return (
-                                                <TableRow key={row.id} className={cn(!row.originalReminder && "bg-blue-50")}>
+                                                <TableRow key={row.id} className={cn(!row.originalReminder && "bg-primary/10")}>
                                                     <TableCell className="text-center">
                                                         <Checkbox
                                                             checked={row.isActive}
@@ -887,7 +887,7 @@ export default function ReminderSettings() {
                                                                 className={cn(
                                                                     "h-8 w-8 p-0",
                                                                     dayType === "regular"
-                                                                        ? "text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                        ? "text-primary hover:text-primary hover:bg-primary/10"
                                                                         : "text-green-600 hover:text-green-700 hover:bg-green-50"
                                                                 )}
                                                                 title="שכפל שורה באותה טבלה"
@@ -903,7 +903,7 @@ export default function ReminderSettings() {
                                                                     "h-8 w-8 p-0",
                                                                     dayType === "regular"
                                                                         ? "text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                                        : "text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                        : "text-primary hover:text-primary hover:bg-primary/10"
                                                                 )}
                                                                 title={`שכפל ל${rowOtherTitle}`}
                                                             >

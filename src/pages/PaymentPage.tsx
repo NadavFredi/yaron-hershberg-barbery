@@ -487,7 +487,7 @@ export default function PaymentPage() {
                                     <div key={apt.id} className="border rounded-lg p-4 bg-gray-50">
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-2 text-right">
-                                                <Calendar className="h-4 w-4 text-blue-600" />
+                                                <Calendar className="h-4 w-4 text-primary" />
                                                 {apt.appointment && (
                                                     <span className="font-medium">
                                                         {format(new Date(apt.appointment.start_at), "dd/MM/yyyy", { locale: he })}

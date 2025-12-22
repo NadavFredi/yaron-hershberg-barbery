@@ -282,7 +282,7 @@ export function CustomerAppointmentsModal({
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
               <p className="text-gray-600">טוען תורים...</p>
             </div>
           </div>

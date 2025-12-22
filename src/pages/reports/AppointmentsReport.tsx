@@ -685,7 +685,7 @@ export default function AppointmentsReport() {
                 <>
                     {/* Grooming Stats */}
                     <div className="grid gap-4 md:grid-cols-1">
-                        <Card className="border-l-4 border-l-blue-500 cursor-pointer hover:shadow-md transition-shadow" onClick={() => {
+                        <Card className="border-l-4 border-l-primary cursor-pointer hover:shadow-md transition-shadow" onClick={() => {
                             const filtered = appointmentsData.allAppointments.filter((apt) => apt.serviceType === "grooming")
                             setDetailModalTitle("תורים - מספרה")
                             setDetailModalDescription(`סה"כ ${filtered.length} תורים`)
@@ -693,20 +693,20 @@ export default function AppointmentsReport() {
                             setDetailModalOpen(true)
                         }}>
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-blue-700 text-lg">מספרה</CardTitle>
+                                <CardTitle className="text-primary text-lg">מספרה</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <div className="flex gap-2 justify-center items-stretch">
                                     <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
                                         <CardContent className="pt-3 pb-3 text-center">
                                             <p className="text-[10px] text-slate-500 mb-0.5">סה"כ תורים</p>
-                                            <p className="text-xl font-bold text-blue-600 leading-tight">{appointmentsData.grooming.totalAppointments}</p>
+                                            <p className="text-xl font-bold text-primary leading-tight">{appointmentsData.grooming.totalAppointments}</p>
                                         </CardContent>
                                     </Card>
                                     <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
                                         <CardContent className="pt-3 pb-3 text-center">
                                             <p className="text-[10px] text-slate-500 mb-0.5">שעות פעילות</p>
-                                            <p className="text-xl font-bold text-blue-600 leading-tight">
+                                            <p className="text-xl font-bold text-primary leading-tight">
                                                 {formatDurationFromMinutes(appointmentsData.grooming.totalActiveHours)}
                                             </p>
                                         </CardContent>
@@ -714,7 +714,7 @@ export default function AppointmentsReport() {
                                     <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
                                         <CardContent className="pt-3 pb-3 text-center">
                                             <p className="text-[10px] text-slate-500 mb-0.5">שווי תורים</p>
-                                            <p className="text-xl font-bold text-blue-600 leading-tight">
+                                            <p className="text-xl font-bold text-primary leading-tight">
                                                 ₪{appointmentsData.grooming.totalWorth.toLocaleString("he-IL")}
                                             </p>
                                         </CardContent>
@@ -722,7 +722,7 @@ export default function AppointmentsReport() {
                                     <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
                                         <CardContent className="pt-3 pb-3 text-center">
                                             <p className="text-[10px] text-slate-500 mb-0.5">שולם בפועל</p>
-                                            <p className="text-xl font-bold text-blue-600 leading-tight">
+                                            <p className="text-xl font-bold text-primary leading-tight">
                                                 ₪{appointmentsData.grooming.totalPaid.toLocaleString("he-IL")}
                                             </p>
                                         </CardContent>
@@ -730,7 +730,7 @@ export default function AppointmentsReport() {
                                     <Card className="flex-1 cursor-pointer hover:shadow-md transition-shadow border border-slate-200 flex items-center justify-center">
                                         <CardContent className="pt-3 pb-3 text-center">
                                             <p className="text-[10px] text-slate-500 mb-0.5">שווי פריטי עגלה</p>
-                                            <p className="text-xl font-bold text-blue-600 leading-tight">
+                                            <p className="text-xl font-bold text-primary leading-tight">
                                                 ₪{appointmentsData.grooming.cartItemsWorth.toLocaleString("he-IL")}
                                             </p>
                                         </CardContent>

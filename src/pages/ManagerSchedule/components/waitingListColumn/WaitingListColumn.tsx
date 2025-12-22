@@ -119,7 +119,7 @@ export function WaitingListColumn({ selectedDate, timelineHeight }: WaitingListC
 
             {waitlistHasEntries && (
               <div className="flex flex-wrap gap-1 text-[11px]">
-                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
                   מספרה {waitingListSummary.scopeCounts.grooming}
                 </span>
               </div>
@@ -159,7 +159,7 @@ export function WaitingListColumn({ selectedDate, timelineHeight }: WaitingListC
                       key={`customer-type-${type.id}`}
                       type="button"
                       onClick={() => removeCustomerType(type.id)}
-                      className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700"
+                      className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] text-primary"
                     >
                       {type.name}
                       <X className="h-3 w-3" />

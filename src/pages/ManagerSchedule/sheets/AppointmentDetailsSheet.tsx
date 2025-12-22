@@ -51,7 +51,7 @@ const SERVICE_LABELS: Record<string, string> = {
 
 const SERVICE_STYLES: Record<string, { badge: string }> = {
     grooming: {
-        badge: "border-blue-200 bg-blue-100 text-blue-800",
+        badge: "border-primary/20 bg-primary/20 text-primary",
     },
 }
 
@@ -1433,7 +1433,7 @@ export const AppointmentDetailsSheet = ({
                 {isLoading ? (
                     <div className="flex items-center justify-center h-64">
                         <div className="text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
                             <p className="text-gray-600">טוען פרטי תור...</p>
                         </div>
                     </div>
@@ -1663,7 +1663,7 @@ export const AppointmentDetailsSheet = ({
                                                     clientId: selectedAppointment.clientId,
                                                     id: selectedAppointment.clientId
                                                 })}
-                                                className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                                className="text-sm font-medium text-primary hover:text-primary hover:underline cursor-pointer"
                                             >
                                                 {clientName}
                                             </button>
@@ -1920,12 +1920,12 @@ export const AppointmentDetailsSheet = ({
                             <Separator />
 
                             <div className="space-y-2">
-                                <h3 className="text-sm font-medium text-blue-900">הערות צוות לתור</h3>
+                                <h3 className="text-sm font-medium text-primary">הערות צוות לתור</h3>
                                 <Textarea
                                     value={appointmentInternalNotes || selectedAppointment.internalNotes || ""}
                                     onChange={(e) => setAppointmentInternalNotes(e.target.value)}
                                     placeholder="הזן הערות צוות פנימיות..."
-                                    className="min-h-[100px] text-right bg-blue-50 border-blue-200"
+                                    className="min-h-[100px] text-right bg-primary/10 border-primary/20"
                                     dir="rtl"
                                 />
                                 {(appointmentInternalNotes !== originalInternalNotes) && (

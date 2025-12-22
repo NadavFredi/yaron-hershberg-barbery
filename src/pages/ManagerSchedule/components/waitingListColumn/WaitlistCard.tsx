@@ -10,7 +10,7 @@ const WAITLIST_SCOPE_META: Record<
 > = {
   grooming: {
     label: "מספרה",
-    badgeClass: "bg-blue-50 text-blue-700 border-blue-100",
+    badgeClass: "bg-primary/10 text-primary border-primary/20",
   },
 }
 
@@ -32,8 +32,8 @@ export function WaitlistCard({ entry, isDragging = false, onClick }: WaitlistCar
   return (
     <div
       className={cn(
-        "rounded-lg border border-slate-200 bg-white p-3 text-right shadow-sm transition hover:border-blue-300",
-        isDragging ? "ring-2 ring-blue-200" : "cursor-pointer"
+        "rounded-lg border border-slate-200 bg-white p-3 text-right shadow-sm transition hover:border-primary/30",
+        isDragging ? "ring-2 ring-primary/20" : "cursor-pointer"
       )}
       onClick={(event) => {
         event.stopPropagation()
@@ -55,7 +55,7 @@ export function WaitlistCard({ entry, isDragging = false, onClick }: WaitlistCar
           <span className="rounded-full bg-slate-100 px-2 py-0.5">{dateLabel}</span>
         )}
         {entry.customerTypeName && (
-          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
             {entry.customerTypeName}
           </span>
         )}

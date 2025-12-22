@@ -420,7 +420,7 @@ export default function Appointments() {
         }
         const baseClasses = size === 'xs' ? 'text-xs' : 'text-sm'
         const stateClasses = latePickupRequested
-            ? 'bg-blue-100 text-blue-800 border-blue-200'
+            ? 'bg-primary/20 text-primary border-primary/20'
             : 'bg-slate-100 text-slate-600 border-slate-200'
         const label = latePickupRequested ? 'איסוף מאוחר' : 'איסוף רגיל'
 
@@ -612,7 +612,7 @@ export default function Appointments() {
         }
 
         if (normalizedStatus === "scheduled" || normalizedStatus === "תואם") {
-            return <Badge className="bg-blue-100 text-blue-800 border-blue-200">תואם</Badge>
+            return <Badge className="bg-primary/20 text-primary border-primary/20">תואם</Badge>
         }
 
         if (normalizedStatus === "pending" || normalizedStatus === "ממתין") {
@@ -630,13 +630,13 @@ export default function Appointments() {
     const getServiceIcon = (service: string) => {
         switch (service.toLowerCase()) {
             case "grooming":
-                return <Scissors className="h-4 w-4 text-blue-600" />
+                return <Scissors className="h-4 w-4 text-primary" />
             case "garden":
                 return <Bone className="h-4 w-4 text-amber-600" />
             case "both":
                 return (
                     <div className="flex items-center gap-1">
-                        <Scissors className="h-3 w-3 text-blue-600" />
+                        <Scissors className="h-3 w-3 text-primary" />
                         <Bone className="h-3 w-3 text-amber-600" />
                     </div>
                 )
@@ -658,7 +658,7 @@ export default function Appointments() {
         }
 
         if (normalized.includes("notify") || normalized.includes("notified")) {
-            return <Badge className="bg-blue-100 text-blue-700 border-blue-200">הודעה נשלחה</Badge>
+            return <Badge className="bg-primary/20 text-primary border-primary/20">הודעה נשלחה</Badge>
         }
 
         if (normalized.includes("approve") || normalized.includes("confirmed") || normalized.includes("מאושר")) {
@@ -695,7 +695,7 @@ export default function Appointments() {
         }
 
         return (
-            <Badge className="bg-blue-100 text-blue-700 border-blue-200 flex items-center gap-1">
+            <Badge className="bg-primary/20 text-primary border-primary/20 flex items-center gap-1">
                 <Scissors className="h-3 w-3" />
                 <span>תספורת</span>
             </Badge>
@@ -1207,7 +1207,7 @@ export default function Appointments() {
         return (
             <div className="min-h-screen container mx-auto px-4 py-8">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
                     <p className="mt-4 text-gray-600">טוען תורים...</p>
                     <div className="mt-4 space-y-2">
                         <p className="text-sm text-gray-500">טוען רשימת הלקוחות</p>
@@ -1347,7 +1347,7 @@ export default function Appointments() {
                 <DialogContent dir="rtl" className="max-w-lg text-right space-y-5">
                     <DialogHeader className="space-y-2 text-right">
                         <DialogTitle className="flex items-center justify-start gap-2 text-right">
-                            <MessageSquareText className="h-5 w-5 text-blue-600" />
+                            <MessageSquareText className="h-5 w-5 text-primary" />
                             <span className="text-lg font-bold text-gray-900">עריכת הערות לתור</span>
                         </DialogTitle>
                         <DialogDescription className="text-sm text-gray-600 leading-6 text-right">
@@ -1398,7 +1398,7 @@ export default function Appointments() {
                         <Button
                             onClick={saveNotesForAppointment}
                             disabled={isSavingNotes}
-                            className="bg-blue-600 hover:bg-blue-700 min-w-[120px] flex items-center gap-2"
+                            className="bg-primary hover:bg-primary/90 min-w-[120px] flex items-center gap-2"
                         >
                             {isSavingNotes ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                             שמור הערות
@@ -1411,8 +1411,8 @@ export default function Appointments() {
                 <DialogContent dir="rtl" className="max-w-lg text-right space-y-5">
                     <DialogHeader className="space-y-2 text-right">
                         <div className="flex items-center justify-start gap-3">
-                            <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center">
-                                <Clock className="h-5 w-5 text-blue-600" />
+                            <div className="w-9 h-9 bg-primary/20 rounded-full flex items-center justify-center">
+                                <Clock className="h-5 w-5 text-primary" />
                             </div>
                             <DialogTitle className="text-xl font-semibold text-gray-900">עדכון איסוף מאוחר</DialogTitle>
                         </div>
@@ -1441,7 +1441,7 @@ export default function Appointments() {
                                 </div>
                             </div>
 
-                            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                            <div className="flex items-start gap-3 p-4 bg-primary/10 border border-primary/20 rounded-md">
                                 <input
                                     type="checkbox"
                                     id="late-pickup-toggle"
@@ -1453,13 +1453,13 @@ export default function Appointments() {
                                             setLatePickupDialogNotes("")
                                         }
                                     }}
-                                    className="mt-1 h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                                    className="mt-1 h-4 w-4 rounded border-primary/30 text-primary focus:ring-primary"
                                 />
                                 <div className="text-right space-y-1" dir="rtl">
-                                    <label htmlFor="late-pickup-toggle" className="text-sm font-medium text-blue-900 cursor-pointer">
+                                    <label htmlFor="late-pickup-toggle" className="text-sm font-medium text-primary cursor-pointer">
                                         כן, אני רוצה איסוף מאוחר עד 17:30
                                     </label>
-                                    <p className="text-xs text-blue-700">
+                                    <p className="text-xs text-primary">
                                         אם לא תבחרו באפשרות זו, נניח שהאיסוף יהיה בשעה הרגילה (עד 15:30).
                                     </p>
                                 </div>
@@ -1477,7 +1477,7 @@ export default function Appointments() {
                                         rows={4}
                                         dir="rtl"
                                         placeholder="מתי תרצו לאסוף? האם יש פרטים נוספים שכדאי שנדע?"
-                                        className="text-right focus-visible:ring-blue-500"
+                                        className="text-right focus-visible:ring-primary"
                                     />
                                     <p className="text-xs text-gray-500 text-right">נעדכן את הצוות שלנו בפרטים שתרשמו כאן.</p>
                                 </div>
@@ -1497,7 +1497,7 @@ export default function Appointments() {
                         <Button
                             onClick={saveLatePickupPreference}
                             disabled={isSavingLatePickup || !latePickupDialogState}
-                            className="bg-blue-600 hover:bg-blue-700 min-w-[140px] flex items-center gap-2"
+                            className="bg-primary hover:bg-primary/90 min-w-[140px] flex items-center gap-2"
                         >
                             {isSavingLatePickup ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                             שמור עדכון
@@ -1558,7 +1558,7 @@ export default function Appointments() {
                             <p className="text-gray-600 mb-4">עדיין לא קבעת תורים עבור הלקוחות שלך.</p>
                             <Button
                                 onClick={() => navigate('/setup-appointment')}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                className="bg-primary hover:bg-primary/90"
                             >
                                 קבע תור חדש
                             </Button>
@@ -1569,21 +1569,21 @@ export default function Appointments() {
                         <TabsList dir="rtl" className="grid w-full grid-cols-3 rounded-xl bg-white/80 border border-white/80 shadow-sm overflow-hidden">
                             <TabsTrigger
                                 value="past"
-                                className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-blue-100/90 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-blue-400 data-[state=inactive]:hover:bg-white data-[state=inactive]:hover:text-gray-700 transition-colors"
+                                className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-primary/20/90 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary/40 data-[state=inactive]:hover:bg-white data-[state=inactive]:hover:text-gray-700 transition-colors"
                             >
                                 <History className="h-4 w-4" />
                                 <span>תורי עבר</span>
                             </TabsTrigger>
                             <TabsTrigger
                                 value="upcoming"
-                                className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-blue-100/90 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-blue-400 data-[state=inactive]:hover:bg-white data-[state=inactive]:hover:text-gray-700 transition-colors"
+                                className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-primary/20/90 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary/40 data-[state=inactive]:hover:bg-white data-[state=inactive]:hover:text-gray-700 transition-colors"
                             >
                                 <CalendarClock className="h-4 w-4" />
                                 <span>תורים עתידיים</span>
                             </TabsTrigger>
                             <TabsTrigger
                                 value="waitingList"
-                                className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-blue-100/90 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-blue-400 data-[state=inactive]:hover:bg-white data-[state=inactive]:hover:text-gray-700 transition-colors"
+                                className="flex flex-row-reverse items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-primary/20/90 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-primary/40 data-[state=inactive]:hover:bg-white data-[state=inactive]:hover:text-gray-700 transition-colors"
                             >
                                 <BellRing className="h-4 w-4" />
                                 <span>רשימת המתנה</span>
@@ -1692,8 +1692,8 @@ export default function Appointments() {
                                                                 </div>
                                                             </div>
                                                             {appointment.notes?.trim() && (
-                                                                <div className="bg-blue-50 border border-blue-100 rounded-md p-3 text-sm text-gray-700 text-right whitespace-pre-wrap">
-                                                                    <div className="flex items-center justify-end gap-1  text-blue-700 text-xs font-semibold mb-1">
+                                                                <div className="bg-primary/10 border border-primary/20 rounded-md p-3 text-sm text-gray-700 text-right whitespace-pre-wrap">
+                                                                    <div className="flex items-center justify-end gap-1  text-primary text-xs font-semibold mb-1">
                                                                         <span>הערות לתור</span>
                                                                         <MessageSquareText className="h-4 w-4" />
                                                                     </div>
@@ -1710,7 +1710,7 @@ export default function Appointments() {
                                                                 </div>
                                                             )}
                                                             {appointmentIncludesGarden(appointment) && appointment.latePickupRequested && latePickupDetails && (
-                                                                <div className="bg-blue-50 border border-blue-100 rounded-md p-3 text-xs text-blue-800 text-right whitespace-pre-wrap">
+                                                                <div className="bg-primary/10 border border-primary/20 rounded-md p-3 text-xs text-primary text-right whitespace-pre-wrap">
                                                                     <div className="font-semibold mb-1">פרטי איסוף מאוחר</div>
                                                                     {latePickupDetails}
                                                                 </div>
@@ -1732,11 +1732,11 @@ export default function Appointments() {
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
-                                                                    className="text-blue-700 hover:text-blue-800 border-blue-200 hover:bg-blue-50 flex flex-row-reverse items-center gap-1"
+                                                                    className="text-primary hover:text-primary border-primary/20 hover:bg-primary/10 flex flex-row-reverse items-center gap-1"
                                                                     onClick={() => openLatePickupDialog(appointment)}
                                                                     disabled={isSavingLatePickup && latePickupDialogState?.appointment.id === appointment.id}
                                                                 >
-                                                                    <Clock className="h-4 w-4 text-blue-600" />
+                                                                    <Clock className="h-4 w-4 text-primary" />
                                                                     עדכן איסוף מאוחר
                                                                 </Button>
                                                             )}
@@ -1744,7 +1744,7 @@ export default function Appointments() {
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
-                                                                    className="text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50 flex flex-row-reverse items-center gap-1"
+                                                                    className="text-primary hover:text-primary border-primary/20 hover:bg-primary/10 flex flex-row-reverse items-center gap-1"
                                                                     onClick={() => openNotesDialog(appointment)}
                                                                     disabled={isSavingNotes && notesDialogAppointment?.id === appointment.id}
                                                                 >
@@ -2001,8 +2001,8 @@ export default function Appointments() {
                                                                 </div>
                                                             </div>
                                                             {appointment.notes?.trim() && (
-                                                                <div className="bg-blue-50 border border-blue-100 rounded-md p-3 text-sm text-gray-700 text-right whitespace-pre-wrap">
-                                                                    <div className="flex items-center justify-end gap-1 flex-row-reverse text-blue-700 text-xs font-semibold mb-1">
+                                                                <div className="bg-primary/10 border border-primary/20 rounded-md p-3 text-sm text-gray-700 text-right whitespace-pre-wrap">
+                                                                    <div className="flex items-center justify-end gap-1 flex-row-reverse text-primary text-xs font-semibold mb-1">
                                                                         <MessageSquareText className="h-4 w-4" />
                                                                         <span>הערות לתור</span>
                                                                     </div>
@@ -2019,7 +2019,7 @@ export default function Appointments() {
                                                                 </div>
                                                             )}
                                                             {appointmentIncludesGarden(appointment) && appointment.latePickupRequested && latePickupDetails && (
-                                                                <div className="bg-blue-50 border border-blue-100 rounded-md p-3 text-xs text-blue-800 text-right whitespace-pre-wrap">
+                                                                <div className="bg-primary/10 border border-primary/20 rounded-md p-3 text-xs text-primary text-right whitespace-pre-wrap">
                                                                     <div className="font-semibold mb-1">פרטי איסוף מאוחר</div>
                                                                     {latePickupDetails}
                                                                 </div>
@@ -2041,7 +2041,7 @@ export default function Appointments() {
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
-                                                                    className="text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50 flex flex-row-reverse items-center gap-1"
+                                                                    className="text-primary hover:text-primary border-primary/20 hover:bg-primary/10 flex flex-row-reverse items-center gap-1"
                                                                     onClick={() => openNotesDialog(appointment)}
                                                                     disabled={isSavingNotes && notesDialogAppointment?.id === appointment.id}
                                                                 >

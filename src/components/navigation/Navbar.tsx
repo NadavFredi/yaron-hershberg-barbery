@@ -65,7 +65,7 @@ import {
 } from "@/components/ui/tooltip"
 
 const SERVICE_BADGE_STYLES: Record<PendingAppointmentRequest["serviceType"], string> = {
-    grooming: "bg-blue-100 text-blue-700 border border-blue-200"
+    grooming: "bg-primary/20 text-primary border border-primary/20"
 }
 
 const SERVICE_TYPE_LABELS: Record<PendingAppointmentRequest["serviceType"], string> = {
@@ -137,7 +137,7 @@ const ManagerNotificationBell = ({
                     )}
                     {isFetching && (
                         <span className="absolute -bottom-1 -left-1">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                         </span>
                     )}
                 </Button>
@@ -230,7 +230,7 @@ const ManagerNotificationBell = ({
                         size="sm"
                         onClick={onRefresh}
                         disabled={isFetching}
-                        className="justify-center text-blue-600 hover:text-blue-700"
+                        className="justify-center text-primary hover:text-primary"
                     >
                         {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>רענון עכשיו</span>}
                     </Button>
@@ -671,7 +671,7 @@ export function Navbar({ isManager }: NavbarProps) {
                             "relative rounded-full transition-colors",
                             hasOpenShift
                                 ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                                : "text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                : "text-primary hover:text-primary hover:bg-primary/10"
                         )}
                         aria-label={hasOpenShift ? "סיום משמרת" : "התחלת משמרת"}
                     >
@@ -700,7 +700,7 @@ export function Navbar({ isManager }: NavbarProps) {
                         </div>
                     ) : (
                         <div className="space-y-1">
-                            <div className="font-semibold text-blue-700">לחיצה תתחיל משמרת חדשה</div>
+                            <div className="font-semibold text-primary">לחיצה תתחיל משמרת חדשה</div>
                             <div className="text-xs text-slate-500">
                                 עד כה היום עבדת {formatMinutesToLabel(workerStatus.totals.todayMinutes)}
                             </div>
@@ -1021,7 +1021,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                             key={item.path}
                                             to={item.path}
                                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive(item.path)
-                                                ? "bg-blue-600 text-white shadow-sm"
+                                                ? "bg-primary text-white shadow-sm"
                                                 : "text-gray-700 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm"
                                                 }`}
                                         >
@@ -1078,7 +1078,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                                 className={cn(
                                                     "rounded-full transition-colors",
                                                     isNavbarPinned
-                                                        ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                                        ? "bg-primary/20 text-primary hover:bg-primary/30"
                                                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                                                 )}
                                                 aria-label={isNavbarPinned ? "בטל נעיצה" : "נעץ"}
@@ -1174,11 +1174,11 @@ export function Navbar({ isManager }: NavbarProps) {
                                                         className="flex w-full items-center justify-between px-4 py-2 text-base font-semibold text-gray-700"
                                                     >
                                                         <span className="flex items-center gap-2">
-                                                            <item.icon className={`h-5 w-5 ${isActive(item.path) ? "text-blue-600" : "text-slate-500"}`} />
+                                                            <item.icon className={`h-5 w-5 ${isActive(item.path) ? "text-primary" : "text-slate-500"}`} />
                                                             <span>{item.label}</span>
                                                         </span>
                                                         <ChevronDown
-                                                            className={`h-4 w-4 transition-transform ${isSectionExpanded ? "rotate-180 text-blue-600" : "text-gray-500"}`}
+                                                            className={`h-4 w-4 transition-transform ${isSectionExpanded ? "rotate-180 text-primary" : "text-gray-500"}`}
                                                         />
                                                     </button>
 
@@ -1191,7 +1191,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                                                 const isSectionActive = section.match(location.pathname, currentManagerSection, modeParam) || nestedActive
                                                                 const baseClasses = `flex w-full items-center justify-between gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors`
                                                                 const activeClasses = isSectionActive
-                                                                    ? "bg-blue-100 text-blue-700"
+                                                                    ? "bg-primary/20 text-primary"
                                                                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
 
                                                                 return (
@@ -1209,11 +1209,11 @@ export function Navbar({ isManager }: NavbarProps) {
                                                                                 className={`${baseClasses} ${activeClasses}`}
                                                                             >
                                                                                 <span className="flex items-center gap-2">
-                                                                                    <section.icon className={`h-4 w-4 ${isSectionActive ? "text-blue-600" : "text-slate-500"}`} />
+                                                                                    <section.icon className={`h-4 w-4 ${isSectionActive ? "text-primary" : "text-slate-500"}`} />
                                                                                     <span>{section.label}</span>
                                                                                 </span>
                                                                                 <ChevronDown
-                                                                                    className={`h-4 w-4 transition-transform ${isNestedExpanded ? "rotate-180 text-blue-600" : ""}`}
+                                                                                    className={`h-4 w-4 transition-transform ${isNestedExpanded ? "rotate-180 text-primary" : ""}`}
                                                                                 />
                                                                             </button>
                                                                         ) : (
@@ -1223,7 +1223,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                                                                 className={`${baseClasses} ${activeClasses}`}
                                                                             >
                                                                                 <span className="flex items-center gap-2">
-                                                                                    <section.icon className={`h-4 w-4 ${isSectionActive ? "text-blue-600" : "text-slate-500"}`} />
+                                                                                    <section.icon className={`h-4 w-4 ${isSectionActive ? "text-primary" : "text-slate-500"}`} />
                                                                                     <span>{section.label}</span>
                                                                                 </span>
                                                                             </Link>
@@ -1262,7 +1262,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                                 to={item.path}
                                                 onClick={() => setIsMobileMenuOpen(false)}
                                                 className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-all duration-200 ${isActive(item.path)
-                                                    ? "bg-blue-600 text-white shadow-sm"
+                                                    ? "bg-primary text-white shadow-sm"
                                                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm"
                                                     }`}
                                             >

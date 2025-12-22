@@ -5,7 +5,7 @@ import { Play, Scissors, Sparkles, Heart, HelpCircle, Store, Camera, UserCheck, 
 
 export default function About() {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50" dir="rtl">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/10 to-purple-50" dir="rtl">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
 
@@ -64,8 +64,8 @@ export default function About() {
                         <Link to="/salon-services" className="block h-full">
                             <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-105 cursor-pointer min-h-[200px] h-full">
                                 <CardContent className="p-0 h-full flex flex-col items-center justify-center text-center">
-                                    <div className="p-3 bg-blue-100 rounded-full mb-4">
-                                        <Scissors className="h-6 w-6 text-blue-600" />
+                                    <div className="p-3 bg-primary/20 rounded-full mb-4">
+                                        <Scissors className="h-6 w-6 text-primary" />
                                     </div>
                                     <p className="text-lg font-semibold text-gray-900">
                                         צבע, גוונים תספורת וטיפולי מספרה
@@ -172,7 +172,7 @@ export default function About() {
                     <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
                         <CardContent className="p-0">
                             <div className="flex items-center justify-center gap-3 mb-10">
-                                <div className="p-3 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full">
+                                <div className="p-3 bg-gradient-to-br from-purple-100 to-primary/20 rounded-full">
                                     <Star className="h-8 w-8 text-purple-600" />
                                 </div>
                                 <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
@@ -182,10 +182,10 @@ export default function About() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Feature 1 */}
-                                <div className="flex gap-4 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-primary/10 to-indigo-50 rounded-2xl hover:shadow-lg transition-shadow">
                                     <div className="flex-shrink-0">
-                                        <div className="p-3 bg-blue-100 rounded-full">
-                                            <Camera className="h-6 w-6 text-blue-600" />
+                                        <div className="p-3 bg-primary/20 rounded-full">
+                                            <Camera className="h-6 w-6 text-primary" />
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -250,7 +250,7 @@ export default function About() {
                                 </div>
 
                                 {/* Feature 5 */}
-                                <div className="flex gap-4 p-6 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl hover:shadow-lg transition-shadow">
+                                <div className="flex gap-4 p-6 bg-gradient-to-br from-indigo-50 to-primary/10 rounded-2xl hover:shadow-lg transition-shadow">
                                     <div className="flex-shrink-0">
                                         <div className="p-3 bg-indigo-100 rounded-full">
                                             <GraduationCap className="h-6 w-6 text-indigo-600" />

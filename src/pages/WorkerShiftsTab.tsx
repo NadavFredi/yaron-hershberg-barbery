@@ -546,7 +546,7 @@ export function WorkerShiftsTab() {
                                             className={cn(
                                                 "border-b text-right transition-colors",
                                                 isNewRow
-                                                    ? "bg-blue-50"
+                                                    ? "bg-primary/10"
                                                     : row.originalShift?.workerIsActive
                                                       ? "bg-[hsl(228_36%_99%)] hover:bg-[hsl(228_36%_97%)]"
                                                       : "bg-white hover:bg-muted/40",
@@ -713,7 +713,7 @@ export function WorkerShiftsTab() {
                                                                 size="icon"
                                                                 onClick={() => handleEditRow(row.id)}
                                                                 disabled={isLoading}
-                                                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
                                                             >
                                                                 <Plus className="h-4 w-4 rotate-45" />
                                                             </Button>
