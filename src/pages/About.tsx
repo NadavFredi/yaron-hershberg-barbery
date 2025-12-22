@@ -2,16 +2,27 @@ import { Link } from "react-router-dom"
 import { Button } from "../components/ui/button.tsx"
 import { Card, CardContent } from "../components/ui/card.tsx"
 import { Play, Scissors, Sparkles, Heart, HelpCircle, Store, Camera, UserCheck, Leaf, Clock, GraduationCap, Star } from "lucide-react"
+import heroImage from "../assets/images/hairs_preview.jpeg"
 
 export default function About() {
     return (
-        <div className="min-h-screen from-slate-50 via-primary/10 to-primary/10" dir="rtl">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="min-h-screen from-slate-50 via-primary/10 to-primary/10 relative" dir="rtl">
+            {/* Hero Image Section - Absolute Positioned */}
+            <section className="absolute top-0 left-0 right-0 w-screen h-[250px] md:h-[300px] lg:h-[350px] overflow-hidden z-0">
+                <div className="relative w-full h-full">
+                    <img
+                        src={heroImage}
+                        alt="אבחון מקצועי של קרקפת ושיער"
+                        className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+                </div>
+            </section>
 
-
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-30">
                 {/* Main Heading Section */}
-                <section className="mb-16">
-                    <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12">
+                <section className="mb-16 pt-[150px] md:pt-[200px] lg:pt-[250px]">
+                    <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-3xl p-8 md:p-12 relative z-30">
                         <div className="text-center space-y-4">
                             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold ">
                                 סובלים מנשירה או בעיות קרקפת?
