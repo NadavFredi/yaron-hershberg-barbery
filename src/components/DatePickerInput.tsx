@@ -109,6 +109,7 @@ export const DatePickerInput = forwardRef<HTMLInputElement, DatePickerInputProps
     const [isYearInputMode, setIsYearInputMode] = useState(false)
     const [yearInputValue, setYearInputValue] = useState("")
     const [portalStyles, setPortalStyles] = useState<CSSProperties>()
+    const [maxHeight, setMaxHeight] = useState<number>(400) // Default max height for calendar
 
     useImperativeHandle(ref, () => inputRef.current as HTMLInputElement)
 
@@ -165,12 +166,37 @@ export const DatePickerInput = forwardRef<HTMLInputElement, DatePickerInputProps
       const rect = anchor.getBoundingClientRect()
       const calendarWidth = calendarContainerRef.current?.offsetWidth || 288 // default ~18rem
       const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
       const gutter = 8
+      const defaultMaxHeight = 330
 
+      // Calculate available space
+      const spaceBelow = viewportHeight - rect.bottom - gutter
+      const spaceAbove = rect.top - gutter
+
+      // Calculate dynamic max-height based on available space
+      // Use the larger of the two spaces, but cap at default max-height
+      const availableSpace = Math.max(spaceBelow, spaceAbove)
+      const calculatedMaxHeight = Math.min(availableSpace - 20, defaultMaxHeight) // 20px buffer
+      setMaxHeight(Math.max(calculatedMaxHeight, 400)) // Minimum 400px height
+
+      // Calculate horizontal position
       let left = rect.right - calendarWidth
       left = Math.max(gutter, Math.min(left, viewportWidth - calendarWidth - gutter))
 
-      const top = rect.bottom + gutter
+      // Calculate vertical position - check if calendar fits below, otherwise show above
+      let top = rect.bottom + gutter
+      const estimatedCalendarHeight = Math.min(calculatedMaxHeight, defaultMaxHeight)
+
+      // If not enough space below but more space above, show above
+      // Use a smaller gap when positioning above to keep it closer to the input
+      if (spaceBelow < estimatedCalendarHeight && spaceAbove > spaceBelow) {
+        const gapAbove = 0 // Smaller gap when showing above to keep it closer to input
+        top = rect.top - estimatedCalendarHeight - gapAbove
+      }
+
+      // Ensure calendar doesn't go off-screen vertically
+      top = Math.max(gutter, Math.min(top, viewportHeight - estimatedCalendarHeight - gutter))
 
       setPortalStyles({
         position: "fixed",
@@ -443,10 +469,10 @@ export const DatePickerInput = forwardRef<HTMLInputElement, DatePickerInputProps
               ref={calendarContainerRef}
               data-date-picker-portal
               className={cn(
-                "w-[18rem] rounded-md border border-gray-200 bg-white shadow-lg",
+                "w-[18rem] rounded-md border border-gray-200 bg-white shadow-lg overflow-y-auto overflow-x-hidden",
                 !usePortal && "absolute right-0 mt-2 z-[100]"
               )}
-              style={usePortal ? { ...portalStyles, pointerEvents: 'auto' } : undefined}
+              style={usePortal ? { ...portalStyles, pointerEvents: 'auto', maxHeight: `${maxHeight}px` } : { maxHeight: `${maxHeight}px` }}
             >
               {calendarView === "day" && (
                 <div>
