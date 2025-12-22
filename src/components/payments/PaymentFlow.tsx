@@ -470,27 +470,28 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
     }
 
     // Poll for payment status after iframe is shown (callback creates payment server-side)
+    // Poll for new tickets after iframe is shown (callback creates ticket server-side)
     useEffect(() => {
-        const cartId = config.customData?.cart_id as string | undefined
+        const subscriptionTypeId = config.customData?.subscription_type_id as string | undefined
 
         console.log("🔍 [PaymentFlow] Polling useEffect triggered:", {
             step,
             open,
-            cartId,
+            subscriptionTypeId,
             customerId: config.customerId,
             hasInterval: !!pollingIntervalRef.current,
             iframeShownAt: iframeShownAtRef.current?.toISOString()
         })
 
-        // Only poll when modal is open, on iframe step, and we have cart ID
-        if (open && step === "iframe" && cartId && config.customerId && !pollingIntervalRef.current) {
-            // Record when iframe was shown to only check for payments created after this time
+        // Only poll when modal is open, on iframe step, and we have subscription type ID
+        if (open && step === "iframe" && subscriptionTypeId && config.customerId && !pollingIntervalRef.current) {
+            // Record when iframe was shown to only check for tickets created after this time
             if (!iframeShownAtRef.current) {
                 iframeShownAtRef.current = new Date()
                 console.log("📅 [PaymentFlow] Recording iframe shown timestamp:", iframeShownAtRef.current.toISOString())
             }
 
-            console.log("🚀 [PaymentFlow] Starting payment polling...")
+            console.log("🚀 [PaymentFlow] Starting ticket polling...")
             let pollCount = 0
             const maxPolls = 60 // Poll for up to 60 seconds (60 * 3 second intervals)
 
@@ -498,7 +499,7 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
                 pollCount++
                 console.log(`🔄 [PaymentFlow] Polling attempt ${pollCount}/${maxPolls}`, {
                     customerId: config.customerId,
-                    cartId,
+                    subscriptionTypeId,
                     iframeShownAt: iframeShownAtRef.current?.toISOString()
                 })
 
@@ -506,30 +507,35 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
                     const iframeShownAt = iframeShownAtRef.current
                     const timestampFilter = iframeShownAt?.toISOString() || new Date().toISOString()
 
-                    // Check for new payment or order created after iframe was shown
-                    const { data: paymentData, error: paymentError } = await supabase
-                        .from("payments")
-                        .select("id, status, created_at, external_id")
+                    console.log("🔎 [PaymentFlow] Querying tickets:", {
+                        customerId: config.customerId,
+                        subscriptionTypeId,
+                        createdAfter: timestampFilter
+                    })
+
+                    const { data, error } = await supabase
+                        .from("tickets")
+                        .select("id, created_at, ticket_type_id, customer_id")
                         .eq("customer_id", config.customerId)
+                        .eq("ticket_type_id", subscriptionTypeId)
                         .gte("created_at", timestampFilter)
-                        .eq("status", "paid")
                         .order("created_at", { ascending: false })
                         .limit(1)
                         .maybeSingle()
 
-                    console.log("📊 [PaymentFlow] Payment poll result:", {
-                        hasData: !!paymentData,
-                        hasError: !!paymentError,
-                        data: paymentData ? { id: paymentData.id, status: paymentData.status, external_id: paymentData.external_id } : null,
-                        error: paymentError ? { message: paymentError.message } : null
+                    console.log("📊 [PaymentFlow] Poll result:", {
+                        hasData: !!data,
+                        hasError: !!error,
+                        data: data ? { id: data.id, ticket_type_id: data.ticket_type_id, created_at: data.created_at } : null,
+                        error: error ? { message: error.message, details: error.details } : null
                     })
 
-                    if (!paymentError && paymentData) {
-                        // Payment found! Stop polling and trigger success
-                        console.log("✅ [PaymentFlow] New payment detected:", {
-                            paymentId: paymentData.id,
-                            status: paymentData.status,
-                            externalId: paymentData.external_id
+                    if (!error && data) {
+                        // Ticket found! Stop polling and trigger success
+                        console.log("✅ [PaymentFlow] New ticket detected:", {
+                            ticketId: data.id,
+                            ticketTypeId: data.ticket_type_id,
+                            createdAt: data.created_at
                         })
 
                         if (pollingIntervalRef.current) {
@@ -539,8 +545,8 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
                         iframeShownAtRef.current = null
 
                         toast({
-                            title: "תשלום התקבל בהצלחה",
-                            description: "התשלום נרשם במערכת",
+                            title: "רכישה הושלמה בהצלחה",
+                            description: "המנוי נוסף לחשבון שלך",
                         })
 
                         config.onSuccess?.()
@@ -554,7 +560,7 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
                         iframeShownAtRef.current = null
                     }
                 } catch (error) {
-                    console.error("❌ [PaymentFlow] Error polling for payment:", error)
+                    console.error("❌ [PaymentFlow] Error polling for tickets:", error)
                     if (pollCount >= maxPolls) {
                         if (pollingIntervalRef.current) {
                             clearInterval(pollingIntervalRef.current)
@@ -568,7 +574,7 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
             console.log("⏸️ [PaymentFlow] Polling conditions not met:", {
                 open,
                 step,
-                hasCartId: !!cartId,
+                hasSubscriptionTypeId: !!subscriptionTypeId,
                 hasCustomerId: !!config.customerId,
                 hasInterval: !!pollingIntervalRef.current
             })
@@ -587,7 +593,7 @@ export const PaymentFlow: React.FC<PaymentFlowProps> = ({
     if (step === "iframe") {
         return (
             <Dialog open={open} onOpenChange={handleClose}>
-                <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-0" dir="rtl">
+                <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto p-0" dir="rtl">
                     <div className="flex items-center justify-start p-4 border-b sticky top-0 bg-white z-10">
                         <Button
                             variant="ghost"
