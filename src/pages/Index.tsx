@@ -1,18 +1,106 @@
 
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { User, UserPlus, Lock } from 'lucide-react';
-import logoImage from '@/assets/logo.jpeg';
+import { User, UserPlus, Loader2 } from 'lucide-react';
+import logoImage from '@/assets/logo.png';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { useManagerRole } from '@/hooks/useManagerRole';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { user, hasInitialized } = useSupabaseAuth();
+  const { isManager, isLoading: isManagerLoading } = useManagerRole();
+  const [isWorker, setIsWorker] = useState<boolean | null>(null);
+  const [isCheckingRole, setIsCheckingRole] = useState(true);
+
+  // Check if user is a worker
+  useEffect(() => {
+    const checkWorkerRole = async () => {
+      if (!hasInitialized) {
+        setIsCheckingRole(true);
+        return;
+      }
+
+      if (!user?.id) {
+        setIsWorker(false);
+        setIsCheckingRole(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          setIsWorker(false);
+        } else {
+          setIsWorker(data?.role === 'worker');
+        }
+      } catch (_error) {
+        setIsWorker(false);
+      } finally {
+        setIsCheckingRole(false);
+      }
+    };
+
+    checkWorkerRole();
+  }, [user?.id, hasInitialized]);
+
+  // Redirect logic when user is logged in
+  useEffect(() => {
+    // Wait for all checks to complete
+    if (!hasInitialized || isManagerLoading || isCheckingRole) {
+      return;
+    }
+
+    // Only redirect if user is logged in
+    if (user) {
+      // If user is manager or worker, redirect to manager page
+      if (isManager || isWorker) {
+        navigate('/manager', { replace: true });
+      } else {
+        // Otherwise, redirect to setup appointment page
+        navigate('/setup-appointment', { replace: true });
+      }
+    }
+  }, [user, hasInitialized, isManager, isManagerLoading, isWorker, isCheckingRole, navigate]);
+
+  // Show loading state while checking auth and roles
+  if (!hasInitialized || isManagerLoading || isCheckingRole) {
+    return (
+      <div className="pt-4 px-4">
+        <div className="max-w-md mx-auto">
+          <div className="text-center mb-8">
+            <div className="w-48 h-48 mx-auto mb-4">
+              <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
+            </div>
+            <div className="flex items-center justify-center gap-2 text-gray-500 mb-8">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>טוען...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is logged in, don't show the landing page (redirect will happen)
+  if (user) {
+    return null;
+  }
+
   return (
     <div className="pt-4 px-4">
       <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
-          <div className="w-24 h-24 mx-auto mb-4">
+          <div className="w-48 h-48 mx-auto mb-4">
             <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">Yaron Hershberg</h1>
-          <p className="text-xl text-gray-600 mb-6">מספרה מקצועית</p>
           <p className="text-gray-500 mb-8">ברוכים הבאים למערכת הזימון תורים שלנו</p>
         </div>
 

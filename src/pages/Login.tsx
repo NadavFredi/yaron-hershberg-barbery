@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SignIn } from '@/components/auth/SignIn';
-import logoImage from '@/assets/logo.jpeg';
+import logoImage from '@/assets/logo.png';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { useManagerRole } from '@/hooks/useManagerRole';
 
@@ -22,8 +22,8 @@ const Login = () => {
                 // Admin/Manager - redirect to manager board
                 navigate('/manager', { replace: true });
             } else {
-                // Regular user - redirect to appointments page
-                navigate('/appointments', { replace: true });
+                // Regular user - redirect to setup appointment page
+                navigate('/setup-appointment', { replace: true });
             }
         }
         // If not logged in, let them stay on login page
@@ -33,11 +33,9 @@ const Login = () => {
         <div className="pt-4 px-4">
             <div className="max-w-md mx-auto">
                 <div className="text-center mb-4">
-                    <div className="w-20 h-20 mx-auto mb-3">
+                    <div className="w-48 h-48 mx-auto mb-3">
                         <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Yaron Hershberg</h1>
-                    <p className="text-gray-600">מספרת לקוחות מקצועית</p>
                 </div>
                 <SignIn
                     onSwitchToSignUp={() => { }}

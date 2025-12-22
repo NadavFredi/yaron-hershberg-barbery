@@ -350,7 +350,7 @@ const SetupAppointment: React.FC = () => {
   return (
     <div className="container mx-auto max-w-4xl px-4 py-10">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-white shadow-lg">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-lg">
           <Scissors className="h-6 w-6" />
         </div>
         <h1 className="text-3xl font-bold text-gray-900">קבעו תור לטיפול</h1>
@@ -367,21 +367,21 @@ const SetupAppointment: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-gray-700">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 h-6 w-6 rounded-full bg-indigo-100 text-center text-indigo-700">1</span>
+              <span className="mt-0.5 h-6 w-6 rounded-full bg-primary/20 text-primary flex items-center justify-center">1</span>
               <div>
                 <p className="font-semibold text-gray-900">בחרו שירות</p>
                 <p className="text-gray-600">תספורת, טיפוח זקן או טיפול פרימיום.</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 h-6 w-6 rounded-full bg-indigo-100 text-center text-indigo-700">2</span>
+              <span className="mt-0.5 h-6 w-6 rounded-full bg-primary/20 text-primary flex items-center justify-center">2</span>
               <div>
                 <p className="font-semibold text-gray-900">בחרו תאריך</p>
                 <p className="text-gray-600">נפתח לפי הלו״ז שלנו ותחנות זמינות.</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 h-6 w-6 rounded-full bg-indigo-100 text-center text-indigo-700">3</span>
+              <span className="mt-0.5 h-6 w-6 rounded-full bg-primary/20 text-primary flex items-center justify-center">3</span>
               <div>
                 <p className="font-semibold text-gray-900">בחרו שעה ואשרו</p>
                 <p className="text-gray-600">נסיים לאשר ונעדכן ב-SMS.</p>
