@@ -1,5 +1,5 @@
 import { format, differenceInMinutes } from "date-fns"
-import { MoreHorizontal, Calendar, Save, Loader2, X, CreditCard, Receipt, Info, Link2Off, Image as ImageIcon, Clock, MapPin, User, CalendarDays, FileText, Edit, Pencil, Plus, Users, DollarSign, Upload, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
+import { MoreHorizontal, Save, Loader2, X, CreditCard, Receipt, Info, Link2Off, Image as ImageIcon, Clock, MapPin, User, CalendarDays, FileText, Edit, Pencil, Users, DollarSign, Upload, CheckCircle, XCircle, AlertTriangle, Brush } from "lucide-react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 
@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -16,6 +15,7 @@ import { PaymentModal } from "@/components/dialogs/manager-schedule/PaymentModal
 import { SeriesAppointmentsModal } from "@/components/dialogs/manager-schedule/SeriesAppointmentsModal"
 import { SendInvoiceDialog } from "@/components/dialogs/manager-schedule/SendInvoiceDialog"
 import { OrderDetailsModal } from "@/components/dialogs/manager-schedule/PaymentModal/OrderDetailsModal"
+import { HairColoringModal } from "@/components/dialogs/manager-schedule/HairColoringModal"
 import { MessagingActions } from "@/components/sheets/MessagingActions"
 import { AppointmentActionsMenu } from "@/pages/ManagerSchedule/components/appointmentCard/AppointmentActionsMenu"
 import { ImageGalleryModal } from "@/components/dialogs/ImageGalleryModal"
@@ -185,6 +185,10 @@ export const AppointmentDetailsSheet = ({
     const [isArrivalApprovalPopoverOpen, setIsArrivalApprovalPopoverOpen] = useState(false)
     const [isManagerApprovalStatusPopoverOpen, setIsManagerApprovalStatusPopoverOpen] = useState(false)
     const [freshAppointmentData, setFreshAppointmentData] = useState<ManagerAppointment | null>(null)
+
+    // Hair coloring modal state
+    const [isHairColoringModalOpen, setIsHairColoringModalOpen] = useState(false)
+
     const { toast } = useToast()
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
@@ -789,7 +793,6 @@ export const AppointmentDetailsSheet = ({
         }
     }, [appointmentClientNotes, appointmentInternalNotes, appointmentGroomingNotes, open])
 
-
     const handleSaveInternalNotes = async () => {
         if (!selectedAppointment) return
 
@@ -991,6 +994,7 @@ export const AppointmentDetailsSheet = ({
         })
     }
 
+
     const handleSaveAllChanges = async () => {
         if (!selectedAppointment) return
 
@@ -1187,225 +1191,94 @@ export const AppointmentDetailsSheet = ({
     }
 
     const handlePaymentClick = useCallback(async () => {
-        if (!selectedAppointment || selectedAppointment.isProposedMeeting || !selectedAppointment.clientId) {
+        console.log("[handlePaymentClick] Called with selectedAppointment:", selectedAppointment)
+        console.log("[handlePaymentClick] resolvedClientId:", resolvedClientId)
+
+        if (!selectedAppointment) {
+            console.warn("[handlePaymentClick] No selectedAppointment")
+            toast({
+                title: "שגיאה",
+                description: "לא נבחר תור",
+                variant: "destructive",
+            })
             return
         }
 
-        try {
-            // Use the selected date from the board (the date the user is viewing)
-            // Get date components in local timezone
-            const year = selectedDate.getFullYear()
-            const month = selectedDate.getMonth()
-            const day = selectedDate.getDate()
+        if (selectedAppointment.isProposedMeeting) {
+            console.warn("[handlePaymentClick] Cannot pay for proposed meeting")
+            return
+        }
 
-            // Create day boundaries in local timezone for the selected date
-            const dayStart = new Date(year, month, day, 0, 0, 0, 0)
-            const dayEnd = new Date(year, month, day, 23, 59, 59, 999)
+        // Try to resolve clientId - use resolvedClientId as fallback
+        let clientIdToUse = selectedAppointment.clientId || resolvedClientId
 
-            // Find all appointments for the same owner on the same day
-            // Note: We only filter by enum value "cancelled" in the query, then filter Hebrew statuses in JS
-            const { data: groomingData, error: groomingError } = await supabase
-                .from("grooming_appointments")
-                .select("id, amount_due, status")
-                .eq("customer_id", selectedAppointment.clientId)
-                .gte("start_at", dayStart.toISOString())
-                .lte("start_at", dayEnd.toISOString())
-                .neq("status", "cancelled")
-
-            if (groomingError) {
-                console.error("Error fetching grooming appointments:", groomingError)
-                toast({
-                    title: "שגיאה",
-                    description: "לא הצלחנו לטעון את התורים",
-                    variant: "destructive",
-                })
-                return
+        // If still no clientId, try to get it from dogs
+        if (!clientIdToUse && selectedAppointment.dogs && selectedAppointment.dogs.length > 0) {
+            const firstDog = selectedAppointment.dogs[0]
+            if (firstDog.ownerId) {
+                clientIdToUse = firstDog.ownerId
             }
+        }
 
-            // Filter out cancelled appointments (including Hebrew statuses)
-            const isCancelledStatus = (status: string | null | undefined): boolean => {
-                if (!status) return false
-                const normalized = status.toLowerCase()
-                return (
-                    normalized === "cancelled" ||
-                    normalized.includes("cancel") ||
-                    normalized === "בוטל" ||
-                    normalized.includes("מבוטל")
-                )
-            }
+        // If still missing, try to fetch from the appointment record itself
+        if (!clientIdToUse) {
+            const appointmentId = extractGroomingAppointmentId(selectedAppointment.id, selectedAppointment.groomingAppointmentId) || selectedAppointment.id
+            if (appointmentId) {
+                try {
+                    const { data: appointmentData, error: appointmentError } = await supabase
+                        .from("grooming_appointments")
+                        .select("customer_id")
+                        .eq("id", appointmentId)
+                        .single()
 
-            const allAppointments = (groomingData || [])
-                .filter((apt) => !isCancelledStatus(apt.status))
-                .map((apt) => ({
-                    id: apt.id,
-                    serviceType: "grooming" as const,
-                    amountDue: apt.amount_due || 0,
-                }))
-
-            if (allAppointments.length === 0) {
-                toast({
-                    title: "שגיאה",
-                    description: "לא נמצאו תורים ללקוח זה ביום זה",
-                    variant: "destructive",
-                })
-                return
-            }
-
-            // Check if there's an existing active cart for this customer
-            const { data: existingCarts, error: cartsError } = await supabase
-                .from("carts")
-                .select("id")
-                .eq("customer_id", selectedAppointment.clientId)
-                .eq("status", "active")
-                .order("created_at", { ascending: false })
-                .limit(1)
-
-            if (cartsError) {
-                console.error("Error checking existing carts:", cartsError)
-            }
-
-            let cartId: string
-
-            if (existingCarts && existingCarts.length > 0) {
-                // Use existing cart
-                cartId = existingCarts[0].id
-
-                // Check which appointments are already in the cart
-                const { data: existingCartAppointments } = await supabase
-                    .from("cart_appointments")
-                    .select("grooming_appointment_id")
-                    .eq("cart_id", cartId)
-
-                const existingAppointmentIds = new Set<string>()
-                existingCartAppointments?.forEach((ca) => {
-                    if (ca.grooming_appointment_id) {
-                        existingAppointmentIds.add(ca.grooming_appointment_id)
+                    if (!appointmentError && appointmentData?.customer_id) {
+                        clientIdToUse = appointmentData.customer_id
+                        console.log("[handlePaymentClick] Fetched clientId from database:", clientIdToUse)
                     }
-                })
-
-                // Add appointments that aren't already in the cart
-                const appointmentsToAdd = allAppointments.filter((apt) => !existingAppointmentIds.has(apt.id))
-
-                if (appointmentsToAdd.length > 0) {
-                    const cartAppointmentsToInsert = appointmentsToAdd.map((apt) => ({
-                        cart_id: cartId,
-                        grooming_appointment_id: apt.id,
-                        appointment_price: apt.amountDue,
-                    }))
-
-                    const { error: insertError } = await supabase.from("cart_appointments").insert(cartAppointmentsToInsert)
-
-                    if (insertError) {
-                        console.error("Error adding appointments to cart:", insertError)
-                        toast({
-                            title: "שגיאה",
-                            description: "לא הצלחנו להוסיף את התורים לעגלה",
-                            variant: "destructive",
-                        })
-                        return
-                    }
-                }
-            } else {
-                // Create new cart
-                const { data: newCart, error: createCartError } = await supabase
-                    .from("carts")
-                    .insert({
-                        customer_id: selectedAppointment.clientId,
-                        status: "active",
-                    })
-                    .select("id")
-                    .single()
-
-                if (createCartError || !newCart) {
-                    console.error("Error creating cart:", createCartError)
-                    toast({
-                        title: "שגיאה",
-                        description: "לא הצלחנו ליצור עגלה",
-                        variant: "destructive",
-                    })
-                    return
-                }
-
-                cartId = newCart.id
-
-                // Add all appointments to cart_appointments
-                const cartAppointmentsToInsert = allAppointments.map((apt) => ({
-                    cart_id: cartId,
-                    grooming_appointment_id: apt.id,
-                    appointment_price: apt.amountDue,
-                }))
-
-                const { error: insertError } = await supabase.from("cart_appointments").insert(cartAppointmentsToInsert)
-
-                if (insertError) {
-                    console.error("Error adding appointments to cart:", insertError)
-                    toast({
-                        title: "שגיאה",
-                        description: "לא הצלחנו להוסיף את התורים לעגלה",
-                        variant: "destructive",
-                    })
-                    return
+                } catch (error) {
+                    console.error("[handlePaymentClick] Error fetching clientId from database:", error)
                 }
             }
+        }
 
-            // Open payment modal with cartId using Redux
-            // Ensure we're dispatching plain objects by creating a serializable copy
-            console.log("[handlePaymentClick] Preparing to open payment modal", {
-                hasSelectedAppointment: !!selectedAppointment,
-                hasCartId: !!cartId,
-                cartId,
-                appointmentId: selectedAppointment?.id,
+        if (!clientIdToUse) {
+            console.warn("[handlePaymentClick] No clientId available:", {
+                appointmentClientId: selectedAppointment.clientId,
+                resolvedClientId,
+                appointment: selectedAppointment
             })
-
-            if (!selectedAppointment || !cartId) {
-                console.error("[handlePaymentClick] Missing required data:", { selectedAppointment, cartId })
-                toast({
-                    title: "שגיאה",
-                    description: "חסרים נתונים נדרשים לפתיחת תשלום",
-                    variant: "destructive",
-                })
-                return
-            }
-
-            // Create a plain object copy with only serializable fields
-            const appointmentForPayment = {
-                id: selectedAppointment.id,
-                clientId: selectedAppointment.clientId,
-                clientName: selectedAppointment.clientName,
-                serviceType: selectedAppointment.serviceType,
-                startDateTime: selectedAppointment.startDateTime,
-                endDateTime: selectedAppointment.endDateTime,
-                stationId: selectedAppointment.stationId,
-                // Include other essential fields as needed
-            }
-
-            console.log("[handlePaymentClick] Created appointmentForPayment:", {
-                appointmentForPayment,
-                isPlainObject: appointmentForPayment.constructor === Object,
-                keys: Object.keys(appointmentForPayment),
-            })
-
-            console.log("[handlePaymentClick] About to dispatch actions", {
-                cartId,
-                cartIdType: typeof cartId,
-                appointmentId: appointmentForPayment.id,
-            })
-
-            // Dispatch actions - use the Redux action creator (aliased to avoid conflict with local state)
-            console.log("[handlePaymentClick] Dispatching Redux actions...")
-            dispatch(setSelectedAppointmentForPayment(appointmentForPayment as ManagerAppointment))
-            dispatch(setPaymentCartIdAction(cartId))
-            dispatch(setShowPaymentModal(true))
-            console.log("[handlePaymentClick] All actions dispatched successfully")
-        } catch (error) {
-            console.error("Error in handlePaymentClick:", error)
             toast({
                 title: "שגיאה",
-                description: "אירעה שגיאה בעת פתיחת תשלום",
+                description: "לתור זה אין לקוח משויך",
                 variant: "destructive",
             })
+            return
         }
-    }, [dispatch, selectedAppointment, selectedDate, toast])
+
+        // Create a plain object copy with only serializable fields for Redux
+        const appointmentForPayment = {
+            id: selectedAppointment.id,
+            clientId: clientIdToUse,
+            clientName: selectedAppointment.clientName || appointmentClientName,
+            serviceType: selectedAppointment.serviceType,
+            startDateTime: selectedAppointment.startDateTime,
+            endDateTime: selectedAppointment.endDateTime,
+            stationId: selectedAppointment.stationId,
+            price: selectedAppointment.price,
+            dogs: selectedAppointment.dogs,
+            clientPhone: selectedAppointment.clientPhone || appointmentClientPhone,
+            // Include other essential fields as needed
+        }
+
+        console.log("[handlePaymentClick] Opening payment modal for appointment:", appointmentForPayment.id, "with clientId:", clientIdToUse)
+
+        // Dispatch actions to Redux - the modal will handle cart creation/loading
+        dispatch(setSelectedAppointmentForPayment(appointmentForPayment as ManagerAppointment))
+        dispatch(setPaymentCartIdAction(null)) // Let the modal create/load the cart
+        dispatch(setShowPaymentModal(true))
+
+        console.log("[handlePaymentClick] Dispatched Redux actions successfully")
+    }, [dispatch, selectedAppointment, resolvedClientId, appointmentClientName, appointmentClientPhone, toast])
 
     const handleDuplicateAppointment = useCallback(() => {
         if (!selectedAppointment) return
@@ -2013,6 +1886,20 @@ export const AppointmentDetailsSheet = ({
                                                         >
                                                             <CalendarDays className="h-3.5 w-3.5" />
                                                             <span>סדרה</span>
+                                                        </Button>
+                                                    )}
+                                                    {/* Hair Coloring Button */}
+                                                    {selectedAppointment.serviceType === "grooming" && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                            onClick={() => setIsHairColoringModalOpen(true)}
+                                                            title="ניהול צביעה"
+                                                        >
+                                                            <Brush className="h-3.5 w-3.5" />
+                                                            <span>צבעים</span>
                                                         </Button>
                                                     )}
                                                     {/* Client Subscriptions & Photos Button */}
@@ -3031,6 +2918,18 @@ export const AppointmentDetailsSheet = ({
                 <CustomerImagesModal
                     open={isCustomerImagesModalOpen}
                     onOpenChange={setIsCustomerImagesModalOpen}
+                    customerId={selectedAppointment.clientId}
+                    customerName={selectedAppointment.clientName}
+                />
+            )}
+
+            {/* Hair Coloring Modal */}
+            {selectedAppointment?.serviceType === "grooming" && (
+                <HairColoringModal
+                    open={isHairColoringModalOpen}
+                    onOpenChange={setIsHairColoringModalOpen}
+                    appointmentId={selectedAppointment.id}
+                    groomingAppointmentId={selectedAppointment.groomingAppointmentId}
                     customerId={selectedAppointment.clientId}
                     customerName={selectedAppointment.clientName}
                 />

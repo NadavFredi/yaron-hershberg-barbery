@@ -663,6 +663,82 @@ export type Database = {
           }
         ]
       }
+      hair_coloring_items: {
+        Row: {
+          color_number: number
+          created_at: string
+          dosage: number
+          hair_coloring_session_id: string
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          color_number: number
+          created_at?: string
+          dosage: number
+          hair_coloring_session_id: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          color_number?: number
+          created_at?: string
+          dosage?: number
+          hair_coloring_session_id?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hair_coloring_items_hair_coloring_session_id_fkey"
+            columns: ["hair_coloring_session_id"]
+            isOneToOne: false
+            referencedRelation: "hair_coloring_sessions"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      hair_coloring_sessions: {
+        Row: {
+          created_at: string
+          grooming_appointment_id: string
+          id: string
+          notes: string | null
+          oxygen_level: number | null
+          total_dosage: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          grooming_appointment_id: string
+          id?: string
+          notes?: string | null
+          oxygen_level?: number | null
+          total_dosage?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          grooming_appointment_id?: string
+          id?: string
+          notes?: string | null
+          oxygen_level?: number | null
+          total_dosage?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hair_coloring_sessions_grooming_appointment_id_fkey"
+            columns: ["grooming_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "grooming_appointments"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       grooming_appointments: {
         Row: {
           airtable_id: string | null
