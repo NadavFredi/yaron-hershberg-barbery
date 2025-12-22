@@ -106,6 +106,10 @@ export interface ManagerScheduleData {
     openTime: string // HH:mm format
     closeTime: string // HH:mm format
   }
+  calendarWindowHours?: {
+    startTime: string // HH:mm format
+    endTime: string // HH:mm format
+  }
 }
 
 export interface ManagerScheduleSearchClient {

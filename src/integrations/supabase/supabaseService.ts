@@ -921,12 +921,48 @@ export async function getManagerSchedule(
       // Continue without business hours, will fall back to defaults
     }
 
+    // Fetch calendar window hours (for manager view only)
+    let calendarWindowHours: { startTime: string; endTime: string } | undefined = undefined
+
+    try {
+      const { data: calendarSettingsData, error: calendarSettingsError } = await supabase
+        .from("calendar_settings")
+        .select("calendar_start_time, calendar_end_time")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (!calendarSettingsError && calendarSettingsData) {
+        const startTime = calendarSettingsData.calendar_start_time
+        const endTime = calendarSettingsData.calendar_end_time
+
+        if (startTime && endTime) {
+          // Convert TIME format (HH:mm:ss) to HH:mm format
+          const startTimeStr = typeof startTime === "string" ? startTime.substring(0, 5) : null
+          const endTimeStr = typeof endTime === "string" ? endTime.substring(0, 5) : null
+
+          if (startTimeStr && endTimeStr) {
+            calendarWindowHours = {
+              startTime: startTimeStr,
+              endTime: endTimeStr,
+            }
+          }
+        }
+      } else if (calendarSettingsError && calendarSettingsError.code !== "PGRST116") {
+        console.warn(`⚠️ [getManagerSchedule] Failed to fetch calendar window hours:`, calendarSettingsError)
+      }
+    } catch (error) {
+      console.warn(`⚠️ [getManagerSchedule] Failed to fetch calendar window hours:`, error)
+      // Continue without calendar window hours, will fall back to business hours or defaults
+    }
+
     return {
       date: dateOnly,
       serviceFilter: serviceType,
       stations,
       appointments,
       businessHours,
+      calendarWindowHours,
     }
   } catch (error) {
     console.error(`❌ [getManagerSchedule] Error:`, error)

@@ -6,7 +6,7 @@ import { existsSync, mkdirSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const sourceLogo = join(__dirname, '../src/assets/logo.png');
+const sourceLogo = join(__dirname, '../public/easyflow-logo.png');
 const publicDir = join(__dirname, '../public');
 
 // Ensure public directory exists
