@@ -58,14 +58,14 @@ export default function HairRestoration() {
                                         <div className="flex items-start gap-3">
                                             <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                                             <p className="text-base md:text-lg text-gray-800 leading-relaxed">
-                                                הטיפול אינו מתאים למי שסובלת מבעיות בקרקפת כגון גירויים, קשקשים או שומניות יתר, 
+                                                הטיפול אינו מתאים למי שסובלת מבעיות בקרקפת כגון גירויים, קשקשים או שומניות יתר,
                                                 ובמקרים אלו יש לטפל תחילה בקרקפת באמצעות טיפולים ייעודיים.
                                             </p>
                                         </div>
                                         <div className="flex items-start gap-3">
                                             <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                                             <p className="text-base md:text-lg text-gray-800 leading-relaxed">
-                                                לפני תחילת תהליך השיקום, חשוב לבצע אבחון מקצועי לשיער ולקרקפת, 
+                                                לפני תחילת תהליך השיקום, חשוב לבצע אבחון מקצועי לשיער ולקרקפת,
                                                 על מנת להתאים את הטיפול המדויק ביותר לצרכים האישיים שלך.
                                             </p>
                                         </div>
