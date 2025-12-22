@@ -536,7 +536,7 @@ export const GroomingEditModal: React.FC<GroomingEditModalProps> = ({
                                             placeholder="הערות ספציפיות לתספורת של תור זה..."
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-right resize-none min-h-[100px]"
                                         />
-                                        <p className="text-xs text-purple-600 text-right">
+                                        <p className="text-xs text-primary text-right">
                                             הערות ספציפיות לתספורת של תור זה (שונות מהערות הכלליות של הלקוח)
                                         </p>
                                     </div>

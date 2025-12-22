@@ -133,8 +133,8 @@ export function PinnedAppointmentDropDialog() {
               variant="outline"
             >
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100">
-                  <CalendarPlus className="h-5 w-5 text-purple-600" />
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/20">
+                  <CalendarPlus className="h-5 w-5 text-primary" />
                 </div>
                 <div className="text-right flex-1">
                   <div className="font-semibold">צור תור חדש</div>

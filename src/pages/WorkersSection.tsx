@@ -590,7 +590,7 @@ const WorkerRow = ({
                     </div>
                 </TableCell>
                 <TableCell className="px-3 py-3 align-middle text-right">
-                    <div className="text-sm font-semibold text-indigo-700">
+                    <div className="text-sm font-semibold text-primary">
                         {formatMinutesAsHours(worker.totals.weekMinutes)}
                     </div>
                 </TableCell>
@@ -723,7 +723,7 @@ const WorkerRow = ({
                                 </div>
                                 <div className="rounded-2xl border border-slate-200 bg-white p-4 text-right shadow-sm">
                                     <div className="flex items-center justify-end gap-2 text-slate-700">
-                                        <Clock className="h-4 w-4 text-indigo-600" />
+                                        <Clock className="h-4 w-4 text-primary" />
                                         <span className="text-sm font-semibold">סיכומי שעות</span>
                                     </div>
                                     <div className="mt-4 space-y-3 text-sm">
@@ -735,7 +735,7 @@ const WorkerRow = ({
                                         </div>
                                         <div className="flex items-center justify-between text-slate-600">
                                             <span>שבוע נוכחי</span>
-                                            <span className="font-semibold text-indigo-700">
+                                            <span className="font-semibold text-primary">
                                                 {formatMinutesAsHours(worker.totals.weekMinutes)}
                                             </span>
                                         </div>

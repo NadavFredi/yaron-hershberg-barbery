@@ -185,7 +185,7 @@ export const AppointmentsListSection: React.FC<AppointmentsListSectionProps> = (
                                         </td>
                                         <td className="p-2 align-middle text-right">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <Scissors className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                                <Scissors className="h-4 w-4 text-primary flex-shrink-0" />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <Badge variant="outline" className="text-xs px-2 py-0.5">

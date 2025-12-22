@@ -64,7 +64,7 @@ const AppContent = () => {
   const shouldHideFooter = isManagerRoute
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 to-purple-50" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 to-primary/10" dir="rtl">
       <div className="flex min-h-screen flex-col">
         <Navbar isManager={!!isManager} />
         <ManagerSubnav isManager={!!isManager} />

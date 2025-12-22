@@ -203,8 +203,8 @@ export function ThirdLevelSubnav() {
                 className={cn(
                   "flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-indigo-600 text-white shadow-md"
-                    : "text-gray-700 hover:text-indigo-600 hover:bg-white/80 hover:shadow-sm"
+                    ? "bg-primary text-white shadow-md"
+                    : "text-gray-700 hover:text-primary hover:bg-white/80 hover:shadow-sm"
                 )}
               >
                 <IconComponent className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-500"}`} />

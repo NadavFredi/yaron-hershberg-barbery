@@ -393,7 +393,7 @@ export const BulkEditAppointmentsModal: React.FC<BulkEditAppointmentsModalProps>
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-right resize-none min-h-[100px]"
                                                     disabled={isSaving}
                                                 />
-                                                <p className="text-xs text-purple-600 text-right">
+                                                <p className="text-xs text-primary text-right">
                                                     הערות ספציפיות לתספורת (רק עבור תורי מספרה)
                                                 </p>
                                             </div>

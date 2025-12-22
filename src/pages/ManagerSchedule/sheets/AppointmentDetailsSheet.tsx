@@ -1448,7 +1448,7 @@ export const AppointmentDetailsSheet = ({
                         ? "תור פרטי"
                         : (selectedAppointment.serviceName ?? SERVICE_LABELS[selectedAppointment.serviceType])
                     const serviceStyle = selectedAppointment.appointmentType === "private"
-                        ? { badge: "border-purple-200 bg-purple-100 text-purple-800" }
+                        ? { badge: "border-purple-200 bg-primary/20 text-purple-800" }
                         : SERVICE_STYLES[selectedAppointment.serviceType]
                     const statusStyle = getStatusStyle(selectedAppointment.status, selectedAppointment)
                     const primaryDog = selectedAppointment.dogs[0]
@@ -1478,7 +1478,7 @@ export const AppointmentDetailsSheet = ({
                                             {selectedAppointment.status}
                                         </Badge>
                                         {selectedAppointment.seriesId && (
-                                            <Badge variant="outline" className="text-[11px] font-medium border-purple-200 bg-purple-100 text-purple-800">
+                                            <Badge variant="outline" className="text-[11px] font-medium border-purple-200 bg-primary/20 text-purple-800">
                                                 תור בסדרה
                                             </Badge>
                                         )}
@@ -1603,7 +1603,7 @@ export const AppointmentDetailsSheet = ({
                                     <Separator />
                                     <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
                                         <div className="flex items-center gap-2 space-x-2 rtl:space-x-reverse">
-                                            <Info className="h-5 w-5 text-purple-600 flex-shrink-0" />
+                                            <Info className="h-5 w-5 text-primary flex-shrink-0" />
                                             <div className="flex-1 text-sm text-purple-800">
                                                 <p className="font-medium">
                                                     תור מחזורי
@@ -1615,7 +1615,7 @@ export const AppointmentDetailsSheet = ({
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                className="text-purple-700 border-purple-300 hover:bg-purple-100 hover:text-purple-800"
+                                                className="text-purple-700 border-purple-300 hover:bg-primary/20 hover:text-purple-800"
                                                 onClick={() => setIsSeriesAppointmentsModalOpen(true)}
                                             >
                                                 <Calendar className="h-4 w-4 ml-2" />
@@ -1626,7 +1626,7 @@ export const AppointmentDetailsSheet = ({
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-6 w-6 p-0 text-purple-600 hover:text-purple-800 hover:bg-purple-100"
+                                                className="h-6 w-6 p-0 text-primary hover:text-purple-800 hover:bg-primary/20"
                                                 disabled={isUnlinkingFromSeries}
                                                 title="הפרד תור מהסדרה"
                                             >
@@ -1636,7 +1636,7 @@ export const AppointmentDetailsSheet = ({
                                                     <Link2Off className="h-3 w-3" />
                                                 )}
                                             </Button>
-                                            <span className="text-xs text-purple-600 hover:text-purple-800">
+                                            <span className="text-xs text-primary hover:text-purple-800">
                                                 הפרד תור מהסדרה
                                             </span>
                                         </div>

@@ -963,8 +963,8 @@ export function Navbar({ isManager }: NavbarProps) {
                             isOnManagerBoard && "hidden"
                         )}>
                             <Link to={user ? "/setup-appointment" : "/"} className="flex items-center justify-center">
-                                <div className="w-32 h-32 shrink-0">
-                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
+                                <div className="h-12 w-auto shrink-0 max-w-[180px]">
+                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="h-full w-auto object-contain" style={{ verticalAlign: 'middle' }} />
                                 </div>
                             </Link>
                             {/* Right side buttons (WorkerClock, etc.) */}
@@ -1018,8 +1018,8 @@ export function Navbar({ isManager }: NavbarProps) {
                         {/* Desktop Header */}
                         <div className="hidden xl:grid xl:grid-cols-[auto,1fr,auto] xl:items-center xl:gap-6 py-4">
                             <Link to={user ? "/setup-appointment" : "/"} className="flex items-center justify-center">
-                                <div className="w-40 h-40 shrink-0">
-                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="w-full h-full object-contain" />
+                                <div className="h-12 w-auto shrink-0 max-w-[200px]">
+                                    <img src={logoImage} alt="Yaron Hershberg Logo" className="h-full w-auto object-contain" style={{ verticalAlign: 'middle' }} />
                                 </div>
                             </Link>
 
@@ -1243,7 +1243,7 @@ export function Navbar({ isManager }: NavbarProps) {
                                                                             )}
 
                                                                             {nestedItems && isNestedExpanded && (
-                                                                                <div className="mt-2 space-y-1 border-r border-dashed border-indigo-100 pr-8">
+                                                                                <div className="mt-2 space-y-1 border-r border-dashed border-primary/20 pr-8">
                                                                                     {nestedItems.map((nestedLink) => (
                                                                                         <Link
                                                                                             key={nestedLink.to}

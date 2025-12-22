@@ -59,8 +59,8 @@ const StatsCards = ({ dayAppointments }: StatsCardsProps) => {
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Users className="w-6 h-6 text-purple-600" />
+            <div className="p-2 bg-primary/20 rounded-lg">
+              <Users className="w-6 h-6 text-primary" />
             </div>
             <div className="mr-4">
               <p className="text-sm font-medium text-gray-600">עמדות פעילות</p>

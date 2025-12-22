@@ -134,10 +134,10 @@ export function useAppointmentCard({ appointment, isDragging = false }: UseAppoi
       return "bg-lime-50 border-lime-200"
     }
     if (appointment.isPersonalAppointment) {
-      return "bg-purple-100 border-purple-300"
+      return "bg-primary/20 border-purple-300"
     }
     if (appointment.appointmentType === "private") {
-      return "bg-purple-100 border-purple-300"
+      return "bg-primary/20 border-purple-300"
     }
     // For business appointments, use service category variant colors if available
     if (appointment.appointmentType === "business" && appointment.serviceCategoryVariant) {

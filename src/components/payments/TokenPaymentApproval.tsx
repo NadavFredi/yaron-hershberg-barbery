@@ -135,7 +135,7 @@ export const TokenPaymentApproval: React.FC<TokenPaymentApprovalProps> = ({
 
                     {/* Security Notice */}
                     <div className="bg-purple-50 border border-purple-200 rounded p-3 flex items-start gap-2">
-                        <Lock className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                        <Lock className="w-4 h-4 flex-shrink-0 mt-0.5 text-primary" />
                         <div className="text-xs text-purple-800">
                             <p className="font-medium">תשלום מאובטח</p>
                             <p className="mt-1">התשלום יתבצע דרך Tranzila - מערכת תשלומים מאובטחת ומאושרת</p>

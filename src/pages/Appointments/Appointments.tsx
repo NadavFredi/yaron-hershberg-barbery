@@ -686,7 +686,7 @@ export default function Appointments() {
 
         if (normalized === "both") {
             return (
-                <Badge className="bg-purple-100 text-purple-700 border-purple-200 flex items-center gap-1">
+                <Badge className="bg-primary/20 text-purple-700 border-purple-200 flex items-center gap-1">
                     <Scissors className="h-3 w-3" />
                     <Bone className="h-3 w-3" />
                     <span>תספורת</span>
@@ -1722,7 +1722,7 @@ export default function Appointments() {
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                className="text-purple-600 hover:text-purple-700 border-purple-200 hover:bg-purple-50 flex flex-row-reverse items-center gap-1"
+                                                                className="text-primary hover:text-purple-700 border-purple-200 hover:bg-purple-50 flex flex-row-reverse items-center gap-1"
                                                                 onClick={() => globalThis.open(generateGoogleCalendarLink(appointment), '_blank')}
                                                             >
                                                                 <CalendarPlus className="h-4 w-4" />
@@ -2031,7 +2031,7 @@ export default function Appointments() {
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                className="text-purple-600 hover:text-purple-700 border-purple-200 hover:bg-purple-50 flex flex-row-reverse items-center gap-1"
+                                                                className="text-primary hover:text-purple-700 border-purple-200 hover:bg-purple-50 flex flex-row-reverse items-center gap-1"
                                                                 onClick={() => globalThis.open(generateGoogleCalendarLink(appointment), '_blank')}
                                                             >
                                                                 <CalendarPlus className="h-4 w-4" />

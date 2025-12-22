@@ -541,7 +541,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     setTimeout(() => setStep(3), 100)
                                 }}
                             >
-                                <Smartphone className="h-6 w-6 text-purple-600" />
+                                <Smartphone className="h-6 w-6 text-primary" />
                                 <span className="flex-1 text-right">אפליקציות</span>
                             </Button>
 
@@ -565,7 +565,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     setTimeout(() => setStep(3), 100)
                                 }}
                             >
-                                <Building2 className="h-6 w-6 text-indigo-600" />
+                                <Building2 className="h-6 w-6 text-primary" />
                                 <span className="flex-1 text-right">העברה בנקאית ומזומן</span>
                             </Button>
                         </div>
@@ -664,7 +664,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                             setTimeout(() => setStep(4), 100)
                                         }}
                                     >
-                                        <Smartphone className="h-6 w-6 text-indigo-600" />
+                                        <Smartphone className="h-6 w-6 text-primary" />
                                         <span className="flex-1 text-right">קריאה ממסופון</span>
                                     </Button>
                                 </>
@@ -680,7 +680,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                             setTimeout(() => setStep(4), 100)
                                         }}
                                     >
-                                        <Building2 className="h-6 w-6 text-indigo-600" />
+                                        <Building2 className="h-6 w-6 text-primary" />
                                         <span className="flex-1 text-right">העברה בנקאית</span>
                                     </Button>
                                     <Button

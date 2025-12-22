@@ -96,7 +96,7 @@ export function AppointmentActionsMenu({
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                    className="w-full justify-start text-primary hover:text-purple-700 hover:bg-purple-50"
                     onClick={(e) => handleClick(e, onEdit)}
                 >
                     <Pencil className="h-4 w-4 ml-2" />
@@ -174,7 +174,7 @@ export function AppointmentActionsMenu({
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="w-full justify-start text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                            className="w-full justify-start text-primary hover:text-primary hover:bg-primary/10"
                             onClick={(e) => handleClick(e, onPayment)}
                         >
                             <DollarSign className="h-4 w-4 ml-2" />

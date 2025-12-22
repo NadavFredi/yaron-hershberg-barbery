@@ -646,7 +646,7 @@ export default function ReminderSettings() {
                                                                     description: "השורה שוכפלה",
                                                                 })
                                                             }}
-                                                            className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                                            className="h-8 w-8 p-0 text-primary hover:text-purple-700 hover:bg-purple-50"
                                                             title="שכפל שורה"
                                                         >
                                                             <Copy className="h-4 w-4" />

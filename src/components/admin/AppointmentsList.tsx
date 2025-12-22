@@ -32,7 +32,7 @@ const AppointmentsList = ({
 
   const getStationColor = (stationId: string) => {
     const colors = [
-      'bg-purple-100 text-purple-800',
+      'bg-primary/20 text-purple-800',
       'bg-green-100 text-green-800',
       'bg-primary/20 text-primary',
     ];

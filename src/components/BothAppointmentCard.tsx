@@ -529,7 +529,7 @@ export function BothAppointmentCard({
 
                                     {/* Right side - Combined service icon and content */}
                                     <div className="flex items-center gap-2 flex-1">
-                                        <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                                        <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
                                             <div className="flex items-center gap-1">
                                                 <Scissors className="h-4 w-4 text-primary" />
                                                 <Bone className="h-4 w-4 text-amber-600" />
@@ -613,7 +613,7 @@ export function BothAppointmentCard({
                                         <Button
                                             size="sm"
                                             variant="outline"
-                                            className="text-purple-600 hover:text-purple-700 border-purple-200 hover:bg-purple-50 flex flex-row-reverse items-center gap-1"
+                                            className="text-primary hover:text-purple-700 border-purple-200 hover:bg-purple-50 flex flex-row-reverse items-center gap-1"
                                             onClick={(event) => {
                                                 event.preventDefault()
                                                 event.stopPropagation()
@@ -632,7 +632,7 @@ export function BothAppointmentCard({
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-purple-600 hover:text-purple-700 border-purple-200 hover:bg-purple-50 flex flex-row-reverse items-center gap-1"
+                                    className="text-primary hover:text-purple-700 border-purple-200 hover:bg-purple-50 flex flex-row-reverse items-center gap-1"
                                     onClick={() => window.open(generateGoogleCalendarLink(appointment), '_blank')}
                                 >
                                     <CalendarPlus className="h-4 w-4" />

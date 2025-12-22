@@ -954,7 +954,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="w-full justify-start text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                              className="w-full justify-start text-primary hover:text-purple-700 hover:bg-purple-50"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleTreatmentEnded()
@@ -1105,13 +1105,13 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
               </>
             )}
             {notes && (
-              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 text-purple-600" title="יש הערות לקוח">
+              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary" title="יש הערות לקוח">
                 <MessageSquare className="h-3 w-3" />
               </div>
             )}
             {!isProposedMeeting && appointment.hasCrossServiceAppointment && (
               <div
-                className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 text-purple-600"
+                className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary"
                 title="יש גם תור"
               >
                 <Bone className="h-3 w-3" />
@@ -1156,7 +1156,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                   "flex items-center justify-center w-5 h-5 rounded-full cursor-pointer transition-colors border-2 shadow-sm",
                   isExpanded
                     ? "bg-purple-200 text-purple-700 hover:bg-purple-300 border-purple-300"
-                    : "bg-purple-100 text-purple-600 hover:bg-purple-200 border-purple-200"
+                    : "bg-primary/20 text-primary hover:bg-purple-200 border-purple-200"
                 )}
                 title={isExpanded ? "כווץ" : "הרחב"}
                 onClick={isExpanded ? handleCollapseCard : handleExpandCard}
@@ -1350,7 +1350,7 @@ export function AppointmentCard({ appointment, isDragging = false, onResizeStart
                       handleDogClick(primaryDog)
                     }
                   }}
-                  className="text-sm text-purple-600 hover:text-purple-800 hover:underline cursor-pointer"
+                  className="text-sm text-primary hover:text-purple-800 hover:underline cursor-pointer"
                   disabled={!primaryDog}
                 >
                   {dogName}

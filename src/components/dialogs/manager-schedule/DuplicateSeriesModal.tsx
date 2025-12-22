@@ -409,7 +409,7 @@ export function DuplicateSeriesModal() {
                                             </div>
                                             {appointmentToDuplicate.serviceType === 'grooming' && (
                                                 <div className={`flex items-center gap-2 space-x-2 rtl:space-x-reverse rounded-md p-3 border transition-colors ${duplicateGroomingNotes
-                                                    ? 'bg-purple-100 border-purple-300'
+                                                    ? 'bg-primary/20 border-purple-300'
                                                     : 'bg-transparent border-purple-200'
                                                     }`}>
                                                     <Checkbox

@@ -38,7 +38,7 @@ const themeClasses: Record<ThemeKey, {
         label: "text-purple-700",
         viewText: "text-purple-700",
         input: "border border-purple-200 focus:outline-none focus:ring-1 focus:ring-purple-500",
-        editButton: "text-purple-600 hover:text-purple-800 hover:bg-purple-100",
+        editButton: "text-primary hover:text-purple-800 hover:bg-primary/20",
         saveButton: "bg-purple-500 hover:bg-purple-600",
         saveButtonText: "text-white text-xs",
         cancelButton: "text-xs"

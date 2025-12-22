@@ -510,7 +510,7 @@ export function MoveConfirmationDialog() {
                                 ? "flex items-center  gap-2 space-x-2 rtl:space-x-reverse bg-purple-50 border border-purple-200 rounded-md p-3"
                                 : "flex items-center  gap-2 space-x-2 rtl:space-x-reverse bg-primary/10 border border-primary/20 rounded-md p-3"}>
                                 <Info className={moveDetails.appointment.isPersonalAppointment || moveDetails.appointment.appointmentType === "private"
-                                    ? "h-4 w-4 text-purple-600"
+                                    ? "h-4 w-4 text-primary"
                                     : "h-4 w-4 text-primary"} />
                                 <input
                                     type="checkbox"

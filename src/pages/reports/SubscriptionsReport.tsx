@@ -1094,7 +1094,7 @@ export default function SubscriptionsReport() {
                                 <CardDescription>סה"כ הכנסות</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-4xl font-bold text-purple-600">
+                                <div className="text-4xl font-bold text-primary">
                                     ₪{subscriptionsData.totalRevenue.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
                             </CardContent>

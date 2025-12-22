@@ -394,7 +394,7 @@ const SetupAppointment: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Scissors className="h-5 w-5 text-indigo-600" />
+                <Scissors className="h-5 w-5 text-primary" />
                 שירות
               </CardTitle>
             </CardHeader>
@@ -477,7 +477,7 @@ const SetupAppointment: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <CalendarIcon className="h-5 w-5 text-indigo-600" />
+                <CalendarIcon className="h-5 w-5 text-primary" />
                 תאריך
               </CardTitle>
             </CardHeader>
@@ -513,7 +513,7 @@ const SetupAppointment: React.FC = () => {
                       }
                       setIsWaitlistModalOpen(true)
                     }}
-                    className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
+                    className="flex items-center gap-2 text-sm text-primary hover:text-primary hover:underline"
                   >
                     <Bell className="h-4 w-4" />
                     לא מצאתם את התאריך שאתם מחפשים? הירשמו לרשימת ההמתנה
@@ -526,7 +526,7 @@ const SetupAppointment: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Clock className="h-5 w-5 text-indigo-600" />
+                <Clock className="h-5 w-5 text-primary" />
                 שעה
               </CardTitle>
             </CardHeader>
@@ -572,7 +572,7 @@ const SetupAppointment: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <CalendarIcon className="h-5 w-5 text-indigo-600" />
+                <CalendarIcon className="h-5 w-5 text-primary" />
                 הערות
               </CardTitle>
             </CardHeader>

@@ -43,8 +43,8 @@ export function UserOnboarding({ userEmail, onBackToAuth }: UserOnboardingProps)
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <div className="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-                        <User className="w-8 h-8 text-purple-600" />
+                    <div className="mx-auto w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-4">
+                        <User className="w-8 h-8 text-primary" />
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">השלם את הפרופיל שלך</h1>
                     <p className="text-lg text-gray-600">
@@ -60,7 +60,7 @@ export function UserOnboarding({ userEmail, onBackToAuth }: UserOnboardingProps)
                     <Button
                         variant="ghost"
                         onClick={onBackToAuth}
-                        className="text-purple-600 hover:text-purple-700"
+                        className="text-primary hover:text-purple-700"
                     >
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         חזור לכניסה
@@ -87,8 +87,8 @@ export function UserOnboarding({ userEmail, onBackToAuth }: UserOnboardingProps)
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="flex items-start space-x-3">
-                                    <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <span className="text-sm font-bold text-purple-600">1</span>
+                                    <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <span className="text-sm font-bold text-primary">1</span>
                                     </div>
                                     <div>
                                         <h4 className="font-semibold text-gray-900">שירות מותאם אישית</h4>
@@ -96,8 +96,8 @@ export function UserOnboarding({ userEmail, onBackToAuth }: UserOnboardingProps)
                                     </div>
                                 </div>
                                 <div className="flex items-start space-x-3">
-                                    <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <span className="text-sm font-bold text-purple-600">2</span>
+                                    <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <span className="text-sm font-bold text-primary">2</span>
                                     </div>
                                     <div>
                                         <h4 className="font-semibold text-gray-900">ניהול תורים</h4>
@@ -105,8 +105,8 @@ export function UserOnboarding({ userEmail, onBackToAuth }: UserOnboardingProps)
                                     </div>
                                 </div>
                                 <div className="flex items-start space-x-3">
-                                    <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <span className="text-sm font-bold text-purple-600">3</span>
+                                    <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <span className="text-sm font-bold text-primary">3</span>
                                     </div>
                                     <div>
                                         <h4 className="font-semibold text-gray-900">תקשורת טובה יותר</h4>

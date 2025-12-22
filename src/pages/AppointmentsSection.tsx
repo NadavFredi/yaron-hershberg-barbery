@@ -122,7 +122,7 @@ const STATUS_BADGES: Record<AppointmentStatus, string> = {
     pending: "bg-amber-50 text-amber-700 border border-amber-200",
     approved: "bg-emerald-50 text-emerald-700 border border-emerald-200",
     cancelled: "bg-rose-50 text-rose-700 border border-rose-200",
-    matched: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+    matched: "bg-indigo-50 text-primary border border-primary/20",
 }
 
 const STATUS_OPTIONS: Array<{ value: AppointmentStatus | "all"; label: string }> = [
@@ -603,9 +603,9 @@ export default function AppointmentsSection() {
             id: "matched",
             label: "משובצים",
             value: stats.byStatus.matched,
-            accent: "text-indigo-600",
+            accent: "text-primary",
             border: "border-indigo-300",
-            hoverBg: "hover:bg-indigo-50",
+            hoverBg: "hover:bg-primary/10",
             activeContainer: "bg-indigo-500 border-indigo-500 shadow-lg",
             activeText: "text-white",
             isActive: statusFilter === "matched",
