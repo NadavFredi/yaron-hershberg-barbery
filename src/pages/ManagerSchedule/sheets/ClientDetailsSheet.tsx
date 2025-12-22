@@ -12,7 +12,7 @@ import { CustomerRemindersModal } from "@/components/dialogs/reminders/CustomerR
 import { CustomerImagesModal } from "@/components/dialogs/CustomerImagesModal"
 import { CustomerAppointmentsModal } from "@/components/dialogs/CustomerAppointmentsModal"
 import { AddContactDialog } from "@/components/dialogs/customers/AddContactDialog"
-import { CustomerDebtsSection } from "@/components/sheets/CustomerDebtsSection"
+import { CustomerDebtsModal } from "@/components/dialogs/debts/CustomerDebtsModal"
 import { MessagingActions } from "@/components/sheets/MessagingActions"
 import { supabase } from "@/integrations/supabase/client"
 import type { ManagerAppointment, ManagerDog } from "../types"
@@ -72,6 +72,7 @@ export const ClientDetailsSheet = ({
     const [isCustomerImagesModalOpen, setIsCustomerImagesModalOpen] = useState(false)
     const [isCustomerAppointmentsModalOpen, setIsCustomerAppointmentsModalOpen] = useState(false)
     const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false)
+    const [isDebtsModalOpen, setIsDebtsModalOpen] = useState(false)
     const [additionalCustomerData, setAdditionalCustomerData] = useState<{
         gender?: string | null
         date_of_birth?: string | null
@@ -623,6 +624,20 @@ export const ClientDetailsSheet = ({
                                         <Bell className="h-3.5 w-3.5" />
                                         <span>תזכורות</span>
                                     </Button>
+                                    {/* Debts Button */}
+                                    {hasClientId && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                            onClick={() => setIsDebtsModalOpen(true)}
+                                            title={`הצג חובות של ${selectedClient.name}`}
+                                        >
+                                            <CreditCard className="h-3.5 w-3.5" />
+                                            <span>חובות</span>
+                                        </Button>
+                                    )}
                                     {/* Images Button */}
                                     {hasClientId && (
                                         <Button
@@ -813,13 +828,6 @@ export const ClientDetailsSheet = ({
                                 </>
                             )}
 
-                            {/* Customer Debts Section */}
-                            {hasClientId && (
-                                <>
-                                    <Separator />
-                                    <CustomerDebtsSection customerId={clientId} customerName={selectedClient.name} />
-                                </>
-                            )}
 
                             {/* Staff Notes Section */}
                             {hasClientId && (
@@ -963,6 +971,16 @@ export const ClientDetailsSheet = ({
                                 })
                         }
                     }}
+                />
+            )}
+
+            {/* Customer Debts Modal */}
+            {hasClientId && selectedClient && (
+                <CustomerDebtsModal
+                    open={isDebtsModalOpen}
+                    onOpenChange={setIsDebtsModalOpen}
+                    customerId={clientId}
+                    customerName={selectedClient.name}
                 />
             )}
         </>

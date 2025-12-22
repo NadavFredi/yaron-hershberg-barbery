@@ -1,5 +1,5 @@
 import { format, differenceInMinutes } from "date-fns"
-import { MoreHorizontal, Calendar, Save, Loader2, X, CreditCard, Receipt, Info, Link2Off, Image as ImageIcon, Clock, MapPin, User, CalendarDays, FileText, Edit } from "lucide-react"
+import { MoreHorizontal, Calendar, Save, Loader2, X, CreditCard, Receipt, Info, Link2Off, Image as ImageIcon, Clock, MapPin, User, CalendarDays, FileText, Edit, Pencil, Plus, Users, DollarSign } from "lucide-react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 
@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { PaymentModal } from "@/components/dialogs/manager-schedule/PaymentModal"
 import { SeriesAppointmentsModal } from "@/components/dialogs/manager-schedule/SeriesAppointmentsModal"
@@ -37,6 +38,8 @@ import {
     setCustomerCommunicationAppointment,
     setShowCustomerCommunicationModal,
     setSelectedAppointment,
+    setSelectedClient,
+    setIsClientDetailsOpen,
 } from "@/store/slices/managerScheduleSlice"
 import type { ManagerAppointment, ManagerDog } from "../types"
 import type { Database } from "@/integrations/supabase/types"
@@ -752,6 +755,36 @@ export const AppointmentDetailsSheet = ({
         setHasBeenUnlinkedFromSeries(false)
     }, [selectedAppointment, open])
 
+    // Auto-resize textareas when content changes or accordion opens
+    useEffect(() => {
+        if (!open) return
+
+        const resizeTextareas = () => {
+            const textareas = document.querySelectorAll('textarea[class*="bg-green-50"], textarea[class*="bg-purple-50"], textarea[class*="bg-blue-50"]')
+            textareas.forEach((textarea) => {
+                const el = textarea as HTMLTextAreaElement
+                if (el && el.offsetParent !== null) { // Only resize visible textareas
+                    el.style.height = 'auto'
+                    el.style.height = `${el.scrollHeight}px`
+                }
+            })
+        }
+
+        // Resize immediately when notes change
+        resizeTextareas()
+
+        // Resize after delays to ensure DOM is ready and accordion animations complete
+        const timeout1 = setTimeout(resizeTextareas, 50)
+        const timeout2 = setTimeout(resizeTextareas, 200)
+        const timeout3 = setTimeout(resizeTextareas, 500)
+
+        return () => {
+            clearTimeout(timeout1)
+            clearTimeout(timeout2)
+            clearTimeout(timeout3)
+        }
+    }, [appointmentClientNotes, appointmentInternalNotes, appointmentGroomingNotes, open])
+
 
     const handleSaveInternalNotes = async () => {
         if (!selectedAppointment) return
@@ -785,6 +818,36 @@ export const AppointmentDetailsSheet = ({
                 description: "הערות הצוות עודכנו בהצלחה",
             })
             setOriginalInternalNotes(appointmentInternalNotes.trim() || "")
+
+            // Invalidate cache and refetch appointment data to update UI
+            dispatch(supabaseApi.util.invalidateTags([
+                "ManagerSchedule",
+                "Appointment",
+                "GardenAppointment",
+                { type: "Appointment", id: `${appointmentId}-grooming` },
+            ]))
+
+            // Refetch appointment notes to ensure UI is up to date
+            if (selectedAppointment && open) {
+                const fetchNotes = async () => {
+                    try {
+                        const { data, error } = await supabase
+                            .from("grooming_appointments")
+                            .select("customer_notes, internal_notes, grooming_notes")
+                            .eq("id", appointmentId)
+                            .single()
+
+                        if (!error && data) {
+                            const internalNotesValue = data.internal_notes || ""
+                            setAppointmentInternalNotes(internalNotesValue)
+                            setOriginalInternalNotes(internalNotesValue)
+                        }
+                    } catch (err) {
+                        console.error("Error refetching notes:", err)
+                    }
+                }
+                fetchNotes()
+            }
         } catch (error) {
             console.error("❌ [AppointmentDetailsSheet] Error saving internal notes:", error)
             toast({
@@ -875,8 +938,35 @@ export const AppointmentDetailsSheet = ({
             })
             setOriginalClientNotes(notesValue || "")
 
-            // Invalidate cache so the appointment card refreshes and shows/hides the message icon
-            dispatch(supabaseApi.util.invalidateTags(["ManagerSchedule", "Appointment", "GardenAppointment"]))
+            // Invalidate cache and refetch appointment data to update UI
+            dispatch(supabaseApi.util.invalidateTags([
+                "ManagerSchedule",
+                "Appointment",
+                "GardenAppointment",
+                { type: "Appointment", id: `${appointmentId}-grooming` },
+            ]))
+
+            // Refetch appointment notes to ensure UI is up to date
+            if (selectedAppointment && open) {
+                const fetchNotes = async () => {
+                    try {
+                        const { data, error } = await supabase
+                            .from("grooming_appointments")
+                            .select("customer_notes, internal_notes, grooming_notes")
+                            .eq("id", appointmentId)
+                            .single()
+
+                        if (!error && data) {
+                            const clientNotesValue = data.customer_notes || null
+                            setAppointmentClientNotes(clientNotesValue)
+                            setOriginalClientNotes(clientNotesValue || "")
+                        }
+                    } catch (err) {
+                        console.error("Error refetching notes:", err)
+                    }
+                }
+                fetchNotes()
+            }
         } catch (error) {
             console.error("❌ [AppointmentDetailsSheet] Error saving client notes:", error)
             toast({
@@ -1521,17 +1611,19 @@ export const AppointmentDetailsSheet = ({
                                                         <span>ערוך</span>
                                                     </Button>
                                                     {/* Payment Button */}
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
-                                                        onClick={handlePaymentClick}
-                                                        title="תשלום"
-                                                    >
-                                                        <CreditCard className="h-3.5 w-3.5" />
-                                                        <span>תשלום</span>
-                                                    </Button>
+                                                    {payments.length === 0 && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                            onClick={handlePaymentClick}
+                                                            title="תשלום"
+                                                        >
+                                                            <DollarSign className="h-3.5 w-3.5" />
+                                                            <span>תשלום</span>
+                                                        </Button>
+                                                    )}
                                                     {/* Images Button */}
                                                     {selectedAppointment.dogs?.[0]?.id && (
                                                         <Button
@@ -1559,6 +1651,48 @@ export const AppointmentDetailsSheet = ({
                                                             <CalendarDays className="h-3.5 w-3.5" />
                                                             <span>סדרה</span>
                                                         </Button>
+                                                    )}
+                                                    {/* Client Subscriptions & Photos Button */}
+                                                    {selectedAppointment.clientId && (
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="h-7 px-2 gap-1.5 text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-[11px]"
+                                                                    title="כרטיסיות ותמונות לקוח"
+                                                                >
+                                                                    <Users className="h-3.5 w-3.5" />
+                                                                    <span>לקוח</span>
+                                                                </Button>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-64 p-2" dir="rtl" align="start">
+                                                                <div className="space-y-2">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="w-full justify-start text-xs"
+                                                                        onClick={() => {
+                                                                            // Navigate to subscriptions page with client ID
+                                                                            navigate(`/subscriptions?clientId=${selectedAppointment.clientId}`)
+                                                                        }}
+                                                                    >
+                                                                        <CreditCard className="h-3.5 w-3.5 ml-2" />
+                                                                        הצג כרטיסיות
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="w-full justify-start text-xs"
+                                                                        onClick={() => setIsCustomerImagesModalOpen(true)}
+                                                                    >
+                                                                        <ImageIcon className="h-3.5 w-3.5 ml-2" />
+                                                                        הצג תמונות מכל התורים
+                                                                    </Button>
+                                                                </div>
+                                                            </PopoverContent>
+                                                        </Popover>
                                                     )}
                                                     {/* More Actions Menu */}
                                                     <Popover>
@@ -1608,53 +1742,387 @@ export const AppointmentDetailsSheet = ({
                                                     )}
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-600">
-                                                    <div className="flex items-center gap-1.5">
+                                                    {/* Date - Editable */}
+                                                    <div
+                                                        className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5"
+                                                        onClick={() => onEditAppointment(selectedAppointment)}
+                                                    >
                                                         <CalendarDays className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
                                                         <span className="text-xs">תאריך:</span>
                                                         <span className="font-medium text-gray-900">{appointmentContent.detailDate}</span>
+                                                        <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
                                                     </div>
-                                                    <div className="flex items-center gap-1.5">
+                                                    {/* Time - Editable */}
+                                                    <div
+                                                        className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5"
+                                                        onClick={() => onEditAppointment(selectedAppointment)}
+                                                    >
                                                         <Clock className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
                                                         <span className="text-xs">שעה:</span>
                                                         <span className="font-medium text-gray-900">{appointmentContent.detailTimeRange}</span>
+                                                        <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
                                                     </div>
-                                                    <div className="flex items-center gap-1.5">
+                                                    {/* Duration - Editable */}
+                                                    <div
+                                                        className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5"
+                                                        onClick={() => onEditAppointment(selectedAppointment)}
+                                                    >
                                                         <Clock className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
                                                         <span className="text-xs">משך:</span>
                                                         <span className="font-medium text-gray-900">{formatDuration(appointmentContent.duration)}</span>
+                                                        <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
                                                     </div>
-                                                    <div className="flex items-center gap-1.5">
+                                                    {/* Station - Editable */}
+                                                    <div
+                                                        className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5"
+                                                        onClick={() => onEditAppointment(selectedAppointment)}
+                                                    >
                                                         <MapPin className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
                                                         <span className="text-xs">עמדה:</span>
                                                         <span className="font-medium text-gray-900">{selectedAppointment.stationName || "לא משויך"}</span>
+                                                        <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
                                                     </div>
+                                                    {/* Customer Name - Clickable */}
+                                                    {selectedAppointment.clientId && (
+                                                        <div
+                                                            className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5"
+                                                            onClick={async () => {
+                                                                if (!selectedAppointment.clientId) return
+                                                                try {
+                                                                    const { data: customerData, error } = await supabase
+                                                                        .from("customers")
+                                                                        .select(`
+                                                                            id,
+                                                                            full_name,
+                                                                            phone,
+                                                                            email,
+                                                                            address,
+                                                                            classification,
+                                                                            customer_type_id,
+                                                                            customer_type:customer_types (
+                                                                                id,
+                                                                                name
+                                                                            )
+                                                                        `)
+                                                                        .eq("id", selectedAppointment.clientId)
+                                                                        .single()
+
+                                                                    if (error) throw error
+
+                                                                    if (customerData) {
+                                                                        dispatch(setSelectedClient({
+                                                                            id: customerData.id,
+                                                                            name: customerData.full_name,
+                                                                            phone: customerData.phone || undefined,
+                                                                            email: customerData.email || undefined,
+                                                                            address: customerData.address || undefined,
+                                                                            classification: customerData.classification || undefined,
+                                                                            customerTypeId: customerData.customer_type_id || undefined,
+                                                                            customerTypeName: customerData.customer_type?.name || undefined,
+                                                                        }))
+                                                                        dispatch(setIsClientDetailsOpen(true))
+                                                                    }
+                                                                } catch (error) {
+                                                                    console.error("Error fetching client:", error)
+                                                                    toast({
+                                                                        title: "שגיאה",
+                                                                        description: "לא ניתן לטעון את פרטי הלקוח",
+                                                                        variant: "destructive",
+                                                                    })
+                                                                }
+                                                            }}
+                                                        >
+                                                            <User className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                                            <span className="text-xs">לקוח:</span>
+                                                            <span className="font-medium text-primary hover:underline">{appointmentContent.clientName}</span>
+                                                            {appointmentContent.classification && appointmentContent.classification !== "לא ידוע" && (
+                                                                <span className="text-xs text-gray-500">({appointmentContent.classification})</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {/* Worker - Editable with Popover */}
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <div className="group relative cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors flex items-center gap-1.5">
+                                                                <User className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                                                <span className="text-xs">עובד:</span>
+                                                                <span className="font-medium text-gray-900">{selectedAppointment.workerName || "לא משויך"}</span>
+                                                                <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 absolute left-0 top-0 transition-opacity" />
+                                                            </div>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-64 p-3" dir="rtl" align="start">
+                                                            <div className="space-y-2">
+                                                                <h4 className="text-sm font-medium mb-2">בחר עובד</h4>
+                                                                <Select
+                                                                    value={selectedAppointment.workerId || "__unassigned__"}
+                                                                    onValueChange={(value) => handleWorkerChange(value === "__unassigned__" ? null : value)}
+                                                                    disabled={isUpdatingWorker || isLoadingWorkers}
+                                                                >
+                                                                    <SelectTrigger className="w-full h-8 text-xs">
+                                                                        <SelectValue placeholder={isLoadingWorkers ? "טוען..." : selectedAppointment.workerName || "לא משויך"} />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="__unassigned__">לא משויך</SelectItem>
+                                                                        {workers.map((worker) => (
+                                                                            <SelectItem key={worker.id} value={worker.id}>
+                                                                                {worker.full_name}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                                {isUpdatingWorker && (
+                                                                    <div className="flex items-center justify-center py-2">
+                                                                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                    {/* Manager - If available */}
+                                                    {selectedAppointment.managerId && (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <User className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                                            <span className="text-xs">מנהל:</span>
+                                                            <span className="font-medium text-gray-900">{selectedAppointment.managerName || "לא משויך"}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-                                            {/* Worker Assignment - Compact */}
-                                            <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                                                <User className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                                                <span className="text-xs text-gray-600 min-w-[60px]">עובד:</span>
-                                                <Select
-                                                    value={selectedAppointment.workerId || "__unassigned__"}
-                                                    onValueChange={(value) => handleWorkerChange(value === "__unassigned__" ? null : value)}
-                                                    disabled={isUpdatingWorker || isLoadingWorkers}
-                                                >
-                                                    <SelectTrigger className="flex-1 h-7 text-xs">
-                                                        <SelectValue placeholder={isLoadingWorkers ? "טוען..." : selectedAppointment.workerName || "לא משויך"} />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="__unassigned__">לא משויך</SelectItem>
-                                                        {workers.map((worker) => (
-                                                            <SelectItem key={worker.id} value={worker.id}>
-                                                                {worker.full_name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                {isUpdatingWorker && (
-                                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
-                                                )}
+
+                                            {/* Notes Sections - Compact */}
+                                            <div className="space-y-2 pt-1 border-t border-gray-100">
+                                                <Accordion type="multiple" defaultValue={["client-notes", "grooming-notes", "internal-notes"]} className="w-full">
+                                                    {/* Client Notes */}
+                                                    <AccordionItem value="client-notes" className="border-none">
+                                                        <AccordionTrigger className="py-2 hover:no-underline">
+                                                            <div className="flex items-center justify-between w-full pr-2">
+                                                                <h4 className="text-xs font-medium text-green-900 flex items-center gap-1.5">
+                                                                    <FileText className="h-3.5 w-3.5" />
+                                                                    הערות לקוח
+                                                                </h4>
+                                                                {(appointmentClientNotes !== null && appointmentClientNotes !== originalClientNotes) && (
+                                                                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                                                        <Button
+                                                                            onClick={handleSaveClientNotes}
+                                                                            disabled={isSavingClientNotes}
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 px-2 text-xs"
+                                                                        >
+                                                                            {isSavingClientNotes ? (
+                                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                                            ) : (
+                                                                                <Save className="h-3 w-3" />
+                                                                            )}
+                                                                        </Button>
+                                                                        <Button
+                                                                            onClick={handleRevertClientNotes}
+                                                                            disabled={isSavingClientNotes}
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 px-2 text-xs"
+                                                                        >
+                                                                            <X className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </AccordionTrigger>
+                                                        <AccordionContent>
+                                                            <Textarea
+                                                                value={appointmentClientNotes ?? selectedAppointment.notes ?? ""}
+                                                                onChange={(e) => {
+                                                                    setAppointmentClientNotes(e.target.value)
+                                                                    // Auto-resize
+                                                                    e.target.style.height = 'auto'
+                                                                    e.target.style.height = `${e.target.scrollHeight}px`
+                                                                }}
+                                                                onInput={(e) => {
+                                                                    const target = e.target as HTMLTextAreaElement
+                                                                    target.style.height = 'auto'
+                                                                    target.style.height = `${target.scrollHeight}px`
+                                                                }}
+                                                                ref={(el) => {
+                                                                    if (el) {
+                                                                        // Resize immediately when element is mounted
+                                                                        el.style.height = 'auto'
+                                                                        el.style.height = `${el.scrollHeight}px`
+                                                                    }
+                                                                }}
+                                                                placeholder="הזן הערות לקוח..."
+                                                                className="text-xs text-right bg-green-50 border-green-200 resize-y overflow-hidden min-h-[60px]"
+                                                                style={{ maxHeight: 'none' }}
+                                                                dir="rtl"
+                                                            />
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+
+                                                    {/* Grooming Notes */}
+                                                    {selectedAppointment.serviceType === "grooming" && (
+                                                        <AccordionItem value="grooming-notes" className="border-none">
+                                                            <AccordionTrigger className="py-2 hover:no-underline">
+                                                                <div className="flex items-center justify-between w-full pr-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h4 className="text-xs font-medium text-purple-900 flex items-center gap-1.5">
+                                                                            <FileText className="h-3.5 w-3.5" />
+                                                                            מה עשינו היום
+                                                                        </h4>
+                                                                        {selectedAppointment.dogs?.[0]?.id && (
+                                                                            <>
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    className="h-6 px-2 gap-1 text-xs text-purple-700 hover:text-purple-900 hover:bg-purple-50"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation()
+                                                                                        setIsDesiredGoalImagesModalOpen(true)
+                                                                                    }}
+                                                                                    title="תמונות מטרה"
+                                                                                >
+                                                                                    <ImageIcon className="h-3 w-3" />
+                                                                                </Button>
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    className="h-6 px-2 gap-1 text-xs text-purple-700 hover:text-purple-900 hover:bg-purple-50"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation()
+                                                                                        setIsSessionImagesModalOpen(true)
+                                                                                    }}
+                                                                                    title="תמונות מהתור"
+                                                                                >
+                                                                                    <Plus className="h-3 w-3" />
+                                                                                </Button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                    {(appointmentGroomingNotes !== originalGroomingNotes) && (
+                                                                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                                                            <Button
+                                                                                onClick={handleSaveGroomingNotes}
+                                                                                disabled={isSavingGroomingNotes}
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                                className="h-6 px-2 text-xs"
+                                                                            >
+                                                                                {isSavingGroomingNotes ? (
+                                                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                                                ) : (
+                                                                                    <Save className="h-3 w-3" />
+                                                                                )}
+                                                                            </Button>
+                                                                            <Button
+                                                                                onClick={handleRevertGroomingNotes}
+                                                                                disabled={isSavingGroomingNotes}
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                                className="h-6 px-2 text-xs"
+                                                                            >
+                                                                                <X className="h-3 w-3" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </AccordionTrigger>
+                                                            <AccordionContent>
+                                                                <Textarea
+                                                                    value={appointmentGroomingNotes || selectedAppointment.groomingNotes || ""}
+                                                                    onChange={(e) => {
+                                                                        setAppointmentGroomingNotes(e.target.value)
+                                                                        // Auto-resize
+                                                                        e.target.style.height = 'auto'
+                                                                        e.target.style.height = `${e.target.scrollHeight}px`
+                                                                    }}
+                                                                    onInput={(e) => {
+                                                                        const target = e.target as HTMLTextAreaElement
+                                                                        target.style.height = 'auto'
+                                                                        target.style.height = `${target.scrollHeight}px`
+                                                                    }}
+                                                                    ref={(el) => {
+                                                                        if (el) {
+                                                                            // Resize immediately when element is mounted
+                                                                            el.style.height = 'auto'
+                                                                            el.style.height = `${el.scrollHeight}px`
+                                                                        }
+                                                                    }}
+                                                                    placeholder="הזן מה עשינו היום..."
+                                                                    className="text-xs text-right bg-purple-50 border-purple-200 resize-y overflow-hidden min-h-[60px]"
+                                                                    style={{ maxHeight: 'none' }}
+                                                                    dir="rtl"
+                                                                />
+                                                            </AccordionContent>
+                                                        </AccordionItem>
+                                                    )}
+
+                                                    {/* Internal Notes */}
+                                                    <AccordionItem value="internal-notes" className="border-none">
+                                                        <AccordionTrigger className="py-2 hover:no-underline">
+                                                            <div className="flex items-center justify-between w-full pr-2">
+                                                                <h4 className="text-xs font-medium text-primary flex items-center gap-1.5">
+                                                                    <FileText className="h-3.5 w-3.5" />
+                                                                    הערות צוות
+                                                                </h4>
+                                                                {(appointmentInternalNotes !== originalInternalNotes) && (
+                                                                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                                                        <Button
+                                                                            onClick={handleSaveInternalNotes}
+                                                                            disabled={isSavingInternalNotes}
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 px-2 text-xs"
+                                                                        >
+                                                                            {isSavingInternalNotes ? (
+                                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                                            ) : (
+                                                                                <Save className="h-3 w-3" />
+                                                                            )}
+                                                                        </Button>
+                                                                        <Button
+                                                                            onClick={handleRevertInternalNotes}
+                                                                            disabled={isSavingInternalNotes}
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 px-2 text-xs"
+                                                                        >
+                                                                            <X className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </AccordionTrigger>
+                                                        <AccordionContent>
+                                                            <Textarea
+                                                                value={appointmentInternalNotes || selectedAppointment.internalNotes || ""}
+                                                                onChange={(e) => {
+                                                                    setAppointmentInternalNotes(e.target.value)
+                                                                    // Auto-resize
+                                                                    e.target.style.height = 'auto'
+                                                                    e.target.style.height = `${e.target.scrollHeight}px`
+                                                                }}
+                                                                onInput={(e) => {
+                                                                    const target = e.target as HTMLTextAreaElement
+                                                                    target.style.height = 'auto'
+                                                                    target.style.height = `${target.scrollHeight}px`
+                                                                }}
+                                                                ref={(el) => {
+                                                                    if (el) {
+                                                                        // Resize immediately when element is mounted
+                                                                        el.style.height = 'auto'
+                                                                        el.style.height = `${el.scrollHeight}px`
+                                                                    }
+                                                                }}
+                                                                placeholder="הזן הערות צוות פנימיות..."
+                                                                className="text-xs text-right bg-blue-50 border-blue-200 resize-y overflow-hidden min-h-[60px]"
+                                                                style={{ maxHeight: 'none' }}
+                                                                dir="rtl"
+                                                            />
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                </Accordion>
                                             </div>
+
                                             {/* Dev ID Section - Compact */}
                                             {showDevId && (
                                                 <div className="pt-2 border-t border-gray-100 space-y-1 text-xs text-gray-500">
@@ -1692,330 +2160,159 @@ export const AppointmentDetailsSheet = ({
                                                     ) : null}
                                                 </div>
                                             )}
-                            </div>
+                                        </div>
 
-                                            {/* Series Info - Compact */}
-                                            {selectedAppointment.seriesId && !hasBeenUnlinkedFromSeries && (
-                                                <div className="bg-purple-50 border border-purple-200 rounded-md p-2">
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <Info className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                                                            <span className="text-xs font-medium text-purple-800">
-                                                                תור מחזורי{weeksInterval && ` ${weeksInterval}`}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1">
+                                        {/* Series Info - Compact */}
+                                        {selectedAppointment.seriesId && !hasBeenUnlinkedFromSeries && (
+                                            <div className="bg-purple-50 border border-purple-200 rounded-md p-2">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Info className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                                                        <span className="text-xs font-medium text-purple-800">
+                                                            תור מחזורי{weeksInterval && ` ${weeksInterval}`}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-6 w-6 p-0 text-primary hover:text-purple-800 hover:bg-primary/20"
+                                                            disabled={isUnlinkingFromSeries}
+                                                            onClick={() => setUnlinkConfirmOpen(true)}
+                                                            title="הפרד תור מהסדרה"
+                                                        >
+                                                            {isUnlinkingFromSeries ? (
+                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                            ) : (
+                                                                <Link2Off className="h-3 w-3" />
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+
+                                        {/* Payments Section - Compact */}
+                                        {payments.length > 0 && (
+                                            <div className="pt-2 border-t border-gray-100">
+                                                <div className="space-y-1.5">
+                                                    {payments.map((payment) => (
+                                                        <div
+                                                            key={payment.id}
+                                                            className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5"
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <CreditCard className="h-3.5 w-3.5 text-gray-400" />
+                                                                <div className="text-xs">
+                                                                    <span className="font-medium text-gray-900">₪{payment.amount.toFixed(2)}</span>
+                                                                    <span className={cn(
+                                                                        "mr-1.5 text-[10px]",
+                                                                        payment.status === "paid" ? "text-green-700" :
+                                                                            payment.status === "partial" ? "text-amber-700" :
+                                                                                "text-red-700"
+                                                                    )}>
+                                                                        {payment.status === "paid" ? "שולם" :
+                                                                            payment.status === "partial" ? "חלקי" :
+                                                                                "לא שולם"}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                className="h-6 w-6 p-0 text-primary hover:text-purple-800 hover:bg-primary/20"
-                                                                disabled={isUnlinkingFromSeries}
-                                                                onClick={() => setUnlinkConfirmOpen(true)}
-                                                                title="הפרד תור מהסדרה"
+                                                                className="h-6 px-2 text-xs"
+                                                                onClick={() => setIsInvoiceDialogOpen(true)}
                                                             >
-                                                                {isUnlinkingFromSeries ? (
-                                                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                                                ) : (
-                                                                    <Link2Off className="h-3 w-3" />
-                                                                )}
+                                                                <Receipt className="h-3 w-3 ml-1" />
+                                                                חשבונית
                                                             </Button>
                                                         </div>
-                                                    </div>
+                                                    ))}
+                                                    {hasOrder && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 w-full justify-center gap-1.5 text-xs mt-1.5"
+                                                            onClick={(e) => {
+                                                                e.preventDefault()
+                                                                e.stopPropagation()
+                                                                setIsOrderDetailsModalOpen(true)
+                                                            }}
+                                                        >
+                                                            <Receipt className="h-3.5 w-3.5" />
+                                                            הצג הזמנות
+                                                        </Button>
+                                                    )}
                                                 </div>
-                                            )}
+                                            </div>
+                                        )}
 
-                                            {/* Client Section - Compact */}
-                                            {selectedAppointment.clientId && (
-                                                <div className="pt-2 border-t border-gray-100">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => onClientClick({
-                                                            name: appointmentContent.clientName,
-                                                            classification: appointmentContent.classification,
-                                                            phone: selectedAppointment.clientPhone,
-                                                            email: selectedAppointment.clientEmail,
-                                                            recordId: selectedAppointment.recordId,
-                                                            recordNumber: selectedAppointment.recordNumber,
-                                                            clientId: selectedAppointment.clientId,
-                                                            id: selectedAppointment.clientId
-                                                        })}
-                                                        className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary hover:underline cursor-pointer w-full text-right"
-                                                    >
-                                                        <User className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                                                        <span>{appointmentContent.clientName}</span>
-                                                        {appointmentContent.classification && appointmentContent.classification !== "לא ידוע" && (
-                                                            <span className="text-xs text-gray-500">({appointmentContent.classification})</span>
-                                                        )}
-                                                    </button>
+                                        {/* Subscription - Compact */}
+                                        {appointmentContent.subscriptionName && (
+                                            <div className="pt-2 border-t border-gray-100 text-xs">
+                                                <div className="flex items-center gap-1.5">
+                                                    <FileText className="h-3.5 w-3.5 text-gray-400" />
+                                                    <span className="text-gray-600">כרטיסייה:</span>
+                                                    <span className="font-medium text-gray-900">{appointmentContent.subscriptionName}</span>
                                                 </div>
-                                            )}
+                                            </div>
+                                        )}
 
-                                            {/* Payments Section - Compact */}
+                                        {/* Save All Changes Button */}
+                                        {appointmentContent.hasUnsavedChanges && (
                                             <div className="pt-2 border-t border-gray-100">
-                                                {payments.length === 0 ? (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 w-full justify-center gap-1.5 text-xs"
-                                                        onClick={(e) => {
-                                                            e.preventDefault()
-                                                            e.stopPropagation()
-                                                            void handlePaymentClick()
-                                                        }}
-                                                    >
-                                                        <CreditCard className="h-3.5 w-3.5" />
-                                                        השלם תשלום
-                                                    </Button>
-                                                ) : (
-                                                    <div className="space-y-1.5">
-                                                        {payments.map((payment) => (
-                                                            <div
-                                                                key={payment.id}
-                                                                className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5"
-                                                            >
-                                                                <div className="flex items-center gap-2">
-                                                                    <CreditCard className="h-3.5 w-3.5 text-gray-400" />
-                                                                    <div className="text-xs">
-                                                                        <span className="font-medium text-gray-900">₪{payment.amount.toFixed(2)}</span>
-                                                                        <span className={cn(
-                                                                            "mr-1.5 text-[10px]",
-                                                                            payment.status === "paid" ? "text-green-700" :
-                                                                                payment.status === "partial" ? "text-amber-700" :
-                                                                                    "text-red-700"
-                                                                        )}>
-                                                                            {payment.status === "paid" ? "שולם" :
-                                                                                payment.status === "partial" ? "חלקי" :
-                                                                                    "לא שולם"}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-6 px-2 text-xs"
-                                                                    onClick={() => setIsInvoiceDialogOpen(true)}
-                                                                >
-                                                                    <Receipt className="h-3 w-3 ml-1" />
-                                                                    חשבונית
-                                                                </Button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {hasOrder && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 w-full justify-center gap-1.5 text-xs mt-1.5"
-                                                        onClick={(e) => {
-                                                            e.preventDefault()
-                                                            e.stopPropagation()
-                                                            setIsOrderDetailsModalOpen(true)
-                                                        }}
-                                                    >
-                                                        <Receipt className="h-3.5 w-3.5" />
-                                                        הצג הזמנות
-                                                    </Button>
-                                                )}
+                                                <Button
+                                                    onClick={handleSaveAllChanges}
+                                                    disabled={isSavingAllChanges || isSavingInternalNotes || isSavingGroomingNotes || isSavingClientNotes}
+                                                    size="sm"
+                                                    className="w-full h-7 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                                                >
+                                                    {isSavingAllChanges ? (
+                                                        <>
+                                                            <Loader2 className="h-3 w-3 ml-1.5 animate-spin" />
+                                                            שומר...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Save className="h-3 w-3 ml-1.5" />
+                                                            שמור את כל השינויים
+                                                        </>
+                                                    )}
+                                                </Button>
                                             </div>
+                                        )}
 
-                                            {/* Subscription - Compact */}
-                                            {appointmentContent.subscriptionName && (
-                                                <div className="pt-2 border-t border-gray-100 text-xs">
+                                        {/* Record Information - Compact */}
+                                        {(selectedAppointment.recordId || selectedAppointment.recordNumber) && (
+                                            <div className="pt-2 border-t border-gray-100 text-xs text-gray-500">
+                                                {selectedAppointment.recordId && (
                                                     <div className="flex items-center gap-1.5">
-                                                        <FileText className="h-3.5 w-3.5 text-gray-400" />
-                                                        <span className="text-gray-600">כרטיסייה:</span>
-                                                        <span className="font-medium text-gray-900">{appointmentContent.subscriptionName}</span>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Notes Sections - Compact */}
-                                            <div className="space-y-3 pt-2 border-t border-gray-100">
-                                                {/* Client Notes */}
-                                                <div className="space-y-1.5">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className="text-xs font-medium text-green-900 flex items-center gap-1.5">
-                                                            <FileText className="h-3.5 w-3.5" />
-                                                            הערות לקוח
-                                                        </h4>
-                                                        {(appointmentClientNotes !== null && appointmentClientNotes !== originalClientNotes) && (
-                                                            <div className="flex gap-1">
-                                                                <Button
-                                                                    onClick={handleSaveClientNotes}
-                                                                    disabled={isSavingClientNotes}
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="h-6 px-2 text-xs"
-                                                                >
-                                                                    {isSavingClientNotes ? (
-                                                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                                                    ) : (
-                                                                        <Save className="h-3 w-3" />
-                                                                    )}
-                                                                </Button>
-                                                                <Button
-                                                                    onClick={handleRevertClientNotes}
-                                                                    disabled={isSavingClientNotes}
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="h-6 px-2 text-xs"
-                                                                >
-                                                                    <X className="h-3 w-3" />
-                                                                </Button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <Textarea
-                                                        value={appointmentClientNotes ?? selectedAppointment.notes ?? ""}
-                                                        onChange={(e) => setAppointmentClientNotes(e.target.value)}
-                                                        placeholder="הזן הערות לקוח..."
-                                                        className="min-h-[60px] text-xs text-right bg-green-50 border-green-200"
-                                                        dir="rtl"
-                                                    />
-                                                </div>
-
-                                                {/* Grooming Notes */}
-                                                {selectedAppointment.serviceType === "grooming" && (
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex items-center justify-between">
-                                                            <h4 className="text-xs font-medium text-purple-900 flex items-center gap-1.5">
-                                                                <FileText className="h-3.5 w-3.5" />
-                                                                מה עשינו היום
-                                                            </h4>
-                                                            {(appointmentGroomingNotes !== originalGroomingNotes) && (
-                                                                <div className="flex gap-1">
-                                                                    <Button
-                                                                        onClick={handleSaveGroomingNotes}
-                                                                        disabled={isSavingGroomingNotes}
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        className="h-6 px-2 text-xs"
-                                                                    >
-                                                                        {isSavingGroomingNotes ? (
-                                                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                                                        ) : (
-                                                                            <Save className="h-3 w-3" />
-                                                                        )}
-                                                                    </Button>
-                                                                    <Button
-                                                                        onClick={handleRevertGroomingNotes}
-                                                                        disabled={isSavingGroomingNotes}
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        className="h-6 px-2 text-xs"
-                                                                    >
-                                                                        <X className="h-3 w-3" />
-                                                                    </Button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <Textarea
-                                                            value={appointmentGroomingNotes || selectedAppointment.groomingNotes || ""}
-                                                            onChange={(e) => setAppointmentGroomingNotes(e.target.value)}
-                                                            placeholder="הזן מה עשינו היום..."
-                                                            className="min-h-[60px] text-xs text-right bg-purple-50 border-purple-200"
-                                                            dir="rtl"
-                                                        />
+                                                        <span>מזהה:</span>
+                                                        <span className="font-mono text-gray-700">{selectedAppointment.recordId}</span>
                                                     </div>
                                                 )}
-
-                                                {/* Internal Notes */}
-                                                <div className="space-y-1.5">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className="text-xs font-medium text-primary flex items-center gap-1.5">
-                                                            <FileText className="h-3.5 w-3.5" />
-                                                            הערות צוות
-                                                        </h4>
-                                                        {(appointmentInternalNotes !== originalInternalNotes) && (
-                                                            <div className="flex gap-1">
-                                                                <Button
-                                                                    onClick={handleSaveInternalNotes}
-                                                                    disabled={isSavingInternalNotes}
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="h-6 px-2 text-xs"
-                                                                >
-                                                                    {isSavingInternalNotes ? (
-                                                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                                                    ) : (
-                                                                        <Save className="h-3 w-3" />
-                                                                    )}
-                                                                </Button>
-                                                                <Button
-                                                                    onClick={handleRevertInternalNotes}
-                                                                    disabled={isSavingInternalNotes}
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="h-6 px-2 text-xs"
-                                                                >
-                                                                    <X className="h-3 w-3" />
-                                                                </Button>
-                                                            </div>
-                                                        )}
+                                                {selectedAppointment.recordNumber && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span>מספר:</span>
+                                                        <span className="font-mono text-gray-700">{selectedAppointment.recordNumber}</span>
                                                     </div>
-                                                    <Textarea
-                                                        value={appointmentInternalNotes || selectedAppointment.internalNotes || ""}
-                                                        onChange={(e) => setAppointmentInternalNotes(e.target.value)}
-                                                        placeholder="הזן הערות צוות פנימיות..."
-                                                        className="min-h-[60px] text-xs text-right bg-primary/10 border-primary/20"
-                                                        dir="rtl"
-                                                    />
-                                                </div>
-
-                                                {/* Save All Changes Button */}
-                                                {appointmentContent.hasUnsavedChanges && (
-                                                    <Button
-                                                        onClick={handleSaveAllChanges}
-                                                        disabled={isSavingAllChanges || isSavingInternalNotes || isSavingGroomingNotes || isSavingClientNotes}
-                                                        size="sm"
-                                                        className="w-full h-7 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
-                                                    >
-                                                        {isSavingAllChanges ? (
-                                                            <>
-                                                                <Loader2 className="h-3 w-3 ml-1.5 animate-spin" />
-                                                                שומר...
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Save className="h-3 w-3 ml-1.5" />
-                                                                שמור את כל השינויים
-                                                            </>
-                                                        )}
-                                                    </Button>
                                                 )}
                                             </div>
+                                        )}
 
-                                            {/* Record Information - Compact */}
-                                            {(selectedAppointment.recordId || selectedAppointment.recordNumber) && (
-                                                <div className="pt-2 border-t border-gray-100 text-xs text-gray-500">
-                                                    {selectedAppointment.recordId && (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span>מזהה:</span>
-                                                            <span className="font-mono text-gray-700">{selectedAppointment.recordId}</span>
-                                                        </div>
-                                                    )}
-                                                    {selectedAppointment.recordNumber && (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span>מספר:</span>
-                                                            <span className="font-mono text-gray-700">{selectedAppointment.recordNumber}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* Messaging Actions - Sticky to bottom */}
-                                            <div className="mt-auto pt-6">
-                                                <MessagingActions
-                                                    phone={appointmentClientPhone || appointmentContent.clientPhone}
-                                                    name={appointmentClientName || appointmentContent.clientName}
-                                                    contacts={customerContacts}
-                                                    customerId={resolvedClientId || selectedAppointment.clientId}
-                                                />
-                                            </div>
+                                        {/* Messaging Actions - Sticky to bottom */}
+                                        <div className="mt-auto pt-6">
+                                            <MessagingActions
+                                                phone={appointmentClientPhone || appointmentContent.clientPhone}
+                                                name={appointmentClientName || appointmentContent.clientName}
+                                                contacts={customerContacts}
+                                                customerId={resolvedClientId || selectedAppointment.clientId}
+                                            />
                                         </div>
-                                    )
-                                }
+                                    </div>
+                                )
+                            }
 
                             return (
                                 <div className="py-12 text-center text-sm text-gray-500">לא נבחר תור</div>

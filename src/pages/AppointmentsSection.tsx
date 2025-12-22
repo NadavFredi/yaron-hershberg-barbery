@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type MouseEvent } from "react"
 import { useSearchParams } from "react-router-dom"
 import { addDays, endOfDay, format, startOfDay, subDays } from "date-fns"
-import { Loader2, Search, MoreHorizontal, CalendarClock, CheckCircle2, XCircle, X } from "lucide-react"
+import { Loader2, Search, MoreHorizontal, CalendarClock, CheckCircle2, XCircle, X, ChevronLeft, ChevronRight } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import type { ManagerAppointment } from "./ManagerSchedule/types"
 import { useToast } from "@/hooks/use-toast"
@@ -32,8 +32,18 @@ import { useStations } from "@/hooks/useStations"
 import { MultiSelectDropdown } from "@/components/settings/SettingsServiceStationMatrixSection/components/MultiSelectDropdown"
 import { useServices } from "@/hooks/useServices"
 import { useServiceCategories } from "@/hooks/useServiceCategories"
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+    PaginationEllipsis,
+} from "@/components/ui/pagination"
 
 type AppointmentStatus = "pending" | "approved" | "cancelled" | "matched"
+type DateFilterType = "all" | "before" | "after" | "on" | "range"
 
 type EnrichedAppointment = ManagerAppointment & {
     sourceTable: "grooming_appointments"
@@ -157,18 +167,20 @@ export default function AppointmentsSection() {
     const [selectedServiceCategoryIds, setSelectedServiceCategoryIds] = useState<string[]>([])
     const [statusFilter, setStatusFilter] = useState<AppointmentStatus[]>([])
     const [searchTerm, setSearchTerm] = useState("")
-    const [activeSearchTerm, setActiveSearchTerm] = useState("") // The search term actually used for filtering
-    // Default to 1 month back from now
-    const initialStartDate = useMemo(() => subDays(new Date(), 30), [])
-    const initialEndDate = useMemo(() => new Date(), [])
-    const [startDate, setStartDate] = useState<Date | null>(initialStartDate)
-    const [endDate, setEndDate] = useState<Date | null>(initialEndDate)
-    const [showOnlyFuture, setShowOnlyFuture] = useState(true)
+    const [dateFilterType, setDateFilterType] = useState<DateFilterType>("range")
+    const [singleDate, setSingleDate] = useState<Date | null>(null) // For before/after/on
+    const [startDate, setStartDate] = useState<Date | null>(subDays(new Date(), 30)) // For range
+    const [endDate, setEndDate] = useState<Date | null>(new Date()) // For range
+    const [showOnlyFuture, setShowOnlyFuture] = useState(false) // Now handled on backend
+    const [customerCategoryFilter, setCustomerCategoryFilter] = useState<string>("all")
+    const [selectedStationIds, setSelectedStationIds] = useState<string[]>([])
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1)
+    const [pageSize] = useState(50)
+    const [totalCount, setTotalCount] = useState(0)
     const [rowActionLoading, setRowActionLoading] = useState<string | null>(null)
     const [selectedAppointment, setSelectedAppointment] = useState<EnrichedAppointment | null>(null)
     const [customerTypes, setCustomerTypes] = useState<OptionItem[]>([])
-    const [customerCategoryFilter, setCustomerCategoryFilter] = useState<string>("all")
-    const [selectedStationIds, setSelectedStationIds] = useState<string[]>([])
     const [isAppointmentSheetOpen, setIsAppointmentSheetOpen] = useState(false)
     const appliedModeRef = useRef<string | null>(null)
 
@@ -206,13 +218,17 @@ export default function AppointmentsSection() {
         }
     }, [searchParams])
 
-    // Validate that from date is always less than to date
+    // Validate that from date is always less than to date (for range filter)
     useEffect(() => {
-        if (startDate && endDate && startDate > endDate) {
-            // If from is greater than to, adjust to date to be after from date
+        if (dateFilterType === "range" && startDate && endDate && startDate > endDate) {
             setEndDate(addDays(startDate, 1))
         }
-    }, [startDate, endDate])
+    }, [startDate, endDate, dateFilterType])
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [selectedServiceIds, selectedServiceCategoryIds, statusFilter, dateFilterType, singleDate, startDate, endDate, showOnlyFuture, customerCategoryFilter, selectedStationIds, searchTerm])
 
     const fetchFilterOptions = useCallback(async () => {
         try {
@@ -242,31 +258,54 @@ export default function AppointmentsSection() {
         setIsLoading(true)
         setError(null)
         try {
-            const fromIso = startDate ? startOfDay(startDate).toISOString() : undefined
-            const toIso = endDate ? endOfDay(endDate).toISOString() : undefined
+            // Calculate date filters based on dateFilterType
+            let dateFilter: { gte?: string; lte?: string } | null = null
+            const todayStart = startOfDay(new Date())
+
+            if (dateFilterType === "before" && singleDate) {
+                dateFilter = { lte: endOfDay(singleDate).toISOString() }
+            } else if (dateFilterType === "after" && singleDate) {
+                dateFilter = { gte: startOfDay(singleDate).toISOString() }
+            } else if (dateFilterType === "on" && singleDate) {
+                const dayStart = startOfDay(singleDate)
+                const dayEnd = endOfDay(singleDate)
+                dateFilter = { gte: dayStart.toISOString(), lte: dayEnd.toISOString() }
+            } else if (dateFilterType === "range") {
+                if (startDate && endDate) {
+                    dateFilter = {
+                        gte: startOfDay(startDate).toISOString(),
+                        lte: endOfDay(endDate).toISOString(),
+                    }
+                }
+            }
+
+            // If showOnlyFuture is true, ensure we only get future appointments
+            if (showOnlyFuture && (!dateFilter || !dateFilter.gte)) {
+                dateFilter = { ...dateFilter, gte: todayStart.toISOString() }
+            }
 
             // Get service IDs to filter by
-            // If specific services are selected, use those
-            // If service categories are selected (and no specific services), use all services in those categories
-            // If both are selected, filter by intersection (services that are in selected categories AND in selected services)
             let serviceIdsToFilter: string[] = []
             if (selectedServiceIds.length > 0 && selectedServiceCategoryIds.length > 0) {
-                // Both selected: intersection - services that are in selected categories AND in selected services
                 const servicesInCategories = services
                     .filter((s) => s.service_category_id && selectedServiceCategoryIds.includes(s.service_category_id))
                     .map((s) => s.id)
                 serviceIdsToFilter = selectedServiceIds.filter((id) => servicesInCategories.includes(id))
             } else if (selectedServiceIds.length > 0) {
-                // Only services selected
                 serviceIdsToFilter = selectedServiceIds
             } else if (selectedServiceCategoryIds.length > 0) {
-                // Only categories selected: get all services in the selected categories
                 serviceIdsToFilter = services
                     .filter((s) => s.service_category_id && selectedServiceCategoryIds.includes(s.service_category_id))
                     .map((s) => s.id)
             }
 
-            const groomingPromise = async (): Promise<GroomingAppointmentRow[]> => {
+            // When search is active, fetch all results and paginate client-side
+            // Otherwise, use backend pagination
+            const hasSearch = searchTerm.trim().length > 0
+            const from = hasSearch ? 0 : (currentPage - 1) * pageSize
+            const to = hasSearch ? 999999 : from + pageSize - 1
+
+            const groomingPromise = async (): Promise<{ data: GroomingAppointmentRow[]; count: number }> => {
                 let query = supabase
                     .from("grooming_appointments")
                     .select(
@@ -304,36 +343,92 @@ export default function AppointmentsSection() {
                             name,
                             service_category_id
                         )
-                    `
+                    `,
+                        { count: "exact" }
                     )
                     .order("start_at", { ascending: false })
 
-                if (fromIso) {
-                    query = query.gte("start_at", fromIso)
+                // Only apply range if not searching (search will paginate client-side)
+                if (!hasSearch) {
+                    query = query.range(from, to)
                 }
-                if (toIso) {
-                    query = query.lte("start_at", toIso)
+
+                // Apply date filters
+                if (dateFilter?.gte) {
+                    query = query.gte("start_at", dateFilter.gte)
                 }
+                if (dateFilter?.lte) {
+                    query = query.lte("start_at", dateFilter.lte)
+                }
+
+                // Apply status filter
                 if (statusFilter.length > 0) {
                     query = query.in("status", statusFilter)
                 }
+
+                // Apply service filter
                 if (serviceIdsToFilter.length > 0) {
                     query = query.in("service_id", serviceIdsToFilter)
                 }
+
+                // Apply station filter
                 if (selectedStationIds.length > 0) {
                     query = query.in("station_id", selectedStationIds)
                 }
 
-                const { data, error: groomingError } = await query
+                // Apply customer category filter
+                if (customerCategoryFilter !== "all") {
+                    query = query.eq("customers.customer_type_id", customerCategoryFilter)
+                }
+
+                // Note: Search filtering will be done client-side after fetching due to Supabase limitations
+                // with nested OR conditions across multiple relations
+
+                const { data, error: groomingError, count } = await query
                 if (groomingError) {
                     throw groomingError
                 }
-                return (data ?? []) as GroomingAppointmentRow[]
+                return { data: (data ?? []) as GroomingAppointmentRow[], count: count ?? 0 }
             }
 
-            const groomingData = await groomingPromise()
+            const { data: groomingData, count } = await groomingPromise()
 
-            const mappedGrooming: EnrichedAppointment[] = groomingData.map((apt) => {
+            // Client-side filtering for search
+            let filteredData = groomingData
+            if (hasSearch) {
+                const normalized = searchTerm.trim().toLowerCase()
+                filteredData = groomingData.filter((apt) => {
+                    const customer = getFirst<RawCustomerRecord>(apt.customers)
+                    const station = getFirst<RawStationRecord>(apt.stations)
+                    const service = getFirst<RawServiceRecord>(apt.services)
+
+                    const haystack = [
+                        customer?.full_name,
+                        customer?.phone,
+                        service?.name,
+                        station?.name,
+                        apt.customer_notes,
+                        apt.internal_notes,
+                    ]
+                        .filter(Boolean)
+                        .join(" ")
+                        .toLowerCase()
+
+                    return haystack.includes(normalized)
+                })
+            }
+
+            // Apply client-side pagination if search is active
+            let paginatedData = filteredData
+            let finalCount = count
+            if (hasSearch) {
+                finalCount = filteredData.length
+                const paginationFrom = (currentPage - 1) * pageSize
+                const paginationTo = paginationFrom + pageSize
+                paginatedData = filteredData.slice(paginationFrom, paginationTo)
+            }
+
+            const mappedGrooming: EnrichedAppointment[] = paginatedData.map((apt) => {
                 const customer = getFirst<RawCustomerRecord>(apt.customers)
                 const station = getFirst<RawStationRecord>(apt.stations)
                 const service = getFirst<RawServiceRecord>(apt.services)
@@ -364,9 +459,8 @@ export default function AppointmentsSection() {
                 }
             })
 
-            setAppointments(mappedGrooming.sort((a, b) => {
-                return new Date(b.startDateTime).getTime() - new Date(a.startDateTime).getTime()
-            }))
+            setAppointments(mappedGrooming)
+            setTotalCount(finalCount)
         } catch (fetchError) {
             console.error("Failed to load appointments:", fetchError)
             const message = fetchError instanceof Error ? fetchError.message : "נכשלה הטעינה של התורים"
@@ -374,65 +468,42 @@ export default function AppointmentsSection() {
         } finally {
             setIsLoading(false)
         }
-    }, [selectedServiceIds, selectedServiceCategoryIds, statusFilter, startDate, endDate, selectedStationIds, customerCategoryFilter, services])
+    }, [
+        selectedServiceIds,
+        selectedServiceCategoryIds,
+        statusFilter,
+        dateFilterType,
+        singleDate,
+        startDate,
+        endDate,
+        showOnlyFuture,
+        selectedStationIds,
+        customerCategoryFilter,
+        searchTerm,
+        currentPage,
+        pageSize,
+        services,
+    ])
 
     useEffect(() => {
         fetchAppointments()
     }, [fetchAppointments])
 
-    const filteredAppointments = useMemo(() => {
-        const normalized = activeSearchTerm.trim().toLowerCase()
-        const todayStart = startOfDay(new Date())
+    // Appointments are already filtered and paginated from backend
+    const filteredAppointments = appointments
 
-        return appointments.filter((appointment) => {
-            if (showOnlyFuture) {
-                const start = new Date(appointment.startDateTime)
-                if (start < todayStart) {
-                    return false
-                }
-            }
-
-            if (customerCategoryFilter !== "all") {
-                if (appointment.clientCustomerTypeId !== customerCategoryFilter) {
-                    return false
-                }
-            }
-
-            if (!normalized) {
-                return true
-            }
-
-            const haystack = [
-                appointment.clientName,
-                appointment.clientPhone,
-                appointment.serviceName,
-                appointment.stationName,
-                appointment.notes,
-                appointment.internalNotes,
-            ]
-                .filter(Boolean)
-                .join(" ")
-                .toLowerCase()
-
-            return haystack.includes(normalized)
-        })
-    }, [appointments, activeSearchTerm, showOnlyFuture, customerCategoryFilter])
+    const totalPages = Math.ceil(totalCount / pageSize)
 
 
     const handleRefresh = () => {
         fetchAppointments()
     }
 
-    // Function to trigger search manually (called on Enter or Search button click)
-    const triggerSearch = () => {
-        setActiveSearchTerm(searchTerm)
-    }
-
     // Handle Enter key in search input
     const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault()
-            triggerSearch()
+            setCurrentPage(1) // Reset to first page on search
         }
     }
 
@@ -441,16 +512,14 @@ export default function AppointmentsSection() {
         setSelectedServiceCategoryIds([])
         setStatusFilter([])
         setSearchTerm("")
-        setActiveSearchTerm("")
-        const resetStart = new Date(initialStartDate)
-        const resetEnd = new Date(initialEndDate)
-        setStartDate(resetStart)
-        setEndDate(resetEnd)
-        setShowOnlyFuture(true)
+        setDateFilterType("range")
+        setSingleDate(null)
+        setStartDate(subDays(new Date(), 30))
+        setEndDate(new Date())
+        setShowOnlyFuture(false)
         setCustomerCategoryFilter("all")
         setSelectedStationIds([])
-        // Trigger search after clearing
-        triggerSearch()
+        setCurrentPage(1)
     }
 
     const buildClientDetailsFromAppointment = (appointment: EnrichedAppointment): ClientDetails => ({
@@ -535,8 +604,8 @@ export default function AppointmentsSection() {
                             <div>
                                 <CardTitle className="text-lg sm:text-xl">תורים</CardTitle>
                                 <CardDescription className="text-xs sm:text-sm">
-                                    {filteredAppointments.length > 0
-                                        ? `נמצאו ${filteredAppointments.length} תורים${showOnlyFuture ? " (כולל עתידיים בלבד)" : ""}`
+                                    {totalCount > 0
+                                        ? `נמצאו ${totalCount} תורים${currentPage > 1 ? ` (דף ${currentPage} מתוך ${totalPages})` : ""}`
                                         : "לא נמצאו תורים התואמים לסינונים"}
                                 </CardDescription>
                             </div>
@@ -582,72 +651,161 @@ export default function AppointmentsSection() {
                                         <MultiSelectDropdown
                                             options={services.filter(s => s.is_active).map(s => ({ id: s.id, name: s.name }))}
                                             selectedIds={selectedServiceIds}
-                                            onSelectionChange={setSelectedServiceIds}
+                                            onSelectionChange={(ids) => {
+                                                setSelectedServiceIds(ids)
+                                                setCurrentPage(1)
+                                            }}
                                             placeholder="בחר שירותים..."
                                         />
                                     )}
                                 </div>
                                 <div>
-                                    <Label className="text-sm mb-2 block">מתאריך</Label>
-                                    <DatePickerInput
-                                        value={startDate}
-                                        onChange={(date) => {
-                                            if (date) {
-                                                setStartDate(date)
-                                                // Ensure to date is after from date
-                                                if (endDate && date > endDate) {
-                                                    setEndDate(addDays(date, 1))
-                                                }
-                                            } else {
-                                                setStartDate(null)
-                                            }
+                                    <Label className="text-sm mb-2 block">סוג סינון תאריך</Label>
+                                    <Select
+                                        value={dateFilterType}
+                                        onValueChange={(value) => {
+                                            setDateFilterType(value as DateFilterType)
+                                            setCurrentPage(1)
                                         }}
-                                        displayFormat="dd/MM/yyyy"
-                                        className="w-full text-right"
-                                    />
+                                    >
+                                        <SelectTrigger dir="rtl" className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent dir="rtl">
+                                            <SelectItem value="all">הכל</SelectItem>
+                                            <SelectItem value="before">לפני תאריך</SelectItem>
+                                            <SelectItem value="after">אחרי תאריך</SelectItem>
+                                            <SelectItem value="on">בתאריך</SelectItem>
+                                            <SelectItem value="range">טווח תאריכים</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div>
-                                    <Label className="text-sm mb-2 block">עד תאריך</Label>
-                                    <DatePickerInput
-                                        value={endDate}
-                                        onChange={(date) => {
-                                            if (date) {
-                                                // Ensure to date is after from date
-                                                if (startDate && date < startDate) {
-                                                    setEndDate(addDays(startDate, 1))
-                                                } else {
-                                                    setEndDate(date)
-                                                }
-                                            } else {
-                                                setEndDate(null)
-                                            }
-                                        }}
-                                        displayFormat="dd/MM/yyyy"
-                                        className="w-full text-right"
-                                    />
+                                    {dateFilterType === "all" && (
+                                        <Label className="text-sm mb-2 block">תאריך</Label>
+                                    )}
+                                    {dateFilterType === "before" && (
+                                        <>
+                                            <Label className="text-sm mb-2 block">לפני תאריך</Label>
+                                            <DatePickerInput
+                                                value={singleDate}
+                                                onChange={(date) => {
+                                                    setSingleDate(date)
+                                                    setCurrentPage(1)
+                                                }}
+                                                displayFormat="dd/MM/yyyy"
+                                                className="w-full text-right"
+                                            />
+                                        </>
+                                    )}
+                                    {dateFilterType === "after" && (
+                                        <>
+                                            <Label className="text-sm mb-2 block">אחרי תאריך</Label>
+                                            <DatePickerInput
+                                                value={singleDate}
+                                                onChange={(date) => {
+                                                    setSingleDate(date)
+                                                    setCurrentPage(1)
+                                                }}
+                                                displayFormat="dd/MM/yyyy"
+                                                className="w-full text-right"
+                                            />
+                                        </>
+                                    )}
+                                    {dateFilterType === "on" && (
+                                        <>
+                                            <Label className="text-sm mb-2 block">בתאריך</Label>
+                                            <DatePickerInput
+                                                value={singleDate}
+                                                onChange={(date) => {
+                                                    setSingleDate(date)
+                                                    setCurrentPage(1)
+                                                }}
+                                                displayFormat="dd/MM/yyyy"
+                                                className="w-full text-right"
+                                            />
+                                        </>
+                                    )}
+                                    {dateFilterType === "range" && (
+                                        <>
+                                            <Label className="text-sm mb-2 block">מתאריך</Label>
+                                            <DatePickerInput
+                                                value={startDate}
+                                                onChange={(date) => {
+                                                    setStartDate(date)
+                                                    setCurrentPage(1)
+                                                }}
+                                                displayFormat="dd/MM/yyyy"
+                                                className="w-full text-right"
+                                            />
+                                        </>
+                                    )}
                                 </div>
                             </div>
                             {/* Second Row - 4 filters */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                                <div>
-                                    <Label className="text-sm mb-2 block">קטגוריית לקוח</Label>
-                                    <Select
-                                        value={customerCategoryFilter}
-                                        onValueChange={(value) => setCustomerCategoryFilter(value)}
-                                    >
-                                        <SelectTrigger dir="rtl" className="w-full">
-                                            <SelectValue placeholder="כל הקטגוריות" />
-                                        </SelectTrigger>
-                                        <SelectContent dir="rtl">
-                                            <SelectItem value="all">כל הקטגוריות</SelectItem>
-                                            {customerTypes.map((type) => (
-                                                <SelectItem key={type.id} value={type.id}>
-                                                    {type.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                {dateFilterType === "range" && (
+                                    <div>
+                                        <Label className="text-sm mb-2 block">עד תאריך</Label>
+                                        <DatePickerInput
+                                            value={endDate}
+                                            onChange={(date) => {
+                                                setEndDate(date)
+                                                setCurrentPage(1)
+                                            }}
+                                            displayFormat="dd/MM/yyyy"
+                                            className="w-full text-right"
+                                        />
+                                    </div>
+                                )}
+                                {dateFilterType !== "range" && (
+                                    <div>
+                                        <Label className="text-sm mb-2 block">קטגוריית לקוח</Label>
+                                        <Select
+                                            value={customerCategoryFilter}
+                                            onValueChange={(value) => {
+                                                setCustomerCategoryFilter(value)
+                                                setCurrentPage(1)
+                                            }}
+                                        >
+                                            <SelectTrigger dir="rtl" className="w-full">
+                                                <SelectValue placeholder="כל הקטגוריות" />
+                                            </SelectTrigger>
+                                            <SelectContent dir="rtl">
+                                                <SelectItem value="all">כל הקטגוריות</SelectItem>
+                                                {customerTypes.map((type) => (
+                                                    <SelectItem key={type.id} value={type.id}>
+                                                        {type.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                                {dateFilterType === "range" && (
+                                    <div>
+                                        <Label className="text-sm mb-2 block">קטגוריית לקוח</Label>
+                                        <Select
+                                            value={customerCategoryFilter}
+                                            onValueChange={(value) => {
+                                                setCustomerCategoryFilter(value)
+                                                setCurrentPage(1)
+                                            }}
+                                        >
+                                            <SelectTrigger dir="rtl" className="w-full">
+                                                <SelectValue placeholder="כל הקטגוריות" />
+                                            </SelectTrigger>
+                                            <SelectContent dir="rtl">
+                                                <SelectItem value="all">כל הקטגוריות</SelectItem>
+                                                {customerTypes.map((type) => (
+                                                    <SelectItem key={type.id} value={type.id}>
+                                                        {type.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
                                 <div>
                                     <Label className="text-sm mb-2 block">תחנות</Label>
                                     {isLoadingStations ? (
@@ -658,7 +816,10 @@ export default function AppointmentsSection() {
                                         <MultiSelectDropdown
                                             options={stations.map(s => ({ id: s.id, name: s.name }))}
                                             selectedIds={selectedStationIds}
-                                            onSelectionChange={setSelectedStationIds}
+                                            onSelectionChange={(ids) => {
+                                                setSelectedStationIds(ids)
+                                                setCurrentPage(1)
+                                            }}
                                             placeholder="בחר תחנות..."
                                         />
                                     )}
@@ -671,7 +832,10 @@ export default function AppointmentsSection() {
                                             name: opt.label
                                         }))}
                                         selectedIds={statusFilter}
-                                        onSelectionChange={(ids) => setStatusFilter(ids as AppointmentStatus[])}
+                                        onSelectionChange={(ids) => {
+                                            setStatusFilter(ids as AppointmentStatus[])
+                                            setCurrentPage(1)
+                                        }}
                                         placeholder="בחר סטטוסים..."
                                     />
                                 </div>
@@ -696,26 +860,21 @@ export default function AppointmentsSection() {
                                                 className="h-10 w-10 shrink-0"
                                                 onClick={() => {
                                                     setSearchTerm("")
-                                                    setActiveSearchTerm("")
+                                                    setCurrentPage(1)
                                                 }}
                                             >
                                                 <X className="h-4 w-4" />
                                             </Button>
                                         )}
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="h-10 w-10 shrink-0"
-                                            onClick={() => triggerSearch()}
-                                        >
-                                            <Search className="h-4 w-4" />
-                                        </Button>
                                     </div>
                                     <div className="flex items-center gap-2 mt-2">
                                         <Checkbox
                                             id="future-only"
                                             checked={showOnlyFuture}
-                                            onCheckedChange={(value) => setShowOnlyFuture(value === true)}
+                                            onCheckedChange={(value) => {
+                                                setShowOnlyFuture(value === true)
+                                                setCurrentPage(1)
+                                            }}
                                             className="h-4 w-4"
                                         />
                                         <Label htmlFor="future-only" className="cursor-pointer text-xs font-medium">
@@ -827,6 +986,82 @@ export default function AppointmentsSection() {
                         )}
                     </div>
                 </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="flex justify-center mt-4">
+                        <Pagination>
+                            <PaginationContent>
+                                <PaginationItem>
+                                    <Button
+                                        variant="ghost"
+                                        size="default"
+                                        onClick={() => {
+                                            if (currentPage > 1) {
+                                                setCurrentPage(currentPage - 1)
+                                                window.scrollTo({ top: 0, behavior: "smooth" })
+                                            }
+                                        }}
+                                        disabled={currentPage === 1}
+                                        className="gap-1"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                        <span>הקודם</span>
+                                    </Button>
+                                </PaginationItem>
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    let pageNum: number
+                                    if (totalPages <= 5) {
+                                        pageNum = i + 1
+                                    } else if (currentPage <= 3) {
+                                        pageNum = i + 1
+                                    } else if (currentPage >= totalPages - 2) {
+                                        pageNum = totalPages - 4 + i
+                                    } else {
+                                        pageNum = currentPage - 2 + i
+                                    }
+
+                                    return (
+                                        <PaginationItem key={pageNum}>
+                                            <PaginationLink
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    setCurrentPage(pageNum)
+                                                }}
+                                                isActive={currentPage === pageNum}
+                                            >
+                                                {pageNum}
+                                            </PaginationLink>
+                                        </PaginationItem>
+                                    )
+                                })}
+                                {totalPages > 5 && currentPage < totalPages - 2 && (
+                                    <PaginationItem>
+                                        <PaginationEllipsis />
+                                    </PaginationItem>
+                                )}
+                                <PaginationItem>
+                                    <Button
+                                        variant="ghost"
+                                        size="default"
+                                        onClick={() => {
+                                            if (currentPage < totalPages) {
+                                                setCurrentPage(currentPage + 1)
+                                                window.scrollTo({ top: 0, behavior: "smooth" })
+                                            }
+                                        }}
+                                        disabled={currentPage === totalPages}
+                                        className="gap-1"
+                                    >
+                                        <span>הבא</span>
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                </PaginationItem>
+                            </PaginationContent>
+                        </Pagination>
+                    </div>
+                )}
 
                 <AppointmentDetailsSheet
                     open={isAppointmentSheetOpen}
