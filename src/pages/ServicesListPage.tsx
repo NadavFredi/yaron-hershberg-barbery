@@ -51,6 +51,22 @@ import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover"
 import { RichTextEditor } from "@/components/admin/RichTextEditor"
 
+// Utility function to format minutes into hours and minutes
+const formatDuration = (minutes: number): string => {
+    if (minutes <= 0) return "0 דקות"
+
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+
+    if (hours === 0) {
+        return `${remainingMinutes} דקות`
+    } else if (remainingMinutes === 0) {
+        return `${hours} ${hours === 1 ? 'שעה' : 'שעות'}`
+    } else {
+        return `${hours} ${hours === 1 ? 'שעה' : 'שעות'} ${remainingMinutes} דקות`
+    }
+}
+
 interface PendingSubActionRowProps {
     subAction: {
         name: string
@@ -116,12 +132,12 @@ function PendingSubActionRow({ subAction, onRemove }: PendingSubActionRowProps) 
                 <span className="text-xs text-gray-500">פעולת משנה</span>
             </TableCell>
             <TableCell>
-                <span className="text-sm">{subAction.duration} דקות</span>
+                <span className="text-sm">{formatDuration(subAction.duration)}</span>
             </TableCell>
             <TableCell className="text-right">
                 <span className="text-gray-600">
                     {subAction.is_active ? (
-                        <span>{subAction.duration} דקות</span>
+                        <span>{formatDuration(subAction.duration)}</span>
                     ) : (
                         <span className="text-gray-400">לא הוגדר</span>
                     )}
@@ -185,7 +201,7 @@ function DraftSubActionRow({ draft, onUpdate, onSave, onCancel }: DraftSubAction
             <TableCell className="text-right">
                 <span className="text-gray-600">
                     {draft.is_active ? (
-                        <span>{draft.duration} דקות</span>
+                        <span>{formatDuration(draft.duration)}</span>
                     ) : (
                         <span className="text-gray-400">לא הוגדר</span>
                     )}
@@ -373,14 +389,14 @@ function ExistingSubActionRow({
                         className="text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors"
                         onClick={() => onStartEdit(subAction.id, "duration", subAction.duration)}
                     >
-                        {subAction.duration} דקות
+                        {formatDuration(subAction.duration)}
                     </span>
                 )}
             </TableCell>
             <TableCell className="text-right">
                 <span className="text-gray-600">
                     {subAction.is_active ? (
-                        <span>{subAction.duration} דקות</span>
+                        <span>{formatDuration(subAction.duration)}</span>
                     ) : (
                         <span className="text-gray-400">לא הוגדר</span>
                     )}
@@ -1847,7 +1863,7 @@ export default function ServicesListPage() {
                                                         >
                                                             {totalDuration > 0 ? (
                                                                 <div>
-                                                                    <span>{totalDuration} דקות</span>
+                                                                    <span>{formatDuration(totalDuration)}</span>
                                                                     {serviceMode === "complicated" && totalSubActionsCount > 0 && (
                                                                         <span className="text-xs text-gray-500 block mt-1">
                                                                             ({activeSubActionsCount}/{totalSubActionsCount} פעולות פעילות)
@@ -1863,7 +1879,7 @@ export default function ServicesListPage() {
                                                 <TableCell className="text-right">
                                                     <span className="text-gray-600">
                                                         {activeDuration > 0 ? (
-                                                            <span>{activeDuration} דקות</span>
+                                                            <span>{formatDuration(activeDuration)}</span>
                                                         ) : (
                                                             <span className="text-gray-400">לא הוגדר</span>
                                                         )}
