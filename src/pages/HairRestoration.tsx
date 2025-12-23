@@ -4,7 +4,6 @@ import { Button } from "../components/ui/button.tsx"
 import { Sparkles, CheckCircle, ArrowRight, ChevronLeft, Info } from "lucide-react"
 
 export default function HairRestoration() {
-    const primaryColor = "#4f60a8"
 
     return (
         <div className="min-h-screen from-slate-50 via-primary/10 to-primary/10" dir="rtl">
@@ -190,7 +189,6 @@ export default function HairRestoration() {
                                         asChild
                                         size="lg"
                                         className="text-white text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all hover:opacity-90"
-                                        style={{ backgroundColor: primaryColor }}
                                     >
                                         <Link to="/setup-appointment" className="flex items-center justify-center gap-2">
                                             להתאמת סדרת טיפולים נתחיל באבחון
