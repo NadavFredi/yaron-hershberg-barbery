@@ -110,30 +110,44 @@ function PendingSubActionRow({ subAction, onRemove }: PendingSubActionRowProps) 
                 </div>
             </TableCell>
             <TableCell>
-                <span className="text-xs text-gray-500">פעולת משנה (ממתין)</span>
+                {/* Category - empty for sub-actions */}
+            </TableCell>
+            <TableCell>
+                <span className="text-xs text-gray-500">פעולת משנה</span>
             </TableCell>
             <TableCell>
                 <span className="text-sm">{subAction.duration} דקות</span>
             </TableCell>
+            <TableCell className="text-right">
+                <span className="text-gray-600">
+                    {subAction.is_active ? (
+                        <span>{subAction.duration} דקות</span>
+                    ) : (
+                        <span className="text-gray-400">לא הוגדר</span>
+                    )}
+                </span>
+            </TableCell>
             <TableCell className="text-gray-600 text-sm">
                 {subAction.description || "-"}
             </TableCell>
-            <TableCell></TableCell>
+            <TableCell>
+                {/* Base Price - empty for sub-actions */}
+            </TableCell>
             <TableCell>
                 <div className="flex items-center gap-2">
                     <Checkbox checked={subAction.is_active} disabled />
                     <Label className="text-xs">זמן עבודה פעיל</Label>
                 </div>
             </TableCell>
-            <TableCell>
-                <div className="flex items-center gap-2 justify-end">
+            <TableCell className="w-[100px]">
+                <div className="flex items-center justify-end">
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={onRemove}
-                        className="h-6 w-6 p-0 text-red-600"
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                     >
-                        <X className="h-3 w-3" />
+                        <X className="h-4 w-4" />
                     </Button>
                 </div>
             </TableCell>
@@ -154,6 +168,9 @@ function DraftSubActionRow({ draft, onUpdate, onSave, onCancel }: DraftSubAction
                 />
             </TableCell>
             <TableCell>
+                {/* Category - empty for sub-actions */}
+            </TableCell>
+            <TableCell>
                 <span className="text-xs text-gray-500">פעולת משנה</span>
             </TableCell>
             <TableCell>
@@ -165,6 +182,15 @@ function DraftSubActionRow({ draft, onUpdate, onSave, onCancel }: DraftSubAction
                     />
                 </div>
             </TableCell>
+            <TableCell className="text-right">
+                <span className="text-gray-600">
+                    {draft.is_active ? (
+                        <span>{draft.duration} דקות</span>
+                    ) : (
+                        <span className="text-gray-400">לא הוגדר</span>
+                    )}
+                </span>
+            </TableCell>
             <TableCell>
                 <Input
                     value={draft.description}
@@ -174,7 +200,9 @@ function DraftSubActionRow({ draft, onUpdate, onSave, onCancel }: DraftSubAction
                     dir="rtl"
                 />
             </TableCell>
-            <TableCell></TableCell>
+            <TableCell>
+                {/* Base Price - empty for sub-actions */}
+            </TableCell>
             <TableCell>
                 <div className="flex items-center gap-2">
                     <Checkbox
@@ -259,7 +287,7 @@ function ExistingSubActionRow({
             style={style}
             className={cn("bg-gray-50/50", isDragging && "opacity-50 z-50")}
         >
-            <TableCell className="pl-12 w-fit">
+            <TableCell className="pl-12">
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
@@ -313,6 +341,9 @@ function ExistingSubActionRow({
                 </div>
             </TableCell>
             <TableCell>
+                {/* Category - empty for sub-actions */}
+            </TableCell>
+            <TableCell>
                 <span className="text-xs text-gray-500">פעולת משנה</span>
             </TableCell>
             <TableCell>
@@ -345,6 +376,15 @@ function ExistingSubActionRow({
                         {subAction.duration} דקות
                     </span>
                 )}
+            </TableCell>
+            <TableCell className="text-right">
+                <span className="text-gray-600">
+                    {subAction.is_active ? (
+                        <span>{subAction.duration} דקות</span>
+                    ) : (
+                        <span className="text-gray-400">לא הוגדר</span>
+                    )}
+                </span>
             </TableCell>
             <TableCell>
                 {isEditingDescription ? (
@@ -389,7 +429,9 @@ function ExistingSubActionRow({
                     </span>
                 )}
             </TableCell>
-            <TableCell></TableCell>
+            <TableCell>
+                {/* Base Price - empty for sub-actions */}
+            </TableCell>
             <TableCell>
                 <div className="flex items-center gap-2">
                     <Checkbox
@@ -401,15 +443,17 @@ function ExistingSubActionRow({
                     </Label>
                 </div>
             </TableCell>
-            <TableCell>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onDelete}
-                    className="h-6 w-6 p-0 text-red-600"
-                >
-                    <Trash2 className="h-3 w-3" />
-                </Button>
+            <TableCell className="w-[100px]">
+                <div className="flex items-center justify-end">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onDelete}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
             </TableCell>
         </TableRow>
     )
@@ -2038,6 +2082,21 @@ export default function ServicesListPage() {
                                                         </DndContext>
                                                     )
                                                     serviceRows.push(
+                                                        <TableRow key={`${service.id}-add-row-pending`} className="bg-gray-50/50">
+                                                            <TableCell colSpan={9} className="p-2">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleStartAddingSubAction(service.id)}
+                                                                    className="w-full justify-start mb-2"
+                                                                >
+                                                                    <Plus className="h-4 w-4 ml-2" />
+                                                                    הוסף שורה נוספת
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                    serviceRows.push(
                                                         <TableRow key={`${service.id}-pending-actions`}>
                                                             <TableCell colSpan={9} className="p-2">
                                                                 <div className="flex items-center gap-2 justify-end">
@@ -2068,18 +2127,24 @@ export default function ServicesListPage() {
 
                                                 if ((draftSubActions.get(service.id) || []).length > 0) {
                                                     serviceRows.push(
-                                                        <TableRow key={`${service.id}-draft-actions`} className="bg-gray-50/50">
+                                                        <TableRow key={`${service.id}-add-row-draft`} className="bg-gray-50/50">
                                                             <TableCell colSpan={9} className="p-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => handleStartAddingSubAction(service.id)}
-                                                                        className="flex-1 justify-start"
-                                                                    >
-                                                                        <Plus className="h-4 w-4 ml-2" />
-                                                                        הוסף שורה נוספת
-                                                                    </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleStartAddingSubAction(service.id)}
+                                                                    className="w-full justify-start mb-2"
+                                                                >
+                                                                    <Plus className="h-4 w-4 ml-2" />
+                                                                    הוסף שורה נוספת
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                    serviceRows.push(
+                                                        <TableRow key={`${service.id}-draft-actions`}>
+                                                            <TableCell colSpan={9} className="p-2">
+                                                                <div className="flex items-center gap-2 justify-end">
                                                                     <Button
                                                                         variant="outline"
                                                                         size="sm"
@@ -2124,7 +2189,7 @@ export default function ServicesListPage() {
                                                     )
                                                 }
 
-                                                if ((draftSubActions.get(service.id) || []).length === 0) {
+                                                if ((draftSubActions.get(service.id) || []).length === 0 && (pendingSubActions.get(service.id) || []).length === 0) {
                                                     serviceRows.push(
                                                         <TableRow key={`${service.id}-add-row`} className="bg-gray-50/50">
                                                             <TableCell colSpan={9} className="p-2">
