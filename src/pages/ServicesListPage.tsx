@@ -19,7 +19,6 @@ import {
     useSortable,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { DurationInput } from "@/components/DurationInput"
 import { useToast } from "@/hooks/use-toast"
 import {
     useServices,
@@ -50,6 +49,22 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover"
 import { RichTextEditor } from "@/components/admin/RichTextEditor"
+
+// Utility function to format minutes into hours and minutes
+const formatDuration = (minutes: number): string => {
+    if (minutes <= 0) return "0 דקות"
+
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+
+    if (hours === 0) {
+        return `${remainingMinutes} דקות`
+    } else if (remainingMinutes === 0) {
+        return `${hours} ${hours === 1 ? 'שעה' : 'שעות'}`
+    } else {
+        return `${hours} ${hours === 1 ? 'שעה' : 'שעות'} ${remainingMinutes} דקות`
+    }
+}
 
 interface PendingSubActionRowProps {
     subAction: {
@@ -94,7 +109,7 @@ function PendingSubActionRow({ subAction, onRemove }: PendingSubActionRowProps) 
         <TableRow
             ref={setNodeRef}
             style={style}
-            className={cn("bg-primary/10/50", isDragging && "opacity-50")}
+            className={cn("bg-orange-50/60", isDragging && "opacity-50")}
         >
             <TableCell className="pl-12">
                 <div className="flex items-center gap-2">
@@ -110,30 +125,44 @@ function PendingSubActionRow({ subAction, onRemove }: PendingSubActionRowProps) 
                 </div>
             </TableCell>
             <TableCell>
-                <span className="text-xs text-gray-500">פעולת משנה (ממתין)</span>
+                {/* Category - empty for sub-actions */}
             </TableCell>
             <TableCell>
-                <span className="text-sm">{subAction.duration} דקות</span>
+                <span className="text-xs text-gray-500">פעולת משנה</span>
+            </TableCell>
+            <TableCell>
+                <span className="text-sm">{formatDuration(subAction.duration)}</span>
+            </TableCell>
+            <TableCell className="text-right">
+                <span className="text-gray-600">
+                    {subAction.is_active ? (
+                        <span>{formatDuration(subAction.duration)}</span>
+                    ) : (
+                        <span className="text-gray-400">לא הוגדר</span>
+                    )}
+                </span>
             </TableCell>
             <TableCell className="text-gray-600 text-sm">
                 {subAction.description || "-"}
             </TableCell>
-            <TableCell></TableCell>
+            <TableCell>
+                {/* Base Price - empty for sub-actions */}
+            </TableCell>
             <TableCell>
                 <div className="flex items-center gap-2">
                     <Checkbox checked={subAction.is_active} disabled />
                     <Label className="text-xs">זמן עבודה פעיל</Label>
                 </div>
             </TableCell>
-            <TableCell>
-                <div className="flex items-center gap-2 justify-end">
+            <TableCell className="w-[100px]">
+                <div className="flex items-center justify-end">
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={onRemove}
-                        className="h-6 w-6 p-0 text-red-600"
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                     >
-                        <X className="h-3 w-3" />
+                        <X className="h-4 w-4" />
                     </Button>
                 </div>
             </TableCell>
@@ -143,7 +172,7 @@ function PendingSubActionRow({ subAction, onRemove }: PendingSubActionRowProps) 
 
 function DraftSubActionRow({ draft, onUpdate, onSave, onCancel }: DraftSubActionRowProps) {
     return (
-        <TableRow className="bg-primary/10/50">
+        <TableRow className="bg-orange-50/60">
             <TableCell className="pl-12">
                 <Input
                     value={draft.name}
@@ -154,16 +183,32 @@ function DraftSubActionRow({ draft, onUpdate, onSave, onCancel }: DraftSubAction
                 />
             </TableCell>
             <TableCell>
+                {/* Category - empty for sub-actions */}
+            </TableCell>
+            <TableCell>
                 <span className="text-xs text-gray-500">פעולת משנה</span>
             </TableCell>
             <TableCell>
-                <div className="hover:ring-2 hover:ring-primary/20 rounded-md transition-all w-full min-w-[180px]">
-                    <DurationInput
+                <div className="flex items-center gap-1">
+                    <Input
+                        type="number"
                         value={draft.duration}
-                        onChange={(minutes) => onUpdate({ ...draft, duration: minutes })}
-                        className="h-7 w-full"
+                        onChange={(e) => onUpdate({ ...draft, duration: parseInt(e.target.value) || 0 })}
+                        placeholder="דקות"
+                        className="h-7 w-20"
+                        dir="rtl"
                     />
+                    <span className="text-sm">דקות</span>
                 </div>
+            </TableCell>
+            <TableCell className="text-right">
+                <span className="text-gray-600">
+                    {draft.is_active ? (
+                        <span>{formatDuration(draft.duration)}</span>
+                    ) : (
+                        <span className="text-gray-400">לא הוגדר</span>
+                    )}
+                </span>
             </TableCell>
             <TableCell>
                 <Input
@@ -174,7 +219,9 @@ function DraftSubActionRow({ draft, onUpdate, onSave, onCancel }: DraftSubAction
                     dir="rtl"
                 />
             </TableCell>
-            <TableCell></TableCell>
+            <TableCell>
+                {/* Base Price - empty for sub-actions */}
+            </TableCell>
             <TableCell>
                 <div className="flex items-center gap-2">
                     <Checkbox
@@ -257,9 +304,9 @@ function ExistingSubActionRow({
         <TableRow
             ref={setNodeRef}
             style={style}
-            className={cn("bg-gray-50/50", isDragging && "opacity-50 z-50")}
+            className={cn("bg-orange-50/60", isDragging && "opacity-50 z-50")}
         >
-            <TableCell className="pl-12 w-fit">
+            <TableCell className="pl-12">
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
@@ -313,21 +360,38 @@ function ExistingSubActionRow({
                 </div>
             </TableCell>
             <TableCell>
+                {/* Category - empty for sub-actions */}
+            </TableCell>
+            <TableCell>
                 <span className="text-xs text-gray-500">פעולת משנה</span>
             </TableCell>
             <TableCell>
                 {isEditingDuration ? (
                     <div className="flex items-center gap-1">
-                        <div className="hover:ring-2 hover:ring-primary/20 rounded-md transition-all">
-                            <DurationInput
-                                value={parseInt(inlineEditValue) || 0}
-                                onChange={(minutes) => {
-                                    setInlineEditValue(String(minutes))
-                                    onSaveEdit(subAction.id, "duration", minutes)
-                                }}
-                                className="h-7 w-24"
-                            />
-                        </div>
+                        <Input
+                            type="number"
+                            value={inlineEditValue}
+                            onChange={(e) => setInlineEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    onSaveEdit(subAction.id, "duration", parseInt(inlineEditValue) || 0)
+                                } else if (e.key === "Escape") {
+                                    onCancelEdit()
+                                }
+                            }}
+                            className="h-7 w-20"
+                            autoFocus
+                            dir="rtl"
+                        />
+                        <span className="text-sm">דקות</span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSaveEdit(subAction.id, "duration", parseInt(inlineEditValue) || 0)}
+                            className="h-5 w-5 p-0"
+                        >
+                            <Check className="h-3 w-3 text-green-600" />
+                        </Button>
                         <Button
                             variant="ghost"
                             size="sm"
@@ -342,9 +406,18 @@ function ExistingSubActionRow({
                         className="text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors"
                         onClick={() => onStartEdit(subAction.id, "duration", subAction.duration)}
                     >
-                        {subAction.duration} דקות
+                        {formatDuration(subAction.duration)}
                     </span>
                 )}
+            </TableCell>
+            <TableCell className="text-right">
+                <span className="text-gray-600">
+                    {subAction.is_active ? (
+                        <span>{formatDuration(subAction.duration)}</span>
+                    ) : (
+                        <span className="text-gray-400">לא הוגדר</span>
+                    )}
+                </span>
             </TableCell>
             <TableCell>
                 {isEditingDescription ? (
@@ -389,7 +462,9 @@ function ExistingSubActionRow({
                     </span>
                 )}
             </TableCell>
-            <TableCell></TableCell>
+            <TableCell>
+                {/* Base Price - empty for sub-actions */}
+            </TableCell>
             <TableCell>
                 <div className="flex items-center gap-2">
                     <Checkbox
@@ -401,15 +476,17 @@ function ExistingSubActionRow({
                     </Label>
                 </div>
             </TableCell>
-            <TableCell>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onDelete}
-                    className="h-6 w-6 p-0 text-red-600"
-                >
-                    <Trash2 className="h-3 w-3" />
-                </Button>
+            <TableCell className="w-[100px]">
+                <div className="flex items-center justify-end">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onDelete}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
             </TableCell>
         </TableRow>
     )
@@ -1803,7 +1880,7 @@ export default function ServicesListPage() {
                                                         >
                                                             {totalDuration > 0 ? (
                                                                 <div>
-                                                                    <span>{totalDuration} דקות</span>
+                                                                    <span>{formatDuration(totalDuration)}</span>
                                                                     {serviceMode === "complicated" && totalSubActionsCount > 0 && (
                                                                         <span className="text-xs text-gray-500 block mt-1">
                                                                             ({activeSubActionsCount}/{totalSubActionsCount} פעולות פעילות)
@@ -1819,7 +1896,7 @@ export default function ServicesListPage() {
                                                 <TableCell className="text-right">
                                                     <span className="text-gray-600">
                                                         {activeDuration > 0 ? (
-                                                            <span>{activeDuration} דקות</span>
+                                                            <span>{formatDuration(activeDuration)}</span>
                                                         ) : (
                                                             <span className="text-gray-400">לא הוגדר</span>
                                                         )}
@@ -2038,6 +2115,21 @@ export default function ServicesListPage() {
                                                         </DndContext>
                                                     )
                                                     serviceRows.push(
+                                                        <TableRow key={`${service.id}-add-row-pending`} className="bg-gray-50/50">
+                                                            <TableCell colSpan={9} className="p-2">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleStartAddingSubAction(service.id)}
+                                                                    className="w-full justify-start mb-2"
+                                                                >
+                                                                    <Plus className="h-4 w-4 ml-2" />
+                                                                    הוסף שורה נוספת
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                    serviceRows.push(
                                                         <TableRow key={`${service.id}-pending-actions`}>
                                                             <TableCell colSpan={9} className="p-2">
                                                                 <div className="flex items-center gap-2 justify-end">
@@ -2068,18 +2160,24 @@ export default function ServicesListPage() {
 
                                                 if ((draftSubActions.get(service.id) || []).length > 0) {
                                                     serviceRows.push(
-                                                        <TableRow key={`${service.id}-draft-actions`} className="bg-gray-50/50">
+                                                        <TableRow key={`${service.id}-add-row-draft`} className="bg-gray-50/50">
                                                             <TableCell colSpan={9} className="p-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => handleStartAddingSubAction(service.id)}
-                                                                        className="flex-1 justify-start"
-                                                                    >
-                                                                        <Plus className="h-4 w-4 ml-2" />
-                                                                        הוסף שורה נוספת
-                                                                    </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleStartAddingSubAction(service.id)}
+                                                                    className="w-full justify-start mb-2"
+                                                                >
+                                                                    <Plus className="h-4 w-4 ml-2" />
+                                                                    הוסף שורה נוספת
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                    serviceRows.push(
+                                                        <TableRow key={`${service.id}-draft-actions`}>
+                                                            <TableCell colSpan={9} className="p-2">
+                                                                <div className="flex items-center gap-2 justify-end">
                                                                     <Button
                                                                         variant="outline"
                                                                         size="sm"
@@ -2124,7 +2222,7 @@ export default function ServicesListPage() {
                                                     )
                                                 }
 
-                                                if ((draftSubActions.get(service.id) || []).length === 0) {
+                                                if ((draftSubActions.get(service.id) || []).length === 0 && (pendingSubActions.get(service.id) || []).length === 0) {
                                                     serviceRows.push(
                                                         <TableRow key={`${service.id}-add-row`} className="bg-gray-50/50">
                                                             <TableCell colSpan={9} className="p-2">
