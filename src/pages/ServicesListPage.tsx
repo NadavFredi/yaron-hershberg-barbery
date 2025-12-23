@@ -19,7 +19,6 @@ import {
     useSortable,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { DurationInput } from "@/components/DurationInput"
 import { useToast } from "@/hooks/use-toast"
 import {
     useServices,
@@ -110,7 +109,7 @@ function PendingSubActionRow({ subAction, onRemove }: PendingSubActionRowProps) 
         <TableRow
             ref={setNodeRef}
             style={style}
-            className={cn("bg-primary/10/50", isDragging && "opacity-50")}
+            className={cn("bg-orange-50/60", isDragging && "opacity-50")}
         >
             <TableCell className="pl-12">
                 <div className="flex items-center gap-2">
@@ -173,7 +172,7 @@ function PendingSubActionRow({ subAction, onRemove }: PendingSubActionRowProps) 
 
 function DraftSubActionRow({ draft, onUpdate, onSave, onCancel }: DraftSubActionRowProps) {
     return (
-        <TableRow className="bg-primary/10/50">
+        <TableRow className="bg-orange-50/60">
             <TableCell className="pl-12">
                 <Input
                     value={draft.name}
@@ -190,12 +189,16 @@ function DraftSubActionRow({ draft, onUpdate, onSave, onCancel }: DraftSubAction
                 <span className="text-xs text-gray-500">פעולת משנה</span>
             </TableCell>
             <TableCell>
-                <div className="hover:ring-2 hover:ring-primary/20 rounded-md transition-all w-full min-w-[180px]">
-                    <DurationInput
+                <div className="flex items-center gap-1">
+                    <Input
+                        type="number"
                         value={draft.duration}
-                        onChange={(minutes) => onUpdate({ ...draft, duration: minutes })}
-                        className="h-7 w-full"
+                        onChange={(e) => onUpdate({ ...draft, duration: parseInt(e.target.value) || 0 })}
+                        placeholder="דקות"
+                        className="h-7 w-20"
+                        dir="rtl"
                     />
+                    <span className="text-sm">דקות</span>
                 </div>
             </TableCell>
             <TableCell className="text-right">
@@ -301,7 +304,7 @@ function ExistingSubActionRow({
         <TableRow
             ref={setNodeRef}
             style={style}
-            className={cn("bg-gray-50/50", isDragging && "opacity-50 z-50")}
+            className={cn("bg-orange-50/60", isDragging && "opacity-50 z-50")}
         >
             <TableCell className="pl-12">
                 <div className="flex items-center gap-2">
@@ -365,16 +368,30 @@ function ExistingSubActionRow({
             <TableCell>
                 {isEditingDuration ? (
                     <div className="flex items-center gap-1">
-                        <div className="hover:ring-2 hover:ring-primary/20 rounded-md transition-all">
-                            <DurationInput
-                                value={parseInt(inlineEditValue) || 0}
-                                onChange={(minutes) => {
-                                    setInlineEditValue(String(minutes))
-                                    onSaveEdit(subAction.id, "duration", minutes)
-                                }}
-                                className="h-7 w-24"
-                            />
-                        </div>
+                        <Input
+                            type="number"
+                            value={inlineEditValue}
+                            onChange={(e) => setInlineEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    onSaveEdit(subAction.id, "duration", parseInt(inlineEditValue) || 0)
+                                } else if (e.key === "Escape") {
+                                    onCancelEdit()
+                                }
+                            }}
+                            className="h-7 w-20"
+                            autoFocus
+                            dir="rtl"
+                        />
+                        <span className="text-sm">דקות</span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSaveEdit(subAction.id, "duration", parseInt(inlineEditValue) || 0)}
+                            className="h-5 w-5 p-0"
+                        >
+                            <Check className="h-3 w-3 text-green-600" />
+                        </Button>
                         <Button
                             variant="ghost"
                             size="sm"
