@@ -1210,6 +1210,47 @@ export default function ServicesListPage() {
         setPendingSubActions(new Map(pendingSubActions.set(serviceId, currentPending.filter(sa => sa.tempId !== tempId))))
     }
 
+    const handleDeleteSubAction = async (subActionId: string) => {
+        try {
+            // Find the service that contains this sub-action
+            const service = services.find(s =>
+                s.service_sub_actions?.some(sa => sa.id === subActionId)
+            )
+
+            if (!service) {
+                toast({
+                    title: "שגיאה",
+                    description: "לא נמצא השירות",
+                    variant: "destructive",
+                })
+                return
+            }
+
+            // Check if this is the last sub-action
+            const remainingSubActionsCount = (service.service_sub_actions || []).length
+            const isLastSubAction = remainingSubActionsCount === 1
+
+            // Delete the sub-action
+            await deleteSubAction.mutateAsync(subActionId)
+
+            // If this was the last sub-action, update mode to simple
+            if (isLastSubAction && service.mode === "complicated") {
+                await updateService.mutateAsync({
+                    serviceId: service.id,
+                    mode: "simple",
+                })
+            }
+        } catch (error: unknown) {
+            console.error("Error deleting sub-action:", error)
+            const errorMessage = error instanceof Error ? error.message : "לא ניתן למחוק את פעולת המשנה"
+            toast({
+                title: "שגיאה",
+                description: errorMessage,
+                variant: "destructive",
+            })
+        }
+    }
+
     const handleSaveAllPendingSubActions = async (serviceId: string) => {
         const pending = pendingSubActions.get(serviceId) || []
 
@@ -1898,7 +1939,7 @@ export default function ServicesListPage() {
                                                                         handleSubActionActiveChange(subAction.id, checked)
                                                                     }}
                                                                     onDelete={() => {
-                                                                        deleteSubAction.mutateAsync(subAction.id)
+                                                                        handleDeleteSubAction(subAction.id)
                                                                     }}
                                                                     editingField={editingField}
                                                                     onStartEdit={(subActionId, field, value) => {
